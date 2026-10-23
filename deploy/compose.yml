@@ -1,0 +1,108 @@
+services:
+  control-plane:
+    image: ${ATLAS_SERVER_IMAGE:-signal-atlas-server:local}
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      target: server
+    env_file:
+      - path: ${UPSTREAM_ENV_FILE:-./upstreams.env}
+        required: false
+        format: raw
+    environment:
+      PLATFORM_MODE: production
+      STORE_MODE: postgres
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in the private runtime configuration}
+      DATABASE_SCHEMA: ${DATABASE_SCHEMA:?Set DATABASE_SCHEMA}
+      SERVICE_TOKEN: ${SERVICE_TOKEN:?Set a strong SERVICE_TOKEN}
+      BOOTSTRAP_TOKEN: ${BOOTSTRAP_TOKEN:?Set a different strong BOOTSTRAP_TOKEN}
+      WEB_ORIGIN: ${PUBLIC_ORIGIN:?Set the exact public HTTPS origin}
+      COOKIE_SECURE: 'true'
+      ALLOW_UPSTREAM_VALIDATION: ${ALLOW_UPSTREAM_VALIDATION:-false}
+      PORT: '4001'
+    restart: unless-stopped
+    read_only: true
+    tmpfs: [/tmp]
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:4001/health').then(async r=>{const v=await r.json();if(!r.ok||v.status!=='ok')process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 6s
+      start_period: 20s
+      retries: 6
+  gateway:
+    image: ${ATLAS_SERVER_IMAGE:-signal-atlas-server:local}
+    command: [services/gateway-sim/dist/server.js]
+    env_file:
+      - path: ${UPSTREAM_ENV_FILE:-./upstreams.env}
+        required: false
+        format: raw
+    environment:
+      PLATFORM_MODE: production
+      PORT: '4000'
+      CONTROL_PLANE_URL: http://control-plane:4001
+      SERVICE_TOKEN: ${SERVICE_TOKEN:?Set a strong SERVICE_TOKEN}
+      WEB_ORIGIN: ${PUBLIC_ORIGIN:?Set the exact public HTTPS origin}
+      GATEWAY_JOURNAL_DIR: ${GATEWAY_JOURNAL_PATH:-/var/lib/signal-atlas/journal}
+      ALLOW_UPSTREAM_REQUESTS: ${ALLOW_UPSTREAM_REQUESTS:-false}
+    volumes:
+      - gateway_journal:/var/lib/signal-atlas/journal
+    depends_on:
+      control-plane: {condition: service_healthy}
+    restart: unless-stopped
+    stop_grace_period: 45s
+    read_only: true
+    tmpfs: [/tmp]
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:4000/health').then(async r=>{const v=await r.json();if(!r.ok||v.status!=='ok')process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 6s
+      start_period: 10s
+      retries: 6
+  web:
+    image: ${ATLAS_WEB_IMAGE:-signal-atlas-web:local}
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      target: web
+      args:
+        PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:?Set the exact public HTTPS origin}
+    ports:
+      - '${BIND_ADDRESS:-127.0.0.1}:${HTTPS_PORT:-8443}:8443'
+    volumes:
+      - type: bind
+        source: ${TLS_DIRECTORY:?Set the absolute TLS certificate directory}
+        target: /etc/signal-atlas/tls
+        read_only: true
+        bind: {create_host_path: false}
+    depends_on:
+      control-plane: {condition: service_healthy}
+      gateway: {condition: service_healthy}
+    restart: unless-stopped
+    read_only: true
+    tmpfs: [/tmp]
+    healthcheck:
+      test: [CMD, wget, -q, --no-check-certificate, -O, /dev/null, https://127.0.0.1:8443/health]
+      interval: 10s
+      timeout: 5s
+      start_period: 5s
+      retries: 6
+  operations:
+    profiles: [tools]
+    image: ${ATLAS_OPERATIONS_IMAGE:-signal-atlas-operations:local}
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      target: operations
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL}
+      DATABASE_SCHEMA: ${DATABASE_SCHEMA:?Set DATABASE_SCHEMA}
+    volumes:
+      - gateway_journal:/journals/gateway-001
+      - type: bind
+        source: ${BACKUP_DIRECTORY:-../.runtime/backups}
+        target: /backups
+        bind: {create_host_path: false}
+    read_only: true
+    tmpfs: [/tmp]
+volumes:
+  gateway_journal:

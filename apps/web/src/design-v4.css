@@ -1,0 +1,1197 @@
+/* Signal Atlas v4 — "Atlas Blue".
+   A blue-gray daylight review design. Geometry is the v3 shell (left menu +
+   page tabs) so operators keep their navigation; only the visual language,
+   the shell chrome and the component layer are new. Every rule is scoped to
+   html[data-ui="azure"], so the Signal Desk (green) and classic themes are
+   untouched. Palette is the 蓝灰浅色 daylight set: canvas #e9eef6, paper
+   #ffffff, deep blue primary #1d4f8c, blue-grey lines #dae3ee. */
+
+html[data-ui="azure"] {
+  color-scheme: light;
+
+  /* surfaces */
+  --bg: #e9eef6;
+  --surface: #ffffff;
+  --surface2: #f4f7fb;
+  --surface3: #e7eef7;
+  --line: #dae3ee;
+  --line-strong: #c3d0e1;
+
+  /* ink */
+  --text: #172536;
+  --muted: #586c84;
+  --azure-faint: #71839a;
+
+  /* action */
+  --action: #1d4f8c;
+  --action-ink: #ffffff;
+  --run: #1d4f8c;
+  --tint: #e6eefa;
+  --blue: #2f6db5;
+  --v2-primary-hover: #17406f;
+  --v2-primary-strong: #123a66;
+
+  /* status */
+  --ok: #176b4a;
+  --ok-soft: #e8f4ee;
+  --warn: #8a5a00;
+  --warning-bg: #fdf5e6;
+  --v2-amber-soft: #fdf5e6;
+  --danger: #b3261e;
+  --v2-clay-soft: #fbe9e6;
+
+  /* geometry */
+  --radius-control: 10px;
+  --radius-panel: 14px;
+  --radius-tag: 6px;
+  --azure-radius: 9px;
+  --v2-pad: 32px;
+  --azure-topbar: 56px;
+  --azure-sidebar: 256px;
+  --v2-mono: "Cascadia Code", "SFMono-Regular", Consolas, "Liberation Mono", ui-monospace, monospace;
+  --azure-shadow-panel: 0 1px 2px rgba(23, 37, 54, .05), 0 12px 26px -22px rgba(23, 37, 54, .4);
+  --azure-shadow-float: 0 22px 56px -26px rgba(23, 37, 54, .38), 0 2px 6px rgba(23, 37, 54, .06);
+}
+
+/* ---------- base ---------- */
+html[data-ui="azure"] body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 14px/1.6 "Segoe UI Variable Text", "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+}
+html[data-ui="azure"] ::selection { background: var(--tint); color: var(--v2-primary-strong); }
+html[data-ui="azure"] :focus-visible { outline: 3px solid rgba(29, 79, 140, .35); outline-offset: 2px; }
+html[data-ui="azure"] a { color: var(--action); }
+html[data-ui="azure"] h1 { font-size: clamp(26px, 2.5vw, 31px); line-height: 1.25; letter-spacing: -.02em; font-weight: 650; margin: 2px 0 6px; }
+html[data-ui="azure"] h2 { font-size: 15.5px; line-height: 1.4; letter-spacing: -.005em; font-weight: 650; margin: 4px 0 10px; }
+html[data-ui="azure"] h3 { font-size: 14px; line-height: 1.5; font-weight: 650; margin: 20px 0 8px; }
+html[data-ui="azure"] p { margin-top: 0; }
+html[data-ui="azure"] small, html[data-ui="azure"] .secondary { color: var(--muted); }
+html[data-ui="azure"] code { font-family: var(--v2-mono); font-size: .92em; background: var(--surface3); border-radius: 5px; padding: 2px 6px; }
+html[data-ui="azure"] * { scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent; }
+html[data-ui="azure"] ::-webkit-scrollbar { width: 9px; height: 9px; }
+html[data-ui="azure"] ::-webkit-scrollbar-track { background: transparent; }
+html[data-ui="azure"] ::-webkit-scrollbar-thumb { background: var(--line-strong); border: 2px solid transparent; border-radius: 999px; background-clip: padding-box; }
+html[data-ui="azure"] ::-webkit-scrollbar-thumb:hover { background: #a8bacf; background-clip: padding-box; }
+
+/* ---------- shell geometry (left menu + page tabs) ---------- */
+html[data-layout="sidebar"][data-ui="azure"] .shell {
+  display: grid;
+  grid-template-columns: var(--azure-sidebar) minmax(0, 1fr);
+  grid-template-rows: var(--azure-topbar) minmax(0, 1fr);
+  min-height: 100vh;
+  background: var(--bg);
+}
+html[data-ui="azure"] .main { grid-column: 2; grid-row: 2; min-width: 0; }
+html[data-ui="azure"] .page { max-width: 1320px; margin: 0 auto; padding: 20px var(--v2-pad) 72px; }
+html[data-ui="azure"] .v2-page-enter { min-width: 0; animation: v2-enter .26s cubic-bezier(.2, .7, .2, 1) both; }
+html[data-ui="azure"] .review-queue { top: calc(var(--azure-topbar) + 56px); }
+
+/* ---------- top bar ---------- */
+.v4-topbar {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  display: flex;
+  align-items: stretch;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+.v4-topbar-inner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  height: var(--azure-topbar);
+  padding: 0 20px 0 16px;
+}
+.v4-menu-button {
+  display: none;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex: none;
+  border: 1px solid var(--line);
+  border-radius: var(--azure-radius);
+  background: var(--surface);
+  color: var(--text);
+}
+.v4-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: var(--azure-radius);
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+}
+.v4-brand:hover { background: var(--surface2); }
+.v4-mark {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex: none;
+  border-radius: 9px;
+  background: linear-gradient(145deg, #2a6cbf, #173f73);
+  color: #fff;
+  box-shadow: 0 4px 12px -6px rgba(30, 79, 145, .7);
+}
+.v4-brand-text b { display: block; font-size: 14.5px; font-weight: 650; letter-spacing: -.01em; line-height: 1.2; }
+.v4-brand-text small { display: block; margin-top: 1px; color: var(--azure-faint); font-size: 10px; letter-spacing: .04em; }
+
+.v4-topbar-divider { width: 1px; height: 22px; flex: none; background: var(--line); }
+.v4-space {
+  display: inline-flex;
+  gap: 2px;
+  flex: none;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: var(--azure-radius);
+  background: var(--surface2);
+}
+.v4-space button {
+  min-height: 26px;
+  padding: 0 11px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.v4-space button:hover { color: var(--text); }
+.v4-space button.active {
+  background: var(--surface);
+  color: var(--v2-primary-strong);
+  font-weight: 650;
+  box-shadow: 0 1px 3px rgba(23, 37, 54, .14);
+}
+.v4-space-static {
+  display: inline-flex;
+  align-items: center;
+  height: 30px;
+  padding: 0 11px;
+  border-radius: var(--azure-radius);
+  background: var(--tint);
+  color: var(--v2-primary-strong);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+/* Page identity lives in the page tabs and the page title; the top bar carries
+   only the brand, the space switch and the global actions. */
+
+.v4-topbar-actions { display: flex; align-items: center; gap: 6px; margin-left: auto; flex: none; }
+.v4-search {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 0 10px 0 11px;
+  border: 1px solid var(--line);
+  border-radius: var(--azure-radius);
+  background: var(--surface2);
+  color: var(--muted);
+  font-size: 12.5px;
+}
+.v4-search:hover { border-color: var(--line-strong); background: var(--surface); color: var(--text); }
+.v4-search kbd { margin-left: 2px; }
+.v4-icon-button {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--azure-radius);
+  background: transparent;
+  color: var(--muted);
+}
+.v4-icon-button:hover { background: var(--surface2); border-color: var(--line); color: var(--text); }
+.v4-icon-button.active { background: var(--tint); border-color: var(--line); color: var(--v2-primary-strong); }
+.v4-badge {
+  position: absolute;
+  top: 0;
+  right: -1px;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 4px;
+  display: grid;
+  place-items: center;
+  border-radius: 5px;
+  background: var(--danger);
+  color: #fff;
+  font: 600 9.5px/1 var(--v2-mono);
+}
+.v4-user {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 4px;
+  padding-left: 10px;
+  border-left: 1px solid var(--line);
+}
+.v4-avatar {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  flex: none;
+  border-radius: 8px;
+  background: var(--tint);
+  color: var(--v2-primary-strong);
+  font-size: 11.5px;
+  font-weight: 650;
+}
+.v4-user-name { max-width: 110px; font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---------- left main menu ---------- */
+.v4-sidebar {
+  grid-column: 1;
+  grid-row: 2;
+  position: sticky;
+  top: var(--azure-topbar);
+  align-self: start;
+  height: calc(100vh - var(--azure-topbar));
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  padding: 14px 12px 16px;
+  background: #f8fafd;
+  border-right: 1px solid var(--line);
+  z-index: 40;
+}
+.v4-side-top { display: flex; align-items: flex-start; gap: 8px; padding: 0 2px 12px; }
+.v4-context {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid #dde6f1;
+  border-radius: var(--azure-radius);
+  background: linear-gradient(135deg, #eef4fc, #f7fafd);
+}
+.v4-context-eyebrow {
+  display: block;
+  color: var(--azure-faint);
+  font: 600 9px/1.4 var(--v2-mono);
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+.v4-context b {
+  display: block;
+  margin-top: 4px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.v4-context small {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 10.5px;
+}
+.v4-context small i { width: 5px; height: 5px; border-radius: 50%; background: var(--action); }
+.v4-close {
+  display: none;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex: none;
+  border: 1px solid var(--line);
+  border-radius: var(--azure-radius);
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 19px;
+  line-height: 1;
+}
+.v4-close:hover { color: var(--text); border-color: var(--line-strong); }
+
+.v4-nav-label {
+  margin: 16px 10px 6px;
+  color: var(--azure-faint);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: .05em;
+}
+.v4-nav-label:first-of-type { margin-top: 8px; }
+.v4-nav { display: flex; flex-direction: column; gap: 2px; }
+.v4-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 38px;
+  padding: 0 11px;
+  border: 0;
+  border-radius: var(--azure-radius);
+  background: transparent;
+  color: #46586e;
+  font-size: 13.5px;
+  text-align: left;
+  transition: background .14s ease, color .14s ease;
+}
+.v4-nav-item svg { flex: none; opacity: .78; }
+.v4-nav-item > span:first-of-type { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.v4-nav-item:hover { background: #eef3fa; color: var(--text); }
+.v4-nav-item.active {
+  background: var(--tint);
+  color: var(--v2-primary-strong);
+  font-weight: 650;
+  box-shadow: inset 3px 0 0 var(--action);
+}
+.v4-nav-item.active svg { color: var(--action); opacity: 1; }
+.v4-nav-badge {
+  margin-left: auto;
+  min-width: 19px;
+  height: 18px;
+  padding: 0 5px;
+  display: grid;
+  place-items: center;
+  border-radius: 5px;
+  background: var(--surface3);
+  color: var(--muted);
+  font: 650 10.5px/1 var(--v2-mono);
+}
+.v4-nav-item.active .v4-nav-badge { background: #fff; color: var(--action); }
+.v4-nav-badge.is-alert { background: var(--v2-clay-soft); color: var(--danger); }
+.v4-sidebar-footer { display: none; margin-top: auto; padding: 16px 2px 0; border-top: 1px solid var(--line); }
+.v4-side-note { display: block; margin: 0 2px 10px; color: var(--azure-faint); font-size: 10.5px; line-height: 1.5; }
+
+/* ---------- page tabs ---------- */
+.v4-tabbar {
+  position: sticky;
+  top: var(--azure-topbar);
+  z-index: 25;
+  background: var(--bg);
+  padding-top: 10px;
+}
+.v4-tabbar-inner { display: flex; align-items: center; width: 100%; max-width: 1320px; margin: 0 auto; padding: 0 var(--v2-pad); }
+.v4-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.v4-tabs::-webkit-scrollbar { display: none; }
+.v4-tab {
+  display: flex;
+  align-items: center;
+  flex: none;
+  height: 32px;
+  border-radius: var(--azure-radius);
+  transition: background .14s ease;
+}
+.v4-tab:hover { background: #e2e9f3; }
+.v4-tab.active { background: var(--surface); box-shadow: 0 1px 2px rgba(23, 37, 54, .09), 0 0 0 1px rgba(23, 37, 54, .05); }
+.v4-tab-select {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 6px 0 10px;
+  border: 0;
+  border-radius: var(--azure-radius);
+  background: transparent;
+  color: var(--muted);
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+.v4-tab-select svg { flex: none; opacity: .7; }
+.v4-tab.active .v4-tab-select { color: var(--v2-primary-strong); font-weight: 650; padding-right: 4px; }
+.v4-tab.active .v4-tab-select svg { color: var(--action); opacity: 1; }
+.v4-tab-close {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  margin-right: 4px;
+  flex: none;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--azure-faint);
+  font-size: 14px;
+  line-height: 1;
+}
+.v4-tab-close:hover { background: #e4ebf5; color: var(--text); }
+.v4-tab-close:focus-visible { outline-offset: 0; }
+.v4-backdrop { display: none; }
+
+/* ---------- page head ---------- */
+html[data-ui="azure"] .heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin-bottom: 18px; }
+html[data-ui="azure"] .heading .eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--action);
+  font: 650 10px/1.4 var(--v2-mono);
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+html[data-ui="azure"] .heading .eyebrow::before { content: ""; width: 14px; height: 2px; border-radius: 2px; background: var(--action); }
+html[data-ui="azure"] .heading .ghost { min-height: 36px; padding: 0 13px; font-size: 12.5px; }
+html[data-ui="azure"] .page-lede { max-width: 760px; margin: 0; color: var(--muted); font-size: 13px; line-height: 1.65; }
+html[data-ui="azure"] .page-context {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  color: var(--azure-faint);
+  font: 600 10px/1.4 var(--v2-mono);
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+html[data-ui="azure"] .page-context::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--action); box-shadow: 0 0 0 3px var(--tint); }
+html[data-ui="azure"] .page-context-date { margin-left: auto; color: var(--azure-faint); }
+
+/* ---------- surfaces ---------- */
+html[data-ui="azure"] .panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  padding: 20px 24px 22px;
+  margin-bottom: 14px;
+  min-width: 0;
+  box-shadow: var(--azure-shadow-panel);
+}
+html[data-ui="azure"] .panel > .section-head { gap: 16px; margin-bottom: 6px; }
+html[data-ui="azure"] .panel > .section-head h2 { display: flex; align-items: center; gap: 9px; margin: 0; }
+html[data-ui="azure"] .panel > .section-head h2::before {
+  content: "";
+  width: 3px;
+  height: 15px;
+  border-radius: 2px;
+  flex: none;
+  background: linear-gradient(180deg, #3f7fc4, #1d4f8c);
+}
+html[data-ui="azure"] .section-head { gap: 14px; flex-wrap: wrap; }
+html[data-ui="azure"] .eyebrow { color: var(--muted); font-family: var(--v2-mono); font-size: 10px; letter-spacing: .12em; }
+html[data-ui="azure"] .resource-card { background: var(--surface2); border: 1px solid var(--line); border-radius: 11px; padding: 16px 18px; margin: 0 0 10px; }
+html[data-ui="azure"] .resource-card h3 { margin-top: 0; }
+html[data-ui="azure"] .cell-help { max-width: 300px; line-height: 1.5; color: var(--muted); }
+
+/* ---------- actions ---------- */
+html[data-ui="azure"] .primary,
+html[data-ui="azure"] .ghost,
+html[data-ui="azure"] .danger-button {
+  min-height: 38px;
+  padding: 0 16px;
+  border-radius: var(--azure-radius);
+  font-size: 13px;
+  font-weight: 600;
+  transition: background .14s ease, border-color .14s ease, color .14s ease, box-shadow .14s ease;
+}
+html[data-ui="azure"] .primary {
+  border: 1px solid #1b4a84;
+  background: linear-gradient(180deg, #26599a, #1d4f8c);
+  color: var(--action-ink);
+  box-shadow: 0 2px 6px -2px rgba(29, 79, 140, .5);
+}
+html[data-ui="azure"] .primary:hover { background: linear-gradient(180deg, #2d68b2, #215897); border-color: #1a457b; }
+html[data-ui="azure"] .primary:active { background: linear-gradient(180deg, #1d4f8c, #194475); }
+html[data-ui="azure"] .ghost { border: 1px solid var(--line-strong); background: var(--surface); color: var(--text); }
+html[data-ui="azure"] .ghost:hover { border-color: #9db4cd; background: var(--surface2); }
+html[data-ui="azure"] .danger-button { border: 1px solid #d8a7a2; background: var(--surface); color: var(--danger); }
+html[data-ui="azure"] .danger-button:hover { border-color: var(--danger); background: var(--v2-clay-soft); }
+html[data-ui="azure"] .link-button { padding: 2px 0; border: 0; background: transparent; color: var(--action); font-weight: 500; }
+html[data-ui="azure"] .link-button:hover { text-decoration: underline; text-underline-offset: 3px; }
+html[data-ui="azure"] .inline-actions { gap: 12px; }
+html[data-ui="azure"] .inline-actions button { padding: 3px 0; border: 0; background: transparent; color: var(--action); font-size: 12.5px; }
+html[data-ui="azure"] .inline-actions button:hover { text-decoration: underline; text-underline-offset: 3px; }
+html[data-ui="azure"] .inline-actions button:disabled { color: var(--azure-faint); text-decoration: none; }
+html[data-ui="azure"] .actions { gap: 9px; margin-top: 18px; align-items: center; }
+html[data-ui="azure"] .icon-button { border-radius: var(--azure-radius); color: var(--muted); }
+html[data-ui="azure"] .icon-button:hover { background: var(--surface2); color: var(--text); }
+html[data-ui="azure"] button:disabled { cursor: not-allowed; }
+html[data-ui="azure"] .primary:disabled {
+  background: var(--surface3);
+  border-color: var(--line);
+  color: var(--azure-faint);
+  opacity: 1;
+  box-shadow: none;
+}
+html[data-ui="azure"] .ghost:disabled,
+html[data-ui="azure"] .danger-button:disabled { opacity: .55; border-color: var(--line); color: var(--azure-faint); }
+html[data-ui="azure"] .link-button:disabled,
+html[data-ui="azure"] .inline-actions button:disabled { opacity: .55; }
+
+/* ---------- tags & status ---------- */
+html[data-ui="azure"] .tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: var(--radius-tag);
+  background: var(--surface3);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+html[data-ui="azure"] .tag::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: currentColor; flex: none; }
+html[data-ui="azure"] .tag.success { background: var(--ok-soft); color: var(--ok); }
+html[data-ui="azure"] .tag.warning { background: var(--v2-amber-soft); color: var(--warn); }
+html[data-ui="azure"] .tag.danger { background: var(--v2-clay-soft); color: var(--danger); }
+html[data-ui="azure"] .tablewrap td .tag { vertical-align: top; }
+
+/* ---------- notices ---------- */
+html[data-ui="azure"] .notice {
+  margin: 14px 0;
+  padding: 11px 14px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--action);
+  border-radius: 9px;
+  background: var(--surface2);
+  color: var(--text);
+  font-size: 12.5px;
+  line-height: 1.65;
+}
+html[data-ui="azure"] .notice.warning { background: var(--v2-amber-soft); border-color: #ecd9b6; border-left-color: #c58a2b; color: #6d470d; }
+html[data-ui="azure"] .notice.danger { background: var(--v2-clay-soft); border-color: #eed0cb; border-left-color: var(--danger); color: #8e332b; }
+html[data-ui="azure"] .notice .link-button { color: inherit; }
+html[data-ui="azure"] .review-banner {
+  padding: 6px 16px;
+  text-align: center;
+  background: var(--v2-amber-soft);
+  border-bottom: 1px solid #ecd9b6;
+  color: #6d470d;
+  font: 600 10.5px var(--v2-mono);
+  letter-spacing: .04em;
+}
+
+/* ---------- stat strip ---------- */
+html[data-ui="azure"] .metric-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+  margin: 16px 0 18px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  overflow: hidden;
+  box-shadow: var(--azure-shadow-panel);
+}
+html[data-ui="azure"] .metric { padding: 14px 22px 15px; border: 0; border-right: 1px solid var(--line); border-radius: 0; background: transparent; }
+html[data-ui="azure"] .metric:last-child { border-right: 0; }
+html[data-ui="azure"] .metric span { display: block; color: var(--muted); font-size: 11.5px; }
+html[data-ui="azure"] .metric strong { display: block; margin-top: 7px; color: var(--text); font: 650 25px/1.15 var(--v2-mono); letter-spacing: -.03em; }
+html[data-ui="azure"] .metric.is-alert strong { color: var(--warn); }
+html[data-ui="azure"] .metric.is-danger strong { color: var(--danger); }
+html[data-ui="azure"] .metric small { display: block; margin-top: 5px; font-size: 11px; }
+/* Inside a panel the strip drops its own card so it does not read as a box in a
+   box: top/bottom rules plus column dividers only. */
+html[data-ui="azure"] .panel .metric-grid {
+  margin: 14px 0 16px;
+  border: 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+}
+html[data-ui="azure"] .panel .metric { padding: 13px 0; }
+html[data-ui="azure"] .panel .metric:not(:first-child) { padding-left: 20px; }
+html[data-ui="azure"] .panel .metric:not(:last-child) { padding-right: 20px; }
+html[data-ui="azure"] .panel .metric:first-child { padding-left: 0; }
+html[data-ui="azure"] .panel .metric:last-child { padding-right: 0; }
+html[data-ui="azure"] .metric.is-alert strong { color: var(--warn); }
+html[data-ui="azure"] .metric.is-danger strong { color: var(--danger); }
+/* A metric cell that carries a name instead of a number keeps the label row and
+   drops the monospace figure so plan names do not read as quantities. */
+.metric strong.is-text { font-family: inherit; font-size: 15px; font-weight: 650; letter-spacing: -.01em; line-height: 1.35; overflow-wrap: anywhere; }
+html[data-ui="azure"] .summary-line { gap: 26px; }
+html[data-ui="azure"] .summary-line span { color: var(--muted); font-size: 12px; }
+html[data-ui="azure"] .summary-line b { display: block; margin-top: 5px; color: var(--text); font: 650 20px/1.3 var(--v2-mono); }
+html[data-ui="azure"] .project-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0;
+  margin: 16px 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+html[data-ui="azure"] .project-summary > div { min-width: 0; padding: 12px 18px; border: 0; border-right: 1px solid var(--line); background: transparent; color: var(--muted); font-size: 11.5px; }
+html[data-ui="azure"] .project-summary > div:first-child { padding-left: 0; }
+html[data-ui="azure"] .project-summary > div:last-child { border-right: 0; padding-right: 0; }
+html[data-ui="azure"] .project-summary strong { display: block; margin-top: 4px; color: var(--text); font: 650 19px/1.3 var(--v2-mono); white-space: nowrap; }
+html[data-ui="azure"] .balance { display: block; margin: 14px 0 4px; color: var(--action); font: 650 34px/1.15 var(--v2-mono); letter-spacing: -.035em; }
+html[data-ui="azure"] .steps { gap: 10px; }
+html[data-ui="azure"] .steps button { padding: 16px 18px; border: 1px solid var(--line); border-radius: 11px; background: var(--surface2); text-align: left; color: var(--text); }
+html[data-ui="azure"] .steps button:hover { border-color: var(--line-strong); background: var(--surface3); }
+html[data-ui="azure"] .steps b { display: block; margin-bottom: 9px; color: var(--action); font: 650 13px var(--v2-mono); }
+html[data-ui="azure"] .steps strong, html[data-ui="azure"] .steps span { display: block; }
+html[data-ui="azure"] .steps span { margin-top: 6px; color: var(--muted); font-size: 12px; }
+
+/* ---------- tables ---------- */
+html[data-ui="azure"] .tablewrap { border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+html[data-ui="azure"] .tablewrap table { min-width: 720px; border-collapse: collapse; }
+html[data-ui="azure"] .tablewrap th {
+  padding: 10px 12px;
+  background: var(--surface2);
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font: 650 10px/1.4 var(--v2-mono);
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+html[data-ui="azure"] .tablewrap th:first-child,
+html[data-ui="azure"] .tablewrap td:first-child { padding-left: 16px; }
+html[data-ui="azure"] .tablewrap th:last-child,
+html[data-ui="azure"] .tablewrap td:last-child { padding-right: 16px; }
+html[data-ui="azure"] .tablewrap td { padding: 12px; border-bottom: 1px solid #e8eef6; color: var(--text); font-size: 13px; vertical-align: top; }
+html[data-ui="azure"] .tablewrap tbody tr:last-child td { border-bottom: 0; }
+html[data-ui="azure"] .tablewrap tbody tr:hover td { background: #f7fafd; }
+html[data-ui="azure"] .tablewrap tbody tr:hover td:first-child { box-shadow: inset 3px 0 0 var(--tint); }
+html[data-ui="azure"] .empty { padding: 32px 20px !important; color: var(--muted); }
+html[data-ui="azure"] .empty-state { display: grid; gap: 6px; justify-items: center; padding: 10px 4px; text-align: center; white-space: normal; }
+html[data-ui="azure"] .empty-state strong { color: var(--text); font-size: 13.5px; font-weight: 650; }
+html[data-ui="azure"] .empty-state p { max-width: 480px; margin: 0; color: var(--muted); font-size: 12.5px; line-height: 1.65; }
+html[data-ui="azure"] .empty-state .actions { justify-content: center; margin-top: 8px; }
+
+/* ---------- forms ---------- */
+html[data-ui="azure"] input,
+html[data-ui="azure"] select,
+html[data-ui="azure"] textarea {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 40px;
+  margin-top: 6px;
+  padding: 9px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  transition: border-color .14s ease, box-shadow .14s ease;
+}
+html[data-ui="azure"] input::placeholder,
+html[data-ui="azure"] textarea::placeholder { color: #97a8bc; }
+html[data-ui="azure"] input:hover,
+html[data-ui="azure"] select:hover,
+html[data-ui="azure"] textarea:hover { border-color: #a9bcd2; }
+html[data-ui="azure"] input:focus,
+html[data-ui="azure"] select:focus,
+html[data-ui="azure"] textarea:focus {
+  outline: none;
+  border-color: var(--action);
+  box-shadow: 0 0 0 3px #dce8f8;
+}
+html[data-ui="azure"] textarea { resize: vertical; min-height: 84px; }
+/* Typography only: a `label` is also the element used for row components such as
+   .person-row and .plan-choice, so this rule must not set display. */
+html[data-ui="azure"] label { color: var(--text); font-size: 12.5px; }
+html[data-ui="azure"] .form-field > label,
+html[data-ui="azure"] .field-label { font-weight: 650; }
+html[data-ui="azure"] .form-field small { display: block; margin-top: 5px; color: var(--muted); line-height: 1.5; font-size: 11.5px; }
+html[data-ui="azure"] input[type="checkbox"],
+html[data-ui="azure"] input[type="radio"] {
+  width: 16px;
+  height: 16px;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  flex: none;
+  accent-color: var(--action);
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+html[data-ui="azure"] fieldset { border-color: var(--line); }
+html[data-ui="azure"] legend { padding: 0 6px; color: var(--muted); font-size: 12px; }
+html[data-ui="azure"] .form-grid { gap: 18px; }
+html[data-ui="azure"] .required { color: var(--danger); }
+html[data-ui="azure"] .password-field { margin-top: 6px; }
+html[data-ui="azure"] .password-field input { margin-top: 0; padding-right: 46px; }
+html[data-ui="azure"] .password-toggle { right: 3px; width: 34px; height: 34px; border-radius: 7px; color: var(--muted); }
+html[data-ui="azure"] .password-toggle:hover { background: var(--surface3); color: var(--text); }
+html[data-ui="azure"] .password-toggle[aria-pressed="true"] { background: var(--tint); color: var(--action); }
+
+/* multi-select + date field reuse the shared component CSS; these only tune the
+   trigger to the v4 control height and focus ring. */
+html[data-ui="azure"] .multi-select { margin-top: 6px; }
+html[data-ui="azure"] .multi-select-trigger { min-height: 40px; border-radius: var(--radius-control); font-size: 13px; }
+html[data-ui="azure"] .multi-select-trigger[aria-expanded="true"] { border-color: var(--action); box-shadow: 0 0 0 3px #dce8f8; }
+html[data-ui="azure"] .multi-select-popover { border-radius: 11px; box-shadow: var(--azure-shadow-float); }
+html[data-ui="azure"] .multi-select-chip { background: var(--tint); color: var(--action); }
+html[data-ui="azure"] .date-field { margin-top: 6px; }
+html[data-ui="azure"] .date-field-trigger { min-height: 40px; border-radius: var(--radius-control); font-size: 13px; }
+html[data-ui="azure"] .date-field.compact .date-field-trigger { min-height: 38px; }
+html[data-ui="azure"] .date-field-trigger[aria-expanded="true"] { border-color: var(--action); box-shadow: 0 0 0 3px #dce8f8; }
+html[data-ui="azure"] .date-panel { border-radius: 11px; box-shadow: var(--azure-shadow-float); }
+html[data-ui="azure"] .date-day.selected,
+html[data-ui="azure"] .date-day.selected:hover { background: var(--action); border-color: var(--action); }
+
+/* ---------- filter bar ---------- */
+html[data-ui="azure"] .call-filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px 14px; align-items: end; margin: 14px 0; }
+html[data-ui="azure"] .call-filters label { display: flex; flex-direction: column; gap: 5px; color: var(--muted); font-size: 11.5px; font-weight: 650; }
+html[data-ui="azure"] .call-filters input,
+html[data-ui="azure"] .call-filters select { min-height: 38px; margin-top: 0; padding-top: 7px; padding-bottom: 7px; font-size: 12.5px; }
+html[data-ui="azure"] .call-filters.call-filter-form { display: block; margin: 12px 0 16px; padding: 0; border: 0; border-radius: 0; background: transparent; }
+html[data-ui="azure"] .call-filter-form label { color: var(--muted); font-size: 11.5px; font-weight: 650; }
+html[data-ui="azure"] .filter-primary,
+html[data-ui="azure"] .filter-more-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(178px, 1fr)); gap: 12px 14px; }
+/* A compact date trigger needs room for "YYYY-MM-DD HH:mm" plus its clear button;
+   narrower columns pushed the value into an ellipsis. */
+html[data-ui="azure"] .date-field.compact .date-field-value { font-size: 12px; letter-spacing: -.01em; }
+html[data-ui="azure"] .filter-more { margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--line-strong); }
+html[data-ui="azure"] .filter-more > summary { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; font-weight: 600; list-style: none; cursor: pointer; }
+html[data-ui="azure"] .filter-more > summary::-webkit-details-marker { display: none; }
+html[data-ui="azure"] .filter-more > summary::before {
+  content: "+";
+  display: grid;
+  place-items: center;
+  width: 15px;
+  height: 15px;
+  border-radius: 4px;
+  background: var(--surface3);
+  color: var(--action);
+  font: 650 11px/1 var(--v2-mono);
+}
+html[data-ui="azure"] .filter-more[open] > summary::before { content: "−"; }
+html[data-ui="azure"] .filter-more-grid { margin-top: 12px; }
+html[data-ui="azure"] .filter-actions { display: flex; align-items: center; justify-content: flex-end; gap: 9px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); flex-wrap: wrap; }
+html[data-ui="azure"] .filter-state { margin-right: auto; color: var(--azure-faint); font-size: 11.5px; }
+html[data-ui="azure"] .filter-summary { display: none; }
+
+/* filter bar wrapper used by 密钥与接入 so both list pages share one pattern */
+html[data-ui="azure"] .filter-panel { padding: 4px 0 0; }
+
+/* ---------- person list ---------- */
+html[data-ui="azure"] .person-list { border-radius: 11px; background: var(--surface); }
+html[data-ui="azure"] .person-row { padding: 10px 14px; }
+html[data-ui="azure"] .person-row:hover { background: var(--surface2); }
+html[data-ui="azure"] .person-row.selected { background: var(--tint); box-shadow: inset 3px 0 0 var(--action); }
+html[data-ui="azure"] .person-copy strong { font-size: 13px; }
+html[data-ui="azure"] .person-copy small { font-size: 11.5px; }
+html[data-ui="azure"] .person-category { border-radius: 6px; background: var(--surface3); font-size: 10.5px; font-weight: 600; }
+html[data-ui="azure"] .person-row.selected .person-category { background: #fff; color: var(--action); }
+html[data-ui="azure"] .choice-list-head strong { font-size: 13px; font-weight: 650; }
+html[data-ui="azure"] .choice-list-people { margin: 12px 0; }
+html[data-ui="azure"] .plan-choice { display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); cursor: pointer; }
+html[data-ui="azure"] .plan-choice:hover { border-color: var(--line-strong); background: var(--surface2); }
+html[data-ui="azure"] .plan-choice.selected { border-color: var(--action); background: var(--tint); box-shadow: inset 3px 0 0 var(--action); }
+html[data-ui="azure"] .plan-choice input { margin-top: 2px; }
+html[data-ui="azure"] .plan-choice strong { font-size: 13px; }
+html[data-ui="azure"] .plan-choice small { display: block; margin-top: 3px; }
+
+/* A persistent recap of the two decisions the wizard has collected so far, so
+   the operator never has to scroll back to remember who and which plan. */
+.choice-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 20px;
+  margin: 0 0 14px;
+  padding: 9px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface2);
+  font-size: 12px;
+}
+.choice-summary span { display: inline-flex; align-items: baseline; gap: 6px; color: var(--text); }
+.choice-summary b { color: var(--muted); font-size: 11px; font-weight: 650; }
+html[data-ui="azure"] .choice-summary { border-color: #d7e3f1; background: #f2f7fd; }
+html[data-ui="azure"] .choice-count { color: var(--muted); font-size: 11.5px; font-weight: 600; }
+
+/* ---------- disclosures, steps, section tabs ---------- */
+html[data-ui="azure"] .disclosure { padding: 14px 18px; margin: 14px 0; border: 1px solid var(--line); border-radius: 11px; background: var(--surface2); }
+html[data-ui="azure"] .disclosure > summary { display: flex; align-items: center; gap: 8px; color: var(--text); font-size: 12.5px; font-weight: 650; list-style: none; cursor: pointer; }
+html[data-ui="azure"] .disclosure > summary::-webkit-details-marker { display: none; }
+html[data-ui="azure"] .disclosure > summary::before {
+  content: "+";
+  display: grid;
+  place-items: center;
+  width: 17px;
+  height: 17px;
+  flex: none;
+  border-radius: 5px;
+  background: var(--surface3);
+  color: var(--action);
+  font: 650 11.5px/1 var(--v2-mono);
+}
+html[data-ui="azure"] .disclosure[open] > summary::before { content: "−"; }
+html[data-ui="azure"] .disclosure[open] > summary { margin-bottom: 14px; }
+html[data-ui="azure"] .journey-steps { display: flex; flex-wrap: wrap; align-items: center; gap: 18px; margin: 12px 0 16px; padding: 0; list-style: none; }
+html[data-ui="azure"] .journey-steps li {
+  position: relative;
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--muted);
+  font: 600 11.5px/1.4 var(--v2-mono);
+}
+html[data-ui="azure"] .journey-steps li + li::before {
+  content: "";
+  position: absolute;
+  left: -12px;
+  top: 50%;
+  width: 5px;
+  height: 5px;
+  border-top: 1.5px solid var(--line-strong);
+  border-right: 1.5px solid var(--line-strong);
+  transform: translateY(-50%) rotate(45deg);
+}
+html[data-ui="azure"] .journey-steps li[aria-current] { background: var(--tint); border-color: #b9cfe8; color: var(--v2-primary-strong); font-weight: 650; }
+html[data-ui="azure"] .section-tabs { display: inline-flex; gap: 2px; padding: 3px; margin: 0 0 18px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface2); }
+html[data-ui="azure"] .section-tabs button { padding: 6px 13px; border: 0; border-radius: 6px; background: transparent; color: var(--muted); font-size: 12.5px; }
+html[data-ui="azure"] .section-tabs button:hover { color: var(--text); }
+html[data-ui="azure"] .section-tabs button.selected { background: var(--surface); color: var(--v2-primary-strong); font-weight: 650; box-shadow: 0 1px 3px rgba(23, 37, 54, .13); }
+
+/* ---------- task hero & inbox ---------- */
+html[data-ui="azure"] .task-hero {
+  position: relative;
+  max-width: none;
+  padding: 26px 28px;
+  border: 1px solid #cfdff0;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #e9f1fb 0%, #f6faff 62%, #f2f7fd 100%);
+  margin-bottom: 14px;
+  overflow: hidden;
+}
+html[data-ui="azure"] .task-hero::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 220px;
+  height: 100%;
+  background: radial-gradient(120px 120px at 78% 30%, rgba(47, 109, 181, .1), transparent 70%);
+  pointer-events: none;
+}
+html[data-ui="azure"] .task-hero > * { position: relative; z-index: 1; }
+html[data-ui="azure"] .task-hero .eyebrow { color: var(--action); font: 650 10px var(--v2-mono); letter-spacing: .14em; text-transform: uppercase; }
+html[data-ui="azure"] .task-hero h2 { max-width: 640px; margin: 9px 0 10px; font-size: clamp(20px, 2vw, 25px); line-height: 1.3; letter-spacing: -.02em; }
+html[data-ui="azure"] .task-hero > p { max-width: 620px; margin: 0 0 16px; color: #3f5570; font-size: 13px; line-height: 1.7; }
+html[data-ui="azure"] .task-hero .primary { min-height: 40px; }
+html[data-ui="azure"] .task-hero .purpose-select { max-width: 300px; margin: 0 0 14px; color: var(--muted); font-size: 11.5px; font-weight: 650; }
+html[data-ui="azure"] .purpose-select { max-width: 280px; min-width: 180px; color: var(--muted); font-size: 11.5px; font-weight: 650; }
+html[data-ui="azure"] .purpose-select select { min-height: 36px; font-size: 12.5px; }
+html[data-ui="azure"] .task-inbox { display: grid; gap: 8px; }
+html[data-ui="azure"] .task-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 12px 15px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  text-align: left;
+  transition: border-color .14s ease, background .14s ease;
+}
+html[data-ui="azure"] .task-row:hover { border-color: #a8c3de; background: var(--surface2); }
+html[data-ui="azure"] .task-row strong { font-size: 13px; font-weight: 650; }
+html[data-ui="azure"] .task-row small { display: block; margin-top: 2px; color: var(--muted); font-size: 11.5px; }
+html[data-ui="azure"] .task-row > b {
+  flex: none;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: var(--tint);
+  color: var(--action);
+  font: 650 11.5px var(--v2-mono);
+  white-space: nowrap;
+}
+html[data-ui="azure"] .secondary-path { margin: 6px 0 18px; padding: 14px 16px; border: 1px dashed var(--line-strong); border-radius: 10px; background: var(--surface); color: var(--muted); font-size: 12.5px; }
+html[data-ui="azure"] .secondary-path strong { display: block; margin-bottom: 4px; color: var(--text); font-size: 13px; }
+html[data-ui="azure"] .secondary-path p { margin: 0; }
+html[data-ui="azure"] .next-step { margin: 16px 0; padding: 14px 16px; border: 1px solid #cddff0; border-left: 3px solid var(--action); border-radius: 10px; background: #eef5fd; }
+html[data-ui="azure"] .next-step h3 { margin: 0 0 4px; font-size: 13px; }
+html[data-ui="azure"] .next-step p { margin: 0; color: #3f5570; font-size: 12.5px; }
+
+/* ---------- drill-down detail groups ---------- */
+.detail-groups { display: grid; gap: 12px; margin: 4px 0 14px; }
+.detail-group { border: 1px solid var(--line); border-radius: 10px; background: var(--surface); overflow: hidden; }
+.detail-group > h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface2);
+  color: var(--muted);
+  font: 650 11px/1.4 var(--v2-mono);
+  letter-spacing: .07em;
+  text-transform: uppercase;
+}
+.detail-group > h3::before { content: ""; width: 3px; height: 12px; border-radius: 2px; background: var(--line-strong); flex: none; }
+.detail-group .detail-list { margin: 0; padding: 0 14px; }
+.detail-group .detail-list > div { padding: 9px 0; border-bottom: 1px solid #e8eef6; }
+.detail-group .detail-list > div:last-child { border-bottom: 0; }
+.detail-group .detail-list dt { font-size: 12px; }
+.detail-group .detail-list dd { font-size: 12.5px; }
+.detail-lead {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface2);
+}
+.detail-lead > div { min-width: 0; }
+.detail-lead dt { color: var(--muted); font-size: 11px; }
+.detail-lead dd { margin: 4px 0 0; color: var(--text); font: 650 13px/1.4 var(--v2-mono); overflow-wrap: anywhere; }
+html[data-ui="azure"] .detail-list > div { grid-template-columns: 150px minmax(0, 1fr); gap: 16px; padding: 10px 0; border-bottom: 1px solid #e8eef6; }
+html[data-ui="azure"] .detail-list dt { color: var(--muted); font-size: 12px; }
+html[data-ui="azure"] .detail-list dd { margin: 0; font-size: 12.5px; }
+html[data-ui="azure"] .detail-group { box-shadow: none; }
+html[data-ui="azure"] .approval-amounts { gap: 16px; padding-top: 16px; border-top: 1px solid var(--line); }
+html[data-ui="azure"] .approval-amounts dt { color: var(--muted); font-size: 11.5px; }
+html[data-ui="azure"] .approval-amounts dd { margin: 6px 0; font: 650 19px/1.3 var(--v2-mono); }
+
+/* ---------- modal ---------- */
+html[data-ui="azure"] .modal {
+  width: min(780px, 94vw);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 40px 110px -46px rgba(23, 37, 54, .55);
+}
+html[data-ui="azure"] .modal::backdrop { background: rgba(23, 37, 54, .42); backdrop-filter: blur(4px); }
+html[data-ui="azure"] .modal-head { padding: 16px 24px; border-bottom: 1px solid var(--line); background: var(--surface); }
+html[data-ui="azure"] .modal-head h2 { margin: 0; font-size: 17px; letter-spacing: -.01em; }
+html[data-ui="azure"] .modal-body { padding: 18px 24px; }
+html[data-ui="azure"] .modal-footer { padding: 14px 24px; border-top: 1px solid var(--line); background: var(--surface2); border-radius: 0 0 14px 14px; }
+html[data-ui="azure"] .modal .metric-grid { margin: 14px 0; }
+html[data-ui="azure"] .secret-value { min-height: 108px; font-family: var(--v2-mono); background: var(--surface2); }
+html[data-ui="azure"] .code-example {
+  padding: 14px 16px;
+  border: 1px solid #17324f;
+  border-radius: 10px;
+  background: #10243a;
+  color: #d8e7f6;
+  font: 12px/1.7 var(--v2-mono);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+html[data-ui="azure"] .reply { margin-top: 18px; padding: 14px 16px; border: 1px solid #cddff0; border-radius: 3px 12px 12px 12px; background: #eef5fd; color: var(--text); white-space: pre-wrap; line-height: 1.7; }
+html[data-ui="azure"] .key-bulk { padding: 10px 12px; margin: 8px 0 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface2); }
+html[data-ui="azure"] .key-check { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+html[data-ui="azure"] .key-change-list li,
+html[data-ui="azure"] .audit-records li { padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface2); }
+html[data-ui="azure"] .review-workspace { grid-template-columns: minmax(260px, 320px) minmax(0, 1fr); gap: 16px; }
+html[data-ui="azure"] .review-queue { position: sticky; padding: 16px; }
+html[data-ui="azure"] .review-items { max-height: 620px; margin-top: 14px; gap: 7px; }
+html[data-ui="azure"] .review-item { padding: 11px 13px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+html[data-ui="azure"] .review-item:hover { border-color: var(--line-strong); background: var(--surface2); }
+html[data-ui="azure"] .review-item.selected { border-color: var(--action); background: var(--tint); box-shadow: inset 3px 0 0 var(--action); }
+
+/* ---------- loading & login ---------- */
+html[data-ui="azure"] .loading-state { min-height: 100vh; display: grid; place-items: center; color: var(--muted); font: 600 12px var(--v2-mono); letter-spacing: .05em; }
+html[data-ui="azure"] .login-shell {
+  min-height: 100vh;
+  max-width: 1240px;
+  margin: auto;
+  padding: 56px var(--v2-pad);
+  display: grid;
+  grid-template-columns: 1.02fr .88fr;
+  gap: 72px;
+  align-items: center;
+}
+html[data-ui="azure"] .v2-logo {
+  background: linear-gradient(145deg, #2a6cbf, #173f73);
+  box-shadow: 0 6px 16px -9px rgba(30, 79, 145, .8);
+}
+html[data-ui="azure"] .login-intro .brand { padding: 0; margin-bottom: 44px; }
+html[data-ui="azure"] .login-intro .brand b { font-size: 17px; letter-spacing: -.01em; }
+html[data-ui="azure"] .login-intro .mark { width: 38px; height: 38px; border-radius: 10px; background: linear-gradient(145deg, #2a6cbf, #173f73); color: #fff; font-size: 20px; }
+html[data-ui="azure"] .login-intro .eyebrow { color: var(--action); font: 650 10px var(--v2-mono); letter-spacing: .16em; }
+html[data-ui="azure"] .login-intro h1 { margin: 16px 0 18px; font-size: clamp(32px, 3.6vw, 44px); line-height: 1.24; letter-spacing: -.03em; }
+html[data-ui="azure"] .login-intro p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.8; }
+html[data-ui="azure"] .login-intro::after {
+  content: "组织 → 项目 / 应用 → 成员用途 → 模型池 → 调用";
+  display: block;
+  margin-top: 32px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+  color: var(--azure-faint);
+  font: 10.5px/1.6 var(--v2-mono);
+  letter-spacing: .05em;
+}
+html[data-ui="azure"] .login-panel {
+  padding: 34px 32px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: var(--azure-shadow-panel), 0 30px 70px -50px rgba(23, 37, 54, .5);
+}
+html[data-ui="azure"] .login-panel .eyebrow { color: var(--action); font: 650 10px var(--v2-mono); letter-spacing: .14em; }
+html[data-ui="azure"] .login-panel h2 { margin: 8px 0 24px; font-size: 22px; letter-spacing: -.02em; }
+html[data-ui="azure"] .login-panel label { margin-bottom: 16px; font-weight: 650; }
+html[data-ui="azure"] .login-panel input { min-height: 44px; }
+html[data-ui="azure"] .login-panel .primary { width: 100%; min-height: 44px; margin-top: 8px; }
+html[data-ui="azure"] .login-panel .secondary { margin-top: 16px; }
+
+/* ---------- design switch & command palette (shared classes) ---------- */
+html[data-ui="azure"] .design-switch { border-radius: var(--azure-radius); background: var(--surface2); }
+html[data-ui="azure"] .design-switch button { border-radius: 6px; }
+html[data-ui="azure"] .design-switch button.selected { background: var(--action); color: var(--action-ink); }
+html[data-ui="azure"] .palette-backdrop { background: rgba(23, 37, 54, .4); }
+html[data-ui="azure"] .palette { border-radius: 14px; box-shadow: var(--azure-shadow-float); }
+html[data-ui="azure"] .palette-option { border-radius: 8px; }
+html[data-ui="azure"] .palette-icon { border-radius: 7px; }
+html[data-ui="azure"] .palette-group { font-size: 10px; letter-spacing: .09em; }
+html[data-ui="azure"] .palette-input input,
+html[data-ui="azure"] .palette-input input:focus {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  font-size: 15px;
+  color: var(--text);
+}
+html[data-ui="azure"] kbd { border-radius: 4px; }
+
+/* ---------- responsive ---------- */
+@media (max-width: 1180px) {
+  html[data-ui="azure"] { --v2-pad: 24px; --azure-sidebar: 232px; }
+  .v4-sidebar { padding-left: 10px; padding-right: 10px; }
+  .v4-nav-item { font-size: 13px; padding-left: 9px; padding-right: 9px; }
+  .v4-topbar-inner { gap: 10px; padding-left: 14px; padding-right: 14px; }
+  html[data-ui="azure"] .metric { padding: 13px 16px; }
+  html[data-ui="azure"] .metric strong { font-size: 22px; }
+}
+
+@media (max-width: 1020px) {
+  html[data-ui="azure"] .search-label { display: none; }
+  .v4-search { padding: 0 9px; }
+}
+
+@media (max-width: 900px) {
+  html[data-ui="azure"] { --azure-topbar: 52px; --v2-pad: 16px; }
+  html[data-layout="sidebar"][data-ui="azure"] .shell { display: block; }
+  .v4-menu-button { display: grid; }
+  .v4-topbar-inner { gap: 6px; padding: 0 12px; }
+  .v4-top-switch { display: none; }
+  .v4-user-name { display: none; }
+  .v4-search kbd { display: none; }
+  .v4-topbar-actions { min-width: 0; }
+  .v4-sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    top: 0;
+    width: 284px;
+    height: 100dvh;
+    transform: translateX(-102%);
+    transition: transform .22s ease;
+    z-index: 60;
+    border-right: 0;
+    box-shadow: 0 30px 80px -30px rgba(23, 37, 54, .5);
+  }
+  .v4-sidebar.open { transform: none; }
+  .v4-close { display: grid; }
+  .v4-sidebar-footer { display: block; }
+  .v4-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 55;
+    background: rgba(23, 37, 54, .38);
+    backdrop-filter: blur(3px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .2s ease;
+  }
+  .v4-backdrop.open { opacity: 1; pointer-events: auto; }
+  html[data-ui="azure"] .page { padding-top: 16px; padding-bottom: 56px; }
+  html[data-ui="azure"] .heading { flex-wrap: wrap; gap: 12px; margin-bottom: 14px; }
+  html[data-ui="azure"] .heading h1 { font-size: 24px; }
+  html[data-ui="azure"] .panel { padding: 16px; border-radius: 12px; }
+  html[data-ui="azure"] .task-hero { padding: 20px 18px; border-radius: 14px; }
+  html[data-ui="azure"] .task-hero::after { display: none; }
+  html[data-ui="azure"] .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  html[data-ui="azure"] .metric { padding: 12px 16px; }
+  html[data-ui="azure"] .metric:nth-child(2n) { border-right: 0; }
+  html[data-ui="azure"] .metric:nth-child(n+3) { border-top: 1px solid var(--line); }
+  html[data-ui="azure"] .review-workspace { grid-template-columns: 1fr; }
+  html[data-ui="azure"] .review-queue { position: static; }
+  html[data-ui="azure"] .review-items { max-height: 260px; grid-template-columns: 1fr; }
+  html[data-ui="azure"] .filter-summary { display: flex; align-items: center; gap: 10px; margin: 10px 0; }
+  html[data-ui="azure"] .login-shell { grid-template-columns: 1fr; gap: 34px; padding: 24px 18px; }
+  html[data-ui="azure"] .login-intro { display: none; }
+  html[data-ui="azure"] .login-panel { padding: 26px 22px; }
+  html[data-ui="azure"] .detail-list > div { grid-template-columns: 116px minmax(0, 1fr); }
+}
+
+@media (max-width: 760px) {
+  .v4-tabbar-inner { padding-left: 16px; padding-right: 16px; }
+  .v4-brand-text small { display: none; }
+  .v4-space button { padding: 0 9px; }
+  .v4-space-suffix { display: none; }
+  html[data-ui="azure"] .metric strong { font-size: 20px; }
+  html[data-ui="azure"] .section-tabs { display: flex; flex-wrap: wrap; border-radius: 10px; }
+  html[data-ui="azure"] .section-tabs button { border-radius: 7px; }
+  html[data-ui="azure"] .modal-head,
+  html[data-ui="azure"] .modal-body,
+  html[data-ui="azure"] .modal-footer { padding-left: 18px; padding-right: 18px; }
+  html[data-ui="azure"] .journey-steps { gap: 6px 14px; }
+  html[data-ui="azure"] .journey-steps li { font-size: 10.5px; padding: 5px 9px; }
+  html[data-ui="azure"] .project-summary { grid-template-columns: 1fr; }
+  html[data-ui="azure"] .project-summary > div { border-right: 0; padding: 11px 0; }
+  html[data-ui="azure"] .project-summary > div + div { border-top: 1px solid var(--line); }
+}
+
+@media (max-width: 520px) {
+  .v4-brand-text { display: none; }
+  .v4-topbar-divider { display: none; }
+  .v4-tab-select { padding-left: 9px; font-size: 12px; }
+  .v4-tab-select span { max-width: 88px; overflow: hidden; text-overflow: ellipsis; }
+  html[data-ui="azure"] .detail-list > div { grid-template-columns: 104px minmax(0, 1fr); gap: 10px; }
+}
+
+@media (max-width: 560px) {
+  .v4-search { display: none; }
+  .v4-space button { padding: 0 8px; }
+  .v4-topbar-inner { padding: 0 10px; }
+  .v4-user { padding-left: 6px; gap: 2px; }
+}
+
+@media (max-width: 420px) {
+  .v4-brand { display: none; }
+}
+
+@media (pointer: coarse) {
+  .v4-tab { height: 42px; }
+  .v4-tab-select { height: 42px; }
+  .v4-tab-close { width: 28px; height: 28px; }
+  .v4-nav-item { min-height: 44px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-ui="azure"] *,
+  .v4-sidebar,
+  .v4-backdrop { animation: none !important; transition: none !important; }
+}

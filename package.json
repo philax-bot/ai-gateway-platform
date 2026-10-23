@@ -1,0 +1,27 @@
+{
+  "name": "ai-gateway-platform",
+  "private": true,
+  "packageManager": "pnpm@11.13.1",
+  "scripts": {
+    "build": "pnpm -r build",
+    "review": "node scripts/review.mjs",
+    "review:postgres": "node scripts/review.mjs --postgres",
+    "test": "pnpm -r test",
+    "typecheck": "pnpm -r typecheck",
+    "dev": "pnpm --stream --parallel --filter @ai-gateway/control-plane --filter @ai-gateway/gateway-sim --filter @ai-gateway/test-model --filter @ai-gateway/web run dev",
+    "check:local": "node scripts/check-local-vertical-slice.mjs",
+    "check:isolated": "pnpm build && node scripts/check-isolated.mjs",
+    "check:postgres": "pnpm build && node scripts/check-isolated.mjs --postgres",
+    "check:monitoring": "pnpm --filter @ai-gateway/control-plane... build && node scripts/check-monitoring-pool.mjs",
+    "check:delivery": "pnpm build && node scripts/check-delivery.mjs",
+    "check:backup": "pnpm build && node scripts/check-delivery.mjs --backup",
+    "check:containers": "node scripts/check-container.mjs",
+    "check:review": "pnpm build && node scripts/check-persistent-review.mjs",
+    "backup": "node scripts/backup.mjs backup",
+    "restore": "node scripts/backup.mjs restore",
+    "dev:control-plane": "pnpm --filter @ai-gateway/control-plane start:dev",
+    "dev:gateway": "pnpm --filter @ai-gateway/gateway-sim dev",
+    "dev:model": "pnpm --filter @ai-gateway/test-model dev",
+    "dev:web": "pnpm --filter @ai-gateway/web dev"
+  }
+}

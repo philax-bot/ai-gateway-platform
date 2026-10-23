@@ -1,0 +1,28 @@
+/* Signal Atlas v0.10 accepted visual values. */
+:root {
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --radius-control: 7px;
+  --radius-panel: 12px;
+  --radius-tag: 5px;
+  --control-min-height: 38px;
+  --touch-min-height: 44px;
+  --button-padding-block: 9px;
+  --button-padding-inline: 16px;
+  --field-padding-block: 10px;
+  --field-padding-inline: 12px;
+  --font-body: 14px;
+  --font-control: 13px;
+  --font-caption: 12px;
+  --font-title: 28px;
+  --line-height: 1.6;
+  --border-width: 1px;
+  --focus-width: 3px;
+  --focus-offset: 3px;
+}
+:root{color-scheme:dark;--bg:#0b1114;--surface:#121b20;--surface2:#18262b;--surface3:#1d3034;--line:#2a3d43;--text:#edf6f2;--muted:#8fa5a8;--action:#b9f45d;--action-ink:#0b1114;--run:#71e0da;--warn:#ffc46b;--danger:#ff806f;--blue:#79aaff;--tint:#233b3e;--warning-bg:#332b1f;font-family:Inter,system-ui,"Microsoft YaHei",sans-serif}

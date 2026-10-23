@@ -1,0 +1,110 @@
+openapi: 3.1.0
+info:
+  title: Signal Atlas Business API
+  version: 0.1.0
+  description: Single enterprise workspace. Authenticated fixed responsibilities; all money writes use the control-plane ledger transaction.
+servers:
+  - url: http://127.0.0.1:4001
+paths:
+  /api/v1/auth/bootstrap:
+    get:
+      responses:
+        '200': {description: Whether initial workspace setup is required}
+  /api/v1/auth/setup:
+    post:
+      description: First operator setup only. Remote setup requires configured BOOTSTRAP_TOKEN. Password must have 12 to 256 characters.
+      responses:
+        '200': {description: Workspace initialized}
+        '400': {description: Already initialized or invalid input}
+        '403': {description: Remote bootstrap token required}
+  /api/v1/auth/login:
+    post:
+      description: Login with directoryId and password. Sets HttpOnly SameSite session cookie. Raw token is never in the JSON body.
+      responses:
+        '200': {description: Authenticated member metadata}
+        '401': {description: Invalid credentials or throttled}
+  /api/v1/platform/state:
+    get:
+      security: [{sessionCookie: []}]
+      description: Role-scoped resources, quotas and budgets. Excludes passwords, session hashes, key hashes and plaintext keys.
+      responses:
+        '200': {description: Workspace state for the current actor}
+        '401': {description: Login required}
+  /api/v1/platform/preview:
+    post:
+      security: [{sessionCookie: []}]
+      description: Non-mutating impact preview. Returns a short-lived actor/payload/revision bound token. Does not grant or transfer quota.
+      responses:
+        '200': {description: Impact and preview token}
+  /api/v1/platform/commands:
+    post:
+      security: [{sessionCookie: []}]
+      description: Validated business command. Idempotency keys cannot be reused for a different actor or payload. Sensitive mutations require a preview token. Amounts support six decimals and timestamps must explicitly include timezone.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [type, idempotencyKey, payload]
+              properties:
+                type: {type: string}
+                idempotencyKey: {type: string, minLength: 8}
+                payload: {type: object}
+                expectedRevision: {type: integer}
+                previewToken: {type: string}
+      responses:
+        '200': {description: Command result; newly signed key secret appears only in its original successful response}
+        '400': {description: Invalid business input}
+        '401': {description: Login required}
+        '403': {description: Actor has no responsibility for this object}
+        '409': {description: Stale preview, reused key or conflicting business state}
+  /api/v1/auth/me:
+    get:
+      security: [{sessionCookie: []}]
+      responses:
+        '200': {description: Current active member metadata}
+        '401': {description: Invalid session}
+        '403': {description: Disabled or expired member}
+  /api/v1/auth/logout:
+    post:
+      security: [{sessionCookie: []}]
+      responses:
+        '200': {description: Session revoked and cookie cleared}
+  /api/v1/platform/services/{id}/verify:
+    post:
+      security: [{sessionCookie: []}]
+      parameters:
+        - {in: path, name: id, required: true, schema: {type: string}}
+      description: Operator-only actual HTTP model check. External addresses are disabled unless ALLOW_UPSTREAM_VALIDATION is explicitly enabled. Redirects are refused. A changed configuration cannot reuse an earlier verification result.
+      responses:
+        '200': {description: Saved passed or failed result, including reason}
+        '403': {description: No operator responsibility or external validation disabled}
+        '409': {description: Configuration changed during verification}
+  /api/v1/platform/online-credential:
+    post:
+      security: [{sessionCookie: []}]
+      description: Issue an internal purpose-bound online identity valid for at most five minutes. No user-created API key is required. The transient token is not persisted in plaintext or included in the user's key list.
+      responses:
+        '200': {description: Transient token and expiry for the authenticated actor's personal or project purpose}
+        '409': {description: No open authorized model in this purpose}
+  /api/v1/platform/quote:
+    post:
+      security: [{sessionCookie: []}]
+      description: Quote a personal or project chat request against current source batches without reserving money or rate capacity. Uses the same transport-size input estimate as the gateway. Returns source, maximum output, price version and reservation amount; the final authorization rechecks all conditions. Online clients pin the returned price version with x-price-version.
+      responses:
+        '200': {description: Allow with quote metadata, or a reason-specific deny}
+        '400': {description: Invalid chat input or purpose}
+  /api/v1/platform/maintenance/run:
+    post:
+      security: [{sessionCookie: []}]
+      description: Operator-triggered execution of the same monthly/expiry maintenance worker. Monthly grants are unique per member plan snapshot and Shanghai calendar period. Expiry retains unknown holds for review; it never assumes zero usage. Also runs automatically at startup and periodically.
+      responses:
+        '200': {description: Counts of newly issued batches and expired reservations marked for review}
+        '403': {description: Operator responsibility required}
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: signal_session

@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Signal Atlas · UI 组件样板</title>
+  <link rel="stylesheet" href="signal-atlas-tokens.css">
+  <link rel="stylesheet" href="signal-atlas.css">
+  <link rel="stylesheet" href="signal-atlas-ui-kit.css">
+  <script src="signal-atlas-ui-kit.js" defer></script>
+</head>
+<body class="kit">
+<a class="skip-link" href="#main">跳到组件内容</a>
+<div class="kit-shell">
+  <aside class="kit-rail">
+    <a class="brand kit-brand" href="#intro"><span class="mark" aria-hidden="true">T</span><span><b>Signal Atlas</b><small>DESIGN SYSTEM / 01</small></span></a>
+    <div class="kit-rail-label">设计语言</div>
+    <nav aria-label="组件目录" class="kit-nav">
+      <a href="#foundations"><span>01</span>基础变量</a>
+      <a href="#controls"><span>02</span>按钮与表单</a>
+      <a href="#states"><span>03</span>状态与反馈</a>
+      <a href="#access"><span>04</span>模型范围</a>
+      <a href="#quota"><span>05</span>额度与来源</a>
+      <a href="#impact"><span>06</span>影响预览</a>
+      <a href="#handoff"><span>07</span>开发交付</a>
+    </nav>
+    <div class="kit-rail-bottom"><span class="tag">基于 v0.10</span><p>同一套样式，贯穿运营配置与员工使用。</p><a href="token-design-07-employee-quota-loop.html">返回完整业务原型 ↗</a></div>
+  </aside>
+  <main id="main" class="kit-main" tabindex="-1">
+    <header class="kit-top"><span>企业 AI 工作空间 <span class="secondary">/ 组件样板</span></span><span class="secondary">UI Kit v0.1 · 2026.10.16</span></header>
+    <div class="kit-content">
+      <section id="intro" class="kit-intro">
+        <div class="eyebrow">SIGNAL CONSOLE × FIELD ATLAS</div>
+        <h1>把已确认的体验，<br>变成可复用的语言。</h1>
+        <p>延续深色平台骨架，用清楚的状态和来源路径，让每一次开通、分配与使用都有依据。</p>
+        <div class="kit-intro-foot"><span class="tag">交互基线已确认</span><span>组件展示与本地演示 · 可直接用键盘操作</span></div>
+        <div class="kit-principles"><div><b>用途先行</b><small>个人与项目，分别理解与使用</small></div><div><b>来源可见</b><small>权限、额度、服务各有出处</small></div><div><b>下一步清楚</b><small>每一种状态都有可行去向</small></div></div>
+      </section>
+
+      <section id="foundations" class="kit-section">
+        <div class="kit-section-title"><span>01 / FOUNDATIONS</span><h2>基础变量</h2><p>直接读取主原型共用的 tokens。颜色承担语义，文字负责把语义说清楚。</p></div>
+        <div id="swatches" class="kit-swatches"></div>
+        <div class="kit-two">
+          <article class="panel"><div class="head"><h3>排版与数字</h3><small>系统字体 · 400 / 500 / 700</small></div><div class="kit-type-title">当前可用额度</div><p>正文 14px，用于解释当前范围和操作影响。</p><small>辅助信息 12px · 不承载唯一的操作指引</small><div class="kit-numeric">¥ 1,280.00 <small>等宽数字 / tabular-nums</small></div></article>
+          <article class="panel"><div class="head"><h3>尺寸与节奏</h3><small>继承 v0.10 的实际值</small></div><dl class="kit-specs"><div><dt>间距</dt><dd>4 / 8 / 12 / 16 / 20 / 24 / 32px</dd></div><div><dt>圆角</dt><dd>标签 5 · 控件 7 · 面板 12px</dd></div><div><dt>按钮</dt><dd>最小高度 38px · 内边距 9 × 16px</dd></div><div><dt>输入框</dt><dd>内边距 10 × 12px · 随行高伸展</dd></div><div><dt>键盘焦点</dt><dd>3px 轮廓 · 外扩 3px</dd></div><div><dt>触屏控件</dt><dd>最小高度 44px</dd></div></dl></article>
+        </div>
+      </section>
+
+      <section id="controls" class="kit-section">
+        <div class="kit-section-title"><span>02 / CONTROLS</span><h2>按钮与表单</h2><p>同一个操作区域只有一个最高优先级动作。字段保留可见标签，错误就近解释。</p></div>
+        <div class="kit-two">
+          <article class="panel"><h3>动作层级</h3><div class="kit-button-samples"><div><button class="primary" id="save-demo" type="button">保存演示</button><small>主要 · 确定当前任务</small></div><div><a class="ghost kit-link-button" href="token-design-07-employee-quota-loop.html">查看完整流程</a><small>次要 · 返回 / 查看详情</small></div><div><button class="danger-button" id="open-disable" type="button">停用示例服务</button><small>危险 · 先解释影响</small></div><div><button class="ghost" disabled aria-describedby="disabled-help">不可分配</button><small id="disabled-help">禁用 · 当前无待分配额度</small></div></div><div id="save-feedback" role="status" class="notice" hidden></div><p class="kit-rule">悬停、键盘焦点、禁用和保存中都有状态；保存中保持按钮宽度，并阻止重复提交。</p></article>
+          <article class="panel"><h3>金额表单</h3><form id="amount-form" novalidate><div class="field"><label for="demo-amount">分配金额（元） <span class="secondary">必填</span></label><input id="demo-amount" name="amount" inputmode="decimal" required aria-describedby="amount-help amount-error" placeholder="例如 120.00"><small id="amount-help">示例来源批次待分配 ¥ 800.00，最多两位小数。</small><small id="amount-error" class="kit-field-error" role="alert" hidden></small></div><div class="field"><label for="demo-purpose">用途说明 <span class="secondary">选填</span></label><textarea id="demo-purpose" rows="2" placeholder="例如：季度材料整理"></textarea></div><button class="primary" type="submit">检查分配金额</button><div id="amount-success" class="notice" role="status" hidden></div></form></article>
+        </div>
+      </section>
+
+      <section id="states" class="kit-section">
+        <div class="kit-section-title"><span>03 / FEEDBACK</span><h2>状态要告诉用户，接下来怎么办</h2><p>调用条件、申请进度、服务状态分别表达。追加申请待审批，不阻断已有额度的使用。</p></div>
+        <div class="panel"><div class="kit-tags"><span class="tag">可使用</span><span class="tag warn">待审批</span><span class="tag neutral">未开通</span><span class="tag kit-error-tag">验证失败</span><span class="tag neutral">尚无样本</span><span class="tag warn">费用待核对</span></div>
+          <div class="kit-state-layout"><div class="field"><label for="state-picker">切换组件状态</label><select id="state-picker"><option value="ready">正常 · 可使用</option><option value="empty">空状态 · 尚未开通</option><option value="loading">加载中</option><option value="connection">连接失败</option><option value="denied">无操作权限</option><option value="pending">追加申请待审批</option><option value="unavailable">模型暂不可用</option><option value="noquota">无有效额度</option><option value="insufficient">额度不足</option><option value="failure">操作失败</option><option value="success">操作成功</option><option value="unknown">数据待核对</option></select></div><div id="state-preview" class="kit-state-preview" aria-live="polite"></div></div>
+        </div>
+      </section>
+
+      <section id="access" class="kit-section">
+        <div class="kit-section-title"><span>04 / MODEL ACCESS</span><h2>一个池，两种明确的授权方式</h2><p>选择模型池后还要表达授权模式。模型池负责权限范围，服务状态决定当前能否使用。</p></div>
+        <div class="kit-two"><article class="panel"><h3>范围选择器</h3><div class="field"><label for="access-pool">模型池</label><select id="access-pool"><option value="office">办公通用池 · 个人默认</option><option value="research">研发模型池 · 项目默认</option></select><small>默认池只为新建 / 审批预填，不迁移已有权益。</small></div><fieldset class="range-mode"><legend>授权方式</legend><label><input type="radio" name="access-mode" value="follow" checked>跟随模型池</label><label><input type="radio" name="access-mode" value="specific">仅指定模型</label></fieldset><fieldset id="model-choices" class="model-options" hidden><legend>选择授权模型</legend></fieldset><div class="range-summary" id="access-summary" aria-live="polite"></div><div class="button-row"><button class="ghost" id="pool-new-model" type="button">模拟：池内新增开放模型</button></div><p class="kit-rule">先切到“仅指定模型”，再模拟新增，观察范围是否扩大。这里展示的是编辑草稿。</p></article>
+        <article class="panel"><h3>不同角色看到不同字段</h3><div class="kit-contract"><b>员工申请开通 / 创建项目</b><p>填写事项、场景和说明。无需选择模型池。</p></div><div class="kit-contract"><b>运营审批 / 直接创建</b><p>默认预填模型池，确认跟随或指定范围后批准。</p></div><div class="kit-contract"><b>个人追加额度</b><p>沿用已有权益，只补额度，不重新选池或扩大模型范围。</p></div><div class="kit-contract"><b>项目成员使用</b><p>继承项目模型范围；加入项目与获得额度是两步。</p></div><div class="notice">服务停用时保留授权、余额和历史，阻止对应模型的新调用。</div></article></div>
+      </section>
+
+      <section id="quota" class="kit-section">
+        <div class="kit-section-title"><span>05 / QUOTA & TRACE</span><h2>让每一笔可用额度，都有来处</h2><p>用途总余额与当前模型适用余额分开显示；不混加个人、项目和其他方案的资金。</p></div>
+        <article class="panel"><div class="form-grid"><div class="field"><label for="quota-purpose">当前用途</label><select id="quota-purpose"><option value="personal">个人 · 日常办公</option><option value="project">项目 · Q4 知识库</option></select></div><div class="field"><label for="quota-model">当前模型</label><select id="quota-model"><option>Qwen 2.5</option><option>DeepSeek V3</option></select></div></div><div id="quota-summary" class="kit-two" aria-live="polite"></div><div id="quota-path" class="path" aria-label="额度来源路径"></div><div class="tablewrap" role="region" aria-label="当前用途额度批次，可横向滚动" tabindex="0"><table><caption>来源批次 · 示例日期 2026-10-16</caption><thead><tr><th scope="col">批次与授权来源</th><th scope="col">总额</th><th scope="col">已用</th><th scope="col">余额</th><th scope="col">到期日</th><th scope="col">当前模型</th></tr></thead><tbody id="quota-batches"></tbody></table></div><p class="kit-rule" id="quota-note"></p></article>
+      </section>
+
+      <section id="impact" class="kit-section">
+        <div class="kit-section-title"><span>06 / IMPACT PREVIEW</span><h2>先看影响，再确认生效</h2><p>预览保留原状态。确认有明确结果，取消返回原处。</p></div>
+        <article class="panel impact-panel"><div class="head"><h3>模型来源服务</h3><span id="service-status" class="tag">已启用 · 示例</span></div><div class="kit-impact-grid"><div><small>关联模型池</small><b>办公通用池</b></div><div><small>跟随模式</small><b>8 项个人权益</b></div><div><small>指定模式</small><b>1 个项目</b></div></div><p class="secondary">示例服务停用会影响两种授权模式。这里只切换样板状态。</p><button id="service-toggle" class="danger-button" type="button">预览停用影响</button><div id="impact-result" class="notice" role="status" hidden></div></article>
+      </section>
+
+      <section id="handoff" class="kit-section">
+        <div class="kit-section-title"><span>07 / HANDOFF</span><h2>给后续实现的入口</h2><p>业务定义、视觉规则与可点击样板各有职责，按同一条流程落实。</p></div>
+        <div class="panel kit-handoff"><a href="../token-operations-product-concept-v1.3.md"><b>01 · 功能是什么</b><small>产品概设 v1.3 · 对象、角色与业务边界 ↗</small></a><a href="../token-operations-ui-coding-guidelines-v0.1.md"><b>02 · 应该怎样呈现</b><small>UI 与 AI Coding 约束 · 组件使用契约 ↗</small></a><a href="../operator-onboarding-ui-checklist-v0.10.md"><b>03 · 怎样验收流程</b><small>运营开通清单 · 字段、默认值与验收条件 ↗</small></a></div><div class="notice">这是 HTML / CSS 组件样板。后续 React / Vue 组件库应复用这里的 tokens、状态语义和组合规则。</div>
+      </section>
+      <footer class="page-footer"><span>Signal Atlas · UI Kit v0.1</span><span>本地展示 · 示例状态刷新恢复 · 不发送外部请求</span></footer>
+    </div>
+  </main>
+</div>
+<dialog id="impact-dialog" aria-labelledby="impact-title" aria-describedby="impact-description"><form method="dialog"><div class="head"><span class="eyebrow">CHANGE PREVIEW</span><button class="ghost" value="cancel" aria-label="关闭影响预览">关闭</button></div><h2 id="impact-title">停用这项模型服务？</h2><p id="impact-description">办公通用池中的 Qwen 2.5 将停止新调用。跟随范围与指定范围都会受影响。</p><dl class="facts"><div><dt>受影响</dt><dd>8 项个人权益 · 1 个项目</dd></div><div><dt>保留</dt><dd>授权、余额、历史日志</dd></div></dl><div class="notice warn">额度仍然存在，但暂不能用于该服务上的模型。重新启用后可恢复使用。</div><div class="button-row"><button class="ghost" value="cancel" autofocus>取消，保持启用</button><button class="danger-button" value="confirm">确认停用（演示）</button></div></form></dialog>
+</body>
+</html>

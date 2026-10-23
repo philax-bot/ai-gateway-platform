@@ -1,0 +1,35 @@
+{
+  "checkedAt": "2026-10-19T23:50:55.9213321+08:00",
+  "project": "atlas_check_2e6e9b47814c41dd",
+  "assertions": 18,
+  "node": "22.23.3",
+  "nginx": "1.30.6",
+  "postgresqlClient": "16.15",
+  "pnpm": "11.13.1",
+  "images": [
+    {
+      "id": "sha256:e503811d25d7e8e077961bbad587dfa27d2203bed1d0460cbbf865e39ad31eb2",
+      "tags": [
+        "docker.io/library/signal-atlas-server:local"
+      ],
+      "user": "node",
+      "architecture": "amd64"
+    },
+    {
+      "id": "sha256:7a017c7d65afeecd95a2694abc9079176a5dbd64f34cf5eed1fc51f62f518479",
+      "tags": [
+        "docker.io/library/signal-atlas-web:local"
+      ],
+      "user": "nginx",
+      "architecture": "amd64"
+    },
+    {
+      "id": "sha256:dfe6682ebe49cff8c060c9ef93519e764ed380e824b62fa9fa9b928d0ddcf8b4",
+      "tags": [
+        "docker.io/library/signal-atlas-operations:local"
+      ],
+      "user": "node",
+      "architecture": "amd64"
+    }
+  ]
+}

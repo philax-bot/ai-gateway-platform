@@ -1,0 +1,275 @@
+import { ConflictException, Injectable, OnModuleDestroy } from '@nestjs/common';
+import { Pool, type PoolClient } from 'pg';
+import { createHash, randomUUID } from 'node:crypto';
+import { readdirSync } from 'node:fs';
+import { resolve } from 'node:path';
+import Redis from 'ioredis';
+import type { AdmissionSnapshot, AuthorizeRequest, AuthorizeResponse, CallLog, CallQuery, InFlightCount, ReconciliationRequest, SettlementRequest, SettlementResponse, WorkspaceState } from '@ai-gateway/contracts';
+import { businessDenial } from '../platform/domain';
+import { DemoStore } from './demo.store';
+import type { DemoCredential, QuotaSnapshot } from './control-plane.store';
+import { authorizationFingerprint, checkSettlementScope, reconciliationCalculation, RESERVATION_AMOUNT, sameIdentity, settlementAmount } from './accounting';
+import { admissionForBatch, publicLogAdmission } from './admission';
+import type { CallScope } from './call-query';
+import { queryPostgresCalls } from './postgres-call-query';
+import { databaseSchema,runtimeMode } from '@ai-gateway/contracts';
+import { applyMigrations,loadMigrations } from './migrations';
+
+@Injectable()
+export class PostgresStore extends DemoStore implements OnModuleDestroy {
+  async withClient<T>(work: (client: PoolClient) => Promise<T>): Promise<T> {
+    const client = await this.pool.connect();
+    try { return await work(client); } finally { client.release(); }
+  }
+  private readonly pool = new Pool({ connectionString: process.env.DATABASE_URL, max: 10,
+    options: databaseSchema(process.env)?`-c search_path=${databaseSchema(process.env)}`:process.env.PGOPTIONS, connectionTimeoutMillis: 5000 });
+  private readonly redis = process.env.REDIS_URL
+    ? new Redis(process.env.REDIS_URL, { lazyConnect: true, maxRetriesPerRequest: 1, retryStrategy: () => null })
+    : null;
+
+  async initialize(): Promise<void> {
+    const directory = [resolve(process.cwd(), 'apps/control-plane/migrations'), resolve(__dirname, '../../migrations')]
+      .find((path) => { try { return readdirSync(path).includes('001_initial.sql'); } catch { return false; } });
+    if (!directory) throw new Error('control-plane migrations were not found');
+    const client = await this.pool.connect();
+    try {
+      await client.query('begin');
+      const schema=databaseSchema(process.env);if(schema&&(await client.query('select current_schema() as name')).rows[0].name!==schema)throw new Error('Configured DATABASE_SCHEMA must already exist and be accessible');
+      await applyMigrations(client,loadMigrations(directory));
+      const mode=runtimeMode(process.env),installation=await client.query('select mode from platform_installation where singleton=true for update');
+      if(installation.rowCount&&installation.rows[0].mode!==mode)throw new Error('Database installation mode differs; choose the matching mode or a separate schema');
+      if(mode==='production'){
+        const fixtures=await client.query(`select credential_id from credentials where api_key in ('local-employee-key','local-project-key') union all select id from quota_batches where id in ('personal-batch-demo-001','project-member-batch-demo-001') union all select id from platform_workspace where payload->'members' @> '[{"id":"operator-demo-001"}]'::jsonb or payload->'members' @> '[{"id":"employee-demo-001"}]'::jsonb or payload->'definitions' @> '[{"id":"definition-test-model"}]'::jsonb`);
+        if(fixtures.rowCount)throw new Error('Development fixtures detected; use a separate clean production schema');
+      }
+      await client.query('insert into platform_installation(singleton,mode) values(true,$1) on conflict do nothing',[mode]);
+      // Development fixtures are insert-only; service restarts never reset balances or re-enable keys.
+      for (const c of this.credentials.values()) {
+        await client.query(`insert into credentials(credential_id,api_key,identity,purpose,model_ids)
+          values($1,$2,$3,$4,$5) on conflict do nothing`,
+          [c.credentialId, c.apiKey, c.identity, c.purpose, JSON.stringify(c.modelIds)]);
+      }
+      for (const b of this.quotaBatches.values()) {
+        await client.query(`insert into quota_batches(id,source_type,source_id,purpose,total_amount,available_amount,model_ids,expires_at,organization_id,project_id)
+          values($1,$2,$3,$4,$5,$5,$6,$7,$8,$9) on conflict do nothing`,
+          [b.id,b.sourceType,b.sourceId,b.purpose,b.totalAmount,JSON.stringify(b.modelIds),b.expiresAt,b.organizationId,b.projectId]);
+      }
+      if(runtimeMode(process.env)!=='production')await client.query(`update credentials set model_ids='["test-model"]'::jsonb
+        where credential_id='credential-demo-001' and jsonb_typeof(model_ids) <> 'array';
+        update quota_batches set model_ids='["test-model"]'::jsonb
+        where id='personal-batch-demo-001' and jsonb_typeof(model_ids) <> 'array'`);
+      await client.query('commit');
+    } catch (error) { await client.query('rollback'); throw error; } finally { client.release(); }
+  }
+
+  async onModuleDestroy(): Promise<void> { this.redis?.disconnect(); await this.pool.end(); }
+
+  private async lock(client: PoolClient, keys: string[]): Promise<void> {
+    for (const key of [...new Set(keys)].sort()) {
+      await client.query('select pg_advisory_xact_lock(hashtextextended($1,0))', [key]);
+    }
+  }
+
+  private async saveAuthorization(client:PoolClient,input:AuthorizeRequest,response:AuthorizeResponse,fingerprint:string){
+    await client.query('insert into authorization_records(request_id,response,idempotency_key,fingerprint) values($1,$2,$3,$4)',[input.requestId,response,input.idempotencyKey,fingerprint]);
+    if(response.decision==='deny'){
+      const c=this.deniedCall(input,response);
+      await client.query(`insert into call_logs(request_id,started_at,completed_at,subject_type,subject_id,credential_id,purpose,model_id,outcome,input_tokens,output_tokens,cached_input_tokens,actual_amount,billable_state,project_id,admission,organization_id,latency_ms,usage_final,forwarded,error_code)
+        values($1,$2,$2,$3,$4,$5,$6,$7,'rejected_before_upstream',0,0,0,0,'not_billable',$8,$9,$10,0,true,false,$11)`,[c.requestId,c.completedAt,c.subjectType,c.subjectId,c.credentialId,c.purpose,c.modelId,c.projectId,response.admission?{...response.admission,reservedAmount:0}:null,c.organizationId,c.errorCode]);
+    }
+  }
+
+  async authorize(input: AuthorizeRequest): Promise<AuthorizeResponse> {
+    const fingerprint = authorizationFingerprint(input);
+    const client = await this.pool.connect();
+    try {
+      await client.query('begin');
+      await this.lock(client, [`authorize-key:${input.idempotencyKey}`, `authorize-request:${input.requestId}`]);
+      const workspace=await client.query('select payload from platform_workspace where id=$1 for share',['org-demo']);
+      const reason=workspace.rowCount?businessDenial(workspace.rows[0].payload as WorkspaceState,input):null;
+      const previous = await client.query('select * from authorization_records where idempotency_key=$1 or request_id=$2', [input.idempotencyKey,input.requestId]);
+      if (previous.rowCount) {
+        const r = previous.rows[0];
+        if (r.idempotency_key !== input.idempotencyKey || r.fingerprint !== fingerprint) throw new ConflictException('authorization key or request ID was reused with different input');
+        await client.query('commit');
+        return { ...(r.response as AuthorizeResponse), replayed: true };
+      }
+      const response: AuthorizeResponse = { requestId: input.requestId, decision: 'deny', reasonCode: 'none', reasonMessage: '', policyVersion: input.policyVersion, reservation: null };
+      if(reason){response.reasonCode=reason;response.reasonMessage='current subject or model entitlement is inactive';await this.saveAuthorization(client,input,response,fingerprint);await client.query('commit');return response;}
+      const result = await client.query('select * from credentials where credential_id=$1', [input.identity.credentialId]);
+      const c = result.rows[0];
+      if (!c || !c.active) {
+        response.reasonCode = c ? 'subject_disabled' : 'credential_invalid'; response.reasonMessage = 'credential is unknown or disabled';
+      } else if (!sameIdentity(c.identity, input.identity) || c.purpose !== input.purpose) {
+        response.reasonCode = 'credential_invalid'; response.reasonMessage = 'credential identity or purpose does not match';
+      } else if (!(Array.isArray(c.model_ids) ? c.model_ids : JSON.parse(c.model_ids)).includes(input.modelId)) {
+        response.reasonCode = 'model_not_open'; response.reasonMessage = 'model is not open for this credential';
+      } else {
+        const values = [input.purpose,input.identity.subjectId,input.identity.organizationId ?? null,input.identity.projectId ?? null,JSON.stringify([input.modelId])];
+        const scope = 'purpose=$1 and source_id=$2 and organization_id is not distinct from $3 and project_id is not distinct from $4 and model_ids @> $5::jsonb and expires_at > now() and closed_at is null';
+        const batches = await client.query(`select * from quota_batches where ${scope} order by expires_at,id for update`, values);
+        let b:Record<string,any>|undefined,admission:AdmissionSnapshot|undefined,eligible=0;
+        let candidateReason:AuthorizeResponse['reasonCode']='no_quota';
+        for(const candidate of batches.rows){
+          const quote=admissionForBatch(workspace.rows[0]?.payload as WorkspaceState|undefined,input,{sourceId:candidate.source_id,purpose:candidate.purpose,projectId:candidate.project_id,entitlementId:candidate.entitlement_id});
+          if(quote.reason){candidateReason=quote.reason;continue;}eligible++;
+          if(Number(candidate.available_amount)>=quote.admission.reservedAmount){b=candidate;admission=quote.admission;break;}
+        }
+        if (!b) {
+          response.reasonCode = eligible?'quota_insufficient':batches.rowCount?candidateReason:'no_quota'; response.reasonMessage = 'no valid funded quota source, route and price applies to this model';
+        } else {
+          const a=admission!;
+          await this.lock(client,a.scopes.map(scope=>`limit:${scope.id}`));
+          const windowResult=await client.query("select date_trunc('minute',clock_timestamp()) as start,clock_timestamp() as now");
+          const windowStart=windowResult.rows[0].start as Date;
+          let limited=false;
+          for(const scope of a.scopes){
+            const window=await client.query('select requests,tokens from admission_windows where scope_id=$1 and window_start=$2',[scope.id,windowStart]);
+            const active=await client.query('select count(*)::int as total from reservation_limit_scopes where scope_id=$1 and active=true and expires_at>clock_timestamp()',[scope.id]);
+            if((scope.rpm!==undefined&&Number(window.rows[0]?.requests??0)+1>scope.rpm)||(scope.tpm!==undefined&&Number(window.rows[0]?.tokens??0)+a.estimatedTokens>scope.tpm)||(scope.concurrency!==undefined&&active.rows[0].total>=scope.concurrency)){limited=true;break;}
+          }
+          if(limited){
+            response.reasonCode='rate_limited';response.reasonMessage='an applicable subject, pool, service or shared-resource limit is reached';
+            response.admission=a;await this.saveAuthorization(client,input,response,fingerprint);
+            await client.query('commit');return response;
+          }
+          await client.query('update quota_batches set available_amount=available_amount-$1 where id=$2', [a.reservedAmount,b.id]);
+          const reservationId = `reservation-${randomUUID()}`; const expiresAt = new Date(windowResult.rows[0].now.getTime()+300000).toISOString();
+          response.decision = 'allow';response.admission=a; response.reservation = { reservationId,sourceType:b.source_type,sourceId:b.id,reservedAmount:a.reservedAmount,currency:'CNY',expiresAt };
+          await client.query(`insert into reservations(reservation_id,request_id,idempotency_key,fingerprint,amount,batch_id,identity,purpose,model_id,created_at,expires_at,admission)
+            values($1,$2,$3,$4,$5,$6,$7,$8,$9,now(),$10,$11)`, [reservationId,input.requestId,input.idempotencyKey,fingerprint,a.reservedAmount,b.id,input.identity,input.purpose,input.modelId,expiresAt,a]);
+          for(const scope of a.scopes){
+            await client.query(`insert into admission_windows(scope_id,window_start,requests,tokens) values($1,$2,1,$3)
+              on conflict(scope_id,window_start) do update set requests=admission_windows.requests+1,tokens=admission_windows.tokens+excluded.tokens`,[scope.id,windowStart,a.estimatedTokens]);
+            await client.query('insert into reservation_limit_scopes(reservation_id,scope_id,window_start,estimated_tokens,expires_at) values($1,$2,$3,$4,$5)',[reservationId,scope.id,windowStart,a.estimatedTokens,expiresAt]);
+          }
+        }
+      }
+      await this.saveAuthorization(client,input,response,fingerprint);
+      await client.query('commit'); return response;
+    } catch (error) { await client.query('rollback'); throw error; } finally { client.release(); }
+  }
+
+  async settle(input: SettlementRequest): Promise<SettlementResponse> {
+    settlementAmount(input, RESERVATION_AMOUNT);
+    const client = await this.pool.connect();
+    try {
+      await client.query('begin');
+      await this.lock(client, [`settle-key:${input.idempotencyKey}`, `settle-request:${input.requestId}`]);
+      const result = await client.query('select * from reservations where request_id=$1 for update', [input.requestId]);
+      const r = result.rows[0];
+      if (!r || r.reservation_id !== input.reservationId) throw new ConflictException('reservation does not match request');
+      checkSettlementScope(input, { identity:r.identity,purpose:r.purpose,modelId:r.model_id });
+      const previous = await client.query('select * from settlement_records where request_id=$1 or idempotency_key=$2', [input.requestId,input.idempotencyKey]);
+      if (previous.rows.some((p) => p.request_id !== input.requestId)) throw new ConflictException('settlement key belongs to another request');
+      if (previous.rowCount) {
+        const known=settlementAmount(input,Number(r.amount),r.admission);
+        if(previous.rows[0].response?.status==='pending_review'&&previous.rows[0].idempotency_key===`${input.requestId}:lease-expired`&&input.usageFinal===true&&input.inputTokens!==undefined&&input.outputTokens!==undefined&&!known.pending&&known.billable){
+          const recovered=await this.reconcileWithinBusinessTransaction({requestId:input.requestId,idempotencyKey:`${input.idempotencyKey}:recovered-final`,actorId:'system:data-plane-recovery',reason:'迟到的完整上游用量，按原预占价格自动核对',mode:'confirm_usage',inputTokens:input.inputTokens,outputTokens:input.outputTokens,cachedInputTokens:input.cachedInputTokens,actualAmount:input.actualAmount},client);
+          await client.query('update call_logs set outcome=$1,completed_at=$2,latency_ms=$3,forwarded=coalesce($5,forwarded) where request_id=$4',[input.outcome,input.completedAt,Math.max(0,Math.min(2147483647,Date.parse(input.completedAt)-r.created_at.getTime())),input.requestId,input.forwarded??null]);await client.query('commit');return recovered;
+        }
+        await client.query('commit');
+        return { ...(previous.rows[0].response as SettlementResponse),status:'already_finalized' };
+      }
+      if (r.finalized) throw new ConflictException('finalized reservation has no settlement record');
+      const { amount, pending, billable } = settlementAmount(input, Number(r.amount),r.admission as AdmissionSnapshot|null);
+      if (!pending) await client.query('update quota_batches set available_amount=available_amount+case when closed_at is null then $1::numeric else 0 end,closed_amount=closed_amount+case when closed_at is not null then $1::numeric else 0 end where id=$2', [Number(r.amount)-amount,r.batch_id]);
+      await client.query('update reservations set finalized=true where reservation_id=$1', [r.reservation_id]);
+      const response: SettlementResponse = pending
+        ? { requestId:input.requestId,status:'pending_review',billableState:'pending_review',ledgerEntryId:null }
+        : { requestId:input.requestId,status:billable?'settled':'released',billableState:billable?'confirmed':'not_billable',ledgerEntryId:`ledger-${randomUUID()}` };
+      const scopes=await client.query('select * from reservation_limit_scopes where reservation_id=$1',[r.reservation_id]);
+      await this.lock(client,scopes.rows.map(scope=>`limit:${scope.scope_id}`));
+      await client.query('update reservation_limit_scopes set active=false where reservation_id=$1',[r.reservation_id]);
+      if(input.usageFinal!==false&&input.inputTokens!==undefined&&input.outputTokens!==undefined){for(const scope of scopes.rows){
+        await client.query('update admission_windows set tokens=greatest(0,tokens-$1) where scope_id=$2 and window_start=$3',[Number(scope.estimated_tokens)-input.inputTokens-input.outputTokens,scope.scope_id,scope.window_start]);
+      }}
+      if(response.ledgerEntryId)await client.query('insert into usage_ledger_entries(id,request_id,reservation_id,batch_id,kind,amount,detail) values($1,$2,$3,$4,$5,$6,$7)',[response.ledgerEntryId,input.requestId,r.reservation_id,r.batch_id,billable?'settlement':'release',amount,{reservedAmount:Number(r.amount),releasedAmount:Number(r.amount)-amount,admission:r.admission}]);
+      await client.query('insert into settlement_records(request_id,idempotency_key,response) values($1,$2,$3)', [input.requestId,input.idempotencyKey,response]);
+      await client.query(`insert into call_logs(request_id,started_at,completed_at,subject_type,subject_id,credential_id,purpose,model_id,outcome,input_tokens,output_tokens,cached_input_tokens,actual_amount,billable_state,reservation_id,project_id,admission,organization_id,latency_ms,usage_final,forwarded)
+        values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)`, [input.requestId,r.created_at,input.completedAt,r.identity.subjectType,r.identity.subjectId,r.identity.credentialId,r.purpose,r.model_id,input.outcome,input.inputTokens??0,input.outputTokens??0,input.cachedInputTokens??0,amount,response.billableState,r.reservation_id,r.identity.projectId??null,r.admission,r.identity.organizationId??null,Math.max(0,Math.min(2147483647,Date.parse(input.completedAt)-r.created_at.getTime())),input.usageFinal!==false&&input.inputTokens!==undefined&&input.outputTokens!==undefined,input.forwarded??(input.outcome==='rejected_before_upstream'?false:null)]);
+      await client.query('update call_logs set ttft_ms=$1,error_code=$2 where request_id=$3',[input.ttftMs??null,input.errorCode??null,input.requestId]);
+      await client.query('commit'); return response;
+    } catch (error) { await client.query('rollback'); throw error; } finally { client.release(); }
+  }
+
+  async getDemoCredential(apiKey: string): Promise<DemoCredential | null> {
+    if(typeof apiKey!=='string'||apiKey.length>4096)return null;
+    const result = await this.pool.query('select * from credentials where (api_key=$1 or api_key=$2) and active=true', [apiKey,`sha256:${createHash('sha256').update(apiKey).digest('hex')}`]);
+    const r=result.rows[0]; return r ? { credentialId:r.credential_id,identity:r.identity,purpose:r.purpose } : null;
+  }
+  async listCalls(): Promise<CallLog[]> {
+    const result=await this.pool.query('select * from call_logs order by completed_at desc limit 200');
+    return result.rows.map(r=>this.mapCall(r));
+  }
+  // Statistics failures must leave the caller's business transaction usable so
+  // collection errors can be recorded. Reuse its connection instead of waiting
+  // for another pool slot while holding the workspace lock.
+  private async statisticsWithin<T>(client:PoolClient,read:()=>Promise<T>):Promise<T>{
+    await client.query('savepoint statistics_read');
+    try{const result=await read();await client.query('release savepoint statistics_read');return result;}
+    catch(error){await client.query('rollback to savepoint statistics_read');await client.query('release savepoint statistics_read');throw error;}
+  }
+  async queryCalls(input:CallQuery,scope:CallScope=null,existingClient?:PoolClient){
+    if(existingClient)return this.statisticsWithin(existingClient,()=>queryPostgresCalls(existingClient,input,scope,r=>this.mapCall(r)));
+    return this.withClient(async client=>{
+    await client.query('begin isolation level repeatable read read only');
+    try{const result=await queryPostgresCalls(client,input,scope,r=>this.mapCall(r));await client.query('commit');return result;}catch(error){await client.query('rollback');throw error;}
+  });}
+  private mapCall(r:Record<string,any>):CallLog{return {requestId:r.request_id,startedAt:r.started_at.toISOString(),completedAt:r.completed_at.toISOString(),subjectType:r.subject_type,subjectId:r.subject_id,credentialId:r.credential_id,purpose:r.purpose,projectId:r.project_id,modelId:r.model_id,outcome:r.outcome,inputTokens:r.input_tokens,outputTokens:r.output_tokens,cachedInputTokens:r.cached_input_tokens,actualAmount:Number(r.actual_amount),billableState:r.billable_state,reservationId:r.reservation_id,admission:publicLogAdmission(r.admission),organizationId:r.organization_id,errorCode:r.error_code,latencyMs:r.latency_ms,usageFinal:r.usage_final??undefined,forwarded:r.forwarded??null,ttftMs:r.ttft_ms??null};}
+  async inFlightCounts(client?:PoolClient):Promise<InFlightCount[]>{
+    const read=async()=>{const result=await (client??this.pool).query(`select admission->'route'->>'serviceId' as service_id,model_id,count(*)::int as count from reservations where finalized=false and expires_at>clock_timestamp() group by 1,2`);return result.rows.map(r=>({serviceId:r.service_id,modelId:r.model_id,count:r.count}));};
+    return client?this.statisticsWithin(client,read):read();
+  }
+  async getCall(requestId:string):Promise<CallLog|null>{const result=await this.pool.query('select * from call_logs where request_id=$1',[requestId]);return result.rowCount?this.mapCall(result.rows[0]):null;}
+  async getReservationSummary(requestId:string){const result=await this.pool.query('select amount,batch_id,admission from reservations where request_id=$1',[requestId]),r=result.rows[0];return r?{amount:Number(r.amount),batchId:String(r.batch_id),admission:(r.admission as AdmissionSnapshot|null)??null}:null;}
+  async listExpiredReservations(){const result=await this.pool.query('select request_id,reservation_id from reservations where finalized=false and expires_at<=clock_timestamp() order by expires_at limit 100');return result.rows.map(r=>({requestId:String(r.request_id),reservationId:String(r.reservation_id)}));}
+  async renewReservation(requestId:string,reservationId:string){return this.withClient(async client=>{
+    await client.query('begin');try{
+      const result=await client.query("update reservations set expires_at=clock_timestamp()+interval '5 minutes' where request_id=$1 and reservation_id=$2 and finalized=false and expires_at>clock_timestamp() returning expires_at",[requestId,reservationId]);
+      if(result.rowCount)await client.query('update reservation_limit_scopes set expires_at=$1 where reservation_id=$2',[result.rows[0].expires_at,reservationId]);
+      await client.query('commit');return result.rowCount?{renewed:true,expiresAt:result.rows[0].expires_at.toISOString()}:{renewed:false};
+    }catch(error){await client.query('rollback');throw error;}
+  });}
+  async reconcileWithinBusinessTransaction(input:ReconciliationRequest,client?:PoolClient):Promise<SettlementResponse>{
+    if(!client)throw new Error('reconciliation requires the existing business transaction');
+    reconciliationCalculation(input,0,null);const fingerprint=JSON.stringify(input);
+    await this.lock(client,[`review:${input.idempotencyKey}`]);
+    const previous=await client.query('select * from reconciliation_records where request_id=$1 or idempotency_key=$2',[input.requestId,input.idempotencyKey]);
+    if(previous.rowCount){const r=previous.rows[0];if(r.request_id!==input.requestId||r.idempotency_key!==input.idempotencyKey||r.fingerprint!==fingerprint)throw new ConflictException('request or reconciliation key was already used');return {...r.response,status:'already_finalized'};}
+    const reservation=await client.query('select * from reservations where request_id=$1 for update',[input.requestId]),r=reservation.rows[0];
+    const settled=await client.query('select response from settlement_records where request_id=$1 for update',[input.requestId]);
+    if(!r||settled.rows[0]?.response?.status!=='pending_review')throw new ConflictException('only a pending-review reservation may be reconciled');
+    const result=reconciliationCalculation(input,Number(r.amount),r.admission as AdmissionSnapshot|null),release=Number((Number(r.amount)-result.amount).toFixed(6));
+    const updated=await client.query(`update quota_batches set
+      available_amount=available_amount+case when closed_at is null then $1::numeric else 0 end,
+      closed_amount=closed_amount+case when closed_at is not null then $1::numeric else 0 end
+      where id=$2 and (case when closed_at is null then available_amount else closed_amount end)+$1>=0
+      and available_amount+closed_amount+$1<=total_amount returning id`,[release,r.batch_id]);
+    if(!updated.rowCount)throw new ConflictException('original quota batch has insufficient funds or invalid balance');
+    const response:SettlementResponse={requestId:input.requestId,status:result.billable?'settled':'released',billableState:result.billable?'confirmed':'not_billable',ledgerEntryId:`ledger-${randomUUID()}`};
+    const changed=await client.query(`update call_logs set actual_amount=$1,billable_state=$2,
+      input_tokens=case when $3 then $4 else input_tokens end,output_tokens=case when $3 then $5 else output_tokens end,
+      cached_input_tokens=case when $3 then $6 else cached_input_tokens end,usage_final=case when $3 then true else usage_final end where request_id=$7 returning request_id`,[result.amount,response.billableState,input.mode==='confirm_usage',input.inputTokens??0,input.outputTokens??0,input.cachedInputTokens??0,input.requestId]);
+    if(!changed.rowCount)throw new ConflictException('pending call log is missing');
+    await client.query('update settlement_records set response=$1 where request_id=$2',[response,input.requestId]);
+    await client.query('insert into reconciliation_records(request_id,idempotency_key,fingerprint,actor_id,reason,response) values($1,$2,$3,$4,$5,$6)',[input.requestId,input.idempotencyKey,fingerprint,input.actorId,input.reason,response]);
+    await client.query('insert into usage_ledger_entries(id,request_id,reservation_id,batch_id,kind,amount,detail) values($1,$2,$3,$4,$5,$6,$7)',[response.ledgerEntryId,input.requestId,r.reservation_id,r.batch_id,'reconciliation',result.amount,{actorId:input.actorId,reason:input.reason,mode:input.mode,reservedAmount:Number(r.amount),releasedAmount:release,admission:r.admission}]);
+    return response;
+  }
+  async confirmedAmountsForBatches(ids:string[],client?:PoolClient):Promise<Record<string,number>>{
+    if(!ids.length)return {};
+    const read=async(c:PoolClient)=>Object.fromEntries((await c.query(`select r.batch_id,sum(c.actual_amount) as amount from call_logs c join reservations r using(request_id) where r.batch_id=any($1::text[]) and c.billable_state='confirmed' group by r.batch_id`,[ids])).rows.map(r=>[String(r.batch_id),Number(r.amount)]));
+    return client?read(client):this.withClient(read);
+  }
+  async getQuota(purpose: 'personal' | 'project' = 'personal'): Promise<QuotaSnapshot> {
+    const result=await this.pool.query('select * from quota_batches where id=$1', [purpose==='personal'?'personal-batch-demo-001':'project-member-batch-demo-001']);
+    const r=result.rows[0]; return { purpose,projectId:r?.project_id??null,currency:'CNY',availableAmount:r?Number(r.available_amount):0,totalAmount:r?Number(r.total_amount):0,sourceId:r?.id??null,expiresAt:r?.expires_at?.toISOString()??null };
+  }
+  async health() {
+    let database='down'; let cache=this.redis?'down':'disabled';
+    try { await this.pool.query('select 1'); database='up'; } catch { /* report dependency state */ }
+    if (this.redis) { try { await this.redis.ping(); cache='up'; } catch { /* report dependency state */ } }
+    return { status:database==='up'&&cache!=='down'?'ok' as const:'degraded' as const,database,cache };
+  }
+}

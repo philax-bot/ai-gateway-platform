@@ -1,0 +1,315 @@
+{
+  "verifiedAt": "2026-10-20T05:20:21.115Z",
+  "url": "http://localhost:5176/",
+  "asset": [
+    "/assets/index-CHL3zRx9.js"
+  ],
+  "measurements": [
+    {
+      "documentWidth": 305,
+      "overflow": false,
+      "page": "运营工作台",
+      "width": 320
+    },
+    {
+      "documentWidth": 345,
+      "overflow": false,
+      "page": "运营工作台",
+      "width": 360
+    },
+    {
+      "documentWidth": 721,
+      "overflow": false,
+      "page": "运营工作台",
+      "width": 736
+    },
+    {
+      "documentWidth": 1009,
+      "overflow": false,
+      "page": "运营工作台",
+      "width": 1024
+    },
+    {
+      "documentWidth": 1425,
+      "overflow": false,
+      "page": "运营工作台",
+      "width": 1440
+    },
+    {
+      "documentWidth": 305,
+      "overflow": false,
+      "page": "为人员开通",
+      "step": "选人",
+      "width": 320
+    },
+    {
+      "documentWidth": 345,
+      "overflow": false,
+      "page": "为人员开通",
+      "step": "选人",
+      "width": 360
+    },
+    {
+      "documentWidth": 721,
+      "overflow": false,
+      "page": "为人员开通",
+      "step": "选人",
+      "width": 736
+    },
+    {
+      "documentWidth": 1009,
+      "overflow": false,
+      "page": "为人员开通",
+      "step": "选人",
+      "width": 1024
+    },
+    {
+      "documentWidth": 1425,
+      "overflow": false,
+      "page": "为人员开通",
+      "step": "选人",
+      "width": 1440
+    },
+    {
+      "documentWidth": 305,
+      "overflow": false,
+      "page": "为人员开通",
+      "step": "选方案",
+      "width": 320
+    },
+    {
+      "documentWidth": 345,
+      "overflow": false,
+      "page": "为人员开通",
+      "step": "选方案",
+      "width": 360
+    },
+    {
+      "documentWidth": 721,
+      "overflow": false,
+      "page": "为人员开通",
+      "step": "选方案",
+      "width": 736
+    },
+    {
+      "documentWidth": 1009,
+      "overflow": false,
+      "page": "为人员开通",
+      "step": "选方案",
+      "width": 1024
+    },
+    {
+      "documentWidth": 1425,
+      "overflow": false,
+      "page": "为人员开通",
+      "step": "选方案",
+      "width": 1440
+    },
+    {
+      "documentWidth": 305,
+      "overflow": false,
+      "page": "模型配置",
+      "width": 320
+    },
+    {
+      "documentWidth": 345,
+      "overflow": false,
+      "page": "模型配置",
+      "width": 360
+    },
+    {
+      "documentWidth": 721,
+      "overflow": false,
+      "page": "模型配置",
+      "width": 736
+    },
+    {
+      "documentWidth": 1009,
+      "overflow": false,
+      "page": "模型配置",
+      "width": 1024
+    },
+    {
+      "documentWidth": 1425,
+      "overflow": false,
+      "page": "模型配置",
+      "width": 1440
+    },
+    {
+      "dialogBottom": 855,
+      "dialogFits": true,
+      "dialogTop": 45,
+      "documentWidth": 305,
+      "overflow": false,
+      "page": "模型服务表单",
+      "width": 320
+    },
+    {
+      "dialogBottom": 855,
+      "dialogFits": true,
+      "dialogTop": 45,
+      "documentWidth": 345,
+      "overflow": false,
+      "page": "模型服务表单",
+      "width": 360
+    },
+    {
+      "dialogBottom": 855,
+      "dialogFits": true,
+      "dialogTop": 45,
+      "documentWidth": 721,
+      "overflow": false,
+      "page": "模型服务表单",
+      "width": 736
+    },
+    {
+      "dialogBottom": 800.125,
+      "dialogFits": true,
+      "dialogTop": 99.875,
+      "documentWidth": 1009,
+      "overflow": false,
+      "page": "模型服务表单",
+      "width": 1024
+    },
+    {
+      "dialogBottom": 800.125,
+      "dialogFits": true,
+      "dialogTop": 99.875,
+      "documentWidth": 1425,
+      "overflow": false,
+      "page": "模型服务表单",
+      "width": 1440
+    },
+    {
+      "documentWidth": 305,
+      "overflow": false,
+      "page": "项目",
+      "width": 320
+    },
+    {
+      "documentWidth": 345,
+      "overflow": false,
+      "page": "项目",
+      "width": 360
+    },
+    {
+      "documentWidth": 721,
+      "overflow": false,
+      "page": "项目",
+      "width": 736
+    },
+    {
+      "documentWidth": 1009,
+      "overflow": false,
+      "page": "项目",
+      "width": 1024
+    },
+    {
+      "documentWidth": 1425,
+      "overflow": false,
+      "page": "项目",
+      "width": 1440
+    },
+    {
+      "dialogFits": true,
+      "documentWidth": 305,
+      "overflow": false,
+      "page": "项目详情",
+      "width": 320
+    },
+    {
+      "dialogFits": true,
+      "documentWidth": 345,
+      "overflow": false,
+      "page": "项目详情",
+      "width": 360
+    },
+    {
+      "dialogFits": true,
+      "documentWidth": 721,
+      "overflow": false,
+      "page": "项目详情",
+      "width": 736
+    },
+    {
+      "dialogFits": true,
+      "documentWidth": 1009,
+      "overflow": false,
+      "page": "项目详情",
+      "width": 1024
+    },
+    {
+      "dialogFits": true,
+      "documentWidth": 1425,
+      "overflow": false,
+      "page": "项目详情",
+      "width": 1440
+    },
+    {
+      "documentWidth": 305,
+      "overflow": false,
+      "page": "应用",
+      "width": 320
+    },
+    {
+      "documentWidth": 345,
+      "overflow": false,
+      "page": "应用",
+      "width": 360
+    },
+    {
+      "documentWidth": 721,
+      "overflow": false,
+      "page": "应用",
+      "width": 736
+    },
+    {
+      "documentWidth": 1009,
+      "overflow": false,
+      "page": "应用",
+      "width": 1024
+    },
+    {
+      "documentWidth": 1425,
+      "overflow": false,
+      "page": "应用",
+      "width": 1440
+    },
+    {
+      "documentWidth": 305,
+      "overflow": false,
+      "page": "应用接入",
+      "width": 320
+    },
+    {
+      "documentWidth": 345,
+      "overflow": false,
+      "page": "应用接入",
+      "width": 360
+    },
+    {
+      "documentWidth": 721,
+      "overflow": false,
+      "page": "应用接入",
+      "width": 736
+    },
+    {
+      "documentWidth": 1009,
+      "overflow": false,
+      "page": "应用接入",
+      "width": 1024
+    },
+    {
+      "documentWidth": 1425,
+      "overflow": false,
+      "page": "应用接入",
+      "width": 1440
+    }
+  ],
+  "keyboard": {
+    "context": "模型服务表单",
+    "focusVisible": true,
+    "outlineWidth": "3px"
+  },
+  "businessWrites": false
+}

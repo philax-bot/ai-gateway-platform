@@ -1,0 +1,34 @@
+import assert from 'node:assert/strict';
+import {randomUUID} from 'node:crypto';
+export async function checkOperations({admin,employeeCookie,managerCookie,employee,manager,key,request,state,command}){
+  let assertions=0;const check=(value,message)=>{assert.ok(value,message);assertions++;};
+  const range={poolId:'pool-local-test',mode:'follow',definitionIds:[]},expiresAt=new Date(Date.now()+86400000*7).toISOString();
+  const plan=(await command(admin,'save.plan',{name:'修复执行方案',range,amount:10,cadence:'monthly',quotaDays:30,entitlementDays:365})).result;
+  const a=(await command(employeeCookie,'approval.submit',{kind:'personal_open',amount:11,expiresAt,scenario:'验收',reason:'独立修复申请'})).result;
+  await command(admin,'approval.decide',{id:a.id,decision:'approve',amount:8,expiresAt,planId:'wrong-plan',reason:'原批准'});
+  const execute={type:'approval.execute',payload:{id:a.id},idempotencyKey:randomUUID()};check((await request('/api/v1/platform/commands',execute,admin)).status===404,'failed execution returns missing-plan error');
+  const detail=await request(`/api/v1/platform/approvals/${a.id}`,null,employeeCookie);check(detail.status===200&&detail.body.approval.status==='failed'&&detail.body.history.some(h=>h.action==='approval.execution_failed'),'applicant sees persisted failure and complete scoped history');
+  check(!detail.body.permissions.execute&&!detail.body.permissions.repair,'applicant receives explicit non-mutating approval capabilities');
+  check((await request(`/api/v1/platform/approvals/${a.id}`,null,managerCookie)).status===403,'unrelated employee cannot read approval details');
+  const repair={type:'approval.repair',payload:{id:a.id,planId:plan.id,amount:4,expiresAt,reason:'修正选择的方案'},idempotencyKey:randomUUID()};
+  check((await request('/api/v1/platform/preview',repair,employeeCookie)).status===403,'applicant cannot repair own approved request');
+  const preview=await request('/api/v1/platform/preview',repair,admin);check(preview.status===200&&preview.body.impact.approvalBefore.approvedAmount===8&&preview.body.impact.approvalAfter.approvedAmount===4,'repair preview preserves before/after approved values');
+  const count=(await state(admin)).quotaBatches.filter(b=>b.sourceId===employee.id&&b.entitlementId).length;
+  check((await request('/api/v1/platform/commands',{...repair,previewToken:preview.body.previewToken},admin)).status===200,'signed repair succeeds');
+  check((await state(admin)).quotaBatches.filter(b=>b.sourceId===employee.id&&b.entitlementId).length===count,'repair does not create money');
+  const c={type:'approval.execute',payload:{id:a.id},idempotencyKey:randomUUID()};const results=await Promise.all([request('/api/v1/platform/commands',c,admin),request('/api/v1/platform/commands',c,admin)]);check(results.every(r=>r.status===200)&&results.some(r=>r.body.replayed),'concurrent repaired execution is idempotent');
+  const s=await state(admin);check(s.quotaBatches.filter(b=>b.sourceId===employee.id&&b.entitlementId).length===count+1&&s.quotaBatches.some(b=>b.totalAmount===4&&s.entitlements.some(e=>e.id===b.entitlementId&&e.planId===plan.id)),'only adjusted approved funds reach ledger');
+  const done=await request(`/api/v1/platform/approvals/${a.id}`,null,employeeCookie);check(done.body.approval.amount===11&&done.body.approval.status==='effective'&&done.body.history.some(h=>h.action==='approval.execution_repaired'&&h.detail.before.approvedAmount===8),'original request and repair audit survive execution');
+  const keyDetail=await request(`/api/v1/platform/keys/${key.key.id}`,null,employeeCookie);check(keyDetail.status===200&&keyDetail.body.models.some(m=>m.modelId==='test-model')&&keyDetail.body.calls.summary.ended>0,'key details include current models and full scoped call summary');
+  check(!JSON.stringify(keyDetail.body).includes(key.secret)&&!JSON.stringify(keyDetail.body).includes('keyHash'),'key detail and history contain no complete secret or hash');
+  check((await request(`/api/v1/platform/keys/${key.key.id}`,null,managerCookie)).status===403,'unrelated actor cannot inspect another key');
+  const app=(await command(admin,'save.application',{name:'交接验证应用',ownerId:employee.id,organizationId:'org-demo',range})).result;
+  const application=await request(`/api/v1/platform/applications/${app.id}`,null,employeeCookie);check(application.status===200&&application.body.models.some(m=>m.modelId==='test-model')&&application.body.status==='no_quota','application owner sees current models and unfunded setup step');
+  check((await request(`/api/v1/platform/applications/${app.id}`,null,managerCookie)).status===403,'unrelated member cannot read application setup or finance');
+  await command(admin,'application.fund',{applicationId:app.id,amount:3,expiresAt});const funded=await request(`/api/v1/platform/applications/${app.id}`,null,employeeCookie);check(funded.body.status==='ready'&&funded.body.availableAmount===3,'application setup reads PostgreSQL-backed original-source funds');
+  const issued=(await command(employeeCookie,'key.issue',{name:'交接密钥',purpose:'application',applicationId:app.id})).result;await command(admin,'save.application',{...app,ownerId:manager.id});
+  check((await request(`/api/v1/platform/keys/${issued.key.id}`,null,employeeCookie)).status===403,'old application owner immediately loses key detail access');
+  check((await request(`/api/v1/platform/applications/${app.id}`,null,employeeCookie)).status===403,'old owner also loses application detail immediately');
+  const transferred=await request(`/api/v1/platform/keys/${issued.key.id}`,null,managerCookie);check(transferred.status===200&&transferred.body.key.ownerId===manager.id&&transferred.body.history.some(h=>h.action==='save.application'),'new owner receives details and handoff history');
+  console.log(`PASS ${assertions} approval repair and key-detail HTTP assertions`);return assertions;
+}

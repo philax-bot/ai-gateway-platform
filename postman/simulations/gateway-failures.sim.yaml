@@ -1,0 +1,5 @@
+simulation: gateway-failures
+routing: path
+mocks:
+  - routeKey: model
+    path: ../mocks/test-model/default.js

@@ -1,0 +1,15 @@
+**/node_modules
+**/dist
+**/*.tsbuildinfo
+**/.env
+**/.env.*
+**/*.pem
+**/*.key
+**/*.crt
+.runtime
+.git
+deploy/runtime.env
+deploy/upstreams.env
+deploy/tls
+docs/validation
+**/*.zip

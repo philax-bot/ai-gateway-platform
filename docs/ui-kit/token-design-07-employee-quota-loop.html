@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Signal Atlas · 工作台与额度闭环</title>
+<link rel="stylesheet" href="signal-atlas-tokens.css">
+<link rel="stylesheet" href="signal-atlas.css">
+</head>
+<body>
+<header class="lab" aria-label="原型演示工具"><div><strong>Signal Atlas</strong> · 工作台与额度闭环 v0.10 / 本地模拟</div><div class="lab-controls" role="group" aria-label="演示角色"><span>体验身份</span><button type="button" data-role="employee">员工 · 陈默</button><button type="button" data-role="manager">项目经理 · 赵宁</button><button type="button" data-role="ops">运营 · 林晓</button><button type="button" class="fixture" data-action="fixture">添加待审批示例</button><button type="button" data-action="reset">重置演示</button></div></header>
+<div class="shell"><aside class="rail"><div class="brand"><div class="mark" aria-hidden="true">T</div><div><b>Signal Atlas</b><span>企业 AI 工作空间</span></div></div><nav class="nav" aria-label="主导航"></nav><div class="rail-note"></div><div class="rail-bottom"><b>让 AI 成为日常工作的一部分</b>企业资源 · 按用途使用</div></aside><main class="main"><div class="top"><div class="crumb">企业工作空间 / <b id="crumb"></b></div><div class="user-block"><span class="workspace-label">内部工作空间</span><div class="avatar"></div></div></div><div class="page"><section class="heading"><div><div class="date">2026 / 10 / 16 · 工作空间</div><h1 id="title"></h1><p id="subtitle"></p></div><button class="primary" id="mainAction" data-action="apply">申请额度</button></section><div class="stepper" hidden></div><div id="error" class="notice error" role="alert" tabindex="-1" hidden></div><div id="feedback" class="notice" role="status" hidden></div><div id="content"></div><footer class="page-footer"><span>Signal Atlas · 额度与模型开通 v0.10</span><span>演示数据 · 审批、调用和扣费均为本地模拟</span></footer></div></main></div>
+<script src="token-design-07-employee-quota-loop.js"></script>
+</body>
+</html>

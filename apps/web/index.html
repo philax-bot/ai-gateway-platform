@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Signal Atlas · AI 资源运营平台</title>
+    <script>
+      (function () {
+        var known = ['azure', 'sidebar', 'next', 'classic'];
+        var mode = 'sidebar';
+        try {
+          var requested = new URLSearchParams(window.location.search).get('ui');
+          if (known.indexOf(requested) >= 0) mode = requested;
+          else {
+            var stored = window.localStorage.getItem('signal-atlas.ui');
+            if (known.indexOf(stored) >= 0) mode = stored;
+          }
+        } catch (error) {}
+        document.documentElement.dataset.ui = mode === 'classic' ? 'classic' : mode === 'azure' ? 'azure' : 'next';
+        document.documentElement.dataset.layout = mode === 'azure' ? 'sidebar' : mode;
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

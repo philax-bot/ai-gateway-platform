@@ -1,0 +1,502 @@
+openapi: 3.1.0
+info:
+  title: AI Gateway Control Plane PoC Contract
+  version: 0.1.0
+  description: >-
+    Internal contract for the first vertical slice. This contract defines the
+    business control plane and its gateway adapter boundary. It is not a
+    Higress management API and does not expose production credentials.
+servers:
+  - url: https://control-plane.example.invalid
+    description: Placeholder for an isolated PoC environment
+tags:
+  - name: Policy
+  - name: Usage
+  - name: GatewaySync
+paths:
+  /api/v1/platform/applications/{id}:
+    get:
+      summary: Read application setup progress and independent finance within owner or operator scope
+      security: [{cookieSession: []}]
+      parameters:
+        - {in: path, name: id, required: true, schema: {type: string}}
+      responses:
+        '200': {description: Application, owner and organization names, current model and price/quota readiness, original fund batches, masked keys, scoped call summary and history. Readiness uses a minimal one-output-token quote and does not guarantee arbitrary requests or live capacity.}
+        '403': {description: Actor is neither current owner nor operator}
+        '404': {description: Application does not exist}
+  /api/v1/platform/projects/{id}:
+    get:
+      summary: Read scoped project members, original budgets and closeout history
+      security: [{cookieSession: []}]
+      parameters:
+        - {in: path, name: id, required: true, schema: {type: string}}
+      responses:
+        '200': {description: Managers and operators receive project finance and history; ordinary members receive only their own allocations and consumption. Closed funds never return to spendable balance.}
+        '403': {description: Outside project scope}
+        '404': {description: Project does not exist}
+  /api/v1/platform/projects/{id}/member-candidates:
+    get:
+      summary: Read minimal active enterprise member candidates for this project
+      security: [{cookieSession: []}]
+      parameters:
+        - {in: path, name: id, required: true, schema: {type: string}}
+      responses:
+        '200': {description: Eligible member id, name and organizationName; excludes current members, expired members and inactive organization ancestry. Adding membership does not grant funds.}
+        '403': {description: Project manager or operator required}
+  /api/v1/platform/approvals/{id}:
+    get:
+      summary: Read an approval and its complete execution history
+      security: [{cookieSession: []}]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: {type: string}
+      responses:
+        '200': {description: Approval, applicantName, active responsible actors, full object audit history and current actor permissions for decide, repair, execute and withdraw. Execute permission requires current responsibility and matching recorded approver.}
+        '403': {description: Outside operator, applicant or current approver scope}
+        '404': {description: Approval does not exist}
+  /api/v1/platform/keys/{id}:
+    get:
+      summary: Read masked key details and integration data
+      security: [{cookieSession: []}]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: {type: string}
+      description: >-
+        Current owner or operator only; online internal identities cannot be read here.
+        Application handoff changes key ownership immediately. Response contains the
+        masked key, ownerName, sourceActive, open model identifiers, source rights and
+        balances, protection configuration, latest ten ended calls with full summary,
+        and key/application management history. No key plaintext or hash is returned.
+      responses:
+        '200': {description: Scoped key integration and management data}
+        '403': {description: Outside current owner/operator scope or internal identity}
+        '404': {description: Key does not exist}
+  /api/v1/platform/calls/query:
+    post:
+      summary: Query historical calls within the authenticated actor's scope
+      security: [{cookieSession: []}]
+      description: >-
+        Operators see all workspace calls; other actors see their own calls and calls
+        of applications they own. Scope is derived on the server and applied before
+        paging and aggregation. Summaries cover all matching ended records, not just
+        the current page. Authorization refusals are included only when identity is known.
+        Cursor order is completedAt descending then requestId descending; it is not a frozen export.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CallQuery'}
+      responses:
+        '200':
+          description: Scoped keyset page and full-filter summary
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/CallPage'}
+        '400': {description: Invalid date interval, enum, limit or cursor}
+        '401': {description: Session required}
+        '403': {description: Actor or organization disabled or expired}
+  /api/v1/platform/monitoring:
+    get:
+      summary: Read operator monitoring snapshot
+      security: [{cookieSession: []}]
+      description: >-
+        Past-five-minute ended-call summaries by configured service/model plus valid
+        outstanding reservations. Throughput is a window average, reservations are not
+        inference concurrency. Unknown forwarding or usage remains unknown. Failed
+        collection returns quality collection_failed without fabricated zero metrics.
+        Alert rules, original-rule event snapshots and minute-bucket evaluations are included.
+      responses:
+        '200':
+          description: MonitorSnapshot; detailed typed fields in packages/contracts/src/monitoring.ts
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [from, to, collectedAt, quality, rows, rules, events, evaluations]
+                properties:
+                  from: {type: string, format: date-time}
+                  to: {type: string, format: date-time}
+                  collectedAt: {type: string, format: date-time}
+                  quality: {type: string, enum: [collected, collection_failed]}
+                  rows:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        serviceId: {type: [string, 'null']}
+                        modelId: {type: string}
+                        summary: {$ref: '#/components/schemas/CallSummary'}
+                        activeReservations: {type: integer, minimum: 0}
+                  rules: {type: array, items: {type: object}}
+                  events: {type: array, items: {type: object}}
+                  evaluations: {type: object}
+        '401': {description: Session required}
+        '403': {description: Active operator responsibility required}
+  /api/v1/platform/preview:
+    post:
+      summary: Preview a scoped business command without mutation
+      security: [{cookieSession: []}]
+      description: >-
+        The HMAC token binds actor, input, current business revision and ten-minute
+        validity. Monitoring collection does not change business revision. Sensitive
+        credential fields are removed recursively from returned proposed values.
+        Distribution and import previews include per-person exclusions and amounts.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/PlatformCommand'}
+      responses:
+        '200': {description: Impact and previewToken}
+        '400': {description: Invalid command payload}
+        '403': {description: Required responsibility is missing}
+  /api/v1/platform/commands:
+    post:
+      summary: Execute an idempotent business command
+      security: [{cookieSession: []}]
+      description: >-
+        Metadata and quota writes share a transaction. Commands include save.member,
+        import.members, save.rule, auto.apply, distribution.execute, usage.reconcile,
+        save.alert-rule, alert.ack and approval.repair. Approval repair requires current
+        approver responsibility, a signed preview and reason; preserves original request,
+        records before/after decision values and ownership, and does not create funds.
+        Repaired state is approved and requires a separate execution. Save rule is future-only; auto.apply explicitly
+        includes existing members. Distribution operation open_plan uses planId;
+        topup uses sourcePlanId or a single member's entitlementId plus amount and
+        expiresAt, and cannot open rights implicitly. MemberIds selects an explicit
+        list; otherwise scope all or conditions selects organizationId/includeChildren,
+        category and tags (AND). Import rows use directoryId; passwords, roles and
+        supplied member IDs are rejected. Exact command payloads are shared TS contracts
+        and platform workflow/resource handlers. Stale previews return 409.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/PlatformCommand'}
+      responses:
+        '200': {description: Result with replayed flag; key plaintext is not returned on replay}
+        '400': {description: Invalid command payload}
+        '403': {description: Required responsibility is missing}
+        '409': {description: Stale preview, changed scope or idempotency conflict}
+  /internal/v1/usage/leases/renew:
+    post:
+      security: [{serviceToken: []}]
+      description: Renew an unexpired, non-finalized reservation lease during active upstream generation. A lost lease cannot be resurrected. The gateway heartbeats every minute and stops generation when renewal is refused.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [requestId, reservationId]
+              properties:
+                requestId: {type: string}
+                reservationId: {type: string}
+      responses:
+        '200': {description: Renewal result and new expiry when renewed}
+        '400': {description: Invalid lease identity}
+  /api/v1/calls/quota:
+    get:
+      security: [{serviceToken: []}]
+      summary: Read the local demo quota for one purpose
+      description: Legacy development fixture view protected by a service token. Browser users use separate authenticated platform endpoints.
+      parameters:
+        - in: query
+          name: purpose
+          schema: {type: string, enum: [personal, project], default: personal}
+      responses:
+        '200':
+          description: Quota snapshot including purpose, projectId, sourceId, totalAmount and availableAmount
+        '400':
+          description: Unsupported demo purpose
+  /health:
+    get:
+      tags: [Policy]
+      summary: Report control-plane dependency health
+      operationId: getControlPlaneHealth
+      responses:
+        '200':
+          description: Database and cache dependency status
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, database, cache]
+                properties:
+                  status: {type: string, enum: [ok, degraded]}
+                  database: {type: string}
+                  cache: {type: string}
+  /internal/v1/policy/credentials/resolve:
+    post:
+      tags: [Policy]
+      summary: Resolve an employee API key through the control plane
+      operationId: resolveCredential
+      security: [{serviceToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [apiKey]
+              properties:
+                apiKey: {type: string, minLength: 1}
+      responses:
+        '200':
+          description: Credential metadata and business identity, or null when inactive
+        '401':
+          description: Service token is missing or invalid
+  /internal/v1/policy/authorize:
+    post:
+      tags: [Policy]
+      summary: Authorize one model request and optionally reserve quota
+      operationId: authorizeModelRequest
+      security: [{serviceToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/AuthorizeRequest'}
+      responses:
+        '200':
+          description: Decision returned; an application-level deny is still a valid response
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AuthorizeResponse'}
+        '409':
+          description: Reservation could not be created because the idempotency key was reused with different input
+        '503':
+          description: Policy or quota dependency unavailable; caller must fail closed
+  /internal/v1/usage/settlements:
+    post:
+      tags: [Usage]
+      summary: Settle or release a previously reserved request
+      operationId: settleUsage
+      security: [{serviceToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/SettlementRequest'}
+      responses:
+        '200':
+          description: Idempotent settlement result
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/SettlementResponse'}
+        '409':
+          description: Settlement conflicts with an already finalized request
+        '503':
+          description: Settlement unavailable; event must be retried from durable storage
+  /internal/v1/gateway-sync:
+    post:
+      tags: [GatewaySync]
+      summary: Publish a desired route or policy version through the selected provider
+      operationId: publishGatewayVersion
+      security: [{serviceToken: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/GatewaySyncRequest'}
+      responses:
+        '202':
+          description: Accepted for idempotent publication
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/GatewaySyncResponse'}
+        '409':
+          description: Desired version conflicts with a newer version
+        '502':
+          description: Provider rejected or could not apply the desired version
+components:
+  securitySchemes:
+    cookieSession:
+      type: apiKey
+      in: cookie
+      name: signal_session
+      description: HttpOnly SameSite Strict session established by password login
+    serviceToken:
+      type: http
+      scheme: bearer
+      description: Service-to-service credential; never an employee API key
+  schemas:
+    PlatformCommand:
+      type: object
+      required: [type, payload, idempotencyKey]
+      properties:
+        type: {type: string}
+        payload: {type: object}
+        idempotencyKey: {type: string, minLength: 8, maxLength: 160}
+        previewToken: {type: string}
+    CallQuery:
+      type: object
+      properties:
+        from: {type: string, format: date-time, description: Inclusive completion time}
+        to: {type: string, format: date-time, description: Exclusive completion time}
+        requestId: {type: string}
+        subjectId: {type: string}
+        credentialId: {type: string}
+        projectId: {type: string}
+        modelId: {type: string}
+        serviceId: {type: string}
+        poolId: {type: string}
+        purpose: {type: string, enum: [personal, project, application]}
+        outcome: {type: string, enum: [completed, upstream_error, timeout, client_cancelled, partial, rejected_before_upstream]}
+        billableState: {type: string, enum: [confirmed, pending_review, not_billable]}
+        limit: {type: integer, minimum: 1, maximum: 200, default: 50}
+        cursor: {type: string, description: Opaque cursor from previous response}
+    CallSummary:
+      type: object
+      description: >-
+        Counts include authorization refusals in ended/error metrics. Upstream failure
+        rate uses forwarded ended calls only; unknownForwarding is not silently false.
+        Input includes cachedInputTokens as a subset. Token totals include known final
+        usage only; confirmedAmount excludes holds and pending-review fees. Missing
+        latency/TTFT samples yield null percentiles. See packages/contracts/src/calls.ts
+        for the complete numeric fields, including active actors and outcome counts.
+      properties:
+        ended: {type: integer}
+        forwarded: {type: integer}
+        unknownForwarding: {type: integer}
+        errors: {type: integer}
+        upstreamFailures: {type: integer}
+        pendingReview: {type: integer}
+        knownUsage: {type: integer}
+        unknownUsage: {type: integer}
+        confirmedAmount: {type: number}
+        p95LatencyMs: {type: [number, 'null']}
+        p95TtftMs: {type: [number, 'null']}
+    CallPage:
+      type: object
+      required: [items, nextCursor, summary, collectedAt]
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            description: CallLog, excluding prompts and generated content; includes immutable public admission route/price, error and billing state
+            properties:
+              requestId: {type: string}
+              forwarded: {type: [boolean, 'null']}
+              ttftMs: {type: [integer, 'null']}
+              usageFinal: {type: boolean}
+              errorCode: {type: [string, 'null']}
+              admission: {type: [object, 'null']}
+        nextCursor: {type: [string, 'null']}
+        summary: {$ref: '#/components/schemas/CallSummary'}
+        collectedAt: {type: string, format: date-time}
+    RequestIdentity:
+      type: object
+      required: [subjectType, subjectId, credentialId]
+      properties:
+        subjectType: {type: string, enum: [employee, application]}
+        subjectId: {type: string, minLength: 1}
+        credentialId: {type: string, minLength: 1}
+        organizationId: {type: string}
+        projectId: {type: [string, 'null']}
+    AuthorizeRequest:
+      type: object
+      description: Identity and purpose must match the resolved credential, including organization and project. Project quota never falls back to personal quota.
+      required: [requestId, idempotencyKey, identity, purpose, modelId, mode, policyVersion]
+      properties:
+        requestId: {type: string, minLength: 1}
+        idempotencyKey: {type: string, minLength: 8}
+        identity: {$ref: '#/components/schemas/RequestIdentity'}
+        purpose: {type: string, enum: [personal, project, application]}
+        modelId: {type: string, minLength: 1}
+        mode: {type: string, enum: [chat, embeddings, rerank, image, audio]}
+        estimatedInputTokens: {type: integer, minimum: 0}
+        maxOutputTokens: {type: integer, minimum: 1}
+        requestFingerprint: {type: string, pattern: '^[a-f0-9]{64}$'}
+        expectedPriceVersion: {type: string}
+        policyVersion: {type: string, minLength: 1}
+    AuthorizeResponse:
+      type: object
+      required: [requestId, decision, policyVersion, reservation]
+      properties:
+        requestId: {type: string}
+        decision: {type: string, enum: [allow, deny]}
+        reasonCode: {type: string, enum: [none, credential_invalid, model_not_open, service_unavailable, no_quota, quota_insufficient, policy_stale, subject_disabled, dependency_unavailable, price_unconfigured, rate_limited, request_limit_exceeded]}
+        admission:
+          type: object
+          description: Internal-only frozen routing, pricing, reserved amount and applicable limit scopes. No plaintext credential is returned. Managed requests never fall back to the demonstration model URL.
+          required: [kind, route, price, reservedAmount, estimatedTokens, scopes]
+          properties:
+            kind: {type: string, enum: [configured, legacy_simulation]}
+            route: {type: [object, 'null']}
+            price: {type: [object, 'null'], description: Immutable CNY price per million input/output/cached input tokens; request charge rounded once up to six decimals.}
+            reservedAmount: {type: number, minimum: 0}
+            estimatedTokens: {type: integer, minimum: 0}
+            scopes: {type: array, items: {type: object}}
+        reasonMessage: {type: string}
+        policyVersion: {type: string}
+        replayed: {type: boolean, description: True for an existing authorization; the simulator rejects repeat forwarding with 409.}
+        reservation:
+          oneOf:
+            - {$ref: '#/components/schemas/Reservation'}
+            - {type: null}
+    Reservation:
+      type: object
+      required: [reservationId, sourceType, sourceId, reservedAmount, expiresAt]
+      properties:
+        reservationId: {type: string}
+        sourceType: {type: string, enum: [personal_batch, project_member_batch, application_wallet]}
+        sourceId: {type: string}
+        reservedAmount: {type: number, format: double, minimum: 0}
+        currency: {type: string, enum: [CNY], default: CNY}
+        expiresAt: {type: string, format: date-time}
+    SettlementRequest:
+      type: object
+      description: Request and reservation IDs must match. Reusing a settlement key for a different request returns 409. Incomplete upstream usage keeps the reservation pending review. Configured requests are priced by the control plane using the reservation price snapshot; caller actualAmount cannot override it. Cached tokens are a subset of input tokens.
+      required: [requestId, idempotencyKey, reservationId, outcome, completedAt]
+      properties:
+        requestId: {type: string}
+        idempotencyKey: {type: string, minLength: 8}
+        reservationId: {type: string}
+        outcome: {type: string, enum: [completed, upstream_error, timeout, client_cancelled, partial, rejected_before_upstream]}
+        inputTokens: {type: integer, minimum: 0}
+        outputTokens: {type: integer, minimum: 0}
+        cachedInputTokens: {type: integer, minimum: 0}
+        actualAmount: {type: number, format: double, minimum: 0}
+        usageFinal: {type: boolean, default: true, description: False when upstream usage is incomplete; retains the hold with pending_review status.}
+        forwarded: {type: boolean, description: Whether the adapter dispatched upstream; omitted legacy/expired state can remain unknown}
+        ttftMs: {type: integer, minimum: 0, maximum: 2147483647, description: First valid SSE content or tool-call increment; omit when unmeasured}
+        errorCode: {type: string, maxLength: 120}
+        currency: {type: string, enum: [CNY], default: CNY}
+        upstreamRequestId: {type: [string, 'null']}
+        completedAt: {type: string, format: date-time}
+    SettlementResponse:
+      type: object
+      required: [requestId, status, billableState]
+      properties:
+        requestId: {type: string}
+        status: {type: string, enum: [settled, released, pending_review, already_finalized]}
+        billableState: {type: string, enum: [confirmed, pending_review, not_billable]}
+        ledgerEntryId: {type: [string, 'null']}
+    GatewaySyncRequest:
+      type: object
+      required: [provider, resourceType, resourceId, desiredVersion, idempotencyKey, spec]
+      properties:
+        provider: {type: string, enum: [higress]}
+        resourceType: {type: string, enum: [model_route, policy_reference, credential_binding, rate_limit]}
+        resourceId: {type: string}
+        desiredVersion: {type: string}
+        previousVersion: {type: [string, 'null']}
+        idempotencyKey: {type: string, minLength: 8}
+        spec: {type: object, additionalProperties: true}
+    GatewaySyncResponse:
+      type: object
+      required: [provider, resourceId, desiredVersion, status]
+      properties:
+        provider: {type: string}
+        resourceId: {type: string}
+        desiredVersion: {type: string}
+        appliedVersion: {type: [string, 'null']}
+        status: {type: string, enum: [accepted, applied, rejected, pending, rolled_back]}
+        operationId: {type: string}
+        errorCode: {type: [string, 'null']}
