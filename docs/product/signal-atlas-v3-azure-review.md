@@ -23,6 +23,8 @@
 - 首屏防闪烁：`index.html` 的内联脚本在 React 挂载前写入 `data-ui` 与 `data-layout`。
 - 四种界面共用同一套 React 页面、业务 API、命令、预览和权限；切换只换视觉与壳层，页面主体不重新挂载，筛选和草稿不丢失。
 
+> 2026-10-27 追加：设计新增第五套可选界面 `beacon`（信标，暖白画布 + 深墨主卡 + 紫强调），复用本文的 v4 壳层（左栏 + 页面标签）。机制与本文一致，取值与验证见 [信标版审核界面](signal-atlas-v5-beacon-review.md)。本文保持 2026-10-21 的写作时状态，不回溯修改。
+
 ## 3. 设计语言
 
 ### 3.1 色彩
@@ -196,7 +198,7 @@
 | 蓝灰主题、壳层与组件样式 | `apps/web/src/design-v4.css`（全部限定 `html[data-ui="azure"]`） |
 | 顶栏 / 左栏 / 页面标签组件 | `apps/web/src/v4.tsx` |
 | 界面模式、默认值与 `data-ui` / `data-layout` | `apps/web/src/ui-mode.ts` |
-| 界面切换（四个选项） | `apps/web/src/v2.tsx` 的 `DesignSwitch` |
+| 界面切换（当前五个选项；本文写作时为四个） | `apps/web/src/v2.tsx` 的 `DesignSwitch`，选项顺序由 `apps/web/src/ui-mode.ts` 的 `UI_DESIGNS` 决定 |
 | 壳层接线、页面口径说明、待办角标 | `apps/web/src/EnterpriseApp.tsx` |
 | 运营工作台、为人员开通 | `apps/web/src/TaskHome.tsx` |
 | 调用记录与下钻分组 | `apps/web/src/CallExplorer.tsx` |

@@ -1,13 +1,13 @@
 import { useCallback, useLayoutEffect, useState } from 'react';
 
-export type UiDesign = 'classic' | 'next' | 'sidebar' | 'azure';
+export type UiDesign = 'classic' | 'next' | 'sidebar' | 'azure' | 'beacon';
 
 const STORAGE_KEY = 'signal-atlas.ui';
 /** Every selectable design. Keep in sync with the pre-paint script in index.html. */
-export const UI_DESIGNS: readonly UiDesign[] = ['azure', 'sidebar', 'next', 'classic'];
+export const UI_DESIGNS: readonly UiDesign[] = ['azure', 'beacon', 'sidebar', 'next', 'classic'];
 
 function isDesign(value: string | null | undefined): value is UiDesign {
-  return value === 'classic' || value === 'next' || value === 'sidebar' || value === 'azure';
+  return value === 'classic' || value === 'next' || value === 'sidebar' || value === 'azure' || value === 'beacon';
 }
 
 export function readUiDesign(): UiDesign {
@@ -24,14 +24,19 @@ export function readUiDesign(): UiDesign {
 
 /**
  * `data-ui` selects the visual theme, `data-layout` the shell geometry.
- * The blue-gray review design keeps the left-menu + page-tabs layout but owns a
- * separate theme so the existing Signal Desk daylight theme stays untouched.
+ * The two review designs (blue-gray, Beacon) keep the left-menu + page-tabs
+ * layout but own a separate theme so the existing Signal Desk daylight theme
+ * stays untouched.
  */
 export function applyUiDesign(mode: UiDesign) {
   if (typeof document === 'undefined') return;
   const root = document.documentElement;
-  root.dataset.ui = mode === 'classic' ? 'classic' : mode === 'azure' ? 'azure' : 'next';
-  root.dataset.layout = mode === 'azure' ? 'sidebar' : mode;
+  root.dataset.ui =
+    mode === 'classic' ? 'classic'
+    : mode === 'azure' ? 'azure'
+    : mode === 'beacon' ? 'beacon'
+    : 'next';
+  root.dataset.layout = mode === 'azure' || mode === 'beacon' ? 'sidebar' : mode;
 }
 
 export function useUiDesign() {

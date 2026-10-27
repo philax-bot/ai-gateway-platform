@@ -45,6 +45,8 @@
 | 状态 | 审批、调用、服务、密钥 | `Status` / `.tag` | 只用颜色、只用图标 |
 | 数据列表 | 结构化记录 | `Table` + 表格内操作 | 表格里嵌套卡片、卡片列表代替表格 |
 | 下钻详情 | 调用、密钥、审批等对象的只读详情 | `DetailGroup`（结论条 + 分组键值对，见 3.15） | 一列二十行键值对、分组超过四组 |
+| 任务 hero | 首屏唯一主动作 + 一个关键数字 | `TaskHero`（主数值 + 右侧 KV，见 3.16） | 渐变插画 hero、一次堆四个数字 |
+| 额度来源可视化 | 我的额度的余额构成 | `QuotaRibbon`（来源占比带，见 3.17） | 手绘饼图、彩色卡片墙 |
 | 编辑表单 | 创建 / 修改对象 | `Modal` + `EditorDialog` | 页面内展开一大段表单、原生 prompt |
 | 危险动作 | 吊销、停用、删除、清理 | `.danger-button` + 影响预览 / 确认弹窗 | 主按钮红色、直接执行无确认 |
 | 高级选项 | 低频字段 | `details.disclosure` | 默认展开全部高级字段 |
@@ -382,6 +384,30 @@
 
 入口：`apps/web/src/CallExplorer.tsx` 的调用详情结构；样式在 `design-v4.css` 的 `.detail-lead` / `.detail-groups` / `.detail-group`（基础规则不限定主题，三套浅色界面通用）。
 
+### 3.16 TaskHero（任务 hero）
+
+页面首屏的唯一主动作区（运营工作台、开始使用）。结构固定：状态行 `.eyebrow` → 标题 `h2` → 一句说明 `p` → 主数值 `.task-hero-num` → 口径 `.task-hero-note` → 一个 `.primary` → 右侧 `.task-hero-side`（标题 + 3 行 `.task-hero-kv`）。
+
+- 既有 `eyebrow` / `h2` / `p` / 主按钮必须是 `.task-hero` 的**直接子元素**：主题样式用 `> p`、`> .primary` 定位，包一层容器会让四套界面的间距与文字色同时失效。
+- 新增块只能是兄弟节点（`.task-hero-num` / `.task-hero-note` / `.task-hero-side`），由主题用 grid 显式分列；非信标界面 `display:none`，不得改变既有元素外观。
+- 主数值只表达“此刻最该知道的一个数”（待处理合计 / 可用余额），分项留在 `StatStrip`；同一个数不在 hero 里二次出现。
+- 右侧 KV 恰好 3 行，放上下文（企业、默认池、可用模型）或口径（单次上限、本人申请数），**不得**重复统计条的分项。
+- 深色 hero 内只有一个主按钮，以反白描边呈现；禁用态降为低对比线框，不出现紫色实心块。
+
+**禁止**：hero 里放筛选器；主数值用百分比饼图；同一数字在 hero 与统计条重复；把 `p` 包进 `.task-hero-main` 之类的容器。
+
+### 3.17 QuotaRibbon（额度带）
+
+“我的额度”页的余额构成可视化，位于余额大数字与批次表格之间。
+
+- 结构：`.quota-ribbon` > `.quota-ribbon-seg`（`data-tone` 1–4 轮转），段内 `.quota-ribbon-name` + `.quota-ribbon-value`。
+- 段宽只表达权重（剩余额占比；全为 0 时退回原始额），**不是**可读数值；真实金额以批次表格为准，因此整块 `aria-hidden`。
+- 纯展示、不可点击：筛选与追加仍在表格里完成，避免出现两套选择状态。
+- ≤900px 纵向堆叠（等宽、每段 52px 高），不横向滚动；段数 > 4 时颜色循环复用，靠名称区分。
+
+入口：结构在 `apps/web/src/WorkspacePages.tsx` 的 `case 'quota'`，样式在 `apps/web/src/design-v5.css`（仅信标版渲染）。
+
+
 ## 4. 页面配方
 
 ### 4.1 编辑表单弹窗（模型服务、成员、项目、方案）
@@ -497,6 +523,8 @@
 | 左栏布局、平台条、页面标签 | `apps/web/src/design-v3.css`、`apps/web/src/v3.tsx` |
 | 蓝灰版主题、壳层与组件样式 | `apps/web/src/design-v4.css`、`apps/web/src/v4.tsx` |
 | 下钻详情分组（DetailGroup） | `apps/web/src/CallExplorer.tsx`（结构）、`apps/web/src/design-v4.css`（样式） |
+| 任务 hero 结构（主数值 + 侧栏 KV） | `apps/web/src/TaskHome.tsx`（结构）、`apps/web/src/design-v5.css`（样式，仅信标版） |
+| 额度带（QuotaRibbon） | `apps/web/src/WorkspacePages.tsx`（结构）、`apps/web/src/design-v5.css`（样式，仅信标版） |
 | 人员选择模式 | `apps/web/src/TaskHome.tsx` |
 | 筛选区模式 | `apps/web/src/CallExplorer.tsx` |
 | 页面壳层与编辑器接线 | `apps/web/src/EnterpriseApp.tsx` |
@@ -513,3 +541,5 @@
 | 2026-10-21 | 新增 3.2.2 `DateField`；补强制规则第 14 条：状态修饰类必须带命名空间前缀，禁止通用词 `top` / `up` / `right` / `empty` 当组件修饰类（会命中 `styles.css` 全局类）。MultiSelect 浮层明确为纵向列布局，底部操作行横跨整宽，不得与列表左右并排。 |
 | 2026-10-21 | 统一时间选择视觉：`DateField` 补齐闭合态 / 展开态 anatomy、`date` 与 `datetime` 的提交差异、键盘与 a11y 细则；补强制规则第 15 条与选型表“日期 / 日期时间”行，明确全产品只有一套时间选择，禁止原生 `<input type="date">` / `<input type="datetime-local">` 与自造日历。密钥到期日、操作审计日期范围、调用记录完成时间、人员有效日期已全部改用该组件。 |
 | 2026-10-21 | 新增 3.15 `DetailGroup`（下钻结论条 + 2–4 组）；选型表与反模式补“下钻详情”行。新增蓝灰版审核界面（`data-ui="azure"`），界面切换扩展为四项；实现与验收见 [Signal Atlas 蓝灰版审核界面](signal-atlas-v3-azure-review.md)。补两条实现约束：组件样式表自定义 `label` 时不得覆盖 `display`（人员行 / 方案行用 `<label>` 实现）；筛选区列宽需容纳 `YYYY-MM-DD HH:mm`（≥178px）。 |
+| 2026-10-23 | 调用详情在 `DetailGroup` 的“时序与追踪”组增加上游请求号和原调用关联，并用现有 `Table` 展示关联调用；模型连接验证与方案版本迁移沿用 `Panel` / `Table` / `Status` / `EditorDialog` / `Modal` / `DetailGroup`，未新增页面专属视觉组件。验证截图见 [首版缺口实施验证](../VALIDATION-2026-10-23.md)。 |
+| 2026-10-27 | 新增第五套界面 `beacon`（信标版）：暖白画布 `#f6f5f2` + 深墨主卡 `#14161c` + 紫强调 `#5a55d6`，大圆角（控件 10 / 面板 20 / hero 26），复用 v4 壳层（左栏 + 页面标签，侧栏 256px），样式全部限定 `html[data-ui="beacon"]`；界面切换扩展为五项，选项顺序由 `ui-mode.ts` 的 `UI_DESIGNS` 决定（`DesignSwitch` 不再硬编码）。新增 3.16 `TaskHero`（主数值 + 右侧 3 行 KV）与 3.17 `QuotaRibbon`（额度来源占比带）；二者以兄弟节点插入，在其它四套界面 `display:none`，保证零回归。实现与验收见 [Signal Atlas 信标版审核界面](signal-atlas-v5-beacon-review.md)。 |

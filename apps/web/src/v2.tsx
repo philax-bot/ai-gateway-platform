@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
-import type { UiDesign } from './ui-mode';
+import { UI_DESIGNS, type UiDesign } from './ui-mode';
 
 export type IconName =
   | 'home' | 'spark' | 'wallet' | 'inbox' | 'userPlus' | 'folder' | 'grid'
@@ -47,13 +47,22 @@ export function SignalMark() {
   return <span className="v2-logo" aria-hidden="true"><Icon name="signal" size={22} /></span>;
 }
 
+/* Order and set of designs come from UI_DESIGNS — the same list the pre-paint
+   script in index.html mirrors — so a new design is added in one place. Labels
+   live here, and a design without a label fails the type check instead of
+   rendering an empty button. */
+const designLabels: Record<UiDesign, { label: string; title: string }> = {
+  azure: { label: '蓝灰', title: '切换到蓝灰版审核界面（左栏 + 标签页，新版设计与组件）' },
+  beacon: { label: '信标', title: '切换到 Beacon 信标版（暖白画布 + 深墨主卡）' },
+  sidebar: { label: '左栏', title: '切换到左栏主菜单 + 顶部标签页' },
+  next: { label: '顶栏', title: '切换到顶部导航界面' },
+  classic: { label: '经典', title: '切换到经典深色界面' },
+};
+
 export function DesignSwitch({ mode, onChange, className }: { mode: UiDesign; onChange: (mode: UiDesign) => void; className?: string }) {
   return <div className={`design-switch ${className ?? ''}`} role="group" aria-label="界面版本" title="切换界面版本，选择会被记住">
     <span className="design-switch-label">界面</span>
-    <button type="button" aria-pressed={mode === 'azure'} className={mode === 'azure' ? 'selected' : ''} title="切换到蓝灰版审核界面（左栏 + 标签页，新版设计与组件）" onClick={() => onChange('azure')}>蓝灰</button>
-    <button type="button" aria-pressed={mode === 'sidebar'} className={mode === 'sidebar' ? 'selected' : ''} title="切换到左栏主菜单 + 顶部标签页" onClick={() => onChange('sidebar')}>左栏</button>
-    <button type="button" aria-pressed={mode === 'next'} className={mode === 'next' ? 'selected' : ''} title="切换到顶部导航界面" onClick={() => onChange('next')}>顶栏</button>
-    <button type="button" aria-pressed={mode === 'classic'} className={mode === 'classic' ? 'selected' : ''} title="切换到经典深色界面" onClick={() => onChange('classic')}>经典</button>
+    {UI_DESIGNS.map(design => <button key={design} type="button" aria-pressed={mode === design} className={mode === design ? 'selected' : ''} title={designLabels[design].title} onClick={() => onChange(design)}>{designLabels[design].label}</button>)}
   </div>;
 }
 

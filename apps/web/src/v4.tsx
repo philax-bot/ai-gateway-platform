@@ -85,6 +85,7 @@ export function V4Sidebar({ workspaceName, isOps, page, primary, secondary, seco
     </button>;
   };
   const modal = !!drawer && open;
+  const designNote = mode === 'beacon' ? '信标版审核界面' : '蓝灰版审核界面';
   return <aside id="v4-sidebar" className={`v4-sidebar ${open ? 'open' : ''}`} aria-label="主菜单" role={modal ? 'dialog' : undefined} aria-modal={modal || undefined}>
     <div className="v4-side-top">
       <div className="v4-context">
@@ -99,7 +100,7 @@ export function V4Sidebar({ workspaceName, isOps, page, primary, secondary, seco
     <div className="v4-nav-label">{secondaryLabel}</div>
     <nav className="v4-nav" aria-label={secondaryLabel}>{secondary.map(item)}</nav>
     <div className="v4-sidebar-footer">
-      <span className="v4-side-note">蓝灰版审核界面 · 界面选择会被记住</span>
+      <span className="v4-side-note">{designNote} · 界面选择会被记住</span>
       <DesignSwitch mode={mode} onChange={onModeChange} className="v4-side-switch" />
     </div>
   </aside>;

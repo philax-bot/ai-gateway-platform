@@ -6,6 +6,7 @@ import './styles.css';
 import './design-v2.css';
 import './design-v3.css';
 import './design-v4.css';
+import './design-v5.css';
 
 applyUiDesign(readUiDesign());
 

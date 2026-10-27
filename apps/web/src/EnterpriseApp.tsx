@@ -62,7 +62,7 @@ export function EnterpriseApp(){
   const [editor,setEditor]=useState<Editor|null>(null),[pending,setPending]=useState<Pending|null>(null),[busy,setBusy]=useState(false);
   const [detail,setDetail]=useState<{title:string;content:DetailContent}|null>(null),[secret,setSecret]=useState<{value:string;keyId:string|null}|null>(null),[purposeId,setPurposeId]=useState('personal');
   const [uiMode,setUiMode]=useUiDesign(),[paletteOpen,setPaletteOpen]=useState(false);
-  const sidebar=uiMode==='sidebar',next=uiMode==='next',azure=uiMode==='azure',docked=sidebar||azure,desk=next||docked;
+  const sidebar=uiMode==='sidebar',next=uiMode==='next',azure=uiMode==='azure',beacon=uiMode==='beacon',v4Shell=azure||beacon,docked=sidebar||v4Shell,desk=next||docked;
   useEffect(()=>{
     if(!desk||menuOpen||editor||pending||detail||secret)return;
     const openPalette=(event:KeyboardEvent)=>{
@@ -75,7 +75,7 @@ export function EnterpriseApp(){
     if(!menuOpen)return;
     const overflow=document.body.style.overflow;
     document.body.style.overflow='hidden';
-    const panel=document.getElementById(azure?'v4-sidebar':'v3-sidebar');
+    const panel=document.getElementById(v4Shell?'v4-sidebar':'v3-sidebar');
     const focusable=()=>panel?[...panel.querySelectorAll<HTMLElement>('button:not(:disabled), [href], input:not(:disabled), select:not(:disabled), [tabindex]:not([tabindex="-1"])')]:[];
     const keepFocusInside=(event:KeyboardEvent)=>{
       if(event.key==='Escape'){event.preventDefault();closeMenu();return;}
@@ -190,7 +190,7 @@ export function EnterpriseApp(){
   const confirmationTitle=pending?.command.type==='retention.run'?'核对本次清理范围':pending?.command.type==='settings.retention'?'核对保留策略':pending?.command.type==='settings.update'?'核对企业设置':pending?.command.type==='distribution.execute'?String(pending.preview.impact.title):pending?.command.type==='keys.status'?`核对批量${pending.command.payload.status==='revoked'?'吊销':'停用'}名单`:pending?actions[pending.command.type]??'确认本次操作':'';
   const confirmationLabel=pending?.command.type==='retention.run'?`确认清理 ${retentionTotal((pending.preview.impact.retention as RetentionReport).eligible)} 条`:pending?.command.type==='settings.retention'?'确认保存策略':pending?.command.type==='settings.update'?'确认保存设置':pending?.command.type==='keys.status'?`确认${pending.command.payload.status==='revoked'?'吊销':'停用'} ${Number(pending.preview.impact.changedCount)} 把`:pending?.command.type==='save.organization'?Number(pending.preview.impact.totalAmount)>0?'确认调整并发放':'确认调整':'确认执行';
   return <><ReviewBanner/><div className={`shell ${next?'shell-next':''} ${sidebar?'shell-sidebar':''}`}>
-    {azure?<>
+    {v4Shell?<>
       <V4TopBar actorName={d.actor.name} admin={admin} isOps={isOps} notificationsActive={page==='notifications'} unread={unread} mode={uiMode} onModeChange={changeUiMode} onNavigateHome={()=>navigate(isOps?'overview':'home')} onSwitchSpace={switchSpace} onSearch={()=>setPaletteOpen(true)} onNotifications={()=>navigate('notifications')} onLogout={logout} menuOpen={menuOpen} onMenu={()=>setMenuOpen(true)} menuButtonRef={menuButtonRef} covered={narrow&&menuOpen}/>
       <V4Sidebar workspaceName={d.settings.name} isOps={isOps} page={page} primary={primaryEntries} secondary={secondaryEntries} secondaryLabel={secondaryLabel} badges={navBadges} mode={uiMode} onModeChange={changeUiMode} onNavigate={navigate} open={menuOpen} onClose={closeMenu} drawer={narrow}/>
     </>
@@ -204,17 +204,17 @@ export function EnterpriseApp(){
     <nav aria-label="主导航">{navigation.map(navItem)}<details className="nav-group" key={isOps?'ops':'personal'} open={secondary.includes(page)||undefined}><summary>{isOps?'配置与排查':'工具与协作'}</summary><div>{secondary.map(navItem)}</div></details></nav>
   </aside>}
     <main className="main" inert={docked&&menuOpen?true:undefined}>
-      {azure?<V4PageTabs tabs={openTabs} page={page} labelFor={navLabel} pinnedPage={pinnedPage} onActivate={activateTab} onClose={closeTab}/>:sidebar&&<V3TabBar tabs={openTabs} page={page} labelFor={navLabel} pinnedPage={pinnedPage} onActivate={activateTab} onClose={closeTab}/>}
+      {v4Shell?<V4PageTabs tabs={openTabs} page={page} labelFor={navLabel} pinnedPage={pinnedPage} onActivate={activateTab} onClose={closeTab}/>:sidebar&&<V3TabBar tabs={openTabs} page={page} labelFor={navLabel} pinnedPage={pinnedPage} onActivate={activateTab} onClose={closeTab}/>}
       {!desk&&<div className="top"><span>{d.settings.name} / {isOps?'运营空间':'个人空间'}</span><div className="inline-actions"><DesignSwitch mode={uiMode} onChange={changeUiMode}/><button onClick={()=>navigate('notifications')}>通知 {unread||''}</button><span>{d.actor.name}</span><button onClick={logout}>退出登录</button></div></div>}
       <div className={`page ${next?'v2-page':''}`}>
         {next&&<div className="v2-scope" aria-hidden="true"><span>{isOps?'运营空间':'个人空间'}</span><span className="v2-scope-sep">/</span><b>{labels[page]}</b><span className="v2-scope-date">{dateLabel}</span></div>}
-        {azure&&<div className="page-context" aria-hidden="true"><span>{spaceLabel}</span><span className="page-context-date">{dateLabel}</span></div>}
-        <section className="heading"><div><span className="eyebrow">{isOps?'OPERATIONS':'PERSONAL WORKSPACE'}</span><h1>{navLabel(page)}</h1>{azure&&ledes[page]&&<p className="page-lede">{ledes[page]}</p>}</div>{!selfRefreshing&&<button className="ghost" onClick={()=>void refresh()}>刷新数据</button>}</section>{message&&<div className="notice" role="status">{message}</div>}
+        {v4Shell&&<div className="page-context" aria-hidden="true"><span>{spaceLabel}</span><span className="page-context-date">{dateLabel}</span></div>}
+        <section className="heading"><div><span className="eyebrow">{isOps?'OPERATIONS':'PERSONAL WORKSPACE'}</span><h1>{navLabel(page)}</h1>{v4Shell&&ledes[page]&&<p className="page-lede">{ledes[page]}</p>}</div>{!selfRefreshing&&<button className="ghost" onClick={()=>void refresh()}>刷新数据</button>}</section>{message&&<div className="notice" role="status">{message}</div>}
         {page!=='monitoring'&&d.callDataQuality==='collection_failed'&&<div className="notice warning" role="alert">调用统计暂不可用，费用待核对数量未知。{isOps?<button className="link-button" onClick={()=>navigate('monitoring')}>检查监控采集 →</button>:'请联系企业运营检查采集。'}</div>}
         {mountedTabs.map(tab=><div key={tab.page} hidden={tab.page!==page} className={desk?'v2-page-enter':''}><WorkspacePages data={d} page={tab.page} targetId={tab.targetId} active={tab.page===page} isOps={isOps} edit={edit} purposeId={purposeId} setPurpose={setPurposeId} setPage={navigate} run={run} refresh={refresh} action={action} detail={(title,content)=>setDetail({title,content})}/></div>)}
       </div>
     </main>
-    {docked&&<div className={`${azure?'v4-backdrop':'v3-backdrop'} ${menuOpen?'open':''}`} onClick={closeMenu} aria-hidden="true"/>}
+    {docked&&<div className={`${v4Shell?'v4-backdrop':'v3-backdrop'} ${menuOpen?'open':''}`} onClick={closeMenu} aria-hidden="true"/>}
     <AlertWatcher enabled={isOps&&['overview','monitoring'].includes(page)&&!editor&&!pending&&!detail&&!secret} run={run} onOpen={()=>{setOperations(true);setPage('monitoring');}}/>
     {editor&&<EditorFlow key={editor.title} editor={editor} data={d} run={run} refresh={refresh} onClose={()=>setEditor(null)}/>}
     {pending&&<Modal title={confirmationTitle} onClose={()=>{if(!busy){pending.resolve(null);setPending(null);}}} footer={<><button className="ghost" disabled={busy} onClick={()=>{pending.resolve(null);setPending(null);}}>返回修改</button><button className="primary" disabled={busy} onClick={()=>void confirm()}>{busy?'正在执行…':confirmationLabel}</button></>}><Impact pending={pending} data={d}/></Modal>}
