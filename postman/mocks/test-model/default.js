@@ -11,6 +11,8 @@ const server=createServer(async (req, res) => {
   for await (const chunk of req) chunks.push(chunk);
   const body=JSON.parse(Buffer.concat(chunks).toString() || '{}');
   requests.push({requestId:req.headers['x-request-id']??null,model:body.model,maxOutput:body.max_tokens??body.max_completion_tokens??null,stream:body.stream===true,tools:Array.isArray(body.tools)?body.tools.map(tool=>tool.function?.name):[]});if(requests.length>500)requests.shift();
+  // Distinct upstream request identifier so call tracing is testable end to end.
+  res.setHeader('x-request-id',`upstream-${String(req.headers['x-request-id']??'local').slice(0,140)}`);
   const scenario=body.test_scenario;
   if(scenario==='reset-before-headers'){req.socket.destroy();return;}
   if (scenario === 'timeout') return;

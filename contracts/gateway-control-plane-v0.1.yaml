@@ -247,7 +247,7 @@ paths:
                 apiKey: {type: string, minLength: 1}
       responses:
         '200':
-          description: Credential metadata and business identity, or null when inactive
+          description: Credential metadata, business identity and the credential's currently authorized logical model IDs, or null when inactive. modelIds is used only for OpenAI-compatible model discovery (`GET /v1/models`); every call still rechecks authorization.
         '401':
           description: Service token is missing or invalid
   /internal/v1/policy/authorize:
@@ -382,6 +382,8 @@ components:
             description: CallLog, excluding prompts and generated content; includes immutable public admission route/price, error and billing state
             properties:
               requestId: {type: string}
+              upstreamRequestId: {type: [string, 'null'], maxLength: 160, description: 'Upstream request header value; null means upstream did not provide one.'}
+              retryOfRequestId: {type: [string, 'null'], maxLength: 160, description: 'Explicit client retry link to an earlier request; null when not a retry.'}
               forwarded: {type: [boolean, 'null']}
               ttftMs: {type: [integer, 'null']}
               usageFinal: {type: boolean}
@@ -415,6 +417,10 @@ components:
         requestFingerprint: {type: string, pattern: '^[a-f0-9]{64}$'}
         expectedPriceVersion: {type: string}
         policyVersion: {type: string, minLength: 1}
+        retryOfRequestId:
+          type: [string, 'null']
+          maxLength: 160
+          description: Explicit client retry of an earlier call. The control plane verifies the original belongs to the same tenant, subject type, subject, purpose and project, and that the caller is still active. Missing and out-of-scope references share one 409 error. A retry is still a new request with its own authorization, reservation, pricing and settlement; reusing the original idempotency key stays a replay.
     AuthorizeResponse:
       type: object
       required: [requestId, decision, policyVersion, reservation]
@@ -468,7 +474,10 @@ components:
         ttftMs: {type: integer, minimum: 0, maximum: 2147483647, description: First valid SSE content or tool-call increment; omit when unmeasured}
         errorCode: {type: string, maxLength: 120}
         currency: {type: string, enum: [CNY], default: CNY}
-        upstreamRequestId: {type: [string, 'null']}
+        upstreamRequestId:
+          type: [string, 'null']
+          maxLength: 160
+          description: Collected only from the upstream x-request-id or request-id response header, in that order. Completion IDs in response bodies are not request identifiers. Malformed values are recorded as null. Survives journal replay and settlement idempotency.
         completedAt: {type: string, format: date-time}
     SettlementResponse:
       type: object

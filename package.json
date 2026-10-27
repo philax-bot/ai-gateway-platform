@@ -11,6 +11,7 @@
     "dev": "pnpm --stream --parallel --filter @ai-gateway/control-plane --filter @ai-gateway/gateway-sim --filter @ai-gateway/test-model --filter @ai-gateway/web run dev",
     "check:local": "node scripts/check-local-vertical-slice.mjs",
     "check:isolated": "pnpm build && node scripts/check-isolated.mjs",
+    "check:web": "pnpm build && node scripts/check-web.mjs",
     "check:postgres": "pnpm build && node scripts/check-isolated.mjs --postgres",
     "check:monitoring": "pnpm --filter @ai-gateway/control-plane... build && node scripts/check-monitoring-pool.mjs",
     "check:delivery": "pnpm build && node scripts/check-delivery.mjs",

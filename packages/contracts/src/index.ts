@@ -4,6 +4,10 @@ export * from './calls.js';
 export * from './monitoring.js';
 export * from './retention.js';
 export * from './audit.js';
+export * from './tracing.js';
+export * from './verification.js';
+export * from './usage.js';
+export * from './connection-failure.js';
 export { estimateChatInput,chatCompletionsUrl } from './request.js';
 export type Purpose = 'personal' | 'project' | 'application';
 export type RequestMode = 'chat' | 'embeddings' | 'rerank' | 'image' | 'audio';
@@ -42,6 +46,8 @@ export interface AuthorizeRequest {
   requestFingerprint?: string;
   expectedPriceVersion?: string;
   policyVersion: string;
+  /** Explicit client retry of an earlier call; scope is re-checked by the control plane. */
+  retryOfRequestId?: string | null;
 }
 
 export interface Reservation {
@@ -173,6 +179,8 @@ export interface CallLog {
   errorCode?: string | null;
   latencyMs?: number | null;
   requestId: string;
+  upstreamRequestId?: string | null;
+  retryOfRequestId?: string | null;
   startedAt: string;
   completedAt: string;
   subjectType: SubjectType;

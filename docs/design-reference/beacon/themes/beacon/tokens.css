@@ -1,0 +1,113 @@
+/* Beacon 主题 tokens · 唯一色值来源
+   契约见 ../tokens.contract.json；组件与页面禁止出现裸色值。
+   浅色为当前唯一正式主题；surface-inverse 系列已预留，深色版只需新增一份值。 */
+:root [data-theme="beacon"],
+.bb,
+.theme-beacon {
+  color-scheme: light;
+
+  /* canvas / surface */
+  --bb-canvas: #f6f5f2;
+  --bb-canvas-veil: #e9e5dc;
+  --bb-surface-1: #ffffff;
+  --bb-surface-2: #f1efe9;
+  --bb-surface-3: #e7e4dc;
+  --bb-surface-inverse: #14161c;
+  --bb-surface-inverse-2: #1d2028;
+  --bb-scrim: rgba(20, 22, 28, 0.45);
+
+  /* text */
+  --bb-text-primary: #191c22;
+  --bb-text-secondary: #454a55;
+  --bb-text-muted: #666a75;
+  --bb-text-inverse: #f5f4f0;
+  --bb-text-on-accent: #ffffff;
+  --bb-text-on-status: #1a1c22;
+
+  /* border */
+  --bb-border-subtle: #efece5;
+  --bb-border-default: #e3dfd6;
+  --bb-border-control: #83868f;
+  --bb-border-strong: #cfcabf;
+  --bb-border-inverse: #2f333d;
+
+  /* accent */
+  --bb-accent: #5a55d6;
+  --bb-accent-hover: #4b46c4;
+  --bb-accent-active: #403bb0;
+  --bb-accent-soft: #eeedfb;
+  --bb-accent-contrast: #ffffff;
+  --bb-accent-ring: rgba(90, 85, 214, 0.18);
+  --bb-accent-glow: rgba(90, 85, 214, 0.25);
+
+  /* status */
+  --bb-ok-fg: #1f6b50;
+  --bb-ok-bg: #e9f5ee;
+  --bb-ok-border: #cbe5d7;
+  --bb-warn-fg: #8a5a12;
+  --bb-warn-bg: #fdf3e2;
+  --bb-warn-border: #eeddbd;
+  --bb-warn-glow: rgba(138, 90, 18, 0.3);
+  --bb-danger-fg: #a1332a;
+  --bb-danger-bg: #fbecea;
+  --bb-danger-border: #eed3cf;
+  --bb-info-fg: #2b5f8a;
+  --bb-info-bg: #eaf1f8;
+  --bb-info-border: #cddfef;
+
+  /* data / charts（本主题暂无图表，供后续组件引用） */
+  --bb-chart-1: #5a55d6;
+  --bb-chart-2: #8b87e6;
+  --bb-chart-3: #2b6a73;
+  --bb-chart-4: #8a5a12;
+  --bb-chart-5: #a1332a;
+  --bb-chart-grid: #e7e4dc;
+  --bb-chart-axis: #666a75;
+  --bb-chart-surface: #ffffff;
+
+  /* geometry */
+  --bb-radius-xs: 6px;
+  --bb-radius-sm: 8px;
+  --bb-radius-md: 12px;
+  --bb-radius-lg: 14px;
+  --bb-radius-dot: 2px;
+  --bb-radius-control: 10px;
+  --bb-radius-card: 16px;
+  --bb-radius-panel: 20px;
+  --bb-radius-hero: 26px;
+  --bb-radius-pill: 999px;
+
+  /* type scale */
+  --bb-font-display: 44px;
+  --bb-font-numeral: 60px;
+  --bb-font-title: 34px;
+  --bb-font-title-sm: 26px;
+  --bb-font-hero-sm: 24px;
+  --bb-font-section: 18px;
+  --bb-font-body: 15px;
+  --bb-font-control: 14px;
+  --bb-font-caption: 12.5px;
+  --bb-font-micro: 11px;
+
+  /* elevation */
+  --bb-shadow-card: 0 1px 2px rgba(25, 28, 34, 0.04), 0 20px 40px -36px rgba(25, 28, 34, 0.42);
+  --bb-shadow-raised: 0 2px 4px rgba(25, 28, 34, 0.06), 0 34px 64px -52px rgba(25, 28, 34, 0.7);
+  --bb-shadow-overlay: 0 24px 60px -24px rgba(25, 28, 34, 0.55);
+  --bb-shadow-knob: 0 1px 2px rgba(25, 28, 34, 0.25);
+  --bb-shadow-control: 0 1px 2px rgba(25, 28, 34, 0.12);
+  --bb-focus-ring: 0 0 0 4px var(--bb-accent-ring);
+
+  /* motion */
+  --bb-ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --bb-dur-fast: 120ms;
+  --bb-dur-base: 180ms;
+
+  /* space */
+  --bb-space-1: 4px;
+  --bb-space-2: 8px;
+  --bb-space-3: 12px;
+  --bb-space-4: 16px;
+  --bb-space-5: 20px;
+  --bb-space-6: 24px;
+  --bb-space-8: 32px;
+}

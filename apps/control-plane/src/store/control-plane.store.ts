@@ -5,12 +5,15 @@ import type {
   RequestIdentity,
   SettlementRequest,
   SettlementResponse,
+  VerificationMappingSnapshot,
 } from '@ai-gateway/contracts';
 
 export interface DemoCredential {
   credentialId: string;
   identity: RequestIdentity;
   purpose: AuthorizeRequest['purpose'];
+  /** Authorized logical model IDs for this credential; used for OpenAI-compatible model discovery only. */
+  modelIds: string[];
 }
 
 export interface QuotaSnapshot {
@@ -22,6 +25,16 @@ export interface QuotaSnapshot {
   sourceId: string | null;
   expiresAt: string | null;
 }
+
+export interface StartVerificationInput {
+  serviceId: string;
+  serviceName: string;
+  operatorId: string;
+  configVersion: number;
+  mappings: VerificationMappingSnapshot[];
+  idempotencyKey: string;
+}
+export interface VerificationPageQuery { limit?: number; before?: string | null }
 
 export interface ControlPlaneStore {
   initialize(): Promise<void>;

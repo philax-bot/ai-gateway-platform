@@ -4,16 +4,33 @@ import { createHash, randomUUID } from 'node:crypto';
 import { readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import Redis from 'ioredis';
-import type { AdmissionSnapshot, AuthorizeRequest, AuthorizeResponse, CallLog, CallQuery, InFlightCount, ReconciliationRequest, SettlementRequest, SettlementResponse, WorkspaceState } from '@ai-gateway/contracts';
+import type { AdmissionSnapshot, AuthorizeRequest, AuthorizeResponse, CallLog, CallQuery, InFlightCount, ReconciliationRequest, SettlementRequest, SettlementResponse, VerificationMappingResult, VerificationMappingSnapshot, VerificationRun, VerificationRunPage, WorkspaceState } from '@ai-gateway/contracts';
 import { businessDenial } from '../platform/domain';
 import { DemoStore } from './demo.store';
-import type { DemoCredential, QuotaSnapshot } from './control-plane.store';
-import { authorizationFingerprint, checkSettlementScope, reconciliationCalculation, RESERVATION_AMOUNT, sameIdentity, settlementAmount } from './accounting';
+import type { DemoCredential, QuotaSnapshot, StartVerificationInput, VerificationPageQuery } from './control-plane.store';
+import { authorizationFingerprint, checkSettlementScope, reconciliationCalculation, RESERVATION_AMOUNT, retryLinkAllowed, sameIdentity, settlementAmount, type RetryTarget } from './accounting';
 import { admissionForBatch, publicLogAdmission } from './admission';
-import type { CallScope } from './call-query';
-import { queryPostgresCalls } from './postgres-call-query';
+import { callVisible, type CallScope } from './call-query';
+import { queryPostgresCalls, type CallRow } from './postgres-call-query';
 import { databaseSchema,runtimeMode } from '@ai-gateway/contracts';
 import { applyMigrations,loadMigrations } from './migrations';
+
+interface VerificationRow {
+  id:string; operator_id:string; service_id:string; service_name:string; config_version:number; state:VerificationRun['state'];
+  idempotency_key:string; mappings:VerificationMappingSnapshot[]|null; results:VerificationMappingResult[]|null;
+  started_at:Date; completed_at:Date|null; lease_expires_at:Date; note:string|null;
+}
+
+/** pg may hand back jsonb as parsed JSON or as text; malformed values fail closed to no discovered models. */
+function parseModelIds(value:string[]|string|null|undefined):string[]{
+  let list:unknown=value;
+  if(typeof value==='string'){
+    try{list=JSON.parse(value);}
+    catch{return [];}
+  }
+  if(!Array.isArray(list))return [];
+  return list.filter((item):item is string=>typeof item==='string'&&item.length>0&&item.length<=160);
+}
 
 @Injectable()
 export class PostgresStore extends DemoStore implements OnModuleDestroy {
@@ -60,6 +77,9 @@ export class PostgresStore extends DemoStore implements OnModuleDestroy {
         where id='personal-batch-demo-001' and jsonb_typeof(model_ids) <> 'array'`);
       await client.query('commit');
     } catch (error) { await client.query('rollback'); throw error; } finally { client.release(); }
+    // A crash can leave a running verification lease behind; report it as interrupted,
+    // never resend a request that may already have reached the upstream.
+    await this.interruptStaleVerifications();
   }
 
   async onModuleDestroy(): Promise<void> { this.redis?.disconnect(); await this.pool.end(); }
@@ -74,8 +94,8 @@ export class PostgresStore extends DemoStore implements OnModuleDestroy {
     await client.query('insert into authorization_records(request_id,response,idempotency_key,fingerprint) values($1,$2,$3,$4)',[input.requestId,response,input.idempotencyKey,fingerprint]);
     if(response.decision==='deny'){
       const c=this.deniedCall(input,response);
-      await client.query(`insert into call_logs(request_id,started_at,completed_at,subject_type,subject_id,credential_id,purpose,model_id,outcome,input_tokens,output_tokens,cached_input_tokens,actual_amount,billable_state,project_id,admission,organization_id,latency_ms,usage_final,forwarded,error_code)
-        values($1,$2,$2,$3,$4,$5,$6,$7,'rejected_before_upstream',0,0,0,0,'not_billable',$8,$9,$10,0,true,false,$11)`,[c.requestId,c.completedAt,c.subjectType,c.subjectId,c.credentialId,c.purpose,c.modelId,c.projectId,response.admission?{...response.admission,reservedAmount:0}:null,c.organizationId,c.errorCode]);
+      await client.query(`insert into call_logs(request_id,started_at,completed_at,subject_type,subject_id,credential_id,purpose,model_id,outcome,input_tokens,output_tokens,cached_input_tokens,actual_amount,billable_state,project_id,admission,organization_id,latency_ms,usage_final,forwarded,error_code,retry_of_request_id)
+        values($1,$2,$2,$3,$4,$5,$6,$7,'rejected_before_upstream',0,0,0,0,'not_billable',$8,$9,$10,0,true,false,$11,$12)`,[c.requestId,c.completedAt,c.subjectType,c.subjectId,c.credentialId,c.purpose,c.modelId,c.projectId,response.admission?{...response.admission,reservedAmount:0}:null,c.organizationId,c.errorCode,c.retryOfRequestId??null]);
     }
   }
 
@@ -93,6 +113,9 @@ export class PostgresStore extends DemoStore implements OnModuleDestroy {
         if (r.idempotency_key !== input.idempotencyKey || r.fingerprint !== fingerprint) throw new ConflictException('authorization key or request ID was reused with different input');
         await client.query('commit');
         return { ...(r.response as AuthorizeResponse), replayed: true };
+      }
+      if(input.retryOfRequestId){
+        if(!retryLinkAllowed(input,await this.retryTargetWithin(client,input.retryOfRequestId)))throw new ConflictException('retry reference is not available');
       }
       const response: AuthorizeResponse = { requestId: input.requestId, decision: 'deny', reasonCode: 'none', reasonMessage: '', policyVersion: input.policyVersion, reservation: null };
       if(reason){response.reasonCode=reason;response.reasonMessage='current subject or model entitlement is inactive';await this.saveAuthorization(client,input,response,fingerprint);await client.query('commit');return response;}
@@ -136,8 +159,8 @@ export class PostgresStore extends DemoStore implements OnModuleDestroy {
           await client.query('update quota_batches set available_amount=available_amount-$1 where id=$2', [a.reservedAmount,b.id]);
           const reservationId = `reservation-${randomUUID()}`; const expiresAt = new Date(windowResult.rows[0].now.getTime()+300000).toISOString();
           response.decision = 'allow';response.admission=a; response.reservation = { reservationId,sourceType:b.source_type,sourceId:b.id,reservedAmount:a.reservedAmount,currency:'CNY',expiresAt };
-          await client.query(`insert into reservations(reservation_id,request_id,idempotency_key,fingerprint,amount,batch_id,identity,purpose,model_id,created_at,expires_at,admission)
-            values($1,$2,$3,$4,$5,$6,$7,$8,$9,now(),$10,$11)`, [reservationId,input.requestId,input.idempotencyKey,fingerprint,a.reservedAmount,b.id,input.identity,input.purpose,input.modelId,expiresAt,a]);
+          await client.query(`insert into reservations(reservation_id,request_id,idempotency_key,fingerprint,amount,batch_id,identity,purpose,model_id,created_at,expires_at,admission,retry_of_request_id)
+            values($1,$2,$3,$4,$5,$6,$7,$8,$9,now(),$10,$11,$12)`, [reservationId,input.requestId,input.idempotencyKey,fingerprint,a.reservedAmount,b.id,input.identity,input.purpose,input.modelId,expiresAt,a,input.retryOfRequestId??null]);
           for(const scope of a.scopes){
             await client.query(`insert into admission_windows(scope_id,window_start,requests,tokens) values($1,$2,1,$3)
               on conflict(scope_id,window_start) do update set requests=admission_windows.requests+1,tokens=admission_windows.tokens+excluded.tokens`,[scope.id,windowStart,a.estimatedTokens]);
@@ -186,8 +209,8 @@ export class PostgresStore extends DemoStore implements OnModuleDestroy {
       }}
       if(response.ledgerEntryId)await client.query('insert into usage_ledger_entries(id,request_id,reservation_id,batch_id,kind,amount,detail) values($1,$2,$3,$4,$5,$6,$7)',[response.ledgerEntryId,input.requestId,r.reservation_id,r.batch_id,billable?'settlement':'release',amount,{reservedAmount:Number(r.amount),releasedAmount:Number(r.amount)-amount,admission:r.admission}]);
       await client.query('insert into settlement_records(request_id,idempotency_key,response) values($1,$2,$3)', [input.requestId,input.idempotencyKey,response]);
-      await client.query(`insert into call_logs(request_id,started_at,completed_at,subject_type,subject_id,credential_id,purpose,model_id,outcome,input_tokens,output_tokens,cached_input_tokens,actual_amount,billable_state,reservation_id,project_id,admission,organization_id,latency_ms,usage_final,forwarded)
-        values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)`, [input.requestId,r.created_at,input.completedAt,r.identity.subjectType,r.identity.subjectId,r.identity.credentialId,r.purpose,r.model_id,input.outcome,input.inputTokens??0,input.outputTokens??0,input.cachedInputTokens??0,amount,response.billableState,r.reservation_id,r.identity.projectId??null,r.admission,r.identity.organizationId??null,Math.max(0,Math.min(2147483647,Date.parse(input.completedAt)-r.created_at.getTime())),input.usageFinal!==false&&input.inputTokens!==undefined&&input.outputTokens!==undefined,input.forwarded??(input.outcome==='rejected_before_upstream'?false:null)]);
+      await client.query(`insert into call_logs(request_id,started_at,completed_at,subject_type,subject_id,credential_id,purpose,model_id,outcome,input_tokens,output_tokens,cached_input_tokens,actual_amount,billable_state,reservation_id,project_id,admission,organization_id,latency_ms,usage_final,forwarded,upstream_request_id,retry_of_request_id)
+        values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23)`, [input.requestId,r.created_at,input.completedAt,r.identity.subjectType,r.identity.subjectId,r.identity.credentialId,r.purpose,r.model_id,input.outcome,input.inputTokens??0,input.outputTokens??0,input.cachedInputTokens??0,amount,response.billableState,r.reservation_id,r.identity.projectId??null,r.admission,r.identity.organizationId??null,Math.max(0,Math.min(2147483647,Date.parse(input.completedAt)-r.created_at.getTime())),input.usageFinal!==false&&input.inputTokens!==undefined&&input.outputTokens!==undefined,input.forwarded??(input.outcome==='rejected_before_upstream'?false:null),input.upstreamRequestId??null,r.retry_of_request_id??null]);
       await client.query('update call_logs set ttft_ms=$1,error_code=$2 where request_id=$3',[input.ttftMs??null,input.errorCode??null,input.requestId]);
       await client.query('commit'); return response;
     } catch (error) { await client.query('rollback'); throw error; } finally { client.release(); }
@@ -196,7 +219,7 @@ export class PostgresStore extends DemoStore implements OnModuleDestroy {
   async getDemoCredential(apiKey: string): Promise<DemoCredential | null> {
     if(typeof apiKey!=='string'||apiKey.length>4096)return null;
     const result = await this.pool.query('select * from credentials where (api_key=$1 or api_key=$2) and active=true', [apiKey,`sha256:${createHash('sha256').update(apiKey).digest('hex')}`]);
-    const r=result.rows[0]; return r ? { credentialId:r.credential_id,identity:r.identity,purpose:r.purpose } : null;
+    const r=result.rows[0]; return r ? { credentialId:r.credential_id,identity:r.identity,purpose:r.purpose,modelIds:parseModelIds(r.model_ids) } : null;
   }
   async listCalls(): Promise<CallLog[]> {
     const result=await this.pool.query('select * from call_logs order by completed_at desc limit 200');
@@ -216,12 +239,77 @@ export class PostgresStore extends DemoStore implements OnModuleDestroy {
     await client.query('begin isolation level repeatable read read only');
     try{const result=await queryPostgresCalls(client,input,scope,r=>this.mapCall(r));await client.query('commit');return result;}catch(error){await client.query('rollback');throw error;}
   });}
-  private mapCall(r:Record<string,any>):CallLog{return {requestId:r.request_id,startedAt:r.started_at.toISOString(),completedAt:r.completed_at.toISOString(),subjectType:r.subject_type,subjectId:r.subject_id,credentialId:r.credential_id,purpose:r.purpose,projectId:r.project_id,modelId:r.model_id,outcome:r.outcome,inputTokens:r.input_tokens,outputTokens:r.output_tokens,cachedInputTokens:r.cached_input_tokens,actualAmount:Number(r.actual_amount),billableState:r.billable_state,reservationId:r.reservation_id,admission:publicLogAdmission(r.admission),organizationId:r.organization_id,errorCode:r.error_code,latencyMs:r.latency_ms,usageFinal:r.usage_final??undefined,forwarded:r.forwarded??null,ttftMs:r.ttft_ms??null};}
+  private mapCall(r:CallRow):CallLog{return {requestId:r.request_id,upstreamRequestId:r.upstream_request_id??null,retryOfRequestId:r.retry_of_request_id??null,startedAt:r.started_at.toISOString(),completedAt:r.completed_at.toISOString(),subjectType:r.subject_type,subjectId:r.subject_id,credentialId:r.credential_id,purpose:r.purpose,projectId:r.project_id,modelId:r.model_id,outcome:r.outcome,inputTokens:r.input_tokens,outputTokens:r.output_tokens,cachedInputTokens:r.cached_input_tokens,actualAmount:Number(r.actual_amount),billableState:r.billable_state,reservationId:r.reservation_id,admission:publicLogAdmission(r.admission as AdmissionSnapshot|null),organizationId:r.organization_id,errorCode:r.error_code,latencyMs:r.latency_ms,usageFinal:r.usage_final??undefined,forwarded:r.forwarded??null,ttftMs:r.ttft_ms??null};}
   async inFlightCounts(client?:PoolClient):Promise<InFlightCount[]>{
     const read=async()=>{const result=await (client??this.pool).query(`select admission->'route'->>'serviceId' as service_id,model_id,count(*)::int as count from reservations where finalized=false and expires_at>clock_timestamp() group by 1,2`);return result.rows.map(r=>({serviceId:r.service_id,modelId:r.model_id,count:r.count}));};
     return client?this.statisticsWithin(client,read):read();
   }
   async getCall(requestId:string):Promise<CallLog|null>{const result=await this.pool.query('select * from call_logs where request_id=$1',[requestId]);return result.rowCount?this.mapCall(result.rows[0]):null;}
+  private async retryTargetWithin(client:PoolClient,requestId:string):Promise<RetryTarget|null>{
+    const reservation=await client.query('select identity,purpose from reservations where request_id=$1',[requestId]);
+    if(reservation.rowCount){const r=reservation.rows[0];return {subjectType:r.identity.subjectType,subjectId:r.identity.subjectId,organizationId:r.identity.organizationId??null,projectId:r.identity.projectId??null,purpose:r.purpose};}
+    const log=await client.query('select subject_type,subject_id,organization_id,project_id,purpose from call_logs where request_id=$1',[requestId]);
+    if(!log.rowCount)return null;const l=log.rows[0];
+    return {subjectType:l.subject_type,subjectId:l.subject_id,organizationId:l.organization_id??null,projectId:l.project_id??null,purpose:l.purpose};
+  }
+  async relatedCalls(requestId:string,scope:CallScope):Promise<{original:CallLog|null;retries:CallLog[]}>{
+    return this.withClient(async client=>{
+      const original=await client.query<CallRow>('select * from call_logs where request_id=$1',[requestId]);
+      const retries=await client.query<CallRow>('select * from call_logs where retry_of_request_id=$1 order by completed_at desc,request_id desc limit 100',[requestId]);
+      const originalCall=original.rowCount?this.mapCall(original.rows[0]):null;
+      return {
+        original:originalCall&&callVisible(originalCall,scope)?originalCall:null,
+        retries:retries.rows.map(row=>this.mapCall(row)).filter(call=>callVisible(call,scope)),
+      };
+    });
+  }
+  private mapVerification(r:VerificationRow):VerificationRun{return {id:r.id,operatorId:r.operator_id,serviceId:r.service_id,serviceName:r.service_name,configVersion:r.config_version,state:r.state,diagnostic:true,idempotencyKey:r.idempotency_key,mappings:r.mappings??[],results:r.results??[],startedAt:r.started_at.toISOString(),completedAt:r.completed_at?.toISOString()??null,leaseExpiresAt:r.lease_expires_at.toISOString(),note:r.note??null};}
+  async interruptStaleVerifications():Promise<number>{
+    const result=await this.pool.query(`update service_verification_runs set state='interrupted',completed_at=clock_timestamp(),note='验证进程中断，已发出的请求用量待确认；不会自动重发。' where state='running' and lease_expires_at<=clock_timestamp()`);
+    return result.rowCount??0;
+  }
+  async startVerification(input:StartVerificationInput):Promise<{run:VerificationRun;replayed:boolean}>{
+    return this.withClient(async client=>{
+      await client.query('begin');
+      try{
+        await client.query(`update service_verification_runs set state='interrupted',completed_at=clock_timestamp(),note='验证进程中断，已发出的请求用量待确认；不会自动重发。' where state='running' and lease_expires_at<=clock_timestamp()`);
+        const prior=await client.query('select * from service_verification_runs where idempotency_key=$1',[input.idempotencyKey]);
+        if(prior.rowCount){const run=this.mapVerification(prior.rows[0]);if(run.serviceId!==input.serviceId)throw new ConflictException('verification key was reused for another service');await client.query('commit');return {run,replayed:true};}
+        const inserted=await client.query(`insert into service_verification_runs(id,idempotency_key,service_id,service_name,operator_id,config_version,state,mappings,results,note,started_at,completed_at,lease_expires_at)
+          values($1,$2,$3,$4,$5,$6,'running',$7,'[]'::jsonb,null,clock_timestamp(),null,clock_timestamp()+interval '2 minutes') returning *`,[`verification-${randomUUID()}`,input.idempotencyKey,input.serviceId,input.serviceName,input.operatorId,input.configVersion,JSON.stringify(input.mappings)]);
+        await client.query('commit');return {run:this.mapVerification(inserted.rows[0]),replayed:false};
+      }catch(error){
+        await client.query('rollback');
+        if((error as {code?:string}).code==='23505')throw new ConflictException('another verification is already running for this service');
+        throw error;
+      }
+    });
+  }
+  async markVerificationAttempt(runId:string,definitionId:string):Promise<void>{
+    await this.pool.query(`update service_verification_runs set lease_expires_at=clock_timestamp()+interval '2 minutes',
+      mappings=(select jsonb_agg(case when value->>'definitionId'=$2 then jsonb_set(value,'{attemptedAt}',to_jsonb(to_char(clock_timestamp() at time zone 'utc','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'))) else value end order by position) from jsonb_array_elements(mappings) with ordinality as items(value,position))
+      where id=$1 and state='running'`,[runId,definitionId]);
+  }
+  async appendVerificationResult(runId:string,result:VerificationMappingResult):Promise<void>{
+    await this.pool.query(`update service_verification_runs set results=results||$2::jsonb,lease_expires_at=clock_timestamp()+interval '2 minutes' where id=$1 and state='running'`,[runId,JSON.stringify([result])]);
+  }
+  async finishVerification(runId:string,state:'completed'|'interrupted'):Promise<VerificationRun>{
+    const updated=await this.pool.query(`update service_verification_runs set state=$2,completed_at=clock_timestamp(),
+      note=case when $2='interrupted' then '验证进程中断，已发出的请求用量待确认；不会自动重发。' else note end
+      where id=$1 and state='running' returning *`,[runId,state]);
+    if(updated.rowCount)return this.mapVerification(updated.rows[0]);
+    const current=await this.pool.query('select * from service_verification_runs where id=$1',[runId]);
+    if(!current.rowCount)throw new ConflictException('verification run not found');
+    return this.mapVerification(current.rows[0]);
+  }
+  async listVerifications(serviceId:string,query:VerificationPageQuery={}):Promise<VerificationRunPage>{
+    const limit=query.limit??20;
+    const result=query.before
+      ? await this.pool.query<VerificationRow>('select * from service_verification_runs where service_id=$1 and started_at<$2::timestamptz order by started_at desc,id desc limit $3',[serviceId,query.before,limit+1])
+      : await this.pool.query<VerificationRow>('select * from service_verification_runs where service_id=$1 order by started_at desc,id desc limit $2',[serviceId,limit+1]);
+    const rows=result.rows.slice(0,limit);
+    return {items:rows.map(row=>this.mapVerification(row)),nextBefore:result.rows.length>rows.length?rows.at(-1)?.started_at.toISOString()??null:null};
+  }
   async getReservationSummary(requestId:string){const result=await this.pool.query('select amount,batch_id,admission from reservations where request_id=$1',[requestId]),r=result.rows[0];return r?{amount:Number(r.amount),batchId:String(r.batch_id),admission:(r.admission as AdmissionSnapshot|null)??null}:null;}
   async listExpiredReservations(){const result=await this.pool.query('select request_id,reservation_id from reservations where finalized=false and expires_at<=clock_timestamp() order by expires_at limit 100');return result.rows.map(r=>({requestId:String(r.request_id),reservationId:String(r.reservation_id)}));}
   async renewReservation(requestId:string,reservationId:string){return this.withClient(async client=>{

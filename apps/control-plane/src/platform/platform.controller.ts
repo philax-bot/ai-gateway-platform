@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Param, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
 import type { CallQuery, PlatformCommand } from '@ai-gateway/contracts';
 import { PlatformService } from './platform.service';
 import { SessionGuard, type UserRequest } from './session.guard';
@@ -17,6 +17,8 @@ export class PlatformController {
   @Get('/projects/:id') project(@Req() request:UserRequest,@Param('id') id:string){return this.platform.projectDetail(request.actor.id,id);}
   @Get('/projects/:id/member-candidates') projectCandidates(@Req() request:UserRequest,@Param('id') id:string){return this.platform.projectMemberCandidates(request.actor.id,id);}
   @Get('/applications/:id') application(@Req() request:UserRequest,@Param('id') id:string){return this.platform.applicationDetail(request.actor.id,id);}
+  @Get('/calls/:requestId')
+  callRelations(@Req() request:UserRequest,@Param('requestId') requestId:string){return this.platform.callRelations(request.actor.id,requestId);}
   @Post('/calls/query') @HttpCode(200)
   calls(@Req() request:UserRequest,@Body() body:CallQuery){return this.platform.queryCalls(request.actor.id,body);}
   @Post('/audit/query') @HttpCode(200)
@@ -30,7 +32,9 @@ export class PlatformController {
   @Post('/commands') @HttpCode(200)
   execute(@Req() request:UserRequest,@Body() body:PlatformCommand){return this.platform.execute(request.actor.id,body);}
   @Post('/services/:id/verify') @HttpCode(200)
-  verify(@Req() request:UserRequest,@Param('id') id:string){return this.platform.verifyService(request.actor.id,id);}
+  verify(@Req() request:UserRequest,@Param('id') id:string,@Body() body:Record<string,unknown>={}){return this.platform.verifyService(request.actor.id,id,body);}
+  @Get('/services/:id/verifications')
+  verifications(@Req() request:UserRequest,@Param('id') id:string,@Query('limit') limit?:string,@Query('before') before?:string){return this.platform.verificationHistory(request.actor.id,id,{limit,before});}
   @Post('/online-credential') @HttpCode(200)
   onlineCredential(@Req() request:UserRequest,@Body() body:Record<string,unknown>){return this.platform.onlineCredential(request.actor.id,body);}
   @Post('/quote') @HttpCode(200)

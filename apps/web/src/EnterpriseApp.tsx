@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import type { OrganizationChangeImpact, PlatformCommand, PlatformSnapshot,RetentionCounts,RetentionReport } from '@ai-gateway/contracts';
+import type { EntitlementMigrationPreview, OrganizationChangeImpact, PlatformCommand, PlatformSnapshot,RetentionCounts,RetentionReport } from '@ai-gateway/contracts';
 import { api, ApiError, executeCommand, loadWorkspace, previewCommand, type Preview } from './client';
 import { date, Modal, money, Status, Table, type Editor } from './components';
 import { PasswordInput } from './password-field';
@@ -241,6 +241,19 @@ function Impact({pending,data}:{pending:Pending;data:PlatformSnapshot}){
       <div className="key-change-head"><strong>{k.name}</strong><code>{k.masked}</code></div><p>{k.ownerName} · {k.organizationName}</p><p>{({personal:'个人',project:'项目',application:'应用'} as Record<string,string>)[k.purpose]} · {k.subjectName}</p><div className="key-change-head"><span><Status value={k.before}/> → <Status value={k.after}/></span><span>{k.changed?'本次变更':`跳过：${k.skipReason}`}</span></div>
     </li>)}</ul><p className="request-reason">处理原因：{String(p.reason)}</p><p className="secondary">名单、权限或其他配置发生变化时，需要重新预览。任一对象无权处理或不存在时，整批不会生效。</p>
   </>;
+  if(impact.entitlementMigration){
+    const migration=impact.entitlementMigration as EntitlementMigrationPreview;
+    const modelName=(id:string)=>data.definitions.find(definition=>definition.modelId===id)?.name??id;
+    const describeLimits=(value:{mode:string;rpm?:number;tpm?:number;concurrency?:number;maxOutputTokens?:number})=>value.mode==='inherit'?'继承默认保护':value.mode==='none'?'本级不额外限制':[['RPM',value.rpm],['TPM',value.tpm],['并发',value.concurrency],['单次输出',value.maxOutputTokens]].filter(([,v])=>v!==undefined).map(([label,v])=>`${label} ${String(v)}`).join(' · ')||'未设置数值';
+    const modelDiff=(added:string[],removed:string[])=>[added.length?`新增 ${added.map(modelName).join('、')}`:'',removed.length?`关闭 ${removed.map(modelName).join('、')}`:''].filter(Boolean).join('；')||'无变化';
+    return <>
+      <p>方案 <strong>{migration.planName}</strong> 当前 v{migration.planVersion} · {migration.cadence==='monthly'?'月度发放':'一次性'}。本次变更 {migration.changedCount} 项，跳过 {migration.skippedCount} 项，不适用 {migration.inapplicableCount} 项。</p>
+      <div className="notice">不补发额度：不补差、不发新额度、不重复发本月额度。已发批次余额、累计发放、到期日与资金来源保持不变；月度后续应发周期按目标快照执行。</div>
+      <Table headers={['人员','原版本 → 目标','模型范围变化','金额（已发不变 / 后续标准）','限制变化','状态 / 原因']} rows={migration.rows.map(row=>[row.memberName,`v${row.fromVersion} → v${row.toVersion}`,modelDiff(row.modelsAdded,row.modelsRemoved),`${money(row.amountBefore)} / ${money(row.amountAfter)}`,`${describeLimits(row.limitsBefore)} → ${describeLimits(row.limitsAfter)}`,<>{row.status==='change'?'变更':row.status==='skip'?'跳过':'不适用'}<small className="cell-help">{row.reason}</small>{row.status==='change'&&row.affectedKeyIds.length?<small className="cell-help">影响 {row.affectedKeyIds.length} 把密钥</small>:null}</>])}/>
+      <p className="request-reason">迁移依据：{migration.reason}</p>
+      <p className="secondary">确认后整批事务更新，并逐人写入审计；方案、人员或职责变化后需要重新预览。已准入请求继续按原路由、价格与资金批次结算。</p>
+    </>;
+  }
   if(pending.command.type==='key.issue')return <><p>即将为 <strong>{p.purpose==='application'?data.applications.find(a=>a.id===p.applicationId)?.name:p.purpose==='project'?data.projects.find(v=>v.id===p.projectId)?.name:data.actor.name}</strong> 签发一把密钥。</p><dl className="detail-list"><div><dt>密钥名称</dt><dd>{String(p.name)}</dd></div><div><dt>扣费用途</dt><dd>{p.purpose==='application'?'独立应用':p.purpose==='project'?'项目成员':'个人日常办公'}</dd></div><div><dt>到期时间</dt><dd>{date(String(p.expiresAt))}</dd></div></dl><p className="notice warning">完整值只在签发后展示一次，请保存到受控的凭据管理工具。该密钥使用当前用途的额度和限制。</p></>;
   const executionDescription=(input:unknown)=>{const value=(input??{}) as {planId?:string;managerId?:string;range?:{poolId:string;mode:string;definitionIds:string[]};sourceBatchId?:string};return [value.planId?`开通方案：${data.plans.find(plan=>plan.id===value.planId)?.name??value.planId}`:'',value.managerId?`经理：${data.members.find(m=>m.id===value.managerId)?.name??value.managerId}`:'',value.range?`模型池：${data.pools.find(pool=>pool.id===value.range?.poolId)?.name??value.range.poolId} · ${value.range.mode==='follow'?'跟随池':'指定模型'}`:'',value.sourceBatchId?`预算批次：${value.sourceBatchId}`:''].filter(Boolean).join('；')||'无额外参数';};
   if(pending.command.type==='distribution.execute'&&Array.isArray(impact.members))return <><p>方案：<strong>{String(impact.planName??'已有方案额度追加')}</strong></p><div className="project-summary"><div>本次纳入<strong>{Number(impact.grantCount)} 人</strong></div><div>新增额度合计<strong>{money(Number(impact.totalAmount))}</strong></div></div><Table headers={['人员','本次结果','新增金额','到期时间','说明']} rows={(impact.members as {name:string;included:boolean;amount:number;expiresAt:string;reason:string}[]).map(m=>[m.name,m.included?'纳入本次':'跳过',money(m.amount),m.included?date(m.expiresAt):'—',m.reason||'—'])}/><p className="secondary">请核对人员、金额和到期日。确认后执行；跳过的人员不会新增额度。</p></>;

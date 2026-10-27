@@ -25,8 +25,11 @@ export function encodeCursor(at:string,id:string){return Buffer.from(JSON.string
 export function decodeCursor(value:string):[string,string]{
   try{if(typeof value!=='string'||value.length>512)throw 0;const v=JSON.parse(Buffer.from(value,'base64url').toString());if(!Array.isArray(v)||v.length!==2||!v.every(x=>typeof x==='string')||!Number.isFinite(Date.parse(v[0]))||v[1].length>160)throw 0;return [v[0],v[1]];}catch{throw new BadRequestException('invalid page cursor');}
 }
+export function callVisible(c:CallLog,scope:CallScope):boolean{
+  return !scope||(c.subjectType==='employee'&&c.subjectId===scope.employeeId)||(c.subjectType==='application'&&scope.applicationIds.includes(c.subjectId));
+}
 export function matchesCall(c:CallLog,q:CallFilters,scope:CallScope){
-  if(scope&&!(c.subjectType==='employee'&&c.subjectId===scope.employeeId)&&!(c.subjectType==='application'&&scope.applicationIds.includes(c.subjectId)))return false;
+  if(!callVisible(c,scope))return false;
   for(const [key,value] of Object.entries(q)){if(value===undefined||!Object.hasOwn(filterColumns,key))continue;
     if(key==='from'){if(Date.parse(c.completedAt)<Date.parse(value))return false;}
     else if(key==='to'){if(Date.parse(c.completedAt)>=Date.parse(value))return false;}

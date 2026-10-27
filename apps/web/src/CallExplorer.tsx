@@ -1,5 +1,5 @@
 import { useEffect,useId,useState,type ReactNode } from 'react';
-import type { CallLog,CallPage,CallQuery,PlatformSnapshot } from '@ai-gateway/contracts';
+import type { CallLog,CallPage,CallQuery,CallRelations,PlatformSnapshot } from '@ai-gateway/contracts';
 import { api } from './client';
 import { date,money,Panel,Status,Table,useNarrow } from './components';
 import { DateField } from './date-field';
@@ -13,12 +13,26 @@ export function CallExplorer({data:d,kind,reconcile,detail,initialQuery,active=t
   const [filters,setFilters]=useState(()=>{const f={...emptyFilters};for(const key of Object.keys(f) as (keyof typeof f)[]){const value=initial[key];if(value){if(key==='from'||key==='to'){const date=new Date(value);f[key]=new Date(date.getTime()-date.getTimezoneOffset()*60000).toISOString().slice(0,16);}else f[key]=value;}}return f;}),[query,setQuery]=useState<CallQuery>(initial);
   const [page,setPage]=useState<CallPage|null>(null),[error,setError]=useState(''),[busy,setBusy]=useState(false),[refresh,setRefresh]=useState(0),[previous,setPrevious]=useState<(string|undefined)[]>([]);
   const [advancedOpen,setAdvancedOpen]=useState(()=>Boolean(initial.subjectId||initial.serviceId||initial.poolId||initial.credentialId||initial.outcome||(kind!=='reviews'&&initial.billableState)));
+  const [relatedRequest,setRelatedRequest]=useState<string|null>(null);
   const narrow=useNarrow(),filterId=useId(),[filtersOpen,setFiltersOpen]=useState(!narrow);
   useEffect(()=>{setFiltersOpen(!narrow);},[narrow]);
   const admin=d.actor.roles.includes('operator');
   useEffect(()=>{if(!active)return;let current=true;setBusy(true);setError('');void api<CallPage>('/api/v1/platform/calls/query',query).then(value=>{if(current)setPage(value);}).catch(e=>{if(current){setPage(null);setError(e instanceof Error?e.message:'日志采集失败');}}).finally(()=>{if(current)setBusy(false);});return()=>{current=false;};},[query,d,refresh,active]);
   const name=(id:string)=>d.members.find(m=>m.id===id)?.name??d.applications.find(a=>a.id===id)?.name??id;
   const model=(id:string)=>d.definitions.find(m=>m.modelId===id)?.name??id;
+  async function openRelated(requestId:string){
+    setRelatedRequest(requestId);
+    try{
+      const result=await api<CallRelations>(`/api/v1/platform/calls/${encodeURIComponent(requestId)}`);
+      const rows=[...(result.original?[{relation:'原调用',call:result.original}]:[]),...result.retries.map(call=>({relation:'显式重试',call}))];
+      detail('关联调用',<>
+        <p className="secondary">关联关系只表示客户端显式重试。每次重试仍是新请求，独立授权、预占、计价和结算；同键重放不会重复调用上游。</p>
+        {rows.length?<Table headers={['关系','请求 ID / 模型','结果','计费状态','上游请求号','完成时间']} rows={rows.map(({relation,call})=>[relation,<>{call.requestId.slice(0,32)}<small className="cell-help">{model(call.modelId)}</small></>,<Status value={call.outcome}/>,<Status value={call.billableState}/>,call.upstreamRequestId??'上游未提供',date(call.completedAt)])}/>:<div className="empty-state"><strong>没有可读取的关联调用</strong><p>原调用或重试记录不在当前职责范围，或尚未结束。读取遵守当前账号的对象范围。</p></div>}
+        {result.original?.retryOfRequestId&&<p className="secondary">原调用还关联到更早的一次调用 <code>{result.original.retryOfRequestId}</code>。</p>}
+      </>);
+    }catch(e){detail('关联调用',<div className="notice danger" role="alert">关联调用读取失败：{e instanceof Error?e.message:'请稍后重试'}。</div>);}
+    finally{setRelatedRequest(null);}
+  }
   const field=(key:keyof typeof emptyFilters,value:string)=>setFilters(f=>({...f,[key]:value}));
   const emptyQuery=()=>({limit:50,...(kind==='reviews'?{billableState:'pending_review' as const}:{})});
   function search(){
@@ -49,9 +63,11 @@ export function CallExplorer({data:d,kind,reconcile,detail,initialQuery,active=t
         ['价格版本',c.admission?.price?.version??'历史模拟 / 未选定'],['输入 / 输出 / 缓存单价',c.admission?.price?`${c.admission.price.inputPrice} / ${c.admission.price.outputPrice} / ${c.admission.price.cachedInputPrice} 元 / 百万 Token`:'未知'],
       ].map(([label,value])=><div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl></section>
       <section className="detail-group"><h3>时序与追踪</h3><dl className="detail-list">{[
-        ['请求 ID',c.requestId],['错误码',c.errorCode??'未采集'],['预占 ID',c.reservationId??'未预占'],
+        ['请求 ID',c.requestId],['上游请求号',c.upstreamRequestId??'上游未提供'],['关联原调用',c.retryOfRequestId??'无（不是显式重试）'],['错误码',c.errorCode??'未采集'],['预占 ID',c.reservationId??'未预占'],
         ['开始时间',date(c.startedAt)],['完成时间',date(c.completedAt)],['总时延',c.latencyMs==null?'未知':`${c.latencyMs} ms`],
-      ].map(([label,value])=><div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl></section>
+      ].map(([label,value])=><div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
+        <div className="actions"><button className="link-button" disabled={relatedRequest===c.requestId} onClick={()=>void openRelated(c.retryOfRequestId??c.requestId)}>{relatedRequest===c.requestId?'正在读取…':c.retryOfRequestId?'查看原调用与重试':'查看关联调用'}</button></div>
+      </section>
     </div>
     <p className="secondary">缓存输入是输入 Token 的子集。用量未知与零用量分别表达；待核对不代表免费。默认不保存和展示正文。</p>
   </>);

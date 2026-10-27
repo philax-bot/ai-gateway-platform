@@ -93,7 +93,7 @@ function MultiSelect({id,labelId,helpId,options,value,onChange,required}:{
     </div>}
   </div>;
 }
-const statusLabels:Record<string,string>={active:'已启用',paused:'已暂停',ended:'已结束',expired:'已到期',pending:'待审批',approved:'已批准待生效',effective:'已生效',failed:'执行失败',rejected:'已驳回',withdrawn:'已撤回',passed:'验证通过',unverified:'未验证',disabled:'已停用',revoked:'已吊销',confirmed:'已结算',pending_review:'待核对',not_billable:'不计费',completed:'完成',upstream_error:'上游失败',client_cancelled:'已取消',timeout:'超时',partial:'响应中断',rejected_before_upstream:'生成前拒绝'};
+const statusLabels:Record<string,string>={active:'已启用',paused:'已暂停',ended:'已结束',expired:'已到期',pending:'待审批',approved:'已批准待生效',effective:'已生效',failed:'执行失败',rejected:'已驳回',withdrawn:'已撤回',passed:'验证通过',unverified:'未验证',disabled:'已停用',revoked:'已吊销',confirmed:'已结算',pending_review:'待核对',not_billable:'不计费',completed:'完成',upstream_error:'上游失败',client_cancelled:'已取消',timeout:'超时',partial:'响应中断',rejected_before_upstream:'生成前拒绝',running:'进行中',interrupted:'已中断'};
 export function Status({value}:{value:string}){return <span className={`tag ${['active','effective','passed','confirmed','completed'].includes(value)?'success':['failed','rejected','revoked','upstream_error'].includes(value)?'danger':'warning'}`}>{statusLabels[value]??value}</span>;}
 export function Panel({title,eyebrow,actions,children}:{title:string;eyebrow?:string;actions?:ReactNode;children:ReactNode}){
   return <section className="panel"><div className="section-head"><div>{eyebrow&&<span className="eyebrow">{eyebrow}</span>}<h2>{title}</h2></div><div className="actions compact">{actions}</div></div>{children}</section>;

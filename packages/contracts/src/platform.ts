@@ -98,6 +98,26 @@ export interface ApplicationDetail {
   keys:Omit<ManagedKey,'keyHash'>[];calls:import('./calls.js').CallPage;history:AuditEntry[];
 }
 export interface PlatformCommand { type: string; idempotencyKey: string; payload: Record<string, unknown>; expectedRevision?: number; previewToken?: string }
+export interface EntitlementMigrationRow {
+  entitlementId:string; memberId:string; memberName:string;
+  status:'change'|'skip'|'inapplicable'; reason:string;
+  fromVersion:number; toVersion:number;
+  modelsAdded:string[]; modelsRemoved:string[];
+  amountBefore:number; amountAfter:number; expiresAt:string; periods:string[];
+  limitsBefore:UsageLimits; limitsAfter:UsageLimits;
+  affectedKeyIds:string[];
+}
+export interface EntitlementMigrationPreview {
+  planId:string; planName:string; planVersion:number; cadence:'once'|'monthly'; reason:string;
+  rows:EntitlementMigrationRow[];
+  changedCount:number; skippedCount:number; inapplicableCount:number;
+  noBackfill:true;
+}
+export interface EntitlementMigrationResult {
+  planId:string; planName:string; planVersion:number;
+  migratedIds:string[]; skippedIds:string[];
+  noBackfill:true;
+}
 export type PublicMember = Omit<Member, 'passwordHash'>;
 export interface PurposeView {
   id: string; name: string; purpose: 'personal'|'project'; projectId: string|null;

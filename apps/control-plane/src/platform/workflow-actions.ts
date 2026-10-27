@@ -6,8 +6,9 @@ import { activeMember, amount, availableModels, expiry, hash, limits, now, opera
 import { alreadyFunded,allocate, canApprove, days,endProject, grantBatch, grantPlan, manager, matches, memberModels, newId, notify, owner, planWindow,publicKey, runPeriodic, topup, valid } from './domain';
 import { monitoringState } from './monitoring.domain';
 import { applyAutomatic } from './automatic-onboarding';
-import {prepareKeyStatus} from './key-status';
-import {applyRetention,requestedRetention,retentionPolicy} from './retention';
+import { prepareKeyStatus } from './key-status';
+import { applyRetention,requestedRetention,retentionPolicy } from './retention';
+import { prepareEntitlementMigration } from './entitlement-migration';
 
 export function selectMembers(s:WorkspaceState,p:Record<string,unknown>){
   if(p.memberIds)return strings(p.memberIds,'memberIds').map(memberId=>pick(s.members,memberId,'member'));
@@ -142,6 +143,24 @@ export async function workflowAction(tx:WorkspaceTransaction,actor:Member,type:s
     }
     case 'entitlement.stop':case 'entitlement.revoke':{
       operator(actor);const e=pick(s.entitlements,p.id,'entitlement');e.futureGrants=false;if(type==='entitlement.revoke'){text(p.reason,'reason');e.status='revoked';}return e;
+    }
+    case 'entitlements.migrate':{
+      operator(actor);const prepared=prepareEntitlementMigration(s,p);
+      // Never silently shrink a confirmed list: inapplicable objects require a new preview.
+      if(prepared.rows.some(row=>row.status==='inapplicable'))throw new ConflictException('some selected entitlements are no longer applicable; preview again');
+      const migratedIds:string[]=[],skippedIds:string[]=[],auditIds:string[]=[];
+      for(const row of prepared.rows){
+        if(row.status!=='change'){skippedIds.push(row.entitlementId);continue;}
+        const e=pick(s.entitlements,row.entitlementId,'entitlement');
+        const before={planId:e.planId,planVersion:e.planVersion,planName:e.planSnapshot.name,range:structuredClone(e.range),amount:e.planSnapshot.amount,expiresAt:e.expiresAt,periods:[...e.periods],status:e.status,futureGrants:e.futureGrants};
+        e.planVersion=prepared.plan.version;
+        e.planSnapshot=structuredClone(prepared.plan);
+        e.range=structuredClone(prepared.plan.range);
+        const auditId=newId('audit');
+        s.audit.push({id:auditId,actorId:actor.id,action:'entitlement.migrated',objectId:e.id,reason:prepared.preview.reason,createdAt:now(),detail:{before,after:{planId:e.planId,planVersion:e.planVersion,planName:e.planSnapshot.name,range:structuredClone(e.range),amount:e.planSnapshot.amount,expiresAt:e.expiresAt,periods:[...e.periods]},noBackfill:true,preserve:{grantedAt:e.grantedAt,expiresAt:e.expiresAt,periods:[...e.periods],source:e.source,ruleIds:[...e.ruleIds],futureGrants:e.futureGrants,status:e.status}}});
+        auditIds.push(auditId);migratedIds.push(e.id);
+      }
+      return {planId:prepared.plan.id,planName:prepared.plan.name,planVersion:prepared.plan.version,migratedIds,skippedIds,auditIds,noBackfill:true};
     }
     case 'project.members':{
       const project=manager(s,actor,p.projectId);if(project.status!=='active')throw new ConflictException('project is not active');

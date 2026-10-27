@@ -39,7 +39,7 @@ paths:
   /api/v1/platform/commands:
     post:
       security: [{sessionCookie: []}]
-      description: Validated business command. Idempotency keys cannot be reused for a different actor or payload. Sensitive mutations require a preview token. Amounts support six decimals and timestamps must explicitly include timezone.
+      description: Validated business command. Idempotency keys cannot be reused for a different actor or payload. Sensitive mutations require a preview token. Amounts support six decimals and timestamps must explicitly include timezone. entitlements.migrate moves up to 200 selected entitlements of the same plan to its current version without changing once/monthly cadence; it preserves balance, expiry, source and issued periods, never backfills quota, and rejects inapplicable objects unless a new preview is requested.
       requestBody:
         required: true
         content:
@@ -76,11 +76,42 @@ paths:
       security: [{sessionCookie: []}]
       parameters:
         - {in: path, name: id, required: true, schema: {type: string}}
-      description: Operator-only actual HTTP model check. External addresses are disabled unless ALLOW_UPSTREAM_VALIDATION is explicitly enabled. Redirects are refused. A changed configuration cannot reuse an earlier verification result.
+      description: 'Operator-only actual HTTP model check. External addresses are disabled unless ALLOW_UPSTREAM_VALIDATION is explicitly enabled. Redirects are refused. This is platform diagnostic traffic funded by the platform: it records a verification run with per-mapping usage, price snapshot and internal cost estimate, but never reserves or charges employee, project or application quota and never enters call statistics. A stable idempotencyKey returns the original run without another upstream request. Only one running verification per service is allowed; a stale lease becomes interrupted with usage unknown and is never resent. A changed configuration cannot reuse an earlier verification result.'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                idempotencyKey: {type: string, minLength: 8, maxLength: 160, description: Stable per page action; a deliberate re-verification uses a new key.}
       responses:
-        '200': {description: Saved passed or failed result, including reason}
+        '200': {description: 'Current service fields plus verificationRun, verificationApplied and replayed. verificationApplied is false when the configuration changed during the run; the old run remains evidence but is never written as the current configuration passing.'}
         '403': {description: No operator responsibility or external validation disabled}
-        '409': {description: Configuration changed during verification}
+        '409': {description: Another verification is running, or the credential reference is not configured}
+        '503': {description: The run executed but its metering record could not be saved}
+  /api/v1/platform/services/{id}/verifications:
+    get:
+      security: [{sessionCookie: []}]
+      parameters:
+        - {in: path, name: id, required: true, schema: {type: string}}
+        - {in: query, name: limit, required: false, schema: {type: integer, minimum: 1, maximum: 100, default: 20}}
+        - {in: query, name: before, required: false, schema: {type: string, format: date-time}}
+      description: Operator-only paged verification history for one service, newest first. Diagnostic records are excluded from employee call statistics, model business alert denominators and employee call history by default.
+      responses:
+        '200': {description: Verification runs with per-mapping usage, price snapshot and internal cost state}
+        '400': {description: Invalid page size or cursor}
+        '403': {description: No operator responsibility}
+  /api/v1/platform/calls/{requestId}:
+    get:
+      security: [{sessionCookie: []}]
+      parameters:
+        - {in: path, name: requestId, required: true, schema: {type: string}}
+      description: Operator or scoped owner read of one call and its explicit retries. Applies the server-side subject/application scope before returning; out-of-scope calls are not revealed. Never returns prompts or completion content.
+      responses:
+        '200': {description: '{ original: CallLog|null, retries: CallLog[] } within the actor scope'}
+        '400': {description: Invalid request ID}
+        '401': {description: Login required}
   /api/v1/platform/online-credential:
     post:
       security: [{sessionCookie: []}]

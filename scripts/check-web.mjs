@@ -1,0 +1,381 @@
+import assert from 'node:assert/strict';
+import { spawn } from 'node:child_process';
+import { createServer } from 'node:net';
+import { randomUUID } from 'node:crypto';
+import { mkdir, rm, writeFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+/*
+ * Browser regression for the tracing/migration/verification changes.
+ * Chrome is driven over the DevTools protocol with Node's built-in WebSocket,
+ * so the check adds no test dependency. Everything runs in its own temp
+ * directory, ports and review workspace; external model access stays disabled.
+ */
+const root = fileURLToPath(new URL('../', import.meta.url));
+const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
+const children = [];
+let chrome, cdp, tempDir, debugPort;
+const assertions = [];
+const check = (value, message) => { assert.ok(value, message); assertions.push(message); };
+
+const CHROME = process.env.CHROME_PATH
+  || 'C:/Program Files/Google/Chrome/Application/chrome.exe'
+  || 'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe';
+
+async function freePort() {
+  const server = createServer();
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  const port = server.address().port;
+  await new Promise(resolve => server.close(resolve));
+  return port;
+}
+function start(file, args = [], env = {}, cwd = root) {
+  const baseEnv = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('UPSTREAM_') && !key.startsWith('VITE_')));
+  const child = spawn(file === process.execPath ? process.execPath : file, file === process.execPath ? args : args, {
+    cwd, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'],
+    env: { ...baseEnv, PLATFORM_MODE: 'development', DATABASE_URL: '', DATABASE_SCHEMA: '', REDIS_URL: '', STORE_MODE: 'memory',
+      PGOPTIONS: '', HOST: '127.0.0.1', SERVICE_TOKEN: 'web-check-service-token', BOOTSTRAP_TOKEN: '', COOKIE_SECURE: 'false',
+      ALLOW_UPSTREAM_VALIDATION: 'false', ALLOW_UPSTREAM_REQUESTS: 'false', ...env },
+  });
+  let output = '';
+  child.stdout.on('data', data => { output = (output + data).slice(-8000); });
+  child.stderr.on('data', data => { output = (output + data).slice(-8000); });
+  child.diagnostic = () => output;
+  children.push(child);
+  return child;
+}
+function spawnNode(file, env = {}) { return start(process.execPath, [resolve(root, file)], env); }
+async function ready(url, child) {
+  for (let i = 0; i < 160; i++) {
+    if (child && child.exitCode !== null) throw new Error(`service exited before readiness: ${child.diagnostic()}`);
+    try { if ((await fetch(url, { signal: AbortSignal.timeout(400) })).ok) return; } catch { /* keep polling */ }
+    await pause(100);
+  }
+  throw new Error(`service did not become ready: ${url}`);
+}
+async function stopAll() {
+  try { await cdp?.close(); } catch { /* ignore */ }
+  for (const child of [...children].reverse()) {
+    if (child.exitCode === null && child.signalCode === null) {
+      child.kill();
+      await Promise.race([new Promise(resolve => child.once('exit', resolve)), pause(2000)]);
+    }
+  }
+  if (tempDir) await rm(tempDir, { recursive: true, force: true }).catch(() => undefined);
+}
+
+/* ---------------- minimal CDP client ---------------- */
+async function connectCdp(webSocketDebuggerUrl) {
+  const socket = new WebSocket(webSocketDebuggerUrl);
+  await new Promise((resolve, reject) => { socket.addEventListener('open', resolve, { once: true }); socket.addEventListener('error', reject, { once: true }); });
+  let sequence = 0;
+  const pending = new Map();
+  const runtimeErrors = [];
+  socket.addEventListener('message', event => {
+    let message;
+    try { message = JSON.parse(event.data); } catch { return; }
+    if (message.id && pending.has(message.id)) {
+      const { resolve: done, reject: fail } = pending.get(message.id);
+      pending.delete(message.id);
+      if (message.error) fail(new Error(`${message.error.message}${message.error.data ? `: ${message.error.data}` : ''}`));
+      else done(message.result);
+    } else if (message.method === 'Runtime.exceptionThrown') {
+      runtimeErrors.push(message.params.exceptionDetails?.exception?.description ?? message.params.exceptionDetails?.text ?? 'runtime exception');
+    }
+  });
+  return {
+    runtimeErrors,
+    send(method, params = {}) {
+      const id = ++sequence;
+      return new Promise((resolve, reject) => {
+        pending.set(id, { resolve, reject });
+        socket.send(JSON.stringify({ id, method, params }));
+      });
+    },
+    async evaluate(expression) {
+      const result = await this.send('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true, userGesture: true });
+      if (result.exceptionDetails) throw new Error(result.exceptionDetails.exception?.description ?? result.exceptionDetails.text ?? 'evaluation failed');
+      return result.result.value;
+    },
+    close() { socket.close(); return Promise.resolve(); },
+  };
+}
+
+async function waitFor(expression, timeout = 10000) {
+  const deadline = Date.now() + timeout;
+  while (Date.now() < deadline) {
+    try { if (await cdp.evaluate(expression)) return true; } catch { /* page may be navigating */ }
+    await pause(120);
+  }
+  throw new Error(`timed out waiting for: ${expression}`);
+}
+async function evaluate(expression) { return cdp.evaluate(expression); }
+async function setViewport(width, height) {
+  await cdp.send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: width <= 760 });
+  await pause(150);
+}
+async function screenshot(name) {
+  await pause(350);
+  const { data } = await cdp.send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false });
+  const file = resolve(root, 'docs/validation/screenshots-2026-10-23', name);
+  await mkdir(resolve(root, 'docs/validation/screenshots-2026-10-23'), { recursive: true });
+  await writeFile(file, Buffer.from(data, 'base64'));
+  return file;
+}
+const clickExact = text => evaluate(`(()=>{const el=[...document.querySelectorAll('button,a,summary')].find(node=>node.textContent.replace(/\\s+/g,' ').trim()===${JSON.stringify(text)});if(!el)return false;el.click();return true;})()`);
+const clickNav = async label => {
+  const clicked = await evaluate(`(()=>{const el=[...document.querySelectorAll('#v4-sidebar nav button')].find(node=>node.textContent.replace(/\\s+/g,' ').trim().includes(${JSON.stringify(label)}));if(!el)return false;el.click();return true;})()`);
+  check(clicked, `navigation target exists: ${label}`);
+  await pause(400);
+};
+const setInput = (selector, value, tag = 'HTMLInputElement') => evaluate(`(()=>{const el=document.querySelector(${JSON.stringify(selector)});if(!el)return false;const setter=Object.getOwnPropertyDescriptor(${tag}.prototype,'value').set;setter.call(el,${JSON.stringify(value)});el.dispatchEvent(new Event('input',{bubbles:true}));return true;})()`);
+const pressKey = async (key, code = key) => {
+  await cdp.send('Input.dispatchKeyEvent', { type: 'keyDown', key, code, windowsVirtualKeyCode: key === 'Escape' ? 27 : key === 'Tab' ? 9 : 0 });
+  await cdp.send('Input.dispatchKeyEvent', { type: 'keyUp', key, code, windowsVirtualKeyCode: key === 'Escape' ? 27 : key === 'Tab' ? 9 : 0 });
+  await pause(120);
+};
+async function login(loginName, password) {
+  await waitFor(`!!document.querySelector('input[autocomplete="username"]')`, 15000);
+  await setInput('input[autocomplete="username"]', loginName);
+  await setInput('#login-password', password);
+  const clicked = await clickExact('登录');
+  check(clicked, 'login button is present');
+  await waitFor(`!!document.querySelector('#v4-sidebar') || document.body.innerText.includes('运营工作台') || document.body.innerText.includes('开始使用')`, 15000);
+  await pause(500);
+}
+
+/* ---------------- seed ---------------- */
+async function seed(cp, gateway, model, employeePassword) {
+  let cookie = '';
+  async function api(path, body) {
+    const response = await fetch(`${cp}${path}`, { method: body === undefined ? 'GET' : 'POST', headers: { 'content-type': 'application/json', ...(cookie ? { cookie } : {}) }, body: body === undefined ? undefined : JSON.stringify(body) });
+    if (response.headers.get('set-cookie')) cookie = response.headers.get('set-cookie').split(';')[0];
+    const value = await response.json();
+    if (!response.ok) throw new Error(`${path}: HTTP ${response.status} ${JSON.stringify(value)}`);
+    return value;
+  }
+  let step = 0;
+  async function command(type, payload) {
+    const c = { type, payload, idempotencyKey: `web-check-${randomUUID()}-${++step}` };
+    const preview = await api('/api/v1/platform/preview', c);
+    return (await api('/api/v1/platform/commands', { ...c, previewToken: preview.previewToken })).result;
+  }
+  const adminPassword = 'Web-check-admin-2026!';
+  await api('/api/v1/auth/setup', { directoryId: 'web-ops', name: '回归运营', password: adminPassword });
+  await api('/api/v1/auth/login', { directoryId: 'web-ops', password: adminPassword });
+  const state = await api('/api/v1/platform/state');
+  const service = state.services[0];
+  await command('save.service', {
+    ...service, name: '回归模型服务', baseUrl: model, credentialRef: null, active: true,
+    mappings: service.mappings.map(mapping => ({ ...mapping, upstreamModel: mapping.upstreamModel, inputPrice: 2, outputPrice: 3, cachedInputPrice: 0.5, limits: { mode: 'inherit' } })),
+  });
+  await api(`/api/v1/platform/services/${service.id}/verify`, { idempotencyKey: 'web-check-seed-verify' });
+  await command('save.pool', { id: state.pools[0].id, name: '回归模型池', entries: [{ definitionId: state.definitions[0].id, serviceId: service.id, open: true }], limits: { mode: 'inherit' } });
+  await command('settings.update', { name: 'Signal Atlas · 浏览器回归', personalDefaultPoolId: state.pools[0].id, projectDefaultPoolId: state.pools[0].id });
+  const employee = await command('save.member', { name: '回归员工', directoryId: 'web-employee', organizationId: 'department-engineering', category: 'employee', roles: ['employee'], tags: [], active: true, password: employeePassword });
+  const range = { poolId: state.pools[0].id, mode: 'follow', definitionIds: [] };
+  const plan = await command('save.plan', { name: '回归月度方案', range, amount: 20, cadence: 'monthly', quotaDays: 30, entitlementDays: 365 });
+  await command('distribution.execute', { operation: 'open_plan', planId: plan.id, memberIds: [employee.id] });
+  // Bump the plan so the granted entitlement is one version behind for the migration UI.
+  await command('save.plan', { id: plan.id, name: '回归月度方案', range, amount: 25, cadence: 'monthly', quotaDays: 30, entitlementDays: 365 });
+  const issued = await command('key.issue', { name: '回归密钥', purpose: 'personal', memberId: employee.id });
+  const origin = `web-origin-${randomUUID()}`, retry = `web-retry-${randomUUID()}`;
+  async function gatewayCall(id, retryOf) {
+    const response = await fetch(`${gateway}/v1/chat/completions`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${issued.secret}`, 'x-request-id': id, 'idempotency-key': id, ...(retryOf ? { 'x-retry-of-request-id': retryOf } : {}) },
+      body: JSON.stringify({ model: 'test-model', messages: [{ role: 'user', content: 'browser regression' }] }),
+    });
+    await response.text();
+    if (response.status !== 200) throw new Error(`seed gateway call failed: HTTP ${response.status}`);
+  }
+  await gatewayCall(origin);
+  await gatewayCall(retry, origin);
+  return { adminPassword, employeePassword, origin, retry, employeeId: employee.id };
+}
+
+/* ---------------- main ---------------- */
+try {
+  if (!existsSync(CHROME)) throw new Error(`Chrome was not found at ${CHROME}; set CHROME_PATH to run the browser check`);
+  tempDir = resolve(root, '.runtime', `web-check-${randomUUID()}`);
+  await mkdir(tempDir, { recursive: true });
+  const [webPort, cpPort, gatewayPort, modelPort, debugPortValue] = await Promise.all([freePort(), freePort(), freePort(), freePort(), freePort()]);
+  debugPort = debugPortValue;
+  const cp = `http://127.0.0.1:${cpPort}`, gateway = `http://127.0.0.1:${gatewayPort}`, model = `http://127.0.0.1:${modelPort}`, web = `http://127.0.0.1:${webPort}`;
+
+  const modelProcess = spawnNode('postman/mocks/test-model/default.js', { PORT: String(modelPort) });
+  const control = spawnNode('apps/control-plane/dist/main.js', { PORT: String(cpPort), WEB_ORIGIN: web });
+  const gatewayProcess = spawnNode('services/gateway-sim/dist/server.js', { PORT: String(gatewayPort), CONTROL_PLANE_URL: cp, MODEL_URL: model, WEB_ORIGIN: web, GATEWAY_JOURNAL_DIR: resolve(tempDir, 'journal') });
+  await Promise.all([ready(`${model}/health`, modelProcess), ready(`${cp}/health`, control), ready(`${gateway}/health`, gatewayProcess)]);
+
+  const employeePassword = 'Web-check-employee-2026!';
+  const seeded = await seed(cp, gateway, model, employeePassword);
+
+  // Build the web bundle for this isolated environment so it never points at a shared review instance.
+  const vite = resolve(root, 'apps/web/node_modules/vite/bin/vite.js');
+  const webEnv = { VITE_CONTROL_PLANE_URL: cp, VITE_GATEWAY_URL: gateway, VITE_REVIEW_MODE: 'true', VITE_REVIEW_STORAGE: 'memory' };
+  const build = spawn(process.execPath, [vite, 'build', '--outDir', resolve(tempDir, 'web'), '--emptyOutDir'], {
+    cwd: resolve(root, 'apps/web'), windowsHide: true, stdio: 'inherit',
+    env: { ...Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('VITE_'))), ...webEnv },
+  });
+  children.push(build);
+  await new Promise((resolveDone, reject) => { build.once('exit', code => code === 0 ? resolveDone() : reject(new Error(`web build failed: ${code}`))); });
+  const preview = spawn(process.execPath, [vite, 'preview', '--host', '127.0.0.1', '--port', String(webPort), '--strictPort', '--outDir', resolve(tempDir, 'web')], { cwd: resolve(root, 'apps/web'), windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, ...webEnv } });
+  children.push(preview);
+  await ready(web, preview);
+
+  chrome = spawn(CHROME, [
+    '--headless=new', `--remote-debugging-port=${debugPort}`, `--user-data-dir=${resolve(tempDir, 'chrome-profile')}`,
+    '--no-first-run', '--no-default-browser-check', '--disable-gpu', '--hide-scrollbars', '--remote-allow-origins=*', '--window-size=1440,1000', 'about:blank',
+  ], { windowsHide: true, stdio: 'ignore' });
+  children.push(chrome);
+  let version;
+  for (let i = 0; i < 120; i++) {
+    try { version = await (await fetch(`http://127.0.0.1:${debugPort}/json/version`)).json(); break; } catch { await pause(100); }
+  }
+  if (!version) throw new Error('Chrome DevTools endpoint did not start');
+  let page;
+  try {
+    page = await (await fetch(`http://127.0.0.1:${debugPort}/json/new?${encodeURIComponent(`${web}/?ui=azure`)}`, { method: 'PUT' })).json();
+  } catch {
+    page = (await (await fetch(`http://127.0.0.1:${debugPort}/json/list`)).json()).find(target => target.type === 'page');
+  }
+  cdp = await connectCdp(page.webSocketDebuggerUrl);
+  await cdp.send('Runtime.enable');
+  await cdp.send('Page.enable');
+  await setViewport(1440, 1000);
+  await cdp.send('Page.navigate', { url: `${web}/?ui=azure` });
+
+  check(await waitFor(`document.documentElement.dataset.ui==='azure'`, 15000), 'blue-gray review shell is active');
+  await login('web-ops', seeded.adminPassword);
+  check(await waitFor(`document.body.innerText.includes('运营工作台')`, 15000), 'operator reaches the operations workspace');
+
+  // Onboarding continuity: selection survives a page switch in the same session.
+  await clickNav('为人员开通');
+  await waitFor(`document.body.innerText.includes('让同事开始使用 AI')`);
+  const selected = await evaluate(`(()=>{const row=[...document.querySelectorAll('.person-row')].find(node=>node.textContent.includes('回归员工'));if(!row)return false;row.querySelector('input[type=checkbox]').click();return true;})()`);
+  check(selected, 'onboarding person row is selectable');
+  await waitFor(`document.body.innerText.includes('已选 1 人')`);
+  await clickNav('模型配置');
+  await clickNav('为人员开通');
+  check(await waitFor(`document.body.innerText.includes('已选 1 人')`, 8000), 'onboarding selection survives a page switch');
+  await screenshot('onboarding-continuity-1440.png');
+
+  // Verification via UI, then the run detail modal.
+  await clickNav('模型配置');
+  await waitFor(`document.body.innerText.includes('管理已有配置')`);
+  await evaluate(`(()=>{[...document.querySelectorAll('summary')].find(node=>node.textContent.includes('管理已有配置'))?.click();return true;})()`);
+  await waitFor(`[...document.querySelectorAll('#v4-sidebar')].length>=0`);
+  check(await clickExact('验证连接'), 'model service verify action is present');
+  check(await waitFor(`document.body.innerText.includes('最近一次连接验证')`, 20000), 'verification result is shown with its metering notice');
+  check(await clickExact('查看逐模型诊断'), 'verification run detail action is present');
+  check(await waitFor(`document.querySelector('dialog.modal[open]')?.innerText.includes('上游请求号')`, 8000), 'verification detail shows the upstream request id column');
+  await pressKey('Escape');
+  await waitFor(`!document.querySelector('dialog.modal[open]')`);
+  check(true, 'verification detail closes with Escape');
+  check(await clickExact('验证记录'), 'verification history action is present');
+  check(await waitFor(`document.querySelector('dialog.modal[open]')?.innerText.includes('连接验证记录')`, 8000), 'verification history modal opens');
+  check(await evaluate(`[...document.querySelectorAll('dialog.modal[open] tbody tr')].length>=2`), 'verification history lists previous runs');
+  await pressKey('Escape');
+  await waitFor(`!document.querySelector('dialog.modal[open]')`);
+  await screenshot('model-verification-1440.png');
+
+  // Entitlement migration through the existing preview/confirm flow.
+  await clickNav('为人员开通');
+  await waitFor(`document.body.innerText.includes('让同事开始使用 AI')`);
+  await evaluate(`(()=>{[...document.querySelectorAll('summary')].find(node=>node.textContent.includes('开通设置与记录'))?.click();return true;})()`);
+  check(await waitFor(`[...document.querySelectorAll('button')].some(node=>node.textContent.trim()==='迁移版本')`, 8000), 'per-entitlement migration action is present');
+  check(await clickExact('迁移版本'), 'migration editor opens from the entitlement list');
+  await waitFor(`document.querySelector('dialog.modal[open]')?.innerText.includes('迁移存量权益到当前方案版本')`);
+  await evaluate(`(()=>{const el=[...document.querySelectorAll('dialog.modal[open] textarea')].at(-1);const setter=Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set;setter.call(el,'浏览器回归：统一到当前版本');el.dispatchEvent(new Event('input',{bubbles:true}));return true;})()`);
+  check(await clickExact('继续'), 'migration editor submits to preview');
+  check(await waitFor(`[...document.querySelectorAll('dialog.modal[open]')].some(dialog=>dialog.innerText.includes('不补发额度'))`, 12000), 'migration preview states that no quota is backfilled');
+  check(await evaluate(`[...document.querySelectorAll('dialog.modal[open]')].some(dialog=>dialog.innerText.includes('v1 → v2'))`), 'migration preview shows the version change');
+  await screenshot('entitlement-migration-preview-1440.png');
+  check(await clickExact('确认执行'), 'migration confirmation executes');
+  await waitFor(`!document.querySelector('dialog.modal[open]')`, 15000);
+  const migratedVersion = await evaluate(`fetch(${JSON.stringify(`${cp}/api/v1/platform/state`)},{credentials:'include'}).then(response=>response.json()).then(state=>state.entitlements.map(entry=>entry.planVersion))`);
+  check(Array.isArray(migratedVersion) && migratedVersion.every(version => version === 2), 'migration updates the entitlement version through the API');
+
+  // Employee view: call tracing and related retry.
+  await evaluate(`fetch(${JSON.stringify(`${cp}/api/v1/auth/logout`)},{method:'POST',credentials:'include'}).then(()=>true)`);
+  await cdp.send('Page.navigate', { url: `${web}/?ui=azure` });
+  await login('web-employee', seeded.employeePassword);
+  await clickNav('调用记录');
+  check(await waitFor(`document.body.innerText.includes(${JSON.stringify(seeded.retry.slice(0, 20))})`, 15000), 'employee sees their own retried call');
+  await evaluate(`(()=>{const button=[...document.querySelectorAll('button.code-button')].find(node=>node.textContent.includes(${JSON.stringify(seeded.retry.slice(0, 20))}));button?.click();return !!button;})()`);
+  await waitFor(`document.querySelector('dialog.modal[open]')?.innerText.includes('调用详情')`);
+  const detailText = await evaluate(`document.querySelector('dialog.modal[open]').innerText`);
+  check(detailText.includes('上游请求号') && detailText.includes(`upstream-${seeded.retry}`), 'call detail shows the upstream request id');
+  check(detailText.includes(seeded.origin), 'call detail shows the related original request id');
+  check(await clickExact('查看原调用与重试'), 'related-call action is available');
+  check(await waitFor(`document.querySelector('dialog.modal[open]')?.innerText.includes('关联调用')`, 8000), 'related-call modal opens');
+  const relatedText = await evaluate(`document.querySelector('dialog.modal[open]').innerText`);
+  check(relatedText.includes('原调用') && relatedText.includes('显式重试'), 'related-call modal separates the original from the retry');
+  await screenshot('call-tracing-1440.png');
+  await pressKey('Escape');
+  await waitFor(`!document.querySelector('dialog.modal[open]')`);
+
+  // Shell regressions for every design. `beacon` reuses the v4 shell, so it must
+  // paint data-layout="sidebar" and offer the same five-design switch.
+  for (const [mode, ui, layout, label] of [
+    ['sidebar', 'next', 'sidebar', '左栏'],
+    ['next', 'next', 'next', '顶栏'],
+    ['classic', 'classic', 'classic', '经典'],
+    ['azure', 'azure', 'sidebar', '蓝灰'],
+    ['beacon', 'beacon', 'sidebar', '信标'],
+  ]) {
+    await cdp.send('Page.navigate', { url: `${web}/?ui=${mode}` });
+    check(await waitFor(`document.documentElement.dataset.ui===${JSON.stringify(ui)}`, 15000), `shell ${mode} paints data-ui=${ui}`);
+    check(await waitFor(`document.documentElement.dataset.layout===${JSON.stringify(layout)}`, 15000), `shell ${mode} paints data-layout=${layout}`);
+    check(await waitFor(`document.body.innerText.length>20`), `shell ${mode} renders`);
+    const designs = await evaluate(`[...document.querySelectorAll('.design-switch button')].filter(b=>b.getClientRects().length>0).map(b=>[b.textContent.trim(),b.getAttribute('aria-pressed')])`);
+    check(designs.length === 5, `shell ${mode} offers five designs (${designs.map(d=>d[0]).join('/')})`);
+    check(designs.filter(d=>d[1]==='true').length === 1 && designs.find(d=>d[1]==='true')[0] === label, `shell ${mode} marks only ${label} as pressed`);
+  }
+  await cdp.send('Page.navigate', { url: `${web}/?ui=azure` });
+  await waitFor(`document.body.innerText.includes('调用记录')`, 15000);
+  await clickNav('调用记录');
+
+  // Horizontal overflow at the documented widths.
+  for (const width of [320, 360, 736, 1024, 1440]) {
+    await setViewport(width, width <= 760 ? 844 : 1000);
+    await pause(250);
+    const overflow = await evaluate('document.documentElement.scrollWidth - document.documentElement.clientWidth');
+    check(overflow <= 0, `no page-level horizontal overflow at ${width}px (${overflow})`);
+  }
+
+  // Mobile drawer focus trap and Escape return.
+  await setViewport(390, 844);
+  await waitFor(`!!document.querySelector('.v4-menu-button')`);
+  await evaluate(`document.querySelector('.v4-menu-button').click()`);
+  await waitFor(`document.querySelector('#v4-sidebar')?.getAttribute('role')==='dialog'`);
+  check(await evaluate(`document.querySelector('#v4-sidebar').contains(document.activeElement)`), 'mobile drawer moves focus inside');
+  await evaluate(`(()=>{window.dispatchEvent(new KeyboardEvent('keydown',{key:'Tab',bubbles:true}));return true;})()`);
+  check(await evaluate(`document.querySelector('#v4-sidebar').contains(document.activeElement)`), 'Tab stays inside the mobile drawer');
+  await evaluate(`(()=>{window.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));return true;})()`);
+  await waitFor(`document.querySelector('#v4-sidebar')?.getAttribute('role')!=='dialog'`, 5000);
+  await pause(120);
+  check(await evaluate(`document.activeElement?.classList.contains('v4-menu-button')`), 'Escape closes the drawer and returns focus to the menu button');
+  await screenshot('calls-mobile-390.png');
+
+  check(cdp.runtimeErrors.length === 0, `no uncaught browser exceptions (${cdp.runtimeErrors.join(' | ')})`);
+  console.log(`PASS ${assertions.length} browser assertions`);
+  console.log(`Screenshots: docs/validation/screenshots-2026-10-23`);
+} catch (error) {
+  try {
+    if (cdp) {
+      const body = await cdp.evaluate('document.body.innerText.slice(0,1500)');
+      if (body) console.error(`Page text at failure:\n${body}`);
+      await screenshot('failure.png');
+    }
+  } catch { /* keep the original failure */ }
+  const diagnostics = children.map(child => child.diagnostic?.() ?? '').filter(Boolean).join('\n');
+  if (diagnostics && process.env.DEBUG_WEB_CHECK === '1') console.error(diagnostics.slice(-6000));
+  console.error(error instanceof Error ? error.message : String(error));
+  process.exitCode = 1;
+} finally {
+  await stopAll();
+}

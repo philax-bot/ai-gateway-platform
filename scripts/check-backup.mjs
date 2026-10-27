@@ -5,7 +5,8 @@ import {resolve} from 'node:path';
 import {backupWorkspace,restoreWorkspace} from './lib/backup.mjs';
 
 /** Called only with the delivery harness's generated schema, processes, fake model and private directory. */
-export async function checkBackup({schema,schemas,db,env,control,gateway,start,stop,ready,request,check,inSchema,directory,gwPort,cp:controlUrl,gw,issued}){
+export async function checkBackup({schema,schemas,db,env,control,gateway,start,stop,ready,request,check,inSchema,directory,gwPort,cp:controlUrl,gw,issued,migrationCount}){
+  assert.ok(Number.isInteger(migrationCount)&&migrationCount>0,'migration count is supplied by the delivery harness');
   assert.match(schema,/^agp_check_[a-f0-9]{32}$/);assert.ok(schemas.includes(schema));
   const before=(await request('/api/v1/platform/state')).body,amount=before.quotaBatches[0].availableAmount;
   const journal=resolve(directory,'journal'),bundle=resolve(directory,'backup'),options={connectionString:env.DATABASE_URL,schema,bin:process.env.PG_BIN,destination:bundle,journals:[journal]};
@@ -22,7 +23,7 @@ export async function checkBackup({schema,schemas,db,env,control,gateway,start,s
   console.log('CHECK native backup of stopped gateway journals and authoritative PostgreSQL ledger');
   const backup=await backupWorkspace(options);
   check(backup.manifest.mode==='production'&&backup.manifest.journals.length===2&&backup.manifest.journals[0].phases.queued===1&&backup.manifest.journals[1].records===0,'bundle includes installation mode, pending settlement and empty second journal');
-  check(backup.manifest.migrations.length===9&&backup.manifest.files.some(f=>f.path==='platform.dump'),'bundle carries migrations and native database archive');
+  check(backup.manifest.migrations.length===migrationCount&&backup.manifest.files.some(f=>f.path==='platform.dump'),'bundle carries migrations and native database archive');
   await assert.rejects(backupWorkspace(options),/Destination already exists/);check(true,'backup never overwrites an existing bundle');
   await assert.rejects(restoreWorkspace({connectionString:env.DATABASE_URL,bin:process.env.PG_BIN,source:bundle,journalRoot:resolve(directory,'existing-schema-restore')}),/Target schema already exists/);check(true,'restore never replaces an existing schema');
   const corrupt=resolve(directory,'corrupt-backup');await cp(bundle,corrupt,{recursive:true});await appendFile(resolve(corrupt,'platform.dump'),'corrupt');
@@ -34,7 +35,10 @@ export async function checkBackup({schema,schemas,db,env,control,gateway,start,s
   await db.query(`alter schema "${schema}" rename to "${archived}"`);
   const restored=await restoreWorkspace({connectionString:env.DATABASE_URL,bin:process.env.PG_BIN,source:bundle,journalRoot:resolve(directory,'restored-journals')});
   check(restored.journals.length===2&&JSON.stringify(JSON.parse(await readFile(resolve(restored.journals[0].directory,file),'utf8')))===JSON.stringify(entry),'restoration preserves exact queued event and independent journal directories');
-  check((await inSchema(schema,c=>c.query('select count(*)::int as total from schema_migrations'))).rows[0].total===9,'native restore retains migration history');
+  check((await inSchema(schema,c=>c.query('select count(*)::int as total from schema_migrations'))).rows[0].total===migrationCount,'native restore retains migration history');
+  check((await inSchema(schema,c=>c.query("select count(distinct column_name)::int as total from information_schema.columns where table_schema=current_schema() and column_name in ('upstream_request_id','retry_of_request_id')"))).rows[0].total===2,'native restore retains call tracing columns');
+  check((await inSchema(schema,c=>c.query("select to_regclass('service_verification_runs') as name"))).rows[0].name!==null,'native restore retains the verification run table');
+  check((await inSchema(schema,c=>c.query('select count(*)::int as total from service_verification_runs'))).rows[0].total>0,'native restore retains verification run evidence');
   const restoredControl=start('apps/control-plane/dist/main.js',env);await ready(`${controlUrl}/health`,restoredControl);
   let state=(await request('/api/v1/platform/state')).body;
   check(state.members[0].id===before.members[0].id&&state.definitions[0].id===before.definitions[0].id&&state.plans[0].id===before.plans[0].id&&state.callLogs.length===1,'restored session, administrator, model, plan and historical call are accessible');

@@ -6,7 +6,7 @@ import {statusKeys} from './key-status';
 
 const operatorCommands=new Set([
   'save.alert-rule','save.organization','save.member','import.members','save.definition','save.service','save.pool','save.plan','save.rule',
-  'alert.ack','auto.apply','distribution.execute','entitlement.stop','entitlement.revoke','project.fund','application.fund','settings.update','settings.retention','retention.run','periodic.run','usage.reconcile',
+  'alert.ack','auto.apply','distribution.execute','entitlement.stop','entitlement.revoke','entitlements.migrate','project.fund','application.fund','settings.update','settings.retention','retention.run','periodic.run','usage.reconcile',
 ]);
 
 /** Check current access before both previews and idempotent-result lookup.

@@ -2,9 +2,10 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { createHash, randomUUID } from 'node:crypto';
 import { isAbsolute,resolve } from 'node:path';
 import type { AuthorizeRequest, AuthorizeResponse, SettlementRequest, SettlementResponse } from '@ai-gateway/contracts';
-import { chatCompletionsUrl,estimateChatInput,validateRuntimeConfig } from '@ai-gateway/contracts';
+import { chatCompletionsUrl,estimateChatInput,extractUpstreamUsage,isRequestReference,readUpstreamRequestId,validateRuntimeConfig } from '@ai-gateway/contracts';
 import { SettlementJournal } from './journal.js';
-import { definitelyNotSent } from './connection-failure.js';
+import { definitelyNotSent, shouldRetryConnect } from './connection-failure.js';
+import { adaptUpstreamChatRequest } from './upstream-compat.js';
 
 const runtimeMode=validateRuntimeConfig(process.env,'gateway');
 if(runtimeMode==='production'&&!isAbsolute(process.env.GATEWAY_JOURNAL_DIR!))throw new Error('GATEWAY_JOURNAL_DIR must be absolute in production');
@@ -19,7 +20,7 @@ const journal=new SettlementJournal(process.env.GATEWAY_JOURNAL_DIR??resolve(pro
 
 function corsHeaders(origin?: string): Record<string, string> {
   return { 'access-control-allow-origin': origin && localWebOrigins.has(origin) ? origin : webOrigin,
-    'access-control-allow-headers': 'authorization, content-type, idempotency-key, x-request-id, x-price-version',
+    'access-control-allow-headers': 'authorization, content-type, idempotency-key, x-request-id, x-price-version, x-retry-of-request-id',
     'access-control-allow-methods': 'POST, OPTIONS', 'access-control-expose-headers': 'x-request-id', vary: 'Origin' };
 }
 function sendJson(response: ServerResponse, status: number, value: unknown, origin?: string): void {
@@ -40,32 +41,45 @@ async function controlPlane<T>(path: string, body: unknown): Promise<{ status: n
     headers:{ authorization:`Bearer ${serviceToken}`,'content-type':'application/json' },body:JSON.stringify(body) });
   return { status:response.status,value:await response.json() as T };
 }
-type ResolvedCredential = { credentialId:string; identity:AuthorizeRequest['identity']; purpose:AuthorizeRequest['purpose'] };
-type Usage = { inputTokens:number; outputTokens:number; cachedInputTokens:number };
+type ResolvedCredential = { credentialId:string; identity:AuthorizeRequest['identity']; purpose:AuthorizeRequest['purpose']; modelIds?:string[] };
 async function boundedText(response:Response):Promise<string>{
   if(!response.body)return '';
   const reader=response.body.getReader(),decoder=new TextDecoder();let result='',size=0;
   try{while(true){const chunk=await reader.read();if(chunk.done)break;size+=chunk.value.byteLength;if(size>16777216){await reader.cancel();throw new Error('upstream response exceeds 16 MiB');}result+=decoder.decode(chunk.value,{stream:true});}return result+decoder.decode();}finally{reader.releaseLock();}
 }
-function extractUsage(raw: string): Usage | null {
-  const objects: Record<string, unknown>[]=[];
-  try { objects.push(JSON.parse(raw)); } catch {
-    for(const line of raw.split(/\r?\n/).reverse()) {
-      if(!line.startsWith('data:')) continue;
-      try { objects.push(JSON.parse(line.slice(5).trim())); } catch { /* SSE marker or partial line */ }
+/**
+ * Dispatch an upstream request with a bounded retry that is only allowed for
+ * connect-phase failures: no request bytes reached the upstream, so usage is
+ * provably zero and no customer can be charged twice. A partially received
+ * response (or any abort) is never retried.
+ */
+async function dispatchUpstream(url:string,init:RequestInit):Promise<Response>{
+  let attempt=0;
+  for(;;){
+    try{
+      // pi-lens-ignore: ts-ssrf — the URL is the validated controlled route; loopback/explicit-enable gate is checked by the caller.
+      return await fetch(url,init);
+    }
+    catch(error){
+      if(!shouldRetryConnect(error,attempt))throw error;
+      console.error(JSON.stringify({event:'upstream_connect_retry',attempt:attempt+1,causeCode:(error as {cause?:{code?:string}}).cause?.code??null}));
+      attempt++;
     }
   }
-  for(const object of objects) {
-    const usage=object.usage as Record<string, unknown> | undefined;
-    if(!usage) continue;
-    const inputTokens=usage.prompt_tokens??usage.input_tokens;
-    const outputTokens=usage.completion_tokens??usage.output_tokens;
-    const cachedInputTokens=(usage.prompt_tokens_details as Record<string,unknown>|undefined)?.cached_tokens??0;
-    if([inputTokens,outputTokens,cachedInputTokens].every(v=>typeof v==='number'&&Number.isSafeInteger(v)&&v>=0&&v<=2147483647)&&Number(cachedInputTokens)<=Number(inputTokens)) {
-      return { inputTokens:inputTokens as number,outputTokens:outputTokens as number,cachedInputTokens:cachedInputTokens as number };
-    }
-  }
-  return null;
+}
+
+async function handleModels(request: IncomingMessage, response: ServerResponse): Promise<void> {
+  const origin=request.headers.origin;
+  let credential: ResolvedCredential|null;
+  try {
+    const resolved=await controlPlane<ResolvedCredential|null>('/internal/v1/policy/credentials/resolve', { apiKey:(request.headers.authorization??'').replace(/^Bearer\s+/i,'') });
+    if(resolved.status!==200) throw new Error('credential lookup failed');
+    credential=resolved.value;
+  } catch { sendJson(response,503,{error:{type:'control_plane_unavailable',message:'authorization service is unavailable'}},origin); return; }
+  if(!credential) { sendJson(response,401,{error:{type:'authentication_error',message:'invalid API key'}},origin); return; }
+  // Discovery only: the credential's currently authorized logical model IDs. Authorization still rechecks on every call.
+  const data=(credential.modelIds??[]).map(id=>({id,object:'model',created:0,owned_by:'platform'}));
+  sendJson(response,200,{object:'list',data},origin);
 }
 
 async function handleCompletions(request: IncomingMessage, response: ServerResponse): Promise<void> {
@@ -86,6 +100,11 @@ async function handleCompletions(request: IncomingMessage, response: ServerRespo
     sendJson(response,400,{error:{type:'invalid_request_error',message:'output token limit must be a positive integer'}},origin);return;
   }
   const requestId=String(request.headers['x-request-id']??`request-${randomUUID()}`);
+  const retryHeader=request.headers['x-retry-of-request-id'];
+  if(retryHeader!==undefined&&(typeof retryHeader!=='string'||!isRequestReference(retryHeader))){
+    sendJson(response,400,{error:{type:'invalid_request_error',message:'x-retry-of-request-id must be an opaque reference of at most 160 characters'}},origin);return;
+  }
+  const retryOfRequestId=typeof retryHeader==='string'?retryHeader:null;
   const idempotencyKey=String(request.headers['idempotency-key']??requestId);
   let credential: ResolvedCredential|null;
   let decision: AuthorizeResponse;
@@ -98,9 +117,10 @@ async function handleCompletions(request: IncomingMessage, response: ServerRespo
       requestId,idempotencyKey,identity:credential.identity,purpose:credential.purpose,modelId:body.model,mode:'chat',
       estimatedInputTokens:estimateChatInput(body),expectedPriceVersion:typeof request.headers['x-price-version']==='string'?request.headers['x-price-version']:undefined,
       maxOutputTokens:requestedOutput as number|undefined,requestFingerprint:createHash('sha256').update(JSON.stringify(body)).digest('hex'),policyVersion:'policy-local-1',
+      retryOfRequestId,
     } satisfies AuthorizeRequest);
     if(auth.status!==200) {
-      sendJson(response,auth.status===409?409:503,{error:{type:'authorization_error',message:'authorization unavailable or conflicting'},requestId},origin); return;
+      sendJson(response,auth.status===409?409:auth.status===400?400:503,{error:{type:auth.status===400?'invalid_request_error':'authorization_error',message:auth.status===400?'retry reference is invalid':'authorization unavailable or conflicting'},requestId},origin); return;
     }
     decision=auth.value;
   } catch { sendJson(response,503,{error:{type:'control_plane_unavailable',message:'authorization service is unavailable'},requestId},origin); return; }
@@ -131,6 +151,7 @@ async function handleCompletions(request: IncomingMessage, response: ServerRespo
   let raw=''; let outcome: SettlementRequest['outcome']='upstream_error';
   let usageFinal=true;
   let upstreamStatus=502;
+  let upstreamRequestId:string|null=null;
   let failureMessage='test model is unavailable';
   let streamStarted=false;
   let dispatched=false;
@@ -149,10 +170,11 @@ async function handleCompletions(request: IncomingMessage, response: ServerRespo
     if(configured){if(body.max_completion_tokens!==undefined){forwarded.max_completion_tokens=route!.maxOutputTokens;delete forwarded.max_tokens;}else forwarded.max_tokens=route!.maxOutputTokens;}
     if(body.stream===true)forwarded.stream_options={...(body.stream_options as Record<string,unknown>|undefined),include_usage:true};
     await journal.dispatched(requestId);dispatched=true;
-    upstream=await fetch(chatCompletionsUrl(target.toString()), { method:'POST',redirect:'error', signal:controller.signal,
-      headers:{'content-type':'application/json','x-request-id':requestId,...(upstreamCredential?{authorization:`Bearer ${upstreamCredential}`}:{})},body:JSON.stringify(forwarded) });
+    upstream=await dispatchUpstream(chatCompletionsUrl(target.toString()), { method:'POST',redirect:'error', signal:controller.signal,
+      headers:{'content-type':'application/json','x-request-id':requestId,...(upstreamCredential?{authorization:`Bearer ${upstreamCredential}`}:{})},body:JSON.stringify(adaptUpstreamChatRequest(target,forwarded)) });
     upstreamStatus=upstream.status;
-    if(!upstream.ok) { raw=await boundedText(upstream); outcome='upstream_error';usageFinal=extractUsage(raw)!==null||!configured||upstream.status<500; }
+    upstreamRequestId=readUpstreamRequestId(upstream.headers);
+    if(!upstream.ok) { raw=await boundedText(upstream); outcome='upstream_error';usageFinal=extractUpstreamUsage(raw)!==null||!configured||upstream.status<500; }
     else if(body.stream===true && upstream.body) {
       response.writeHead(200,{'content-type':'text/event-stream; charset=utf-8','cache-control':'no-cache','x-request-id':requestId,...corsHeaders(origin)});
       streamStarted=true;
@@ -176,25 +198,27 @@ async function handleCompletions(request: IncomingMessage, response: ServerRespo
         }
         const tail=decoder.decode();raw+=tail;eventBuffer+=tail;if(eventBuffer.trim())await forwardEvent(eventBuffer);
       } finally { reader.releaseLock(); }
-      outcome=done?'completed':'partial'; usageFinal=extractUsage(raw)!==null;
+      outcome=done?'completed':'partial'; usageFinal=extractUpstreamUsage(raw)!==null;
     } else {
       raw=await boundedText(upstream);
       const value=JSON.parse(raw) as Record<string,unknown>;
       if(!Array.isArray(value.choices))throw new Error('upstream returned an invalid completion');
-      value.model=logicalModel;raw=JSON.stringify(value);outcome='completed';usageFinal=extractUsage(raw)!==null;
+      value.model=logicalModel;raw=JSON.stringify(value);outcome='completed';usageFinal=extractUpstreamUsage(raw)!==null;
     }
   } catch (error) {
     controller.abort();
+    // Redacted diagnostic: error class and cause code only, never URLs, headers or credentials.
+    console.error(JSON.stringify({event:'upstream_failure',requestId,dispatched,errorName:error instanceof Error?error.name:'unknown',causeCode:(error as {cause?:{code?:string}}).cause?.code??null}));
     outcome=!dispatched?'rejected_before_upstream':clientCancelled?'client_cancelled':timedOut?'timeout':streamStarted?'partial':'upstream_error';
     // Interrupted generation may have incurred usage, even without its final usage event.
     usageFinal=!dispatched||definitelyNotSent(error);
-    if(extractUsage(raw)) { outcome='partial'; usageFinal=true; }
+    if(extractUpstreamUsage(raw)) { outcome='partial'; usageFinal=true; }
     upstreamStatus=!dispatched?503:timedOut?504:502; failureMessage=!dispatched?'controlled upstream configuration is unavailable':timedOut?'upstream model timed out':'upstream model connection interrupted';
   } finally { clearTimeout(timeout);clearInterval(heartbeat); response.off('close',onClose); }
 
-  const usage=extractUsage(raw)??{inputTokens:0,outputTokens:0,cachedInputTokens:0};
+  const usage=extractUpstreamUsage(raw)??{inputTokens:0,outputTokens:0,cachedInputTokens:0};
   const errorCode=outcome==='completed'?undefined:outcome==='upstream_error'?`upstream_http_${upstream?.status??'connection'}`:outcome==='rejected_before_upstream'?'controlled_configuration_unavailable':outcome;
-  const settlement: SettlementRequest={...baseSettlement,outcome,forwarded:dispatched,ttftMs,errorCode,...usage,usageFinal,actualAmount:configured?undefined:outcome==='completed'||outcome==='partial'?0.02:0,completedAt:new Date().toISOString()};
+  const settlement: SettlementRequest={...baseSettlement,outcome,forwarded:dispatched,ttftMs,errorCode,...usage,usageFinal,upstreamRequestId,actualAmount:configured?undefined:outcome==='completed'||outcome==='partial'?0.02:0,completedAt:new Date().toISOString()};
   let settled=false;
   try{settled=await journal.finalize(settlement);}catch{console.error(JSON.stringify({event:'settlement_journal_failed',requestId,reservationId:settlement.reservationId}));}
   if(!settled) { sendJson(response,503,{error:{type:'settlement_pending',message:'usage settlement is pending durable replay or reconciliation'},requestId},origin); return; }
@@ -216,7 +240,8 @@ async function serveRequest(request:IncomingMessage,response:ServerResponse){
   try {
     if(closing){sendJson(response,503,{error:{type:'gateway_stopping',message:'gateway is draining active requests'}},request.headers.origin);return;}
     if(request.method==='GET'&&request.url==='/health') {const outbox=await journal.status();sendJson(response,200,{status:outbox.blocked?'degraded':'ok',dataPlane:runtimeMode==='production'?'controlled-proxy':'local-simulation',outbox},request.headers.origin);return;}
-    if(request.method==='OPTIONS'&&request.url==='/v1/chat/completions') {response.writeHead(204,corsHeaders(request.headers.origin));response.end();return;}
+    if(request.method==='OPTIONS'&&(request.url==='/v1/chat/completions'||request.url==='/v1/models')) {response.writeHead(204,corsHeaders(request.headers.origin));response.end();return;}
+    if(request.method==='GET'&&request.url==='/v1/models') {await handleModels(request,response);return;}
     if(request.method==='POST'&&request.url==='/v1/chat/completions') {await handleCompletions(request,response);return;}
     sendJson(response,404,{error:{type:'not_found',message:'route not found'}},request.headers.origin);
   } catch {sendJson(response,500,{error:{type:'gateway_error',message:'gateway request failed'}},request.headers.origin);}

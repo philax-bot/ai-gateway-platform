@@ -17,3 +17,4 @@ export interface CallSummary {
 export interface CallPage {
   items:CallLog[]; nextCursor:string|null; summary:CallSummary; collectedAt:string;
 }
+export interface CallRelations { original:CallLog|null; retries:CallLog[] }

@@ -1,12 +1,12 @@
-import { BadRequestException, ConflictException, ForbiddenException, Injectable } from '@nestjs/common';
-import { createHmac, randomBytes } from 'node:crypto';
-import type { ApplicationDetail, ApprovalDetail, AuthorizeRequest, CallQuery, ModelRange, PlatformCommand, ProjectDetail, PurposeView, ReasonCode, ReconciliationRequest, UsageLimits, WorkspaceState } from '@ai-gateway/contracts';
-import { chatCompletionsUrl,estimateChatInput } from '@ai-gateway/contracts';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, ServiceUnavailableException } from '@nestjs/common';
+import { createHmac, randomBytes, randomUUID } from 'node:crypto';
+import type { ApplicationDetail, ApprovalDetail, AuthorizeRequest, CallQuery, ModelRange, PlatformCommand, ProjectDetail, PurposeView, ReasonCode, ReconciliationRequest, UsageLimits, VerificationMappingResult, VerificationRun, WorkspaceState } from '@ai-gateway/contracts';
+import { chatCompletionsUrl,estimateChatInput,extractUpstreamUsage,isRequestReference,readUpstreamRequestId,summarizeVerification } from '@ai-gateway/contracts';
 import { admissionForBatch } from '../store/admission';
 import { reconciliationCalculation } from '../store/accounting';
 import { DemoStore } from '../store/demo.store';
 import { WorkspaceRepository } from './workspace.repository';
-import { activeMember, amount, availableModels, hash, now, operator, pick } from './validation';
+import { activeMember, availableModels, hash, now, operator, pick } from './validation';
 import { businessDenial, canApprove, futureGrantStatus,manager, memberModels, newId, owner, publicMember, publicKey, syncResources, valid } from './domain';
 import { memberCandidate,memberImportRows,resourceAction,ruleCandidate } from './resource-actions';
 import { prepareApprovalRepair,prepareDistribution,prepareSettings,workflowAction } from './workflow-actions';
@@ -17,8 +17,11 @@ import {authorizeCommand} from './command-authorization';
 import {prepareKeyStatus} from './key-status';
 import {prepareRetention,requestedRetention,retentionPolicy} from './retention';
 import {auditObjectId,describeAudit,queryAudit} from './audit-query';
+import { prepareEntitlementMigration } from './entitlement-migration';
+import { fetchVerifiedUpstream, verificationCost, verificationFailure, verificationMappingSnapshots, verificationPrice, verificationTimeoutMs } from './verification';
 
-const safeResult=(value:unknown):unknown=>Array.isArray(value)?value.map(safeResult):value&&typeof value==='object'?Object.fromEntries(Object.entries(value).filter(([key])=>!['secret','password','passwordHash','keyHash'].includes(key)).map(([key,v])=>[key,safeResult(v)])):value;
+type SafeJson=string|number|boolean|null|SafeJson[]|{[key:string]:SafeJson};
+const safeResult=(value:unknown):SafeJson=>Array.isArray(value)?value.map(safeResult):value&&typeof value==='object'?Object.fromEntries(Object.entries(value).filter(([key])=>!['secret','password','passwordHash','keyHash'].includes(key)).map(([key,v])=>[key,safeResult(v)])):typeof value==='string'||typeof value==='number'||typeof value==='boolean'||value===null?value:null;
 
 @Injectable()
 export class PlatformService {
@@ -129,7 +132,7 @@ export class PlatformService {
     if(!c||typeof c.type!=='string'||!c.payload||typeof c.payload!=='object'||Array.isArray(c.payload)||typeof c.idempotencyKey!=='string'||c.idempotencyKey.length<8||c.idempotencyKey.length>160)throw new BadRequestException('invalid command');
   }
   private needsPreview(c:PlatformCommand){
-    return ['save.pool','save.member','save.rule','import.members','project.fund','project.allocate','project.members','project.end','application.fund','distribution.execute','key.status','keys.status','settings.update','settings.retention','retention.run','entitlement.revoke','auto.apply','usage.reconcile','approval.repair'].includes(c.type)
+    return ['save.pool','save.member','save.rule','import.members','project.fund','project.allocate','project.members','project.end','application.fund','distribution.execute','key.status','keys.status','settings.update','settings.retention','retention.run','entitlement.revoke','entitlements.migrate','auto.apply','usage.reconcile','approval.repair'].includes(c.type)
       ||(['save.member','save.organization','save.project','save.application','save.service'].includes(c.type)&&!!c.payload.id);
   }
   async preview(actorId:string,c:PlatformCommand){
@@ -158,8 +161,15 @@ export class PlatformService {
       const log=await this.store.getCall(String(p.requestId));if(!log||log.billableState!=='pending_review')throw new ConflictException('only a pending-review request may be reconciled');
       const reservation=await this.store.getReservationSummary(log.requestId);if(!reservation)throw new ConflictException('reservation is missing');
       const reserved=reservation.amount;
+      // SAFETY: the preview payload is validated by reconciliationCalculation before any use.
       const amount=reconciliationCalculation({...p,idempotencyKey:c.idempotencyKey,actorId} as unknown as ReconciliationRequest,reserved,reservation.admission).amount;
       impact={...impact,title:'核对预占与实际费用',objectId:log.requestId,amount,originalHold:reserved,balanceChange:Number((reserved-amount).toFixed(6)),modelId:log.modelId,preserves:['原请求结果和模型来源','预占时价格依据','原资金批次，不借用其他用途额度']};
+    }
+    if(c.type==='entitlements.migrate'){
+      const prepared=prepareEntitlementMigration(s,p);
+      impact={...impact,title:'迁移存量权益到当前方案版本',objectId:prepared.plan.id,entitlementMigration:prepared.preview,
+        preserves:['权益 ID、授予时间、到期日、来源、规则关联与已发周期','已发批次余额、累计发放与来源','历史调用与预占'],
+        noBackfill:'本次不补差、不发新额度、不重复发本月额度；月度后续周期按目标快照发放。'};
     }
     if(c.type==='distribution.execute'){
       const prepared=prepareDistribution(s,p);impact={...impact,...prepared,title:prepared.operation==='open_plan'?'开通个人方案':'临时追加个人额度',planName:prepared.plan.name};
@@ -226,10 +236,13 @@ export class PlatformService {
         if(this.needsPreview(c))this.verifyPreview(c,actorId,s.revision);
         const actorName=actor.name;
         let result:unknown;
-        if(c.type==='usage.reconcile'){operator(actor);result=await tx.reconcile({...c.payload,idempotencyKey:c.idempotencyKey,actorId} as unknown as ReconciliationRequest);}
+        if(c.type==='usage.reconcile'){operator(actor);
+          // SAFETY: execute() has already verified the signed preview; reconcile revalidates the payload shape.
+          result=await tx.reconcile({...c.payload,idempotencyKey:c.idempotencyKey,actorId} as unknown as ReconciliationRequest);}
         else result=c.type.startsWith('save.')||c.type==='import.members'?await resourceAction(tx,actor,c.type,c.payload):await workflowAction(tx,actor,c.type,c.payload);
         await syncResources(tx);
-        const audit={id:newId('audit'),actorId,actorName,action:c.type,objectId:auditObjectId(c,result),reason:String(c.payload.reason??''),createdAt:now(),detail:(safeResult(result)??{}) as Record<string,unknown>};
+        const detail=safeResult(result);
+        const audit={id:newId('audit'),actorId,actorName,action:c.type,objectId:auditObjectId(c,result),reason:String(c.payload.reason??''),createdAt:now(),detail:detail&&typeof detail==='object'&&!Array.isArray(detail)?detail:{}};
         s.audit.push({...audit,objectName:describeAudit(s,audit).objectName});
         s.operations[c.idempotencyKey]={fingerprint,result:safeResult(result)};
         return {result,revision:s.revision+1,replayed:false};
@@ -250,24 +263,99 @@ export class PlatformService {
     return businessDenial(await this.repository.read(),input);
   }
 
-  async verifyService(actorId:string,serviceId:string){
-    const before=await this.repository.read();operator(activeMember(before,actorId));const service=pick(before.services,serviceId,'service'),endpoint=new URL(service.baseUrl);
+  private verificationKey(value:unknown):string{
+    if(value===undefined||value===null)return `verification-${randomUUID()}`;
+    if(!isRequestReference(value)||value.length<8)throw new BadRequestException('verification idempotency key must contain 8 to 160 characters');
+    return value;
+  }
+  private verificationMessage(run:VerificationRun):string{
+    const summary=summarizeVerification(run);
+    if(run.state==='running')return '验证仍在进行中；完成后才能写入当前配置状态';
+    if(run.state==='interrupted')return '验证进程中断；已发出的请求用量待确认，未标记为通过';
+    if(summary.failed>0){
+      const detail=run.results.filter(result=>result.outcome==='failed'&&result.message).map(result=>result.message);
+      return `${summary.mappings} 个映射中 ${summary.passed} 个通过，${summary.failed} 个未通过${detail.length?`（${detail.join('；')}）`:''}；失败模型不会标记为验证通过`;
+    }
+    if(summary.usageUnknown>0)return '连接已通过；上游未返回完整用量，内部成本无法估算';
+    if(summary.costUnknown>0||summary.internalCost===null)return '连接已通过，成本未知（价格未配置）';
+    return `实际 HTTP 验证通过；内部诊断成本 ${summary.internalCost} 元已记录，不代表容量或全部协议能力已验证`;
+  }
+  /**
+   * Platform diagnostic traffic: evidence is stored as a verification run, and no
+   * employee, project or application quota is reserved or charged.
+   */
+  async verifyService(actorId:string,serviceId:string,body:Record<string,unknown>={}){
+    const before=await this.repository.read();operator(activeMember(before,actorId));const service=pick(before.services,serviceId,'service');
+    let endpoint:URL;
+    try{endpoint=new URL(service.baseUrl);}catch{throw new BadRequestException('invalid service URL');}
     if(!['127.0.0.1','localhost','[::1]'].includes(endpoint.hostname)&&process.env.ALLOW_UPSTREAM_VALIDATION!=='true')throw new ForbiddenException('external model requests require explicit environment enablement');
-    let passed=false,message='';
-    try{
-      const credential=service.credentialRef?process.env[service.credentialRef]:null;if(service.credentialRef&&!credential)throw new Error('controlled credential reference is not configured');
-      for(const mapping of service.mappings){
-        const r=await fetch(chatCompletionsUrl(service.baseUrl),{method:'POST',redirect:'error',signal:AbortSignal.timeout(5000),headers:{'content-type':'application/json',...(credential?{authorization:`Bearer ${credential}`}:{})},body:JSON.stringify({model:mapping.upstreamModel,messages:[{role:'user',content:'Connection validation'}],max_tokens:1})});
-        if(!r.ok)throw new Error(r.status===401||r.status===403?'鉴权失败':r.status===404?'模型或接口不存在':`上游返回 HTTP ${r.status}`);
-        const response=await r.json() as {choices?:unknown[]};if(!Array.isArray(response.choices))throw new Error('响应不符合文本对话格式');
-      }
-      passed=true;message='实际 HTTP 验证通过；不代表容量或全部协议能力已验证';
-    }catch(error){message=error instanceof Error&&error.name==='TimeoutError'?'连接超时':error instanceof Error?error.message:'连接失败';}
-    return this.repository.transact(async tx=>{
-      operator(activeMember(tx.state,actorId));const current=pick(tx.state.services,serviceId,'service');if(current.configVersion!==service.configVersion)throw new ConflictException('service changed during verification');
-      current.verification=passed?'passed':'failed';current.verificationMessage=message;current.verifiedAt=now();await syncResources(tx);
-      tx.state.audit.push({id:newId('audit'),actorId,action:'service.verify',objectId:serviceId,reason:message,createdAt:now(),detail:{passed}});return current;
+    // A missing credential reference is a configuration error, not an executable diagnostic run.
+    const credential=service.credentialRef?process.env[service.credentialRef]:null;
+    if(service.credentialRef&&!credential)throw new ConflictException('controlled credential reference is not configured');
+    const idempotencyKey=this.verificationKey(body.idempotencyKey);
+    const {run,replayed}=await this.store.startVerification({serviceId,serviceName:service.name,operatorId:actorId,configVersion:service.configVersion,mappings:verificationMappingSnapshots(service.mappings),idempotencyKey});
+    let finished:VerificationRun;
+    if(replayed)finished=run;
+    else{
+      let state:'completed'|'interrupted'='completed';
+      try{
+        for(const mapping of service.mappings){
+          // Persist the attempt before calling out so an interrupted run still has evidence.
+          await this.store.markVerificationAttempt(run.id,mapping.definitionId);
+          const price=verificationPrice(service.id,service.configVersion,mapping);
+          let result:VerificationMappingResult;
+          try{
+            // One bounded connect-phase retry inside the helper; never retried after a partial response.
+            const response=await fetchVerifiedUpstream(chatCompletionsUrl(service.baseUrl),{method:'POST',redirect:'error',signal:AbortSignal.timeout(verificationTimeoutMs()),headers:{'content-type':'application/json',...(credential?{authorization:`Bearer ${credential}`}:{})},body:JSON.stringify({model:mapping.upstreamModel,messages:[{role:'user',content:'Connection validation'}],max_tokens:1})});
+            const upstreamRequestId=readUpstreamRequestId(response.headers);
+            const raw=await response.text();
+            if(!response.ok){
+              const failure=verificationFailure(response.status,null);
+              result={definitionId:mapping.definitionId,upstreamModel:mapping.upstreamModel,outcome:'failed',httpStatus:response.status,errorCode:failure.errorCode,message:failure.message,upstreamRequestId,usage:{inputTokens:null,outputTokens:null,cachedInputTokens:null,complete:false},cost:verificationCost(price,null),completedAt:now()};
+            }else{
+              let value:unknown;try{value=JSON.parse(raw);}catch{value=null;}
+              if(!value||typeof value!=='object'||Array.isArray(value)||!Array.isArray((value as {choices?:unknown}).choices))throw new Error('响应不符合文本对话格式');
+              const usage=extractUpstreamUsage(raw);
+              result={definitionId:mapping.definitionId,upstreamModel:mapping.upstreamModel,outcome:'passed',httpStatus:response.status,errorCode:null,message:usage?'连接通过，已返回用量':'连接通过，上游未返回用量',upstreamRequestId,usage:usage?{inputTokens:usage.inputTokens,outputTokens:usage.outputTokens,cachedInputTokens:usage.cachedInputTokens,complete:true}:{inputTokens:null,outputTokens:null,cachedInputTokens:null,complete:false},cost:verificationCost(price,usage),completedAt:now()};
+            }
+          }catch(error){
+            const failure=verificationFailure(null,error);
+            result={definitionId:mapping.definitionId,upstreamModel:mapping.upstreamModel,outcome:'failed',httpStatus:null,errorCode:failure.errorCode,message:failure.message,upstreamRequestId:null,usage:{inputTokens:null,outputTokens:null,cachedInputTokens:null,complete:false},cost:verificationCost(price,null),completedAt:now()};
+          }
+          await this.store.appendVerificationResult(run.id,result);
+        }
+      }catch{state='interrupted';}
+      try{finished=await this.store.finishVerification(run.id,state);}catch{throw new ServiceUnavailableException('验证已执行，但计量记录未能保存；请先检查运行记录，再决定是否重试');}
+    }
+    const applied=await this.repository.transact(async tx=>{
+      operator(activeMember(tx.state,actorId));const current=pick(tx.state.services,serviceId,'service');
+      // A configuration change mid-run keeps the old run and its usage evidence,
+      // but never writes the old result as the current configuration passing.
+      if(finished.state!=='completed'||current.configVersion!==run.configVersion)return false;
+      const summary=summarizeVerification(finished);
+      const passed=finished.state==='completed'&&summary.failed===0&&finished.results.length===finished.mappings.length;
+      current.verification=passed?'passed':'failed';current.verificationMessage=this.verificationMessage(finished);current.verifiedAt=now();await syncResources(tx);
+      tx.state.audit.push({id:newId('audit'),actorId,action:'service.verify',objectId:serviceId,reason:current.verificationMessage,createdAt:now(),detail:{passed,runId:finished.id,configVersion:service.configVersion,costState:summary.internalCost===null?'unknown':'priced',internalCost:summary.internalCost}});
+      return true;
     });
+    const currentService=pick((await this.repository.read()).services,serviceId,'service');
+    return {...currentService,verificationRun:finished,verificationApplied:applied,replayed};
+  }
+  async verificationHistory(actorId:string,serviceId:string,query:{limit?:unknown;before?:unknown}={}){
+    const state=await this.repository.read();operator(activeMember(state,actorId));pick(state.services,serviceId,'service');
+    const limit=query.limit===undefined||query.limit===''?20:Number(query.limit);
+    if(!Number.isInteger(limit)||limit<1||limit>100)throw new BadRequestException('verification page size must be between 1 and 100');
+    let before:string|null=null;
+    if(query.before!==undefined&&query.before!==''){
+      if(typeof query.before!=='string'||!Number.isFinite(Date.parse(query.before)))throw new BadRequestException('invalid verification cursor');
+      before=new Date(query.before).toISOString();
+    }
+    return this.store.listVerifications(serviceId,{limit,before});
+  }
+  async callRelations(actorId:string,requestId:string){
+    if(!isRequestReference(requestId))throw new BadRequestException('invalid request ID');
+    const state=await this.repository.read();
+    return this.store.relatedCalls(requestId,this.callScope(state,actorId));
   }
 
   async onlineCredential(actorId:string,payload:Record<string,unknown>){

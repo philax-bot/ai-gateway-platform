@@ -1,5 +1,6 @@
 import { BadRequestException, ConflictException } from '@nestjs/common';
 import type { AdmissionSnapshot, AuthorizeRequest, ReconciliationRequest, RequestIdentity, SettlementRequest } from '@ai-gateway/contracts';
+import { isRequestReference } from '@ai-gateway/contracts';
 import { costForUsage } from './admission';
 
 export const RESERVATION_AMOUNT = 0.02;
@@ -20,13 +21,37 @@ export function authorizationFingerprint(input: AuthorizeRequest): string {
     || (input.maxOutputTokens!==undefined&&(!Number.isSafeInteger(input.maxOutputTokens)||input.maxOutputTokens<1||input.maxOutputTokens>2147483647))
     || (input.requestFingerprint!==undefined&&!/^[a-f0-9]{64}$/.test(input.requestFingerprint))
     || (input.expectedPriceVersion!==undefined&&(typeof input.expectedPriceVersion!=='string'||input.expectedPriceVersion.length>128))
+    || (input.retryOfRequestId!==undefined&&input.retryOfRequestId!==null&&!isRequestReference(input.retryOfRequestId))
     || !['personal', 'project', 'application'].includes(input.purpose)
     || !['chat', 'embeddings', 'rerank', 'image', 'audio'].includes(input.mode)) {
     throw new BadRequestException('invalid authorization request');
   }
   const i = input.identity;
-  return JSON.stringify([i.subjectType, i.subjectId, i.credentialId, i.organizationId ?? null,
-    i.projectId ?? null, input.purpose, input.modelId, input.mode, input.policyVersion,input.estimatedInputTokens??null,input.maxOutputTokens??null,input.requestFingerprint??null,input.expectedPriceVersion??null]);
+  const base = [i.subjectType, i.subjectId, i.credentialId, i.organizationId ?? null,
+    i.projectId ?? null, input.purpose, input.modelId, input.mode, input.policyVersion,input.estimatedInputTokens??null,input.maxOutputTokens??null,input.requestFingerprint??null,input.expectedPriceVersion??null];
+  // No-retry requests keep the pre-tracing fingerprint so already persisted
+  // idempotency keys stay valid. Explicit retries use a versioned extension.
+  if (input.retryOfRequestId === undefined || input.retryOfRequestId === null) return JSON.stringify(base);
+  if (input.retryOfRequestId === input.requestId) throw new BadRequestException('a request cannot be a retry of itself');
+  return JSON.stringify(['retry-v1', ...base, input.retryOfRequestId]);
+}
+
+export interface RetryTarget {
+  subjectType: AuthorizeRequest['identity']['subjectType'];
+  subjectId: string;
+  organizationId: string | null;
+  projectId: string | null;
+  purpose: AuthorizeRequest['purpose'];
+}
+
+/** One uniform failure for missing and out-of-scope references so retries cannot probe other calls. */
+export function retryLinkAllowed(input: AuthorizeRequest, target: RetryTarget | null): boolean {
+  return !!target
+    && target.subjectType === input.identity.subjectType
+    && target.subjectId === input.identity.subjectId
+    && (target.organizationId ?? null) === (input.identity.organizationId ?? null)
+    && (target.projectId ?? null) === (input.identity.projectId ?? null)
+    && target.purpose === input.purpose;
 }
 
 export function settlementAmount(input: SettlementRequest, reserved: number,admission?:AdmissionSnapshot|null): { amount: number; pending: boolean; billable: boolean } {
@@ -37,6 +62,7 @@ export function settlementAmount(input: SettlementRequest, reserved: number,admi
     || (input.usageFinal !== undefined && typeof input.usageFinal !== 'boolean')
     || (input.forwarded !== undefined && typeof input.forwarded !== 'boolean')
     || (input.ttftMs!==undefined&&(!Number.isInteger(input.ttftMs)||input.ttftMs<0||input.ttftMs>2147483647))
+    || (input.upstreamRequestId!==undefined&&input.upstreamRequestId!==null&&!isRequestReference(input.upstreamRequestId))
     || (input.errorCode!==undefined&&(typeof input.errorCode!=='string'||input.errorCode.length>120))
     || (input.outcome==='rejected_before_upstream'&&input.forwarded===true)) {
     throw new BadRequestException('invalid settlement request');

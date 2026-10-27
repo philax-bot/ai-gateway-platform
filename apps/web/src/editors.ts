@@ -1,4 +1,4 @@
-import { parseMemberImport, type AlertRule, type AutoRule, type Application, type CallLog, type Member, type ModelDefinition, type ModelPool, type ModelService, type Plan, type PlatformSnapshot, type Project } from '@ai-gateway/contracts';
+import { parseMemberImport, type AlertRule, type AutoRule, type Application, type CallLog, type Entitlement, type Member, type ModelDefinition, type ModelPool, type ModelService, type Plan, type PlatformSnapshot, type Project } from '@ai-gateway/contracts';
 import { endOfDay, toDateInput, type Editor, type FieldSpec, type FormValues, type RelatedResource } from './components';
 import { limitFields,limitInitial,readLimits } from './limit-fields';
 import { organizationPath,organizationTree } from './organizations';
@@ -139,6 +139,13 @@ export function makeEditors(d:PlatformSnapshot,run:RunCommand,open:(editor:Edito
     },
     grantPlan(planId?:string,memberId?:string){
       distribute(false,planId,memberId);
+    },
+    migrateEntitlements(entitlement?:Entitlement){
+      edit('迁移存量权益到当前方案版本',[
+        {key:'planId',label:'目标方案（仅限同一方案内版本迁移）',type:'select',required:true,options:d.plans.filter(p=>p.active).map(p=>option(p.id,`${p.name} · 当前 v${p.version}`))},
+        {key:'entitlementIds',label:'要迁移的有效权益',type:'multiple',required:true,options:d.entitlements.map(e=>option(e.id,`${d.members.find(m=>m.id===e.memberId)?.name??e.memberId} · ${e.planSnapshot.name} v${e.planVersion} · ${e.planSnapshot.cadence==='monthly'?'月度':'一次性'}`)),help:'只能选择同一方案、同一发放周期的权益。跨方案、一次性/月度互转、已到期或已吊销的权益会在预览中列为不适用，必须重新预览。'},
+        {key:'reason',label:'迁移依据',type:'textarea',required:true},
+      ],{planId:entitlement?.planId??'',entitlementIds:entitlement?[entitlement.id]:[],reason:''},'entitlements.migrate',v=>({planId:v.planId,entitlementIds:values(v.entitlementIds),reason:v.reason}),'只更新权益的版本、快照与模型范围，保留权益 ID、授予时间、到期日、来源、规则关联与已发周期；不补差、不发新额度、不重复发本月额度。已有资金的模型适用范围可能扩大或收缩，请在预览中逐人确认。');
     },
     topup(planId?:string,memberId?:string){distribute(true,planId,memberId);},
     project(existing?:Project){

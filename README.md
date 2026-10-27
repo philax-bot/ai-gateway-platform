@@ -44,6 +44,8 @@ PostgreSQL 模式保留账户与业务配置；内存模式停进程即丢失本
 - `local-project-key`：保留给隔离回归的演示项目成员批次 ¥20，不用于真实项目预算管理。
 - 上述旧演示凭据的固定 ¥0.02 仅用于隔离回归。新业务凭据使用准入时的服务价格快照，按输入、输出和缓存子集计费；价格未知会拒绝，明确的 0 表示免费。
 - 模拟网关按选定原额度批次关联的模型池/服务动态转发。测试模型首段和最终用量间隔 1.5 秒，便于取消验证；输入预估使用保守 UTF-8 JSON 字节数，不是模型 tokenizer。
+- 网关对已签发密钥提供 OpenAI 兼容入口 `/v1/chat/completions`（非流式与 SSE）和 `/v1/models`（模型发现）。工具侧 Base URL 填到 `/v1`，Key 用平台上签发的 `sa_...`，模型名用模型目录的“对外模型标识”。详见 [运行模式与首次安装](docs/RUNTIME-CONFIGURATION.md#数据面对外接口)。
+- 上游连接阶段的偶发失败只重试一次，且仅在明确未发出任何请求字节时；已开始的响应、取消和超时不会重试，不会重复计费。
 
 内存模式重启即回到演示初始值，不会连接云端账本。如果 pnpm 提示 `ERR_PNPM_IGNORED_BUILDS`，运行 `pnpm approve-builds` 选择 `esbuild` 后重新安装。
 
@@ -80,17 +82,20 @@ pnpm check:postgres
 pnpm check:delivery
 pnpm check:backup
 pnpm check:containers
+pnpm check:web
 ```
 
 `check:isolated` 构建并运行内存控制面、真实模拟网关和仓库内 HTTP 模型替身，无需数据库。`check:postgres` 从控制面配置读取数据库连接，只创建本次专属 `agp_check_<uuid>` schema；测试后移除该 schema，不重置或消费共享演示批次。需要账号具有创建 schema 权限。
 
-`check:delivery` 同样只使用本次专属 schema，验证迁移完整性、并发/回滚、正式空安装、受控本地调用、重启保持和安装模式隔离。当前结果为 30 项通过，见 [安装与模型引导验证](docs/VALIDATION-INSTALLATION-2026-10-19.md)；不包含真实 TLS、备份恢复或正式部署。
+`check:delivery` 同样只使用本次专属 schema，验证迁移完整性、并发/回滚、正式空安装、受控本地调用、重启保持和安装模式隔离。当前结果为 30 项通过，见 [安装与模型引导验证](docs/VALIDATION-INSTALLATION-2026-10-19.md)；不包含真实 TLS、备份恢复或正式部署。2026-10-23 新增迁移 010/011 后，探针迁移版本改为从当前迁移集推导，迁移完整性断言 12 项与交付断言 30 项通过。
 
-`check:backup` 在上述安装检查中追加原生 PostgreSQL 归档/恢复、日记补发、原会话和密钥继续使用等检查，共 45 项通过，需要 `pg_dump` / `pg_restore`。`pnpm backup` / `pnpm restore` 用于明确目标后的运维操作，具体参数、停机要求与目标保护见 [备份与恢复](docs/BACKUP-RESTORE.md)。
+`check:backup` 在上述安装检查中追加原生 PostgreSQL 归档/恢复、日记补发、原会话和密钥继续使用等检查，共 48 项交付/备份断言通过，并确认恢复保留调用追溯列与验证运行证据。需要 `pg_dump` / `pg_restore`；系统 PATH 没有时可用 `PG_BIN=.runtime/pg-client-16.15/bin pnpm check:backup`。`pnpm backup` / `pnpm restore` 用于明确目标后的运维操作，具体参数、停机要求与目标保护见 [备份与恢复](docs/BACKUP-RESTORE.md)。
 
 `check:containers` 构建三个交付镜像，在独立 Compose 项目验证 HTTPS、正式安装、凭据传递、流式分段、停止时在途结算、持久卷与容器内原生恢复，共 19 项通过。它使用专属 PostgreSQL 容器和本地模型替身，不读取开发数据库；默认清理自己的测试项目。运行条件与证据见 [容器停止与恢复复核](docs/VALIDATION-CONTAINERS-2026-10-20.md)。
 
-检查覆盖原纵向闭环、双用途隔离、并发重复授权/结算、幂等冲突、六位金额精度、JSON/HTML 上游错误、不可达、超时、SSE 中断、客户端取消及重复转发保护。PostgreSQL 模式还验证进程重启后的余额与日志。
+`check:web` 使用本机 Chrome headless（DevTools protocol，不新增测试依赖）启动独立内存审查环境，覆盖登录、开通连续性、连接验证记录、方案版本迁移预览/确认、调用追溯、三种壳层、320–1440 横向溢出、390 抽屉键盘路径与 Escape，并把 1440/390 截图写入 `docs/validation/screenshots-2026-10-23/`。当前 46 项断言通过；需要 Chrome，缺失时可用 `CHROME_PATH` 指定。它不访问真实模型，`ALLOW_UPSTREAM_VALIDATION` / `ALLOW_UPSTREAM_REQUESTS` 固定为 `false`。
+
+检查覆盖原纵向闭环、双用途隔离、并发重复授权/结算、幂等冲突、六位金额精度、JSON/HTML 上游错误、不可达、超时、SSE 中断、客户端取消及重复转发保护。PostgreSQL 模式还验证进程重启后的余额与日志。2026-10-23 起另覆盖上游请求号采集、显式重试关联与越权拒绝、诊断验证幂等与不扣业务额度。详见 [本轮验证](docs/VALIDATION-2026-10-23.md)。
 
 已有服务运行时也可执行 `pnpm check:local`，但它会消费所连接环境的个人演示额度，隔离回归更适合日常开发。
 

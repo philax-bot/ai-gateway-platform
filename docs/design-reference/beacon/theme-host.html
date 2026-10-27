@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Theme Lab · Beacon 多主题</title>
+<link rel="stylesheet" href="themes/host.css">
+<link rel="stylesheet" href="themes/beacon/tokens.css">
+<link rel="stylesheet" href="themes/beacon/base.css">
+<link rel="stylesheet" href="themes/beacon/components.css">
+<script>
+  // 主题栏是中性色，不参与换肤；这里只避免 iframe 首帧白闪。
+  document.documentElement.dataset.host = "theme-lab";
+</script>
+</head>
+<body>
+<header class="host-bar" aria-label="主题与演示控制">
+  <div class="host-brand"><span class="host-dot" aria-hidden="true"></span><b>Theme Lab</b><span>主题与状态切换</span></div>
+
+  <div class="host-group" role="group" aria-label="主题">
+    <span class="host-label">主题</span>
+    <div class="host-seg" id="themeSeg"></div>
+  </div>
+
+  <div class="host-group">
+    <label class="host-label" for="roleSelect">角色</label>
+    <select id="roleSelect"></select>
+  </div>
+
+  <div class="host-group">
+    <label class="host-label" for="screenSelect">屏幕</label>
+    <select id="screenSelect"></select>
+  </div>
+
+  <div class="host-group">
+    <label class="host-label" for="modeSelect">状态</label>
+    <select id="modeSelect">
+      <option value="normal">正常</option>
+      <option value="empty">空</option>
+      <option value="loading">加载</option>
+      <option value="error">失败</option>
+      <option value="denied">无权限</option>
+    </select>
+  </div>
+
+  <div class="host-spacer"></div>
+  <a class="host-link" href="theme-gallery.html">组件画廊</a>
+</header>
+
+<main class="stage" id="stage"></main>
+<div class="host-status" id="hostStatus" role="status" aria-live="polite"></div>
+
+<script src="themes/screen-model.js"></script>
+<script src="themes/beacon/app.js"></script>
+<script src="themes/host.js"></script>
+</body>
+</html>

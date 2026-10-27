@@ -12,13 +12,16 @@ import type {
   ReconciliationRequest,
   CallQuery,
   InFlightCount,
+  VerificationRun,
+  VerificationRunPage,
+  VerificationMappingResult,
 } from '@ai-gateway/contracts';
-import type { ControlPlaneStore, DemoCredential, QuotaSnapshot } from './control-plane.store';
-import { authorizationFingerprint, checkSettlementScope, reconciliationCalculation, RESERVATION_AMOUNT, sameIdentity, settlementAmount } from './accounting';
+import type { ControlPlaneStore, DemoCredential, QuotaSnapshot, StartVerificationInput, VerificationPageQuery } from './control-plane.store';
+import { authorizationFingerprint, checkSettlementScope, reconciliationCalculation, RESERVATION_AMOUNT, retryLinkAllowed, sameIdentity, settlementAmount, type RetryTarget } from './accounting';
 import { admissionForBatch, legacyAdmission, publicLogAdmission } from './admission';
 import { businessDenial } from '../platform/domain';
 import {runtimeMode} from '@ai-gateway/contracts';
-import { queryMemoryCalls,type CallScope } from './call-query';
+import { queryMemoryCalls, callVisible, type CallScope } from './call-query';
 
 export interface CredentialRecord {
   credentialId: string;
@@ -59,6 +62,7 @@ export interface ReservationRecord {
   modelId: string;
   createdAt: string;
   expiresAt: string;
+  retryOfRequestId: string | null;
   finalized: boolean;
 }
 
@@ -84,6 +88,9 @@ export class DemoStore implements ControlPlaneStore {
   private readonly admissionWindows=new Map<string,{start:number;requests:number;tokens:number}>();
   readonly ledgerEntries: {id:string;requestId:string;reservationId:string;batchId:string;kind:'settlement'|'release'|'reconciliation';amount:number;createdAt:string}[]=[];
   readonly reconciliationRecords=new Map<string,{idempotencyKey:string;fingerprint:string;response:SettlementResponse}>();
+  readonly verificationRuns: VerificationRun[] = [];
+  private static readonly VERIFICATION_LEASE_MS = 120000;
+  private static readonly VERIFICATION_INTERRUPTED_NOTE = '验证进程中断，已发出的请求用量待确认；不会自动重发。';
 
   constructor() {
     if(runtimeMode(process.env)==='production')return;
@@ -136,7 +143,7 @@ export class DemoStore implements ControlPlaneStore {
   }
 
   protected deniedCall(input:AuthorizeRequest,response:AuthorizeResponse):CallLog{
-    const at=new Date().toISOString();return {requestId:input.requestId,startedAt:at,completedAt:at,subjectType:input.identity.subjectType,subjectId:input.identity.subjectId,credentialId:input.identity.credentialId,organizationId:input.identity.organizationId??null,purpose:input.purpose,projectId:input.identity.projectId??null,modelId:input.modelId,outcome:'rejected_before_upstream',forwarded:false,errorCode:response.reasonCode,inputTokens:0,outputTokens:0,cachedInputTokens:0,usageFinal:true,actualAmount:0,billableState:'not_billable',reservationId:null,latencyMs:0,admission:publicLogAdmission(response.admission?{...response.admission,reservedAmount:0}:null)};
+    const at=new Date().toISOString();return {requestId:input.requestId,upstreamRequestId:null,retryOfRequestId:input.retryOfRequestId??null,startedAt:at,completedAt:at,subjectType:input.identity.subjectType,subjectId:input.identity.subjectId,credentialId:input.identity.credentialId,organizationId:input.identity.organizationId??null,purpose:input.purpose,projectId:input.identity.projectId??null,modelId:input.modelId,outcome:'rejected_before_upstream',forwarded:false,errorCode:response.reasonCode,inputTokens:0,outputTokens:0,cachedInputTokens:0,usageFinal:true,actualAmount:0,billableState:'not_billable',reservationId:null,latencyMs:0,admission:publicLogAdmission(response.admission?{...response.admission,reservedAmount:0}:null)};
   }
 
   private async authorizeUnlocked(input: AuthorizeRequest): Promise<AuthorizeResponse> {
@@ -151,6 +158,10 @@ export class DemoStore implements ControlPlaneStore {
       return { ...this.authorizationResponsesByRequest.get(existing.requestId)!, replayed: true };
     }
     if (this.authorizationKeys.has(input.requestId)) throw new ConflictException('request ID was reused with a different key');
+    if (input.retryOfRequestId) {
+      // Missing and out-of-scope references share one error so retries cannot probe other calls.
+      if (!retryLinkAllowed(input, this.retryTarget(input.retryOfRequestId))) throw new ConflictException('retry reference is not available');
+    }
     this.authorizationInputs.set(input.idempotencyKey, { requestId: input.requestId, fingerprint });
     this.authorizationKeys.set(input.requestId, input.idempotencyKey);
 
@@ -247,6 +258,7 @@ export class DemoStore implements ControlPlaneStore {
       modelId: input.modelId,
       createdAt: new Date().toISOString(),
       expiresAt,
+      retryOfRequestId: input.retryOfRequestId ?? null,
       finalized: false,
     };
     response.decision = 'allow';
@@ -302,6 +314,8 @@ export class DemoStore implements ControlPlaneStore {
     }
     this.callLogs.push({
       requestId: input.requestId,
+      upstreamRequestId: input.upstreamRequestId ?? null,
+      retryOfRequestId: reservation.retryOfRequestId ?? null,
       admission:publicLogAdmission(reservation.admission),
       forwarded:input.forwarded??(input.outcome==='rejected_before_upstream'?false:null),
       ttftMs:input.ttftMs??null,errorCode:input.errorCode??null,
@@ -331,7 +345,7 @@ export class DemoStore implements ControlPlaneStore {
     if(typeof apiKey!=='string'||apiKey.length>4096)return null;
     const credential = this.credentials.get(apiKey) ?? this.credentials.get(`sha256:${createHash('sha256').update(apiKey).digest('hex')}`);
     if (!credential || !credential.active) return null;
-    return { credentialId: credential.credentialId, identity: credential.identity, purpose: credential.purpose };
+    return { credentialId: credential.credentialId, identity: credential.identity, purpose: credential.purpose, modelIds: [...credential.modelIds] };
   }
 
   async listCalls(): Promise<CallLog[]> {
@@ -344,6 +358,82 @@ export class DemoStore implements ControlPlaneStore {
     }return [...groups.values()];
   }
   async getCall(requestId:string):Promise<CallLog|null>{return structuredClone(this.callLogs.find(log=>log.requestId===requestId)??null);}
+  protected retryTarget(requestId:string):RetryTarget|null{
+    const reservation=this.reservationsByRequest.get(requestId);
+    if(reservation)return {subjectType:reservation.identity.subjectType,subjectId:reservation.identity.subjectId,organizationId:reservation.identity.organizationId??null,projectId:reservation.identity.projectId??null,purpose:reservation.purpose};
+    const log=this.callLogs.find(value=>value.requestId===requestId);
+    return log?{subjectType:log.subjectType,subjectId:log.subjectId,organizationId:log.organizationId??null,projectId:log.projectId??null,purpose:log.purpose}:null;
+  }
+  async relatedCalls(requestId:string,scope:CallScope):Promise<{original:CallLog|null;retries:CallLog[]}>{
+    const original=this.callLogs.find(log=>log.requestId===requestId)??null;
+    return {
+      original:original&&callVisible(original,scope)?structuredClone(original):null,
+      retries:this.callLogs.filter(log=>log.retryOfRequestId===requestId&&callVisible(log,scope)).map(log=>structuredClone(log)),
+    };
+  }
+  private verificationRun(runId:string):VerificationRun{
+    const run=this.verificationRuns.find(value=>value.id===runId);
+    if(!run)throw new ConflictException('verification run not found');
+    return run;
+  }
+  private expireVerificationRuns():number{
+    const at=Date.now();let expired=0;
+    for(const run of this.verificationRuns)if(run.state==='running'&&Date.parse(run.leaseExpiresAt)<=at){
+      run.state='interrupted';run.completedAt=new Date(at).toISOString();run.note=DemoStore.VERIFICATION_INTERRUPTED_NOTE;expired++;
+    }
+    return expired;
+  }
+  async interruptStaleVerifications():Promise<number>{return this.exclusive(async()=>this.expireVerificationRuns());}
+  async startVerification(input:StartVerificationInput):Promise<{run:VerificationRun;replayed:boolean}>{
+    return this.exclusive(async()=>{
+      // Recover a crashed lease before replay lookup so a same-key retry observes `interrupted`.
+      this.expireVerificationRuns();
+      const prior=this.verificationRuns.find(run=>run.idempotencyKey===input.idempotencyKey);
+      if(prior){
+        if(prior.serviceId!==input.serviceId)throw new ConflictException('verification key was reused for another service');
+        return {run:structuredClone(prior),replayed:true};
+      }
+      if(this.verificationRuns.some(run=>run.serviceId===input.serviceId&&run.state==='running'))throw new ConflictException('another verification is already running for this service');
+      const startedAt=new Date().toISOString();
+      const run:VerificationRun={id:`verification-${randomUUID()}`,operatorId:input.operatorId,serviceId:input.serviceId,serviceName:input.serviceName,configVersion:input.configVersion,state:'running',diagnostic:true,idempotencyKey:input.idempotencyKey,mappings:structuredClone(input.mappings),results:[],startedAt,completedAt:null,leaseExpiresAt:new Date(Date.now()+DemoStore.VERIFICATION_LEASE_MS).toISOString(),note:null};
+      this.verificationRuns.push(run);return {run:structuredClone(run),replayed:false};
+    });
+  }
+  async markVerificationAttempt(runId:string,definitionId:string):Promise<void>{
+    return this.exclusive(async()=>{
+      const run=this.verificationRun(runId);if(run.state!=='running')return;
+      const mapping=run.mappings.find(value=>value.definitionId===definitionId);
+      if(mapping&&!mapping.attemptedAt)mapping.attemptedAt=new Date().toISOString();
+      run.leaseExpiresAt=new Date(Date.now()+DemoStore.VERIFICATION_LEASE_MS).toISOString();
+    });
+  }
+  async appendVerificationResult(runId:string,result:VerificationMappingResult):Promise<void>{
+    return this.exclusive(async()=>{
+      const run=this.verificationRun(runId);if(run.state!=='running')return;
+      run.results.push(structuredClone(result));
+      run.leaseExpiresAt=new Date(Date.now()+DemoStore.VERIFICATION_LEASE_MS).toISOString();
+    });
+  }
+  async finishVerification(runId:string,state:'completed'|'interrupted'):Promise<VerificationRun>{
+    return this.exclusive(async()=>{
+      const run=this.verificationRun(runId);
+      if(run.state==='running'){
+        run.state=state;run.completedAt=new Date().toISOString();
+        if(state==='interrupted')run.note=DemoStore.VERIFICATION_INTERRUPTED_NOTE;
+      }
+      return structuredClone(run);
+    });
+  }
+  async listVerifications(serviceId:string,query:VerificationPageQuery={}):Promise<VerificationRunPage>{
+    const limit=query.limit??20;
+    return this.exclusive(async()=>{
+      const rows=this.verificationRuns
+        .filter(run=>run.serviceId===serviceId&&(!query.before||Date.parse(run.startedAt)<Date.parse(query.before)))
+        .sort((a,b)=>Date.parse(b.startedAt)-Date.parse(a.startedAt)||(a.id<b.id?1:-1));
+      const items=rows.slice(0,limit);
+      return {items:structuredClone(items),nextBefore:rows.length>items.length?items.at(-1)?.startedAt??null:null};
+    });
+  }
   async getReservationSummary(requestId:string):Promise<{amount:number;batchId:string;admission:AdmissionSnapshot|null}|null>{const r=this.reservationsByRequest.get(requestId);return r?{amount:r.amount,batchId:r.batchId,admission:r.admission??null}:null;}
   async listExpiredReservations(){return this.exclusive(async()=>[...this.reservationsByRequest.values()].filter(r=>!r.finalized&&Date.parse(r.expiresAt)<=Date.now()).slice(0,100).map(r=>({requestId:r.requestId,reservationId:r.reservationId})));}
   async renewReservation(requestId:string,reservationId:string){return this.exclusive(async()=>{const r=this.reservationsByRequest.get(requestId);if(!r||r.reservationId!==reservationId||r.finalized||Date.parse(r.expiresAt)<=Date.now())return {renewed:false};r.expiresAt=new Date(Date.now()+300000).toISOString();return {renewed:true,expiresAt:r.expiresAt};});}
@@ -365,7 +455,7 @@ export class DemoStore implements ControlPlaneStore {
     return { status: 'ok', database: 'memory', cache: 'disabled' };
   }
   /** Caller must hold the workspace transaction/exclusive lock. */
-  async reconcileWithinBusinessTransaction(input:ReconciliationRequest,client?:import('pg').PoolClient):Promise<SettlementResponse>{
+  async reconcileWithinBusinessTransaction(input:ReconciliationRequest,_client?:import('pg').PoolClient):Promise<SettlementResponse>{
     const fingerprint=JSON.stringify(input),previous=this.reconciliationRecords.get(input.requestId);
     if(previous){if(previous.idempotencyKey!==input.idempotencyKey||previous.fingerprint!==fingerprint)throw new ConflictException('request was already reconciled');return {...previous.response,status:'already_finalized'};}
     if([...this.reconciliationRecords.values()].some(record=>record.idempotencyKey===input.idempotencyKey))throw new ConflictException('reconciliation key belongs to another request');
@@ -381,7 +471,7 @@ export class DemoStore implements ControlPlaneStore {
     if(input.mode==='confirm_usage'){log.inputTokens=input.inputTokens!;log.outputTokens=input.outputTokens!;log.cachedInputTokens=input.cachedInputTokens??0;log.usageFinal=true;}
     this.ledgerEntries.push({id:response.ledgerEntryId!,requestId:input.requestId,reservationId:reservation.reservationId,batchId:reservation.batchId,kind:'reconciliation',amount:result.amount,createdAt:new Date().toISOString()});return response;
   }
-  async confirmedAmountsForBatches(ids:string[],client?:import('pg').PoolClient):Promise<Record<string,number>>{
+  async confirmedAmountsForBatches(ids:string[],_client?:import('pg').PoolClient):Promise<Record<string,number>>{
     const wanted=new Set(ids),amounts:Record<string,number>={};
     for(const log of this.callLogs){const r=this.reservationsByRequest.get(log.requestId);if(r&&wanted.has(r.batchId)&&log.billableState==='confirmed')amounts[r.batchId]=Number(((amounts[r.batchId]??0)+log.actualAmount).toFixed(6));}
     return amounts;

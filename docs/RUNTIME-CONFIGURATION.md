@@ -57,6 +57,24 @@ PORT=4000
 
 Web 构建使用 `VITE_CONTROL_PLANE_URL`、`VITE_GATEWAY_URL` 提供浏览器可访问的公开根地址；环境变量只能包含公开地址。已有 HTTPS 同源入口、服务健康顺序、只读容器及持久日记卷，操作见 [容器与内网运行](CONTAINER-RUNBOOK.md)。模型服务需要鉴权时，控制面和网关提供同名 `UPSTREAM_*` 变量，在服务页面填写引用名；`ALLOW_UPSTREAM_VALIDATION` 与 `ALLOW_UPSTREAM_REQUESTS` 分别控制非本机验证和调用，需在获得对应授权后显式启用。本轮没有正式部署，也没有运行真实厂商模型或 Higress。
 
+### 数据面对外接口
+
+网关对已签发密钥提供两个 OpenAI 兼容接口，可直接作为外部工具的自定义 OpenAI 端点：
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| `POST` | `/v1/chat/completions` | 非流式与 SSE；`Authorization: Bearer sa_...`；真实用量、预占与结算走同一账本 |
+| `GET` | `/v1/models` | 返回该密钥当前授权的模型 ID（`{object:"list",data:[{id,...}]}`）；无效密钥返回 401。仅用于模型发现，不替代每次调用的授权检查 |
+| `GET` | `/health` | 实例与持久日记 outbox 状态 |
+
+模型标识使用平台模型目录中的“对外模型标识”。工具文档中的 Base URL 填到 `/v1`（例如 `http://127.0.0.1:4000/v1`）。
+
+上游路由为 DeepSeek 官方 `api.deepseek.com` 时，网关会将 OpenAI 客户端发送的 `developer` 消息转换为 `system`，将系统消息的文本数组合并为字符串，并将已通过准入的 `max_completion_tokens` 转换为 `max_tokens`。Pi 等工具无需为此额外配置供应商兼容参数；输出上限仍须满足平台使用保护。适配依据服务的真实上游地址，其他供应商的消息角色和参数保持原协议；工具历史、思考内容与流式用量继续透传。
+
+连接阶段的偶发失败（DNS/连接超时）只允许**一次**有界重试，且仅在明确未发出任何请求字节时进行；已开始的响应、取消和超时不会被重试，因此不会重复计费。连接验证的超时可用 `UPSTREAM_VALIDATION_TIMEOUT_MS`（1000–120000，默认 20000）调整。
+
+本机使用 Clash / Surge / sing-box 等 TUN 代理时，`api.deepseek.com` 这类域名会解析到 fake-IP 段（如 `198.18.x.x`），代理 DNS 不稳定时会出现约 10 秒以上的解析停顿并触发连接超时；数据面会重试一次，但延迟取决于本机代理。建议把上游模型域名设为直连或使用稳定的 DNS 出口。
+
 ## 可重复检查
 
 `pnpm check:delivery` 先构建，再在自动创建的专属 PostgreSQL schema 中检查迁移、空安装、安装口令、受控本地模型调用、重启保持和模式隔离。它私下读取开发连接配置，停止自己的服务并清理自己的 schema 和结算日记，不消费共享开发余额。当前证据见 [安装与模型引导验证](VALIDATION-INSTALLATION-2026-10-19.md)。
