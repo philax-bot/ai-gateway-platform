@@ -465,8 +465,9 @@ html[data-ui="beacon"] .v4-tab-select {
 }
 html[data-ui="beacon"] .v4-tab-select:hover { color: var(--text); }
 html[data-ui="beacon"] .v4-tab-select svg { flex: none; opacity: .7; }
-/* v4 的 .v4-tab.active .v4-tab-select 未加作用域（3 个类），优先级高于本文件的 2 类选择器，
-   所以活动标签必须在这里显式覆盖 padding-right，否则没有 × 的标签会被压到 4px。 */
+/* v4 的 .v4-tab.active .v4-tab-select 未带作用域（3 个类，压过本文件的 2 类选择器），
+   曾把没有 × 的活动标签压到 4px；v4 那三条现已收到 azure 作用域，这里仍显式保留 12px，
+   避免将来再改 v4 时又静默失效。 */
 html[data-ui="beacon"] .v4-tab.active .v4-tab-select { color: var(--text); font-weight: 600; padding-right: 12px; }
 /* 有关闭按钮时，右侧留白由 × 自身及其边距提供，文字不必再让出 12px。 */
 html[data-ui="beacon"] .v4-tab:has(.v4-tab-close) .v4-tab-select { padding-right: 4px; }
@@ -733,11 +734,21 @@ html[data-ui="beacon"] .tablewrap td { padding: 13px 12px; border-bottom: 1px so
 html[data-ui="beacon"] .tablewrap tbody tr:last-child td { border-bottom: 0; }
 html[data-ui="beacon"] .tablewrap tbody tr:hover td { background: var(--surface2); }
 html[data-ui="beacon"] .tablewrap tbody tr:hover td:first-child { box-shadow: inset 3px 0 0 var(--action); }
-html[data-ui="beacon"] .empty { padding: 32px 20px !important; color: var(--muted); }
-html[data-ui="beacon"] .empty-state { display: grid; gap: 6px; justify-items: center; padding: 10px 4px; text-align: center; white-space: normal; }
-html[data-ui="beacon"] .empty-state strong { color: var(--text); font-size: 14px; font-weight: 650; }
-html[data-ui="beacon"] .empty-state p { max-width: 480px; margin: 0; color: var(--muted); font-size: 12.5px; line-height: 1.65; }
-html[data-ui="beacon"] .empty-state .actions { justify-content: center; margin-top: 8px; }
+html[data-ui="beacon"] .empty { padding: 30px 20px !important; color: var(--muted); }
+/* 本产品的空状态始终作为 Table 的 empty 落进 <td class="empty">（CallExplorer:117、KeyManager:67），
+   契约 308 行要求它是“表格内的空状态行”、不能变成卡片，所以参考件的 .bb-empty 虚线容器
+   在这里没有对应位置（记入 §10.3 未映射），信标版只调字阶与留白。 */
+html[data-ui="beacon"] .empty-state {
+  display: grid;
+  gap: 7px;
+  justify-items: center;
+  padding: 2px 4px;
+  text-align: center;
+  white-space: normal;
+}
+html[data-ui="beacon"] .empty-state strong { color: var(--text); font-size: 14.5px; font-weight: 650; letter-spacing: -.01em; }
+html[data-ui="beacon"] .empty-state p { max-width: 460px; margin: 0; color: var(--muted); font-size: 13px; line-height: 1.7; }
+html[data-ui="beacon"] .empty-state .actions { justify-content: center; margin-top: 6px; }
 
 /* ---------- forms ---------- */
 html[data-ui="beacon"] input,
@@ -924,8 +935,8 @@ html[data-ui="beacon"] .journey-steps li + li::before {
   transform: translateY(-50%) rotate(45deg);
 }
 html[data-ui="beacon"] .journey-steps li[aria-current] { background: var(--tint); border-color: var(--beacon-accent-border); color: var(--v2-primary-strong); font-weight: 650; }
-html[data-ui="beacon"] .section-tabs { display: inline-flex; gap: 2px; padding: 3px; margin: 0 0 18px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface2); }
-html[data-ui="beacon"] .section-tabs button { padding: 6px 13px; border: 0; border-radius: 999px; background: transparent; color: var(--muted); font-size: 12.5px; }
+html[data-ui="beacon"] .section-tabs { display: inline-flex; gap: 2px; padding: 4px; margin: 0 0 18px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface2); }
+html[data-ui="beacon"] .section-tabs button { padding: 6px 13px; border: 0; border-radius: 8px; background: transparent; color: var(--muted); font-size: 12.5px; }
 html[data-ui="beacon"] .section-tabs button:hover { color: var(--text); }
 html[data-ui="beacon"] .section-tabs button.selected { background: var(--surface); color: var(--v2-primary-strong); font-weight: 650; box-shadow: 0 1px 2px rgba(25, 28, 34, .12); }
 
@@ -1321,7 +1332,7 @@ html[data-ui="beacon"] kbd { border-radius: 6px; }
   html[data-ui="beacon"] .balance { font-size: 40px; }
   html[data-ui="beacon"] .metric strong { font-size: 20px; }
   html[data-ui="beacon"] .section-tabs { display: flex; flex-wrap: wrap; border-radius: 12px; }
-  html[data-ui="beacon"] .section-tabs button { border-radius: 999px; }
+  html[data-ui="beacon"] .section-tabs button { border-radius: 8px; }
   html[data-ui="beacon"] .modal-head,
   html[data-ui="beacon"] .modal-body,
   html[data-ui="beacon"] .modal-footer { padding-left: 18px; padding-right: 18px; }

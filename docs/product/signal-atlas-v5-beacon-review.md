@@ -121,6 +121,8 @@
 - 标签条与内容区之间不加分隔线：灰卡自身已界定区域，多一条通宽横线会把标签条切成两截（飞书也没有）。
 - 关闭按钮只在活动标签、hover 与键盘焦点下出现（飞书 / VS Code 行为）；非活动标签不挂 ×，避免一排叉号成为噪音（仍在 DOM 中且可键盘聚焦，聚焦时恢复可见）。
 - 标签高 32px（条带 40px，含外边距共 56px）；≤760px 横向滚动；触屏（`pointer: coarse`）下 36px 且 × 常显。
+- 内边距：文字左 10px、右 12px；带 × 的标签右侧收到 4px（20px 按钮 + 6px 外边距自行撑边）。
+- 这条内边距曾经静默失效：`design-v4.css` 的 `.v4-tab.active .v4-tab-select` 未带作用域（3 个类），压过本文件的 2 类选择器，把没有 × 的活动标签压到 4px。现已把 v4 那三条“激活态子元素”规则收进 `html[data-ui="azure"]`，并在 v5 里显式写回 12px 作为第二道防线。
 - 同一页面只保留一个标签；空间默认页固定且不可关闭。
 - 会话内保持挂载：切换标签只改显隐，不重置筛选、步骤、草稿和滚动位置。
 
@@ -247,6 +249,7 @@
 | 界面切换第五项（`信标`） | `apps/web/src/v2.tsx` 的 `DesignSwitch` |
 | 壳层接线（`v4Shell = azure \|\| beacon`） | `apps/web/src/EnterpriseApp.tsx`：常量、抽屉查询、V4 顶栏 / 左栏、页面标签、页面上下文、口径说明、遮罩 |
 | 抽屉底注按当前界面显示「信标版 / 蓝灰版审核界面」 | `apps/web/src/v4.tsx`（`mode` 派生一行文案；壳层结构未变） |
+| 三条“激活态子元素”规则收进 azure 作用域 | `apps/web/src/design-v4.css`：`.v4-tab.active .v4-tab-select`、其 `svg`、`.v4-nav-item.active .v4-nav-badge`。这三处 beacon 都有等价规则；其余 v4 规则仍是两套壳层共享的基线 |
 
 `design-v4.css` 的 22 个小节在 `design-v5.css` 中逐节重写（base → shell geometry → top bar → left menu → page tabs → page head → surfaces → actions → tags & status → notices → stat strip → tables → forms → filter bar → person list → disclosures/steps/section-tabs → task hero & inbox → drill-down detail groups → modal → loading & login → design switch & command palette → responsive），无缺节；v4 中出现的每一个 `--azure-*` / `--v2-*` 变量（12 个）与全部 `var(--…)`（28 个）都在 beacon 块中重新赋值，不依赖 v4 的取值；强调色的 7 个派生值同样集中在该块，组件层零强调色字面量。
 
@@ -272,7 +275,9 @@
 | 横向溢出 | 320 / 360 / 736 / 1024 / 1440 × 22 个页面位 = 110 组合，全部无页面级溢出 |
 | 强调色变量化 | 9 个强调色表面的计算样式与原字面量逐个一致（主按钮 `rgb(90,85,214)`、`--tint` `rgb(238,237,251)`、hover / active、步骤条描边 `rgb(207,203,243)`、hero 柔光 `rgba(90,85,214,.42)`、墨底浅紫 `rgb(181,177,245)`） |
 | 骨架分层（辨识度） | 左栏 `#efebe2` / 画布 `#f6f5f2` / 白卡三档明度；对比度：导航文字 / 左栏 7.44、说明文字 / 左栏 4.54、搜索与顶栏按钮图标 / 白底 ≥3（非文本） |
-| 控制台 | 走查过程无未捕获异常 |
+| 浏览器走查（`.runtime/beacon-a11y.mjs`） | **PASS 13 assertions**：四组对比度实测（非活动标签 4.7、活动标签 17.07、分段控件未选 4.7 / 选中 8.5）、真实 Tab 键走查 26 个焦点元素全部有可见焦点环（outline 或 box-shadow）、focus-visible 下非活动标签的 × 自动显形（opacity 1）、焦点环对比度 4.93、空状态仍在 `td.empty` 内且无边框 |
+| 分段控件语言统一 | `.section-tabs` 从 999px 胶囊改为 12px 轨道 + 8px 白卡选中段，与标签条、`.v4-space` 同一半径族（10/12 轨道、7/8 段） |
+| v4 作用域收紧回归 | 把 `design-v4.css` 三条“激活态子元素”规则收进 `html[data-ui="azure"]` 后，`pnpm check:web` **PASS 68**（蓝灰版未受影响），beacon 82 断言、110 溢出组合均不变 |
 
 截图（Chrome headless，1440 × 1000 / 390 × 844）位于 `docs/product/screenshots/`：
 
@@ -313,7 +318,8 @@
 
 ### 10.2 仍未做
 
-- P3 候选：图表（`--beacon-chart-2` 已用于额度带第二段，其余 `--bb-chart-*` 尚未使用）、参考件的 `.bb-empty` 虚线空状态容器、深色模式（参考件本身未提供深色值）。
+- P3 候选：图表（`--beacon-chart-2` 已用于额度带第二段，其余 `--bb-chart-*` 尚未使用）、深色模式（参考件本身未提供深色值）。
+- 参照件的 `.bb-empty` 虚线空状态容器**不采用**：本产品的空状态始终作为 `Table` 的 `empty` 落进 `<td class="empty">`（`CallExplorer.tsx:117`、`KeyManager.tsx:67`），契约 308 行明确要求它是“表格内的空状态行”、不能变成卡片，虚线卡会直接违反该条。信标版只调字阶（标题 14.5 / 说明 13px）与留白。
 - 参照件 hero 的 `.bb-hero-aura`（双色柔光）只取单色紫光，未做绿光层。
 
 ### 10.3 边界
@@ -323,4 +329,4 @@
 - 只走查了契约要求的 16 页；模型配置的连接验证明细、组织影响预览、保留清理预览等二三级弹窗沿用同一套表单 / 表格 / 提示皮肤，未逐屏截图。
 - `DateField` 浮层在弹窗内靠下时仍会被 `modal-body` 的滚动容器裁切——这是共享组件的既有几何，四套界面一致，本轮未改。
 - 未改：`docs/ui-kit/signal-atlas-tokens.css`（同时服务其它界面）、`docs/design-reference/**`（只读副本）。
-- 未提交 commit；工作区保留给人工评审。
+- 已提交（本轮收尾）：标签条与内边距、v4 作用域收紧、分段控件半径统一、空状态字阶；工作区干净。

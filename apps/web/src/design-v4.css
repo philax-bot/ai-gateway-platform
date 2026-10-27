@@ -369,7 +369,11 @@ html[data-ui="azure"] .review-queue { top: calc(var(--azure-topbar) + 56px); }
   color: var(--muted);
   font: 650 10.5px/1 var(--v2-mono);
 }
-.v4-nav-item.active .v4-nav-badge { background: #fff; color: var(--action); }
+/* 下面三条是“激活态子元素”的覆盖。它们原本不带作用域，会同时命中信标版，
+   靠优先级与 design-v5.css 抢胜负——信标版曾因此丢掉标签内边距（活动标签右侧只剩 4px）。
+   v4 的标签 / 徽标 DOM 只由 v4Shell（azure | beacon）渲染，信标版对这三处都有自己的等价规则，
+   所以把作用域收到 azure，让级联关系可读。 */
+html[data-ui="azure"] .v4-nav-item.active .v4-nav-badge { background: #fff; color: var(--action); }
 .v4-nav-badge.is-alert { background: var(--v2-clay-soft); color: var(--danger); }
 .v4-sidebar-footer { display: none; margin-top: auto; padding: 16px 2px 0; border-top: 1px solid var(--line); }
 .v4-side-note { display: block; margin: 0 2px 10px; color: var(--azure-faint); font-size: 10.5px; line-height: 1.5; }
@@ -417,8 +421,8 @@ html[data-ui="azure"] .review-queue { top: calc(var(--azure-topbar) + 56px); }
   white-space: nowrap;
 }
 .v4-tab-select svg { flex: none; opacity: .7; }
-.v4-tab.active .v4-tab-select { color: var(--v2-primary-strong); font-weight: 650; padding-right: 4px; }
-.v4-tab.active .v4-tab-select svg { color: var(--action); opacity: 1; }
+html[data-ui="azure"] .v4-tab.active .v4-tab-select { color: var(--v2-primary-strong); font-weight: 650; padding-right: 4px; }
+html[data-ui="azure"] .v4-tab.active .v4-tab-select svg { color: var(--action); opacity: 1; }
 .v4-tab-close {
   display: grid;
   place-items: center;
