@@ -418,7 +418,7 @@ html[data-ui="beacon"] .v4-tabbar-inner {
   width: 100%;
   max-width: 1320px;
   margin: 0 auto;
-  padding: 4px 2px;
+  padding: 4px 8px;
   min-height: 40px;
   background: var(--surface2);
   border-radius: 12px;
@@ -455,7 +455,7 @@ html[data-ui="beacon"] .v4-tab-select {
   align-items: center;
   gap: 7px;
   height: 30px;
-  padding: 0 4px 0 10px;
+  padding: 0 12px 0 10px;
   border: 0;
   border-radius: 8px;
   background: transparent;
@@ -465,7 +465,11 @@ html[data-ui="beacon"] .v4-tab-select {
 }
 html[data-ui="beacon"] .v4-tab-select:hover { color: var(--text); }
 html[data-ui="beacon"] .v4-tab-select svg { flex: none; opacity: .7; }
-html[data-ui="beacon"] .v4-tab.active .v4-tab-select { color: var(--text); font-weight: 600; padding-right: 2px; }
+/* v4 的 .v4-tab.active .v4-tab-select 未加作用域（3 个类），优先级高于本文件的 2 类选择器，
+   所以活动标签必须在这里显式覆盖 padding-right，否则没有 × 的标签会被压到 4px。 */
+html[data-ui="beacon"] .v4-tab.active .v4-tab-select { color: var(--text); font-weight: 600; padding-right: 12px; }
+/* 有关闭按钮时，右侧留白由 × 自身及其边距提供，文字不必再让出 12px。 */
+html[data-ui="beacon"] .v4-tab:has(.v4-tab-close) .v4-tab-select { padding-right: 4px; }
 html[data-ui="beacon"] .v4-tab.active .v4-tab-select svg { color: var(--action); opacity: 1; }
 html[data-ui="beacon"] .v4-tab-close {
   display: grid;
