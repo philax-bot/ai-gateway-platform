@@ -402,23 +402,22 @@ html[data-ui="beacon"] .v4-sidebar-footer { display: none; margin-top: auto; pad
 html[data-ui="beacon"] .v4-side-note { display: block; margin: 0 2px 10px; color: var(--azure-faint); font-size: 10.5px; line-height: 1.5; }
 
 /* ---------- page tabs ---------- */
-/* Reference language for tabs is 「白条 + 紫色下划线」: the bar is a white strip
-   inside the chrome, the active tab is ink text with a 2px accent rule. On the
-   warm canvas a white pill was invisible, and a filled pill would have competed
-   with the rail's selected state. */
+/* 页面标签是“已打开的页面”，语义上接近浏览器 / VS Code 的标签，而不是视图切换。
+   所以用成熟形态：暖灰条 + 浮起的白卡片（活动）+ 沉下的透明标签（非活动），
+   关闭按钮只在活动项、hover 与键盘焦点下常显。 */
 html[data-ui="beacon"] .v4-tabbar {
   position: sticky;
   top: var(--azure-topbar);
   z-index: 25;
-  background: var(--surface);
-  border-bottom: 1px solid var(--line);
-  padding-top: 0;
+  background: var(--surface2);
+  border-bottom: 1px solid var(--line-strong);
+  padding: 8px 0;
 }
-html[data-ui="beacon"] .v4-tabbar-inner { display: flex; align-items: stretch; width: 100%; max-width: 1320px; margin: 0 auto; padding: 0 var(--v2-pad); min-height: 46px; }
+html[data-ui="beacon"] .v4-tabbar-inner { display: flex; align-items: center; width: 100%; max-width: 1320px; margin: 0 auto; padding: 0 var(--v2-pad); min-height: 34px; }
 html[data-ui="beacon"] .v4-tabs {
   display: flex;
-  align-items: stretch;
-  gap: 0;
+  align-items: center;
+  gap: 4px;
   width: 100%;
   min-width: 0;
   overflow-x: auto;
@@ -430,30 +429,27 @@ html[data-ui="beacon"] .v4-tab {
   display: flex;
   align-items: center;
   flex: none;
-  height: 46px;
-  border-radius: 0;
-  transition: background 120ms var(--beacon-ease);
+  height: 34px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  transition: background 120ms var(--beacon-ease), border-color 120ms var(--beacon-ease), box-shadow 120ms var(--beacon-ease);
 }
-html[data-ui="beacon"] .v4-tab:hover { background: var(--surface2); }
-html[data-ui="beacon"] .v4-tab.active { background: transparent; box-shadow: none; }
-html[data-ui="beacon"] .v4-tab.active::after {
-  content: "";
-  position: absolute;
-  left: 10px;
-  right: 10px;
-  bottom: 0;
-  height: 2px;
-  border-radius: 2px 2px 0 0;
-  background: var(--action);
+html[data-ui="beacon"] .v4-tab:hover { background: rgba(255, 255, 255, .74); border-color: var(--line); }
+html[data-ui="beacon"] .v4-tab.active {
+  background: var(--surface);
+  border-color: var(--line-strong);
+  box-shadow: 0 1px 2px rgba(25, 28, 34, .07);
 }
+html[data-ui="beacon"] .v4-tab.active::after { content: none; }
 html[data-ui="beacon"] .v4-tab-select {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  height: 46px;
-  padding: 0 6px 0 10px;
+  height: 32px;
+  padding: 0 4px 0 10px;
   border: 0;
-  border-radius: 0;
+  border-radius: 9px;
   background: transparent;
   color: var(--muted);
   font-size: 13px;
@@ -461,22 +457,28 @@ html[data-ui="beacon"] .v4-tab-select {
 }
 html[data-ui="beacon"] .v4-tab-select:hover { color: var(--text); }
 html[data-ui="beacon"] .v4-tab-select svg { flex: none; opacity: .7; }
-html[data-ui="beacon"] .v4-tab.active .v4-tab-select { color: var(--text); font-weight: 650; padding-right: 4px; }
+html[data-ui="beacon"] .v4-tab.active .v4-tab-select { color: var(--text); font-weight: 600; padding-right: 2px; }
 html[data-ui="beacon"] .v4-tab.active .v4-tab-select svg { color: var(--action); opacity: 1; }
 html[data-ui="beacon"] .v4-tab-close {
   display: grid;
   place-items: center;
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
   margin-right: 6px;
   flex: none;
   border: 0;
   border-radius: 6px;
   background: transparent;
   color: var(--azure-faint);
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1;
+  opacity: 0;
+  transition: opacity 120ms var(--beacon-ease), background 120ms var(--beacon-ease);
 }
+/* 非活动标签不挂关闭按钮（VS Code / 浏览器行为）：hover、键盘焦点或当前页时才出现。 */
+html[data-ui="beacon"] .v4-tab:hover .v4-tab-close,
+html[data-ui="beacon"] .v4-tab.active .v4-tab-close,
+html[data-ui="beacon"] .v4-tab-close:focus-visible { opacity: 1; }
 html[data-ui="beacon"] .v4-tab-close:hover { background: var(--surface3); color: var(--text); }
 html[data-ui="beacon"] .v4-tab-close:focus-visible { outline-offset: 0; }
 html[data-ui="beacon"] .v4-backdrop { display: none; }
@@ -1338,9 +1340,9 @@ html[data-ui="beacon"] kbd { border-radius: 6px; }
 }
 
 @media (pointer: coarse) {
-  html[data-ui="beacon"] .v4-tab { height: 42px; }
-  html[data-ui="beacon"] .v4-tab-select { height: 42px; }
-  html[data-ui="beacon"] .v4-tab-close { width: 28px; height: 28px; }
+  html[data-ui="beacon"] .v4-tab { height: 38px; }
+  html[data-ui="beacon"] .v4-tab-select { height: 36px; }
+  html[data-ui="beacon"] .v4-tab-close { width: 26px; height: 26px; opacity: 1; }
   html[data-ui="beacon"] .v4-nav-item { min-height: var(--touch-min-height); }
   html[data-ui="beacon"] .primary,
   html[data-ui="beacon"] .ghost,
