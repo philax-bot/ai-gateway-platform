@@ -51,7 +51,9 @@ docker compose --project-name signal-atlas --env-file deploy/runtime.env -f depl
 docker compose --project-name signal-atlas --env-file deploy/runtime.env -f deploy/compose.yml stop web gateway control-plane
 ```
 
-网关收到 SIGTERM 后停止接受新请求，等待在途请求与结算、关闭日记写锁后退出；上限 40 秒，Compose 给 45 秒宽限。超过上限按中断退出，保留 fsync 日记供重启核对，不宣称完成结算。默认上游超时 30 秒；若另改超时，应同步评估停止窗口。
+网关收到 SIGTERM 后停止接受新请求，默认等待在途请求 35 秒（`GATEWAY_DRAIN_TIMEOUT_MS`）；窗口结束后中止仍在进行的上游，并额外保留 5 秒用于持久化与结算。最终期限后保留 fsync 日记退出，重启继续核对，不宣称全部结算成功。Compose 默认给 45 秒（`GATEWAY_STOP_GRACE_PERIOD`），必须大于排空窗口加 5 秒。
+
+正常调用默认总时限 10 分钟（`UPSTREAM_TIMEOUT_MS=600000`），首字节等待 2 分钟（`UPSTREAM_FIRST_BYTE_TIMEOUT_MS=120000`），响应字节空闲 1 分钟（`UPSTREAM_IDLE_TIMEOUT_MS=60000`）。收到字节只重置空闲窗口，不延长总时限；首字节按响应正文测量，SSE 注释、reasoning 与工具增量均属于活动。变量接受 100–3600000 毫秒整数，非法配置在创建日记与监听端口前拒绝启动。旧 `UPSTREAM_TIMEOUT_MS` 保留为总时限配置。
 
 ## 容器内备份
 

@@ -31,6 +31,7 @@ COPY --from=build /app/apps/control-plane/dist apps/control-plane/dist
 COPY --from=build /app/apps/control-plane/migrations apps/control-plane/migrations
 COPY --from=build /app/services/gateway-sim/dist services/gateway-sim/dist
 COPY --from=build /app/packages/contracts/dist packages/contracts/dist
+COPY scripts/outbox.mjs scripts/outbox.mjs
 RUN mkdir -p /var/lib/signal-atlas/journal && chown -R node:node /var/lib/signal-atlas
 USER node
 ENTRYPOINT ["node"]

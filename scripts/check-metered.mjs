@@ -25,6 +25,18 @@ export async function checkMetered({cp,gw,model,admin,employeeCookie,managerCook
   await configure({baseUrl:`${model}/v1`});
   const quote=await request('/api/v1/platform/quote',{purpose:'personal',model:'test-model',messages:[{role:'user',content:'quote'}],max_tokens:32},employeeCookie);
   check(quote.body.decision==='allow'&&quote.body.reservedAmount>0,'quote uses configured prices before any key request');
+  const overLimitId=`output-limit-${randomUUID()}`,overLimitBody={model:'test-model',messages:[{role:'user',content:'limit diagnostic'}],max_completion_tokens:1000000};
+  const limitHeaders={authorization:`Bearer ${key.secret}`,'content-type':'application/json','x-request-id':overLimitId,'idempotency-key':overLimitId};
+  const limitResponse=await fetch(`${gw}/v1/chat/completions`,{method:'POST',headers:limitHeaders,body:JSON.stringify(overLimitBody)}),limitValue=await limitResponse.json();
+  check(limitResponse.status===400&&limitValue.error.code==='request_limit_exceeded','output bounds have a dedicated refusal');
+  const limits=limitValue.error.details.requestLimits;
+  check(limits.requestedOutputTokens===1000000&&limits.allowedOutputTokens>0&&limits.allowedOutputTokens<1000000&&limits.limitSources.length>0,'public refusal explains request, allowance and sources');
+  check(!/baseUrl|credentialRef|UPSTREAM_/.test(JSON.stringify(limits)),'public limit details contain no connection metadata');
+  const repeatLimit=await fetch(`${gw}/v1/chat/completions`,{method:'POST',headers:limitHeaders,body:JSON.stringify(overLimitBody)});
+  assert.deepEqual((await repeatLimit.json()).error.details.requestLimits,limits,'stored refusal replays the same limit evidence');assertions++;
+  const refusedLog=await waitLog(overLimitId);check(refusedLog.forwarded===false&&refusedLog.billableState==='not_billable'&&refusedLog.actualAmount===0&&(await upstreamRequests(overLimitId)).length===0,'limit refusal neither reserves billable usage nor forwards');
+  const limitQuote=await request('/api/v1/platform/quote',{purpose:'personal',...overLimitBody},employeeCookie);
+  check(limitQuote.body.reasonCode==='request_limit_exceeded'&&limitQuote.body.requestLimits.allowedOutputTokens===limits.allowedOutputTokens,'quote and gateway expose the same effective output allowance');
   const call=gatewayRequest({scenario:'cached'}),response=await call.promise,value=await response.json();
   check(response.status===200&&value.model==='test-model','configured logical model returned');
   const upstream=await upstreamRequests(call.id);check(upstream.length===1&&upstream[0].model==='mapped-upstream'&&upstream[0].maxOutput===32,'gateway used the selected upstream mapping and output allowance');

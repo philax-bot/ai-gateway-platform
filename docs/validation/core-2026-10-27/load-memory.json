@@ -1,0 +1,87 @@
+{
+  "success": true,
+  "createdAt": "2026-10-27T06:41:17.093Z",
+  "environment": {
+    "node": "v22.23.1",
+    "platform": "win32",
+    "arch": "x64",
+    "cpu": "Intel(R) Core(TM) Ultra X7 358H",
+    "logicalCpus": 16,
+    "memoryGiB": 32,
+    "revision": "7a26393",
+    "store": "isolated memory",
+    "network": "local control plane/gateway/model; PostgreSQL uses the configured development endpoint",
+    "model": "repository deterministic HTTP stand-in; 13 input / 14 output / 4 cached tokens",
+    "scope": "single instance, one managed user and one quota batch; not production or real-model capacity"
+  },
+  "workload": {
+    "requests": 48,
+    "concurrency": 4,
+    "streamEvery": 3,
+    "adminEvery": 8
+  },
+  "database": {
+    "samples": 0,
+    "sampleFailures": 0,
+    "maxClients": 0,
+    "maxLockWaiters": 0,
+    "waitEvents": {}
+  },
+  "results": {
+    "durationMs": 324,
+    "successfulRequests": 48,
+    "errors": {},
+    "errorRate": 0,
+    "requestsPerSecond": 148.24,
+    "latencyMs": {
+      "samples": 48,
+      "p50": 21.91,
+      "p95": 47.28,
+      "p99": 48.3,
+      "max": 48.3
+    },
+    "streamLatencyMs": {
+      "samples": 16,
+      "p50": 19.48,
+      "p95": 48.29,
+      "p99": 48.29,
+      "max": 48.29
+    },
+    "nonStreamLatencyMs": {
+      "samples": 32,
+      "p50": 22.16,
+      "p95": 47.28,
+      "p99": 48.3,
+      "max": 48.3
+    },
+    "ttftMs": {
+      "samples": 16,
+      "p50": 11,
+      "p95": 30,
+      "p99": 30,
+      "max": 30
+    },
+    "adminLatencyMs": {
+      "samples": 6,
+      "p50": 9.93,
+      "p95": 19.36,
+      "p99": 19.36,
+      "max": 19.36
+    },
+    "confirmedCalls": 48,
+    "pendingReview": 0,
+    "confirmedAmount": 0.001872,
+    "quotaBefore": 10,
+    "quotaAfter": 9.998128,
+    "chargedMicros": 1872,
+    "expectedChargedMicros": 1872,
+    "outbox": {
+      "queued": 0,
+      "blocked": 0,
+      "active": 0,
+      "oldestQueuedAgeMs": 0,
+      "oldestBlockedAgeMs": 0,
+      "retryAttempts": 0
+    }
+  }
+}

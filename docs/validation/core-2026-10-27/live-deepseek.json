@@ -1,0 +1,208 @@
+{
+  "success": true,
+  "createdAt": "2026-10-27T07:05:06.277Z",
+  "model": "deepseek-flash",
+  "provider": "DeepSeek official",
+  "scope": "isolated memory workspace; current gateway build; real upstream; original Pi and CC Switch files are read-only",
+  "budget": {
+    "maxRequests": 8,
+    "maxEstimatedAmount": 0.1,
+    "attempts": 7,
+    "estimatedUpperBound": 0.088724
+  },
+  "checks": [
+    "actual Pi CLI tool call and result round trip",
+    {
+      "cacheSample": 1,
+      "usage": {
+        "prompt_tokens": 2057,
+        "completion_tokens": 29,
+        "total_tokens": 2086,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 25
+        },
+        "prompt_cache_hit_tokens": 0,
+        "prompt_cache_miss_tokens": 2057
+      }
+    },
+    {
+      "cacheSample": 2,
+      "usage": {
+        "prompt_tokens": 2057,
+        "completion_tokens": 26,
+        "total_tokens": 2083,
+        "prompt_tokens_details": {
+          "cached_tokens": 1920
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 22
+        },
+        "prompt_cache_hit_tokens": 1920,
+        "prompt_cache_miss_tokens": 137
+      }
+    }
+  ],
+  "calls": [
+    {
+      "requestId": "live-a87de197-42d3-4a75-8988-83b7e5a1d876-7",
+      "outcome": "client_cancelled",
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "cachedInputTokens": 0,
+      "amount": 0,
+      "billableState": "pending_review",
+      "usageFinal": false,
+      "forwarded": true,
+      "latencyMs": 174,
+      "ttftMs": null,
+      "errorCode": "client_cancelled"
+    },
+    {
+      "requestId": "live-a87de197-42d3-4a75-8988-83b7e5a1d876-6",
+      "outcome": "completed",
+      "inputTokens": 61,
+      "outputTokens": 1024,
+      "cachedInputTokens": 0,
+      "amount": 0.008314,
+      "billableState": "confirmed",
+      "usageFinal": true,
+      "forwarded": true,
+      "latencyMs": 7158,
+      "ttftMs": null,
+      "errorCode": null
+    },
+    {
+      "requestId": "live-a87de197-42d3-4a75-8988-83b7e5a1d876-5",
+      "outcome": "completed",
+      "inputTokens": 2057,
+      "outputTokens": 26,
+      "cachedInputTokens": 1920,
+      "amount": 0.000559,
+      "billableState": "confirmed",
+      "usageFinal": true,
+      "forwarded": true,
+      "latencyMs": 736,
+      "ttftMs": null,
+      "errorCode": null
+    },
+    {
+      "requestId": "live-a87de197-42d3-4a75-8988-83b7e5a1d876-4",
+      "outcome": "completed",
+      "inputTokens": 2057,
+      "outputTokens": 29,
+      "cachedInputTokens": 0,
+      "amount": 0.004346,
+      "billableState": "confirmed",
+      "usageFinal": true,
+      "forwarded": true,
+      "latencyMs": 1559,
+      "ttftMs": null,
+      "errorCode": null
+    },
+    {
+      "requestId": "live-a87de197-42d3-4a75-8988-83b7e5a1d876-3",
+      "outcome": "completed",
+      "inputTokens": 576,
+      "outputTokens": 6,
+      "cachedInputTokens": 384,
+      "amount": 0.000448,
+      "billableState": "confirmed",
+      "usageFinal": true,
+      "forwarded": true,
+      "latencyMs": 860,
+      "ttftMs": 891,
+      "errorCode": null
+    },
+    {
+      "requestId": "live-a87de197-42d3-4a75-8988-83b7e5a1d876-2",
+      "outcome": "completed",
+      "inputTokens": 520,
+      "outputTokens": 39,
+      "cachedInputTokens": 0,
+      "amount": 0.001352,
+      "billableState": "confirmed",
+      "usageFinal": true,
+      "forwarded": true,
+      "latencyMs": 1017,
+      "ttftMs": 979,
+      "errorCode": null
+    }
+  ],
+  "priceSnapshot": {
+    "input": 2,
+    "output": 8,
+    "cached": 0.04,
+    "currency": "CNY",
+    "unit": "per_million_tokens"
+  },
+  "verification": [
+    {
+      "outcome": "passed",
+      "usage": {
+        "inputTokens": 32,
+        "outputTokens": 1,
+        "cachedInputTokens": 0,
+        "complete": true
+      },
+      "cost": {
+        "state": "priced",
+        "amount": 0.000072,
+        "price": {
+          "version": "7c0d1c392b2ff457ec9e20ef",
+          "currency": "CNY",
+          "unit": "per_million_tokens",
+          "inputPrice": 2,
+          "outputPrice": 8,
+          "cachedInputPrice": 0.04
+        }
+      }
+    }
+  ],
+  "pi": {
+    "exitCode": 0,
+    "version": "1.4.0",
+    "toolNames": [
+      "read"
+    ],
+    "finalMarkerMatched": true,
+    "eventTypes": [
+      "session",
+      "agent_start",
+      "turn_start",
+      "message_start",
+      "message_end",
+      "message_update",
+      "tool_execution_start",
+      "tool_execution_end",
+      "turn_end",
+      "agent_end",
+      "agent_settled"
+    ]
+  },
+  "stream": {
+    "durationMs": 7224,
+    "completed": true,
+    "overThirtySeconds": false
+  },
+  "confirmedAmount": 0.015019,
+  "remainingAmount": 0.076593,
+  "outbox": {
+    "queued": 0,
+    "blocked": 0,
+    "active": 0,
+    "oldestQueuedAgeMs": 0,
+    "oldestBlockedAgeMs": 0,
+    "retryAttempts": 0
+  },
+  "originalConfigurationsUnchanged": true,
+  "accounting": {
+    "initialAmount": 0.1,
+    "confirmedAmount": 0.015019,
+    "pendingReservedAmount": 0.008388,
+    "remainingAmount": 0.076593,
+    "conserved": true
+  }
+}

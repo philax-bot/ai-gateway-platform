@@ -53,7 +53,7 @@ HOST=127.0.0.1
 PORT=4000
 ```
 
-构建后运行 `pnpm --filter @ai-gateway/gateway-sim start`。正式模式要求受控的模型准入路由，拒绝回退到演示模型和固定计费路径。每个网关实例需要独立持久目录；目录锁不是跨主机锁。`/health` 中正式模式显示 `dataPlane=controlled-proxy`，开发模式显示 `local-simulation`。
+构建后运行 `pnpm --filter @ai-gateway/gateway-sim start`。正式模式要求受控的模型准入路由，拒绝回退到演示模型和固定计费路径。每个网关实例需要独立持久目录；目录锁不是跨主机锁。`/health` 中正式模式显示 `dataPlane=controlled-proxy`，开发模式显示 `local-simulation`。outbox 有 queued 或 blocked 记录时 `status=degraded`；同时返回积压数量、最长积压年龄与重试次数。HTTP 200 表示健康接口可访问，应检查 JSON 的状态与 outbox，不能据此认定结算全部正常。
 
 Web 构建使用 `VITE_CONTROL_PLANE_URL`、`VITE_GATEWAY_URL` 提供浏览器可访问的公开根地址；环境变量只能包含公开地址。已有 HTTPS 同源入口、服务健康顺序、只读容器及持久日记卷，操作见 [容器与内网运行](CONTAINER-RUNBOOK.md)。模型服务需要鉴权时，控制面和网关提供同名 `UPSTREAM_*` 变量，在服务页面填写引用名；`ALLOW_UPSTREAM_VALIDATION` 与 `ALLOW_UPSTREAM_REQUESTS` 分别控制非本机验证和调用，需在获得对应授权后显式启用。本轮没有正式部署，也没有运行真实厂商模型或 Higress。
 
@@ -73,7 +73,21 @@ Web 构建使用 `VITE_CONTROL_PLANE_URL`、`VITE_GATEWAY_URL` 提供浏览器�
 
 连接阶段的偶发失败（DNS/连接超时）只允许**一次**有界重试，且仅在明确未发出任何请求字节时进行；已开始的响应、取消和超时不会被重试，因此不会重复计费。连接验证的超时可用 `UPSTREAM_VALIDATION_TIMEOUT_MS`（1000–120000，默认 20000）调整。
 
-本机使用 Clash / Surge / sing-box 等 TUN 代理时，`api.deepseek.com` 这类域名会解析到 fake-IP 段（如 `198.18.x.x`），代理 DNS 不稳定时会出现约 10 秒以上的解析停顿并触发连接超时；数据面会重试一次，但延迟取决于本机代理。建议把上游模型域名设为直连或使用稳定的 DNS 出口。
+2026-10-23 的本机代理排查曾出现 fake-IP DNS 解析停顿；该历史现象不作为当前网络状态。连接重试只覆盖确认未发送请求字节的失败，已发出的生成不自动重试。
+
+### 长任务与准入诊断
+
+`UPSTREAM_TIMEOUT_MS` 保留为总时限，默认 600000；首字节等待 `UPSTREAM_FIRST_BYTE_TIMEOUT_MS` 默认 120000；响应空闲 `UPSTREAM_IDLE_TIMEOUT_MS` 默认 60000。均为 100–3600000 毫秒整数，非法值在监听与创建日记前拒绝启动。正文任意字节（含 SSE 注释、reasoning 与工具增量）重置空闲预算，不延长总预算。超时记录具体阶段，未知用量继续进入待核对。停机排空与容器宽限见 [容器手册](CONTAINER-RUNBOOK.md)。
+
+`request_limit_exceeded` 的响应增加 `error.details.requestLimits`：请求输出、允许输出、输入估算、模型上下文和限制来源；不暴露上游地址、资源 ID 或凭据引用。报价接口与两种存储使用相同诊断；已保存的拒绝在同键重放时保持原证据。价格未知与额度不足使用各自文案，不再统称无有效额度。输入量仍是保守传输字节估算，不宣称等于模型 tokenizer。
+
+用量解析兼容 OpenAI `prompt_tokens_details.cached_tokens` 和 DeepSeek `prompt_cache_hit_tokens`；两者并存且矛盾时不确认费用。推理 token 已包含在输出总量中，不重复叠加；无效的最终 SSE 用量不退回早先的累计样本。
+
+### 结算 outbox 运维
+
+只在网关可信内网入口使用服务令牌访问 `GET /internal/v1/outbox` 与 `POST /internal/v1/outbox/retry`，浏览器公开 Nginx 入口继续拒绝 `/internal/`。用户 API Key 无权访问。检查最多列出 100 条，可用 `?requestId=...` 查指定事件；只返回结算元数据。协议见 `contracts/data-plane-operations-v0.1.yaml`。
+
+容器中可运行 `node scripts/outbox.mjs status`、`node scripts/outbox.mjs inspect --request <ID>`。确认合同或配置已修复后，执行 `node scripts/outbox.mjs retry --request <ID> --reason <依据>`，仅补发该 blocked 事件。queued 继续自动补发。重试复用原结算与幂等键，不重新请求模型，拒绝修改金额/用量，结构化运维日志记录原因与次数。CLI 从环境读取 `SERVICE_TOKEN`；宿主运行时用 `GATEWAY_OPERATIONS_URL` 指定可信网关来源。检查/重试均不删除日记；成功投递后才清理对应事件。
 
 ## 可重复检查
 

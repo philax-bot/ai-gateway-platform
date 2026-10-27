@@ -46,7 +46,7 @@ try {
   const cp=`http://127.0.0.1:${cpPort}`, gw=`http://127.0.0.1:${gwPort}`;
   let dbEnv={DATABASE_URL:'',REDIS_URL:'',STORE_MODE:'memory',PGOPTIONS:''};
   if(postgres) {
-    const config=require('dotenv').parse(readFileSync(resolve(root,'apps/control-plane/.env')));
+    const config=process.env.DATABASE_URL?{}:require('dotenv').parse(readFileSync(resolve(root,'apps/control-plane/.env')));
     const connectionString=process.env.DATABASE_URL||config.DATABASE_URL;
     if(!connectionString)throw new Error('DATABASE_URL required for isolated PostgreSQL checks');
     const {Pool}=require('pg'); admin=new Pool({connectionString,connectionTimeoutMillis:5000});

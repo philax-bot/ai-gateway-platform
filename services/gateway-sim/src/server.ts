@@ -1,11 +1,12 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
-import { createHash, randomUUID } from 'node:crypto';
+import { createHash, randomUUID, timingSafeEqual } from 'node:crypto';
 import { isAbsolute,resolve } from 'node:path';
 import type { AuthorizeRequest, AuthorizeResponse, SettlementRequest, SettlementResponse } from '@ai-gateway/contracts';
 import { chatCompletionsUrl,estimateChatInput,extractUpstreamUsage,isRequestReference,readUpstreamRequestId,validateRuntimeConfig } from '@ai-gateway/contracts';
 import { SettlementJournal } from './journal.js';
 import { definitelyNotSent, shouldRetryConnect } from './connection-failure.js';
 import { adaptUpstreamChatRequest } from './upstream-compat.js';
+import { gatewayTimeouts, UpstreamDeadline } from './upstream-timeout.js';
 
 const runtimeMode=validateRuntimeConfig(process.env,'gateway');
 if(runtimeMode==='production'&&!isAbsolute(process.env.GATEWAY_JOURNAL_DIR!))throw new Error('GATEWAY_JOURNAL_DIR must be absolute in production');
@@ -13,10 +14,12 @@ const port = Number(process.env.PORT ?? 4000);
 const controlPlaneUrl = process.env.CONTROL_PLANE_URL ?? 'http://127.0.0.1:4001';
 const modelUrl = process.env.MODEL_URL ?? 'http://127.0.0.1:4010';
 const serviceToken = process.env.SERVICE_TOKEN ?? 'local-service-token';
-const upstreamTimeoutMs = Number(process.env.UPSTREAM_TIMEOUT_MS ?? 30000);
+const timeouts = gatewayTimeouts(process.env);
 const webOrigin = process.env.WEB_ORIGIN ?? 'http://127.0.0.1:5173';
 const localWebOrigins = new Set(runtimeMode==='production'?[webOrigin]:[webOrigin, 'http://127.0.0.1:5173', 'http://localhost:5173']);
 const journal=new SettlementJournal(process.env.GATEWAY_JOURNAL_DIR??resolve(process.cwd(),`.runtime/gateway-${port}`));
+const activeUpstreams=new Set<AbortController>();
+let closing=false,draining=false;
 
 function corsHeaders(origin?: string): Record<string, string> {
   return { 'access-control-allow-origin': origin && localWebOrigins.has(origin) ? origin : webOrigin,
@@ -42,10 +45,10 @@ async function controlPlane<T>(path: string, body: unknown): Promise<{ status: n
   return { status:response.status,value:await response.json() as T };
 }
 type ResolvedCredential = { credentialId:string; identity:AuthorizeRequest['identity']; purpose:AuthorizeRequest['purpose']; modelIds?:string[] };
-async function boundedText(response:Response):Promise<string>{
+async function boundedText(response:Response,onBytes:()=>void):Promise<string>{
   if(!response.body)return '';
   const reader=response.body.getReader(),decoder=new TextDecoder();let result='',size=0;
-  try{while(true){const chunk=await reader.read();if(chunk.done)break;size+=chunk.value.byteLength;if(size>16777216){await reader.cancel();throw new Error('upstream response exceeds 16 MiB');}result+=decoder.decode(chunk.value,{stream:true});}return result+decoder.decode();}finally{reader.releaseLock();}
+  try{while(true){const chunk=await reader.read();if(chunk.done)break;if(chunk.value.byteLength)onBytes();size+=chunk.value.byteLength;if(size>16777216){await reader.cancel();throw new Error('upstream response exceeds 16 MiB');}result+=decoder.decode(chunk.value,{stream:true});}return result+decoder.decode();}finally{reader.releaseLock();}
 }
 /**
  * Dispatch an upstream request with a bounded retry that is only allowed for
@@ -125,7 +128,7 @@ async function handleCompletions(request: IncomingMessage, response: ServerRespo
     decision=auth.value;
   } catch { sendJson(response,503,{error:{type:'control_plane_unavailable',message:'authorization service is unavailable'},requestId},origin); return; }
   if(decision.decision!=='allow'||!decision.reservation) {
-    sendJson(response,decision.reasonCode==='rate_limited'?429:decision.reasonCode==='request_limit_exceeded'?400:decision.reasonCode==='price_unconfigured'?503:403,{error:{type:'policy_denied',code:decision.reasonCode,message:decision.reasonMessage},requestId},origin); return;
+    sendJson(response,decision.reasonCode==='rate_limited'?429:decision.reasonCode==='request_limit_exceeded'?400:decision.reasonCode==='price_unconfigured'?503:403,{error:{type:'policy_denied',code:decision.reasonCode,message:decision.reasonMessage,...(decision.requestLimits?{details:{requestLimits:decision.requestLimits}}:{})},requestId},origin); return;
   }
   if(decision.replayed) {
     sendJson(response,409,{error:{type:'request_already_authorized',message:'request already authorized; repeat forwarding is disabled'},requestId:decision.requestId},origin); return;
@@ -141,12 +144,12 @@ async function handleCompletions(request: IncomingMessage, response: ServerRespo
     sendJson(response,503,{error:{type:'journal_unavailable',message:'usage journal is unavailable; upstream was not called'},requestId},origin);return;
   }
   const controller=new AbortController();
+  activeUpstreams.add(controller);
   let clientCancelled=response.destroyed;
-  let timedOut=false;
+  let deadline:UpstreamDeadline|undefined;
   const onClose=()=>{ if(!response.writableEnded) { clientCancelled=true; controller.abort(); } };
   response.on('close',onClose);
-  if(clientCancelled) controller.abort();
-  const timeout=setTimeout(()=>{timedOut=true;controller.abort();},upstreamTimeoutMs);
+  if(clientCancelled||draining) controller.abort();
   const heartbeat=setInterval(()=>{void controlPlane<{renewed:boolean}>('/internal/v1/usage/leases/renew',{requestId,reservationId:decision.reservation!.reservationId}).then(result=>{if(result.status===200&&!result.value.renewed)controller.abort();}).catch(()=>undefined);},60000);heartbeat.unref();
   let raw=''; let outcome: SettlementRequest['outcome']='upstream_error';
   let usageFinal=true;
@@ -170,11 +173,12 @@ async function handleCompletions(request: IncomingMessage, response: ServerRespo
     if(configured){if(body.max_completion_tokens!==undefined){forwarded.max_completion_tokens=route!.maxOutputTokens;delete forwarded.max_tokens;}else forwarded.max_tokens=route!.maxOutputTokens;}
     if(body.stream===true)forwarded.stream_options={...(body.stream_options as Record<string,unknown>|undefined),include_usage:true};
     await journal.dispatched(requestId);dispatched=true;
+    deadline=new UpstreamDeadline(controller,timeouts);
     upstream=await dispatchUpstream(chatCompletionsUrl(target.toString()), { method:'POST',redirect:'error', signal:controller.signal,
       headers:{'content-type':'application/json','x-request-id':requestId,...(upstreamCredential?{authorization:`Bearer ${upstreamCredential}`}:{})},body:JSON.stringify(adaptUpstreamChatRequest(target,forwarded)) });
     upstreamStatus=upstream.status;
     upstreamRequestId=readUpstreamRequestId(upstream.headers);
-    if(!upstream.ok) { raw=await boundedText(upstream); outcome='upstream_error';usageFinal=extractUpstreamUsage(raw)!==null||!configured||upstream.status<500; }
+    if(!upstream.ok) { raw=await boundedText(upstream,()=>deadline!.receivedBytes()); outcome='upstream_error';usageFinal=extractUpstreamUsage(raw)!==null||!configured||upstream.status<500; }
     else if(body.stream===true && upstream.body) {
       response.writeHead(200,{'content-type':'text/event-stream; charset=utf-8','cache-control':'no-cache','x-request-id':requestId,...corsHeaders(origin)});
       streamStarted=true;
@@ -191,6 +195,7 @@ async function handleCompletions(request: IncomingMessage, response: ServerRespo
       try {
         while(true) {
           const chunk=await reader.read(); if(chunk.done) break;
+          if(chunk.value.byteLength)deadline.receivedBytes();
           const text=decoder.decode(chunk.value,{stream:true}); raw=(raw+text).slice(-262144);eventBuffer+=text;
           if(eventBuffer.length>1048576)throw new Error('upstream SSE event exceeds the supported size');
           let separator;
@@ -200,7 +205,7 @@ async function handleCompletions(request: IncomingMessage, response: ServerRespo
       } finally { reader.releaseLock(); }
       outcome=done?'completed':'partial'; usageFinal=extractUpstreamUsage(raw)!==null;
     } else {
-      raw=await boundedText(upstream);
+      raw=await boundedText(upstream,()=>deadline!.receivedBytes());
       const value=JSON.parse(raw) as Record<string,unknown>;
       if(!Array.isArray(value.choices))throw new Error('upstream returned an invalid completion');
       value.model=logicalModel;raw=JSON.stringify(value);outcome='completed';usageFinal=extractUpstreamUsage(raw)!==null;
@@ -209,15 +214,15 @@ async function handleCompletions(request: IncomingMessage, response: ServerRespo
     controller.abort();
     // Redacted diagnostic: error class and cause code only, never URLs, headers or credentials.
     console.error(JSON.stringify({event:'upstream_failure',requestId,dispatched,errorName:error instanceof Error?error.name:'unknown',causeCode:(error as {cause?:{code?:string}}).cause?.code??null}));
-    outcome=!dispatched?'rejected_before_upstream':clientCancelled?'client_cancelled':timedOut?'timeout':streamStarted?'partial':'upstream_error';
+    outcome=!dispatched?'rejected_before_upstream':clientCancelled?'client_cancelled':deadline?.phase?'timeout':draining?'partial':streamStarted?'partial':'upstream_error';
     // Interrupted generation may have incurred usage, even without its final usage event.
     usageFinal=!dispatched||definitelyNotSent(error);
     if(extractUpstreamUsage(raw)) { outcome='partial'; usageFinal=true; }
-    upstreamStatus=!dispatched?503:timedOut?504:502; failureMessage=!dispatched?'controlled upstream configuration is unavailable':timedOut?'upstream model timed out':'upstream model connection interrupted';
-  } finally { clearTimeout(timeout);clearInterval(heartbeat); response.off('close',onClose); }
+    upstreamStatus=!dispatched?503:deadline?.phase?504:draining?503:502; failureMessage=!dispatched?'controlled upstream configuration is unavailable':deadline?.phase?`upstream ${deadline.phase} timeout`:draining?'gateway shutdown interrupted the upstream':'upstream model connection interrupted';
+  } finally { deadline?.stop();activeUpstreams.delete(controller);clearInterval(heartbeat); response.off('close',onClose); }
 
   const usage=extractUpstreamUsage(raw)??{inputTokens:0,outputTokens:0,cachedInputTokens:0};
-  const errorCode=outcome==='completed'?undefined:outcome==='upstream_error'?`upstream_http_${upstream?.status??'connection'}`:outcome==='rejected_before_upstream'?'controlled_configuration_unavailable':outcome;
+  const errorCode=outcome==='completed'?undefined:deadline?.phase?`upstream_${deadline.phase}_timeout`:draining&&outcome==='partial'?'gateway_stopping':outcome==='upstream_error'?`upstream_http_${upstream?.status??'connection'}`:outcome==='rejected_before_upstream'?'controlled_configuration_unavailable':outcome;
   const settlement: SettlementRequest={...baseSettlement,outcome,forwarded:dispatched,ttftMs,errorCode,...usage,usageFinal,upstreamRequestId,actualAmount:configured?undefined:outcome==='completed'||outcome==='partial'?0.02:0,completedAt:new Date().toISOString()};
   let settled=false;
   try{settled=await journal.finalize(settlement);}catch{console.error(JSON.stringify({event:'settlement_journal_failed',requestId,reservationId:settlement.reservationId}));}
@@ -225,21 +230,39 @@ async function handleCompletions(request: IncomingMessage, response: ServerRespo
   if(clientCancelled||response.destroyed) return;
   if(streamStarted) {
     if(outcome==='completed'&&done)response.write('data: [DONE]\n\n');
-    if(outcome!=='completed') response.write(`event: error\ndata: ${JSON.stringify({error:{type:'upstream_interrupted'},requestId})}\n\n`);
+    if(outcome!=='completed') response.write(`event: error\ndata: ${JSON.stringify({error:{type:'upstream_interrupted',code:errorCode},requestId})}\n\n`);
     response.end(); return;
   }
   if(outcome==='completed') {
     response.writeHead(200,{'content-type':'application/json; charset=utf-8','x-request-id':requestId,...corsHeaders(origin)}); response.end(raw);
   } else if(upstream && !upstream.ok && raw) {
     response.writeHead(upstream.status,{'content-type':upstream.headers.get('content-type')??'application/json',...corsHeaders(origin)}); response.end(raw);
-  } else sendJson(response,upstreamStatus,{error:{type:outcome,message:failureMessage},requestId},origin);
+  } else sendJson(response,upstreamStatus,{error:{type:outcome,code:errorCode,message:failureMessage},requestId},origin);
 }
-let closing=false;
 const pendingRequests=new Set<Promise<void>>();
+async function handleOutbox(request:IncomingMessage,response:ServerResponse){
+  const expected=createHash('sha256').update(`Bearer ${serviceToken}`).digest(),actual=createHash('sha256').update(request.headers.authorization??'').digest();
+  if(!timingSafeEqual(expected,actual)){sendJson(response,401,{error:{type:'authentication_error',message:'service token required'}});return;}
+  const url=new URL(request.url!,'http://gateway.local');
+  if(request.method==='GET'&&url.pathname==='/internal/v1/outbox'){
+    const requestId=url.searchParams.get('requestId');
+    if(requestId!==null&&!isRequestReference(requestId)){sendJson(response,400,{error:{type:'invalid_request_error',message:'invalid requestId'}});return;}
+    sendJson(response,200,{summary:await journal.status(),items:await journal.inspect(requestId??undefined),limit:100});return;
+  }
+  if(request.method==='POST'&&url.pathname==='/internal/v1/outbox/retry'){
+    let body:Record<string,unknown>;try{body=await readJson(request);}catch{sendJson(response,400,{error:{type:'invalid_request_error',message:'invalid JSON body'}});return;}
+    if(!isRequestReference(body.requestId)||typeof body.reason!=='string'||!body.reason.trim()||body.reason.length>1000||/[\u0000-\u001f\u007f]/.test(body.reason)||Object.keys(body).some(key=>!['requestId','reason'].includes(key))){sendJson(response,400,{error:{type:'invalid_request_error',message:'requestId and a reason of 1–1000 characters are required; settlement changes are forbidden'}});return;}
+    try{sendJson(response,200,{requestId:body.requestId,delivered:await journal.retryBlocked(body.requestId,body.reason.trim())});}
+    catch(error){const code=(error as {code?:string}).code;sendJson(response,code==='ENOENT'?404:code==='OUTBOX_NOT_BLOCKED'?409:503,{error:{type:code==='ENOENT'?'outbox_not_found':code==='OUTBOX_NOT_BLOCKED'?'outbox_not_blocked':'journal_unavailable'}});}
+    return;
+  }
+  sendJson(response,404,{error:{type:'not_found'}});
+}
 async function serveRequest(request:IncomingMessage,response:ServerResponse){
   try {
     if(closing){sendJson(response,503,{error:{type:'gateway_stopping',message:'gateway is draining active requests'}},request.headers.origin);return;}
-    if(request.method==='GET'&&request.url==='/health') {const outbox=await journal.status();sendJson(response,200,{status:outbox.blocked?'degraded':'ok',dataPlane:runtimeMode==='production'?'controlled-proxy':'local-simulation',outbox},request.headers.origin);return;}
+    if(request.method==='GET'&&request.url==='/health') {const outbox=await journal.status();sendJson(response,200,{status:outbox.blocked||outbox.queued?'degraded':'ok',dataPlane:runtimeMode==='production'?'controlled-proxy':'local-simulation',outbox},request.headers.origin);return;}
+    if(request.url?.startsWith('/internal/v1/outbox')){await handleOutbox(request,response);return;}
     if(request.method==='OPTIONS'&&(request.url==='/v1/chat/completions'||request.url==='/v1/models')) {response.writeHead(204,corsHeaders(request.headers.origin));response.end();return;}
     if(request.method==='GET'&&request.url==='/v1/models') {await handleModels(request,response);return;}
     if(request.method==='POST'&&request.url==='/v1/chat/completions') {await handleCompletions(request,response);return;}
@@ -254,10 +277,11 @@ function shutdown(){
   if(closing)return;closing=true;
   // A bounded drain preserves normal in-flight settlement. On deadline, leave the fsynced
   // journal for restart recovery rather than claiming that all work completed.
-  const deadline=setTimeout(()=>process.exit(1),40000);deadline.unref();
+  const drain=setTimeout(()=>{draining=true;for(const controller of activeUpstreams)controller.abort();},timeouts.drainMs);drain.unref();
+  const deadline=setTimeout(()=>process.exit(1),timeouts.drainMs+5000);deadline.unref();
   server.close(()=>{void (async()=>{
     await Promise.allSettled([...pendingRequests]);await journal.flush();await journal.close();
-  })().then(()=>{clearTimeout(deadline);process.exit(0);}).catch(()=>process.exit(1));});
+  })().then(()=>{clearTimeout(drain);clearTimeout(deadline);process.exit(0);}).catch(()=>process.exit(1));});
 }
 process.on('SIGTERM',shutdown);process.on('SIGINT',shutdown);
 await journal.initialize(async event=>(await controlPlane<SettlementResponse>('/internal/v1/usage/settlements',event)).status);

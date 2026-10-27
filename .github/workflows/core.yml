@@ -1,0 +1,48 @@
+name: Core regression
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  core:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: gateway_test
+          POSTGRES_PASSWORD: isolated-ci-password
+          POSTGRES_DB: gateway_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U gateway_test -d gateway_test"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    env:
+      DATABASE_URL: postgresql://gateway_test:isolated-ci-password@127.0.0.1:5432/gateway_test
+      ALLOW_UPSTREAM_REQUESTS: 'false'
+      ALLOW_UPSTREAM_VALIDATION: 'false'
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/setup@v1
+        with:
+          runtime: node@22
+          cache: true
+          install: false
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: node scripts/check-isolated.mjs
+      - run: node scripts/check-isolated.mjs --postgres
+      - run: node scripts/check-load.mjs --requests 24 --concurrency 4
+      - run: node scripts/check-load.mjs --postgres --requests 24 --concurrency 4
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: isolated-load-results
+          path: .runtime/load-results/*.json
+          include-hidden-files: true
+          if-no-files-found: ignore

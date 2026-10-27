@@ -4,7 +4,7 @@ import { join, resolve } from 'node:path';
 import type { SettlementRequest } from '@ai-gateway/contracts';
 
 type Phase='admitted'|'dispatched'|'queued'|'blocked';
-interface Entry {phase:Phase;settlement:SettlementRequest;attempts:number;nextAttemptAt:number;lastStatus:number|null}
+interface Entry {phase:Phase;settlement:SettlementRequest;attempts:number;nextAttemptAt:number;lastStatus:number|null;queuedAt?:string;manualRetryCount?:number;lastManualRetry?:{at:string;reason:string}}
 export type SettlementSender=(event:SettlementRequest)=>Promise<number>;
 const runtimeToken=randomUUID();
 const activeDirectories=new Set<string>();
@@ -14,6 +14,7 @@ export class SettlementJournal {
   private sender:SettlementSender|undefined;
   private timer:ReturnType<typeof setInterval>|undefined;
   private readonly sending=new Map<string,Promise<boolean>>();
+  private readonly retrying=new Map<string,Promise<boolean>>();
   private flushing=false;
   private ownedLock=false;
   private closed=false;
@@ -52,7 +53,7 @@ export class SettlementJournal {
       const entry=await this.read(key);
       if(entry.phase==='admitted'||entry.phase==='dispatched'){
         entry.settlement={...entry.settlement,outcome:entry.phase==='admitted'?'rejected_before_upstream':'partial',forwarded:entry.phase==='dispatched',usageFinal:entry.phase==='admitted',inputTokens:0,outputTokens:0,cachedInputTokens:0,actualAmount:0,completedAt:new Date().toISOString()};
-        entry.phase='queued';entry.nextAttemptAt=0;await this.write(key,entry);
+        entry.phase='queued';entry.queuedAt=new Date().toISOString();entry.nextAttemptAt=0;await this.write(key,entry);
       }
     }
     // An interrupted temporary write cannot replace the last fsynced record.
@@ -64,7 +65,7 @@ export class SettlementJournal {
   async dispatched(requestId:string){const key=this.key(requestId),entry=await this.read(key);entry.phase='dispatched';await this.write(key,entry);}
   async finalize(settlement:SettlementRequest){
     const key=this.key(settlement.requestId);
-    await this.write(key,{phase:'queued',settlement,attempts:0,nextAttemptAt:0,lastStatus:null});
+    await this.write(key,{phase:'queued',settlement,attempts:0,nextAttemptAt:0,lastStatus:null,queuedAt:new Date().toISOString()});
     return this.deliver(key);
   }
   private deliver(key:string):Promise<boolean>{
@@ -88,15 +89,43 @@ export class SettlementJournal {
       await Promise.all(candidates.map(key=>this.deliver(key)));
     }finally{this.flushing=false;}
   }
+  async inspect(requestId?:string){
+    const items=[];
+    for(const key of requestId?[this.key(requestId)]:await this.entries()){
+      let entry:Entry;try{entry=await this.read(key);}catch(error){if((error as NodeJS.ErrnoException).code==='ENOENT')continue;throw error;}
+      items.push({requestId:entry.settlement.requestId,reservationId:entry.settlement.reservationId,phase:entry.phase,outcome:entry.settlement.outcome,usageFinal:entry.settlement.usageFinal,attempts:entry.attempts,lastStatus:entry.lastStatus,queuedAt:entry.queuedAt??entry.settlement.completedAt,nextAttemptAt:entry.phase==='queued'?new Date(entry.nextAttemptAt).toISOString():null,manualRetryCount:entry.manualRetryCount??0,lastManualRetry:entry.lastManualRetry??null});
+      if(items.length===100)break;
+    }
+    return items;
+  }
+  retryBlocked(requestId:string,reason:string):Promise<boolean>{
+    const key=this.key(requestId),existing=this.retrying.get(key);if(existing)return existing;
+    const work=(async()=>{
+      if(this.closed)throw new Error('journal is closed');
+      const entry=await this.read(key);
+      if(entry.phase!=='blocked')throw Object.assign(new Error('only blocked settlements can be manually retried'),{code:'OUTBOX_NOT_BLOCKED'});
+      entry.phase='queued';entry.nextAttemptAt=0;entry.manualRetryCount=(entry.manualRetryCount??0)+1;entry.lastManualRetry={at:new Date().toISOString(),reason};
+      await this.write(key,entry);
+      console.error(JSON.stringify({event:'outbox_manual_retry',actor:'service-token',requestId,reason,retryCount:entry.manualRetryCount}));
+      return this.deliver(key);
+    })();
+    this.retrying.set(key,work);void work.finally(()=>this.retrying.delete(key)).catch(()=>undefined);return work;
+  }
   async status(){
-    const summary={queued:0,blocked:0,active:0};
-    for(const key of await this.entries()){let entry:Entry;try{entry=await this.read(key);}catch(error){if((error as NodeJS.ErrnoException).code==='ENOENT')continue;throw error;}if(entry.phase==='blocked')summary.blocked++;else if(entry.phase==='queued')summary.queued++;else summary.active++;}
+    const summary={queued:0,blocked:0,active:0,oldestQueuedAgeMs:0,oldestBlockedAgeMs:0,retryAttempts:0};
+    for(const key of await this.entries()){
+      let entry:Entry;try{entry=await this.read(key);}catch(error){if((error as NodeJS.ErrnoException).code==='ENOENT')continue;throw error;}
+      const age=Math.max(0,Date.now()-Date.parse(entry.queuedAt??entry.settlement.completedAt));summary.retryAttempts+=entry.attempts;
+      if(entry.phase==='blocked'){summary.blocked++;if(Number.isFinite(age))summary.oldestBlockedAgeMs=Math.max(summary.oldestBlockedAgeMs,age);}
+      else if(entry.phase==='queued'){summary.queued++;if(Number.isFinite(age))summary.oldestQueuedAgeMs=Math.max(summary.oldestQueuedAgeMs,age);}
+      else summary.active++;
+    }
     return summary;
   }
   async close(){
     this.closed=true;
     if(this.timer)clearInterval(this.timer);
-    await Promise.allSettled([...this.sending.values()]);
+    await Promise.allSettled([...this.retrying.values(),...this.sending.values()]);
     if(this.ownedLock){await unlink(join(this.directory,'writer.lock'));this.ownedLock=false;activeDirectories.delete(this.directory);}
   }
 }

@@ -1,0 +1,49 @@
+openapi: 3.1.0
+info:
+  title: Controlled data-plane operations
+  version: 0.1.0
+security: [{serviceToken: []}]
+paths:
+  /internal/v1/outbox:
+    get:
+      summary: Inspect durable settlement backlog without request or response text
+      parameters:
+        - in: query
+          name: requestId
+          schema: {type: string, maxLength: 160}
+      responses:
+        '200':
+          description: Aggregate queued/blocked/active counts, oldest ages in milliseconds and retry attempts; up to 100 metadata-only entries. Use requestId to inspect a specific event beyond the first 100. Inspection does not change retry state.
+        '400': {description: Invalid request reference}
+        '401': {description: Service token required; user API keys are not accepted}
+  /internal/v1/outbox/retry:
+    post:
+      summary: Retry one blocked settlement after the contract/configuration has been repaired
+      description: >-
+        Reuses the original settlement and idempotency key. Never generates a new model request.
+        No settlement field may be supplied or changed. Concurrent retries for the same
+        blocked entry share one delivery. Queued entries continue automatic retry and cannot
+        use this endpoint. Audit event outbox_manual_retry records service-token actor,
+        requestId, reason and retry count in structured operational logs; failed delivery
+        retains the last manual retry on disk. No bulk retry is provided.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [requestId, reason]
+              properties:
+                requestId: {type: string, minLength: 1, maxLength: 160}
+                reason: {type: string, minLength: 1, maxLength: 1000}
+      responses:
+        '200': {description: Request ID and delivered boolean; false means the original event remains queued or blocked}
+        '400': {description: Invalid input or attempted settlement change}
+        '401': {description: Service token required}
+        '404': {description: No such durable event or already delivered}
+        '409': {description: The event is not blocked}
+        '503': {description: Journal unavailable; do not remove the journal directory}
+components:
+  securitySchemes:
+    serviceToken: {type: http, scheme: bearer}

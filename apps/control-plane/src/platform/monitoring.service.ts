@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { CollectionStage,MonitorSnapshot,WorkspaceState } from '@ai-gateway/contracts';
+import type { AlertRule,CollectionStage,MonitorReading,MonitorSnapshot,WorkspaceState } from '@ai-gateway/contracts';
 import { DemoStore } from '../store/demo.store';
 import { WorkspaceRepository } from './workspace.repository';
 import { activeMember,operator } from './validation';
@@ -25,16 +25,32 @@ export class MonitoringService {
   async evaluate(forceCollection=false){
     // A minute is evaluated at most once, including manual maintenance runs and process restarts.
     const bucket=Math.floor(Date.now()/60000),to=new Date(bucket*60000).toISOString();
+    // Statistics may be slow or unavailable. Never hold the workspace write lock
+    // while collecting them: every request admission shares that workspace row.
+    const captured=await this.repository.read(),snapshot=monitoringState(captured);
+    const collect=forceCollection||snapshot.collection.bucket!==bucket,failedStages:CollectionStage[]=[];
+    const readings:{rule:AlertRule;reading:MonitorReading}[]=[];
+    if(collect){const probe=await this.collectRows(captured,new Date((bucket-5)*60000).toISOString(),to);if(probe.failedStage)failedStages.push(probe.failedStage);}
+    for(const configured of snapshot.rules){
+      const active=snapshot.events.find(e=>e.ruleId===configured.id&&e.status==='active'),rule=active?.ruleSnapshot??configured;
+      if(!configured.active&&!active)continue;
+      const previous=snapshot.evaluations[rule.id],due=previous?.bucket!==bucket||previous.ruleVersion!==rule.version;if(!due&&!collect)continue;
+      const from=new Date((bucket-rule.windowMinutes)*60000).toISOString();let summary=null;
+      try{summary=(await this.store.queryCalls({from,to,serviceId:rule.serviceId??undefined,modelId:rule.modelId??undefined,limit:1})).summary;}catch{failedStages.push('rule_windows');}
+      if(due)readings.push({rule,reading:metricReading(rule,summary,from,to,new Date().toISOString())});
+    }
     return this.repository.transact(async tx=>{
-      const m=monitoringState(tx.state),collect=forceCollection||m.collection.bucket!==bucket,failedStages:CollectionStage[]=[];let evaluated=0;
-      if(collect){const probe=await this.collectRows(tx.state,new Date((bucket-5)*60000).toISOString(),to,tx);if(probe.failedStage)failedStages.push(probe.failedStage);}
-      for(const configured of m.rules){
+      const m=monitoringState(tx.state);let evaluated=0;
+      for(const prepared of readings){
+        const configured=m.rules.find(rule=>rule.id===prepared.rule.id);if(!configured)continue;
         const active=m.events.find(e=>e.ruleId===configured.id&&e.status==='active'),rule=active?.ruleSnapshot??configured;
         if(!configured.active&&!active)continue;
-        const previous=m.evaluations[rule.id],due=previous?.bucket!==bucket||previous.ruleVersion!==rule.version;if(!due&&!collect)continue;
-        const from=new Date((bucket-rule.windowMinutes)*60000).toISOString();let summary=null;
-        try{summary=(await tx.queryCalls({from,to,serviceId:rule.serviceId??undefined,modelId:rule.modelId??undefined,limit:1})).summary;}catch{failedStages.push('rule_windows');}
-        if(due){applyAlertReading(tx.state,rule,metricReading(rule,summary,from,to,new Date().toISOString()),bucket);evaluated++;}
+        // Recheck versions and the minute under the lock: another instance or
+        // operator may have updated the rule while its sample was collected.
+        if(rule.version!==prepared.rule.version)continue;
+        const previous=m.evaluations[rule.id];
+        if(previous&&(previous.bucket>bucket||previous.bucket===bucket&&previous.ruleVersion===rule.version))continue;
+        applyAlertReading(tx.state,rule,prepared.reading,bucket);evaluated++;
       }
       if(collect||failedStages.length)applyCollectionReading(tx.state,failedStages,bucket,new Date().toISOString());
       return {evaluated,collectionQuality:m.collection.quality};

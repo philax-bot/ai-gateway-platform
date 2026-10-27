@@ -1,6 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
 import { createHash } from 'node:crypto';
-import type { AdmissionScope, AdmissionSnapshot, AuthorizeRequest, PriceSnapshot, ReasonCode, UsageLimits, WorkspaceState } from '@ai-gateway/contracts';
+import type { AdmissionScope, AdmissionSnapshot, AuthorizeRequest, PriceSnapshot, ReasonCode, RequestLimitDiagnostic, UsageLimits, WorkspaceState } from '@ai-gateway/contracts';
 import { businessDenial } from '../platform/domain';
 
 export const LEGACY_RESERVATION_AMOUNT=0.02;
@@ -11,7 +11,24 @@ export function publicLogAdmission(admission:AdmissionSnapshot|null|undefined){
   return {kind:admission.kind,price:admission.price,reservedAmount:admission.reservedAmount,route:route?{serviceId:route.serviceId,poolId:route.poolId,definitionId:route.definitionId,upstreamModel:route.upstreamModel}:null};
 }
 export interface BatchScope {entitlementId?:string|null;projectId:string|null;purpose:string;sourceId:string}
-type AdmissionResult={admission:AdmissionSnapshot;reason?:never}|{admission?:never;reason:ReasonCode};
+type AdmissionResult={admission:AdmissionSnapshot;reason?:never;requestLimits?:never}|{admission?:never;reason:ReasonCode;requestLimits?:RequestLimitDiagnostic};
+export function admissionDenialMessage(reason:ReasonCode,limits?:RequestLimitDiagnostic):string {
+  if(reason==='request_limit_exceeded'&&limits){
+    const sources=limits.limitSources.filter(cap=>cap.maxOutputTokens===limits.allowedOutputTokens).map(cap=>cap.source).join(', ');
+    return `requested output ${limits.requestedOutputTokens??'default'} exceeds allowed ${limits.allowedOutputTokens} tokens (${sources}); estimated input ${limits.estimatedInputTokens}, model context ${limits.modelContextTokens}`;
+  }
+  const messages:Partial<Record<ReasonCode,string>>={
+    no_quota:'no unexpired quota batch applies to this purpose and model',
+    quota_insufficient:'no single eligible quota batch can fund this request reservation',
+    price_unconfigured:'input, output and cached-input prices must be explicitly configured',
+    service_unavailable:'the selected model has no active verified service route',
+    model_not_open:'the model is not open for the current entitlement and purpose',
+    policy_stale:'the requested price version is outdated; obtain a new quote',
+    subject_disabled:'the subject, credential or entitlement is inactive or expired',
+    request_limit_exceeded:'the request exceeds the applicable output or model context limit',
+  };
+  return messages[reason]??'the request is denied by the current policy';
+}
 function priceUnits(price:number):bigint {
   if(!Number.isFinite(price)||price<0||price>1e9||Math.abs(price*1e6-Math.round(price*1e6))>0.001)throw new BadRequestException('prices support up to six decimals per million tokens');
   return BigInt(Math.round(price*1e6));
@@ -60,11 +77,16 @@ export function admissionForBatch(state:WorkspaceState|undefined,input:Authorize
   const defaults=state.settings.limits;
   const scopes:AdmissionScope[]=[];
   const outputCaps:number[]=[];
+  const limitSources:RequestLimitDiagnostic['limitSources']=[];
   const append=(id:string,value:UsageLimits|undefined)=>{
-    const effective=!value||value.mode==='inherit'?defaults:value;
+    const inherited=!value||value.mode==='inherit',effective=inherited?defaults:value;
     if(effective.mode==='none')return;
     scopes.push({id:`${state.tenantId}:${id}`,rpm:effective.rpm,tpm:effective.tpm,concurrency:effective.concurrency});
-    if(effective.maxOutputTokens)outputCaps.push(effective.maxOutputTokens);
+    if(effective.maxOutputTokens){
+      outputCaps.push(effective.maxOutputTokens);
+      const kind=id.split(':')[0],source:RequestLimitDiagnostic['limitSources'][number]['source']=inherited?'enterprise':kind==='service-model'?'service_model':kind==='shared'?'shared_capacity':kind as RequestLimitDiagnostic['limitSources'][number]['source'];
+      if(!limitSources.some(cap=>cap.source===source&&cap.maxOutputTokens===effective.maxOutputTokens))limitSources.push({source,maxOutputTokens:effective.maxOutputTokens});
+    }
   };
   append(`subject:${input.identity.subjectType}:${input.identity.subjectId}`,state.members.find(m=>m.id===input.identity.subjectId)?.limits);
   append(purposeScope,purposeLimits);append(`pool:${pool.id}`,pool.limits);
@@ -73,7 +95,8 @@ export function admissionForBatch(state:WorkspaceState|undefined,input:Authorize
   const estimatedInputTokens=input.estimatedInputTokens??0;
   const outputLimit=Math.min(...outputCaps,definition.contextTokens-estimatedInputTokens);
   const maxOutputTokens=input.maxOutputTokens??Math.min(4096,outputLimit);
-  if(!Number.isSafeInteger(estimatedInputTokens)||estimatedInputTokens<0||!Number.isSafeInteger(maxOutputTokens)||maxOutputTokens<1||maxOutputTokens>outputLimit)return {reason:'request_limit_exceeded'};
+  limitSources.push({source:'model_context',maxOutputTokens:Math.max(0,definition.contextTokens-estimatedInputTokens)});
+  if(!Number.isSafeInteger(estimatedInputTokens)||estimatedInputTokens<0||!Number.isSafeInteger(maxOutputTokens)||maxOutputTokens<1||maxOutputTokens>outputLimit)return {reason:'request_limit_exceeded',requestLimits:{estimatedInputTokens,requestedOutputTokens:input.maxOutputTokens??null,allowedOutputTokens:Math.max(0,outputLimit),modelContextTokens:definition.contextTokens,limitSources}};
   const reservePrice={...price,inputPrice:Math.max(price.inputPrice,price.cachedInputPrice)};
   const reservedAmount=costForUsage(reservePrice,estimatedInputTokens,maxOutputTokens,0);
   return {admission:{kind:'configured',route:{serviceId:service.id,poolId:pool.id,definitionId:definition.id,baseUrl:service.baseUrl,upstreamModel:mapping.upstreamModel,credentialRef:service.credentialRef,maxOutputTokens},price,reservedAmount,estimatedTokens:estimatedInputTokens+maxOutputTokens,scopes}};

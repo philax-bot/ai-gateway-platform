@@ -3,6 +3,8 @@ import type { AuthorizeRequest, Entitlement, Plan, SettlementRequest } from '@ai
 import { initialWorkspace } from '../platform/seed';
 import { DemoStore } from './demo.store';
 import { costForUsage } from './admission';
+import { WorkspaceRepository } from '../platform/workspace.repository';
+import { PlatformService } from '../platform/platform.service';
 
 function configured(){
   const store=new DemoStore(),state=initialWorkspace(),identity=store.credentials.get('local-employee-key')!.identity;
@@ -18,6 +20,38 @@ function configured(){
   return {store,state,batch,request};
 }
 describe('trusted admission and immutable billing',()=>{
+  it('quotes the same refusal as admission when an unfunded eligible source precedes a more restrictive source',async()=>{
+    const {store,state,batch,request}=configured();batch.availableAmount=0;
+    const original=state.entitlements[0],second={...structuredClone(original),id:'second-entitlement'};
+    second.planId='restrictive-plan';second.planSnapshot.id=second.planId;second.planSnapshot.limits={mode:'custom',maxOutputTokens:128};state.plans.push(second.planSnapshot);state.entitlements.push(second);
+    store.quotaBatches.set('later-restrictive',{...structuredClone(batch),id:'later-restrictive',availableAmount:10,entitlementId:second.id,expiresAt:'2099-12-31T00:00:00Z'});
+    const repository=new WorkspaceRepository(store);await repository.transact(async tx=>Object.assign(tx.state,state));
+    const platform=new PlatformService(repository,store),input=request();
+    const admitted=await store.authorize(input),quoted=await platform.quote(input.identity.subjectId,{purpose:'personal',model:'test-model',messages:[],max_tokens:200});
+    expect(admitted.reasonCode).toBe('quota_insufficient');expect(quoted.reasonCode).toBe(admitted.reasonCode);expect(quoted).not.toHaveProperty('requestLimits');
+  });
+  it('explains the binding output limit without reserving funds and preserves it on replay',async()=>{
+    const {store,state,batch,request}=configured();state.services[0].limits={mode:'custom',maxOutputTokens:128};
+    const input=request(),denied=await store.authorize(input);
+    expect(denied.reasonCode).toBe('request_limit_exceeded');expect(denied.reservation).toBeNull();
+    expect(denied.requestLimits).toMatchObject({requestedOutputTokens:200,allowedOutputTokens:128,estimatedInputTokens:100});
+    expect(denied.requestLimits!.limitSources).toContainEqual({source:'service',maxOutputTokens:128});
+    expect(denied.reasonMessage).toContain('allowed 128');expect(denied.reasonMessage).not.toContain('quota');
+    expect(batch.availableAmount).toBe(10);expect(store.reservationsByRequest.size).toBe(0);
+    state.services[0].limits.maxOutputTokens=64;
+    expect((await store.authorize(input)).requestLimits).toEqual(denied.requestLimits);
+    expect(JSON.stringify(denied.requestLimits)).not.toMatch(/baseUrl|credentialRef|service-local|org-demo/);
+  });
+  it('distinguishes exhausted model context, unconfigured pricing and insufficient funds',async()=>{
+    const {store,state,batch,request}=configured();
+    const denied=await store.authorize(request({estimatedInputTokens:state.definitions[0].contextTokens}));
+    expect(denied.requestLimits!.allowedOutputTokens).toBe(0);
+    expect(denied.requestLimits!.limitSources).toContainEqual({source:'model_context',maxOutputTokens:0});
+    state.services[0].mappings[0].inputPrice=null;
+    const price=await store.authorize(request());expect(price.reasonMessage).toContain('prices');expect(price.requestLimits).toBeUndefined();
+    state.services[0].mappings[0].inputPrice=2;batch.availableAmount=0;
+    const funds=await store.authorize(request());expect(funds.reasonCode).toBe('quota_insufficient');expect(funds.reasonMessage).toContain('eligible quota batch');expect(funds.requestLimits).toBeUndefined();
+  });
   it('reserves a bounded estimate, prices cache as an input subset, and freezes the old price',async()=>{
     const {store,state,batch,request}=configured(),input=request(),admitted=await store.authorize(input);
     expect(admitted.reservation!.reservedAmount).toBe(0.0008);expect(admitted.admission!.route!.serviceId).toBe(state.services[0].id);

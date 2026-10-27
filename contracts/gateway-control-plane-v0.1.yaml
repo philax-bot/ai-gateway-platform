@@ -421,6 +421,25 @@ components:
           type: [string, 'null']
           maxLength: 160
           description: Explicit client retry of an earlier call. The control plane verifies the original belongs to the same tenant, subject type, subject, purpose and project, and that the caller is still active. Missing and out-of-scope references share one 409 error. A retry is still a new request with its own authorization, reservation, pricing and settlement; reusing the original idempotency key stays a replay.
+    RequestLimitDiagnostic:
+      type: object
+      additionalProperties: false
+      required: [estimatedInputTokens, requestedOutputTokens, allowedOutputTokens, modelContextTokens, limitSources]
+      description: Public-safe limit diagnostics. No resource IDs, upstream URLs or credential references. Input is a conservative transport-size estimate, not a tokenizer result.
+      properties:
+        estimatedInputTokens: {type: integer, minimum: 0}
+        requestedOutputTokens: {type: [integer, 'null'], minimum: 1}
+        allowedOutputTokens: {type: integer, minimum: 0}
+        modelContextTokens: {type: integer, minimum: 1}
+        limitSources:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [source, maxOutputTokens]
+            properties:
+              source: {type: string, enum: [enterprise, subject, entitlement, project, application, pool, service, service_model, shared_capacity, model_context]}
+              maxOutputTokens: {type: integer, minimum: 0}
     AuthorizeResponse:
       type: object
       required: [requestId, decision, policyVersion, reservation]
@@ -440,6 +459,7 @@ components:
             estimatedTokens: {type: integer, minimum: 0}
             scopes: {type: array, items: {type: object}}
         reasonMessage: {type: string}
+        requestLimits: {$ref: '#/components/schemas/RequestLimitDiagnostic'}
         policyVersion: {type: string}
         replayed: {type: boolean, description: True for an existing authorization; the simulator rejects repeat forwarding with 409.}
         reservation:

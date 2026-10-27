@@ -44,12 +44,16 @@ services:
       WEB_ORIGIN: ${PUBLIC_ORIGIN:?Set the exact public HTTPS origin}
       GATEWAY_JOURNAL_DIR: ${GATEWAY_JOURNAL_PATH:-/var/lib/signal-atlas/journal}
       ALLOW_UPSTREAM_REQUESTS: ${ALLOW_UPSTREAM_REQUESTS:-false}
+      UPSTREAM_TIMEOUT_MS: ${UPSTREAM_TIMEOUT_MS:-600000}
+      UPSTREAM_FIRST_BYTE_TIMEOUT_MS: ${UPSTREAM_FIRST_BYTE_TIMEOUT_MS:-120000}
+      UPSTREAM_IDLE_TIMEOUT_MS: ${UPSTREAM_IDLE_TIMEOUT_MS:-60000}
+      GATEWAY_DRAIN_TIMEOUT_MS: ${GATEWAY_DRAIN_TIMEOUT_MS:-35000}
     volumes:
       - gateway_journal:/var/lib/signal-atlas/journal
     depends_on:
       control-plane: {condition: service_healthy}
     restart: unless-stopped
-    stop_grace_period: 45s
+    stop_grace_period: ${GATEWAY_STOP_GRACE_PERIOD:-45s}
     read_only: true
     tmpfs: [/tmp]
     healthcheck:

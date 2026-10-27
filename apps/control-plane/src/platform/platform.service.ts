@@ -1,8 +1,8 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { createHmac, randomBytes, randomUUID } from 'node:crypto';
-import type { ApplicationDetail, ApprovalDetail, AuthorizeRequest, CallQuery, ModelRange, PlatformCommand, ProjectDetail, PurposeView, ReasonCode, ReconciliationRequest, UsageLimits, VerificationMappingResult, VerificationRun, WorkspaceState } from '@ai-gateway/contracts';
+import type { ApplicationDetail, ApprovalDetail, AuthorizeRequest, CallQuery, ModelRange, PlatformCommand, ProjectDetail, PurposeView, ReasonCode, ReconciliationRequest, RequestLimitDiagnostic, UsageLimits, VerificationMappingResult, VerificationRun, WorkspaceState } from '@ai-gateway/contracts';
 import { chatCompletionsUrl,estimateChatInput,extractUpstreamUsage,isRequestReference,readUpstreamRequestId,summarizeVerification } from '@ai-gateway/contracts';
-import { admissionForBatch } from '../store/admission';
+import { admissionForBatch, admissionDenialMessage } from '../store/admission';
 import { reconciliationCalculation } from '../store/accounting';
 import { DemoStore } from '../store/demo.store';
 import { WorkspaceRepository } from './workspace.repository';
@@ -372,14 +372,19 @@ export class PlatformService {
     const {state:s,batches}=await this.repository.view();activeMember(s,actorId);
     if(payload.purpose!=='personal'&&payload.purpose!=='project')throw new BadRequestException('invalid online purpose');
     if(typeof payload.model!=='string'||!Array.isArray(payload.messages))throw new BadRequestException('model and messages are required');
-    const request:AuthorizeRequest={requestId:'quote',idempotencyKey:'quote-only',identity:{subjectType:'employee',subjectId:actorId,credentialId:'quote-only',organizationId:s.tenantId,projectId:payload.purpose==='project'?String(payload.projectId):null},purpose:payload.purpose,modelId:payload.model,mode:'chat',policyVersion:'quote',estimatedInputTokens:estimateChatInput(payload),maxOutputTokens:payload.max_tokens as number|undefined};
+    const requestedOutput=payload.max_completion_tokens??payload.max_tokens;
+    if(requestedOutput!==undefined&&(typeof requestedOutput!=='number'||!Number.isSafeInteger(requestedOutput)||requestedOutput<1))throw new BadRequestException('output token limit must be a positive integer');
+    const request:AuthorizeRequest={requestId:'quote',idempotencyKey:'quote-only',identity:{subjectType:'employee',subjectId:actorId,credentialId:'quote-only',organizationId:s.tenantId,projectId:payload.purpose==='project'?String(payload.projectId):null},purpose:payload.purpose,modelId:payload.model,mode:'chat',policyVersion:'quote',estimatedInputTokens:estimateChatInput(payload),maxOutputTokens:requestedOutput as number|undefined};
     const candidates=batches.filter(b=>b.sourceId===actorId&&b.purpose===request.purpose&&b.projectId===request.identity.projectId&&Date.parse(b.expiresAt)>Date.now()&&b.modelIds.includes(request.modelId));
-    let reason:ReasonCode='no_quota';
-    for(const batch of candidates){const quote=admissionForBatch(s,request,batch,true);if(quote.reason){reason=quote.reason;continue;}
-      if(batch.availableAmount<quote.admission.reservedAmount){reason='quota_insufficient';continue;}
+    let reason:ReasonCode='no_quota',eligible=0;
+    let requestLimits:RequestLimitDiagnostic|undefined;
+    for(const batch of candidates){const quote=admissionForBatch(s,request,batch,true);if(quote.reason){reason=quote.reason;requestLimits=quote.requestLimits;continue;}
+      eligible++;
+      if(batch.availableAmount<quote.admission.reservedAmount){reason='quota_insufficient';requestLimits=undefined;continue;}
       const e=s.entitlements.find(e=>e.id===batch.entitlementId);
       return {decision:'allow',reasonCode:'none',batchId:batch.id,sourceName:e?.planSnapshot.name??s.projects.find(p=>p.id===batch.projectId)?.name??'来源批次',estimatedInputTokens:request.estimatedInputTokens,maxOutputTokens:quote.admission.route!.maxOutputTokens,reservedAmount:quote.admission.reservedAmount,price:quote.admission.price,availableAmount:batch.availableAmount};
     }
-    return {decision:'deny',reasonCode:reason};
+    if(eligible){reason='quota_insufficient';requestLimits=undefined;}
+    return {decision:'deny',reasonCode:reason,reasonMessage:admissionDenialMessage(reason,requestLimits),...(requestLimits?{requestLimits}:{})};
   }
 }

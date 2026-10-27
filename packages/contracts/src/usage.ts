@@ -21,11 +21,16 @@ export function extractUpstreamUsage(raw: string): UpstreamUsage | null {
     if (!usage) continue;
     const inputTokens = usage.prompt_tokens ?? usage.input_tokens;
     const outputTokens = usage.completion_tokens ?? usage.output_tokens;
-    const cachedInputTokens = (usage.prompt_tokens_details as Record<string, unknown> | undefined)?.cached_tokens ?? 0;
+    const cachedDetails = (usage.prompt_tokens_details as Record<string, unknown> | undefined)?.cached_tokens;
+    const cachedProvider = usage.prompt_cache_hit_tokens;
+    if(cachedDetails!=null&&cachedProvider!=null&&cachedDetails!==cachedProvider)return null;
+    const cachedInputTokens = cachedDetails ?? cachedProvider ?? 0;
     if ([inputTokens, outputTokens, cachedInputTokens].every(v => typeof v === 'number' && Number.isSafeInteger(v) && v >= 0 && v <= 2147483647)
       && Number(cachedInputTokens) <= Number(inputTokens)) {
       return { inputTokens: inputTokens as number, outputTokens: outputTokens as number, cachedInputTokens: cachedInputTokens as number };
     }
+    // An invalid final usage must not fall back to an earlier cumulative sample.
+    return null;
   }
   return null;
 }

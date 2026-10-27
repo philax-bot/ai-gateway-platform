@@ -2,6 +2,8 @@
 
 企业内部 AI 资源运营平台，采用“自有控制面 + 可替换数据面”：业务后端拥有身份授权、额度预占、结算和调用日志；Higress 是待验证的数据面候选。
 
+当前核心建设顺序与逐项验收见 [核心 TODO](docs/CORE-TODO-2026-10-27.md)，本轮实现、命令和验证边界见 [2026-10-27 核心验证](docs/VALIDATION-CORE-2026-10-27.md)。目标环境部署测试按用户要求暂缓。
+
 当前正在按完整首版产品推进，进度以 [完整实现清单](docs/IMPLEMENTATION-STATUS.md) 为准。运营与个人空间已接入业务 API，受控路由/计价、月度发放、故障恢复、基本监控告警、规则与导入已实现。真实 Higress、完整运行交付及部分业务细节仍在推进。
 
 ```text
@@ -12,7 +14,7 @@ Signal Atlas Web -> gateway-sim -> control-plane authorize
 
 ## 当前能力
 
-- React + Vite + TypeScript；提供三种界面：**左栏 + 标签页（默认）**、**顶栏**、**经典**。登录页和界面右上角一键切换并记住选择，`?ui=sidebar` / `?ui=next` / `?ui=classic` 可临时预览。默认布局是最上方平台切换条、左侧主菜单、右侧页面标签页；默认布局中的筛选、统计、多选和人员选择等共享组件已统一。组件选型、样式和反模式以 [组件选型与样式契约](docs/product/ui-component-contract-v1.md) 为准，后续 UI / AI coding 先按契约选组件。业务规则与数据口径不变，详见 [Signal Atlas 界面说明](docs/product/signal-atlas-v2-signal-desk.md)。
+- React + Vite + TypeScript；提供 `beacon` / `azure` / `sidebar` / `next` / `classic` 五种可切换界面，默认 `sidebar`，当前审核目标为 Beacon。登录页和界面右上角一键切换并记住选择，`?ui=<界面标识>` 可临时预览。共享组件及反模式以 [组件选型与样式契约](docs/product/ui-component-contract-v1.md) 为准，业务规则与数据口径共用同一后端。
 - NestJS + Fastify 控制面，支持内存演示和 PostgreSQL 持久化。
 - 个人、项目成员与应用额度各自独立，不相互补扣。项目总预算与成员分配分开记账，分配保留原批次期限。
 - 授权与结算幂等，并发重复授权只产生一个预占；重复结算只生成一条日志和一次资金变化。
@@ -20,7 +22,7 @@ Signal Atlas Web -> gateway-sim -> control-plane authorize
 - 方案支持一次性/月度、自动 AND 条件、存量显式应用、目录标识导入与逐人结果。范围发放明确区分开通和已有权益追加。
 - 前端可选择用途、在线流式使用、取消、按职责分页检索历史调用，并核对不完整用量的原预占。
 - 运行面板按服务/模型汇总已结束请求，显示统计分母、未知用量、TTFT 样本与在途预占；告警支持窗口、最小样本、连续触发/恢复和知晓。
-- Redis 仅检查连通与健康，不参与额度权威计算。真实 Higress、真实模型（审查环境需显式开启 `REVIEW_ALLOW_UPSTREAM_REQUESTS`）和生产认证尚未接入。
+- Redis 仅检查连通与健康，不参与额度权威计算。已接密码登录与会话；DeepSeek 有少量真实调用的历史证据，不能扩展为生产容量结论。Higress、企业 SSO/目录和外部通知仍未实接；真实外呼需显式开启对应开关并使用指定目标。
 
 ## 本地运行
 
@@ -83,9 +85,16 @@ pnpm check:delivery
 pnpm check:backup
 pnpm check:containers
 pnpm check:web
+pnpm check:gateway
+pnpm check:load
+pnpm check:load:postgres
 ```
 
 `check:isolated` 构建并运行内存控制面、真实模拟网关和仓库内 HTTP 模型替身，无需数据库。`check:postgres` 从控制面配置读取数据库连接，只创建本次专属 `agp_check_<uuid>` schema；测试后移除该 schema，不重置或消费共享演示批次。需要账号具有创建 schema 权限。
+
+`check:gateway` 覆盖本地工具协议、超时/取消和 outbox 运维边界。`check:load` / `check:load:postgres` 使用独立工作空间、平台签发密钥和确定性本地模型，混合非流式/SSE、工作区读取与手动维护，核对每笔已确认调用和资金守恒；数据库模式只创建并清理 `agp_load_<uuid>` schema。默认并发 4、48 个请求，可追加 `--concurrency 8 --requests 120`。报告默认保存在 `.runtime/load-results/`；短样本不代表真实模型或生产容量上限。GitHub 核心回归配置位于 `.github/workflows/core.yml`，远端运行状态单独验收。
+
+真实 Pi + DeepSeek 检查另有 `node scripts/check-live-deepseek.mjs --allow-upstream <Pi CLI 的绝对路径>`；必须显式选择外呼，使用已有审查配置中的官方 DeepSeek 路由/受控凭据引用，在独立内存工作空间发出最多 8 次请求，按配置价格保守估算上限 ¥0.10。原 Pi / CC Switch 配置只读，临时密钥与运行目录在结束后清理，报告写入 `.runtime/live-results/`（可用 `LIVE_REPORT_PATH` 指定新文件）。该估算不是供应商账单或未知取消费用的最终确认；真实测试不进入 CI，也不自动重复执行。
 
 `check:delivery` 同样只使用本次专属 schema，验证迁移完整性、并发/回滚、正式空安装、受控本地调用、重启保持和安装模式隔离。当前结果为 30 项通过，见 [安装与模型引导验证](docs/VALIDATION-INSTALLATION-2026-10-19.md)；不包含真实 TLS、备份恢复或正式部署。2026-10-23 新增迁移 010/011 后，探针迁移版本改为从当前迁移集推导，迁移完整性断言 12 项与交付断言 30 项通过。
 

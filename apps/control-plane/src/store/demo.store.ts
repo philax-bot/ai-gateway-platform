@@ -18,7 +18,7 @@ import type {
 } from '@ai-gateway/contracts';
 import type { ControlPlaneStore, DemoCredential, QuotaSnapshot, StartVerificationInput, VerificationPageQuery } from './control-plane.store';
 import { authorizationFingerprint, checkSettlementScope, reconciliationCalculation, RESERVATION_AMOUNT, retryLinkAllowed, sameIdentity, settlementAmount, type RetryTarget } from './accounting';
-import { admissionForBatch, legacyAdmission, publicLogAdmission } from './admission';
+import { admissionForBatch, admissionDenialMessage, legacyAdmission, publicLogAdmission } from './admission';
 import { businessDenial } from '../platform/domain';
 import {runtimeMode} from '@ai-gateway/contracts';
 import { queryMemoryCalls, callVisible, type CallScope } from './call-query';
@@ -173,7 +173,7 @@ export class DemoStore implements ControlPlaneStore {
       policyVersion: input.policyVersion,
       reservation: null,
     };
-    if(reason){response.reasonCode=reason;response.reasonMessage='current subject or model entitlement is inactive';this.authorizationResponsesByRequest.set(input.requestId,response);return response;}
+    if(reason){response.reasonCode=reason;response.reasonMessage=admissionDenialMessage(reason);this.authorizationResponsesByRequest.set(input.requestId,response);return response;}
     const credential = [...this.credentials.values()].find(
       (item) => item.credentialId === input.identity.credentialId,
     );
@@ -207,15 +207,17 @@ export class DemoStore implements ControlPlaneStore {
     let admission=legacyAdmission();
     let eligible=0;
     let candidateReason:AuthorizeResponse['reasonCode']='no_quota';
+    let candidateLimits:AuthorizeResponse['requestLimits'];
     for(const candidate of batches){
       const quote=admissionForBatch(workspace,input,candidate);
-      if(quote.reason){candidateReason=quote.reason;continue;}
+      if(quote.reason){candidateReason=quote.reason;candidateLimits=quote.requestLimits;continue;}
       eligible++;
       if(candidate.availableAmount>=quote.admission.reservedAmount){batch=candidate;admission=quote.admission;break;}
     }
     if (!batch) {
       response.reasonCode = eligible?'quota_insufficient':batches.length?candidateReason:'no_quota';
-      response.reasonMessage = 'no valid funded quota source, route and price applies to this model';
+      if(response.reasonCode==='request_limit_exceeded')response.requestLimits=candidateLimits;
+      response.reasonMessage = admissionDenialMessage(response.reasonCode,response.requestLimits);
       this.authorizationResponsesByRequest.set(input.requestId, response);
       return response;
     }

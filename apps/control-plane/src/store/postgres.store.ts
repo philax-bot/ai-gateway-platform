@@ -9,7 +9,7 @@ import { businessDenial } from '../platform/domain';
 import { DemoStore } from './demo.store';
 import type { DemoCredential, QuotaSnapshot, StartVerificationInput, VerificationPageQuery } from './control-plane.store';
 import { authorizationFingerprint, checkSettlementScope, reconciliationCalculation, RESERVATION_AMOUNT, retryLinkAllowed, sameIdentity, settlementAmount, type RetryTarget } from './accounting';
-import { admissionForBatch, publicLogAdmission } from './admission';
+import { admissionForBatch, admissionDenialMessage, publicLogAdmission } from './admission';
 import { callVisible, type CallScope } from './call-query';
 import { queryPostgresCalls, type CallRow } from './postgres-call-query';
 import { databaseSchema,runtimeMode } from '@ai-gateway/contracts';
@@ -118,7 +118,7 @@ export class PostgresStore extends DemoStore implements OnModuleDestroy {
         if(!retryLinkAllowed(input,await this.retryTargetWithin(client,input.retryOfRequestId)))throw new ConflictException('retry reference is not available');
       }
       const response: AuthorizeResponse = { requestId: input.requestId, decision: 'deny', reasonCode: 'none', reasonMessage: '', policyVersion: input.policyVersion, reservation: null };
-      if(reason){response.reasonCode=reason;response.reasonMessage='current subject or model entitlement is inactive';await this.saveAuthorization(client,input,response,fingerprint);await client.query('commit');return response;}
+      if(reason){response.reasonCode=reason;response.reasonMessage=admissionDenialMessage(reason);await this.saveAuthorization(client,input,response,fingerprint);await client.query('commit');return response;}
       const result = await client.query('select * from credentials where credential_id=$1', [input.identity.credentialId]);
       const c = result.rows[0];
       if (!c || !c.active) {
@@ -133,13 +133,16 @@ export class PostgresStore extends DemoStore implements OnModuleDestroy {
         const batches = await client.query(`select * from quota_batches where ${scope} order by expires_at,id for update`, values);
         let b:Record<string,any>|undefined,admission:AdmissionSnapshot|undefined,eligible=0;
         let candidateReason:AuthorizeResponse['reasonCode']='no_quota';
+        let candidateLimits:AuthorizeResponse['requestLimits'];
         for(const candidate of batches.rows){
           const quote=admissionForBatch(workspace.rows[0]?.payload as WorkspaceState|undefined,input,{sourceId:candidate.source_id,purpose:candidate.purpose,projectId:candidate.project_id,entitlementId:candidate.entitlement_id});
-          if(quote.reason){candidateReason=quote.reason;continue;}eligible++;
+          if(quote.reason){candidateReason=quote.reason;candidateLimits=quote.requestLimits;continue;}eligible++;
           if(Number(candidate.available_amount)>=quote.admission.reservedAmount){b=candidate;admission=quote.admission;break;}
         }
         if (!b) {
-          response.reasonCode = eligible?'quota_insufficient':batches.rowCount?candidateReason:'no_quota'; response.reasonMessage = 'no valid funded quota source, route and price applies to this model';
+          response.reasonCode = eligible?'quota_insufficient':batches.rowCount?candidateReason:'no_quota';
+          if(response.reasonCode==='request_limit_exceeded')response.requestLimits=candidateLimits;
+          response.reasonMessage=admissionDenialMessage(response.reasonCode,response.requestLimits);
         } else {
           const a=admission!;
           await this.lock(client,a.scopes.map(scope=>`limit:${scope.id}`));

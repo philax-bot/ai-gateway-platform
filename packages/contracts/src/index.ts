@@ -91,8 +91,17 @@ export interface AdmissionSnapshot {
   scopes: AdmissionScope[];
 }
 
+export interface RequestLimitDiagnostic {
+  estimatedInputTokens: number;
+  requestedOutputTokens: number | null;
+  allowedOutputTokens: number;
+  modelContextTokens: number;
+  limitSources: { source: 'enterprise' | 'subject' | 'entitlement' | 'project' | 'application' | 'pool' | 'service' | 'service_model' | 'shared_capacity' | 'model_context'; maxOutputTokens: number }[];
+}
+
 export interface AuthorizeResponse {
   admission?: AdmissionSnapshot;
+  requestLimits?: RequestLimitDiagnostic;
   replayed?: boolean;
   requestId: string;
   decision: Decision;
