@@ -402,18 +402,23 @@ html[data-ui="beacon"] .v4-sidebar-footer { display: none; margin-top: auto; pad
 html[data-ui="beacon"] .v4-side-note { display: block; margin: 0 2px 10px; color: var(--azure-faint); font-size: 10.5px; line-height: 1.5; }
 
 /* ---------- page tabs ---------- */
+/* Reference language for tabs is 「白条 + 紫色下划线」: the bar is a white strip
+   inside the chrome, the active tab is ink text with a 2px accent rule. On the
+   warm canvas a white pill was invisible, and a filled pill would have competed
+   with the rail's selected state. */
 html[data-ui="beacon"] .v4-tabbar {
   position: sticky;
   top: var(--azure-topbar);
   z-index: 25;
-  background: var(--bg);
-  padding-top: 10px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  padding-top: 0;
 }
-html[data-ui="beacon"] .v4-tabbar-inner { display: flex; align-items: center; width: 100%; max-width: 1320px; margin: 0 auto; padding: 0 var(--v2-pad); }
+html[data-ui="beacon"] .v4-tabbar-inner { display: flex; align-items: stretch; width: 100%; max-width: 1320px; margin: 0 auto; padding: 0 var(--v2-pad); min-height: 46px; }
 html[data-ui="beacon"] .v4-tabs {
   display: flex;
-  align-items: center;
-  gap: 4px;
+  align-items: stretch;
+  gap: 0;
   width: 100%;
   min-width: 0;
   overflow-x: auto;
@@ -421,37 +426,49 @@ html[data-ui="beacon"] .v4-tabs {
 }
 html[data-ui="beacon"] .v4-tabs::-webkit-scrollbar { display: none; }
 html[data-ui="beacon"] .v4-tab {
+  position: relative;
   display: flex;
   align-items: center;
   flex: none;
-  height: 32px;
-  border-radius: var(--azure-radius);
+  height: 46px;
+  border-radius: 0;
   transition: background 120ms var(--beacon-ease);
 }
 html[data-ui="beacon"] .v4-tab:hover { background: var(--surface2); }
-html[data-ui="beacon"] .v4-tab.active { background: var(--surface); box-shadow: 0 1px 2px rgba(25, 28, 34, .08), 0 0 0 1px rgba(25, 28, 34, .05); }
+html[data-ui="beacon"] .v4-tab.active { background: transparent; box-shadow: none; }
+html[data-ui="beacon"] .v4-tab.active::after {
+  content: "";
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 0;
+  height: 2px;
+  border-radius: 2px 2px 0 0;
+  background: var(--action);
+}
 html[data-ui="beacon"] .v4-tab-select {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  height: 32px;
+  gap: 7px;
+  height: 46px;
   padding: 0 6px 0 10px;
   border: 0;
-  border-radius: var(--azure-radius);
+  border-radius: 0;
   background: transparent;
   color: var(--muted);
-  font-size: 12.5px;
+  font-size: 13px;
   white-space: nowrap;
 }
+html[data-ui="beacon"] .v4-tab-select:hover { color: var(--text); }
 html[data-ui="beacon"] .v4-tab-select svg { flex: none; opacity: .7; }
-html[data-ui="beacon"] .v4-tab.active .v4-tab-select { color: var(--v2-primary-strong); font-weight: 650; padding-right: 4px; }
+html[data-ui="beacon"] .v4-tab.active .v4-tab-select { color: var(--text); font-weight: 650; padding-right: 4px; }
 html[data-ui="beacon"] .v4-tab.active .v4-tab-select svg { color: var(--action); opacity: 1; }
 html[data-ui="beacon"] .v4-tab-close {
   display: grid;
   place-items: center;
   width: 22px;
   height: 22px;
-  margin-right: 4px;
+  margin-right: 6px;
   flex: none;
   border: 0;
   border-radius: 6px;
