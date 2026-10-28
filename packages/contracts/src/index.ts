@@ -37,6 +37,8 @@ export interface RequestIdentity {
 export interface AuthorizeRequest {
   requestId: string;
   idempotencyKey: string;
+  /** Physical gateway attempt, excluded from the logical idempotency fingerprint. */
+  admissionAttemptId?: string;
   identity: RequestIdentity;
   purpose: Purpose;
   modelId: string;
@@ -100,6 +102,8 @@ export interface RequestLimitDiagnostic {
 }
 
 export interface AuthorizeResponse {
+  /** Owner of the first committed authorization; replays preserve it. */
+  admissionAttemptId?: string;
   admission?: AdmissionSnapshot;
   requestLimits?: RequestLimitDiagnostic;
   replayed?: boolean;

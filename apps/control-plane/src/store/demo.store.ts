@@ -166,6 +166,7 @@ export class DemoStore implements ControlPlaneStore {
     this.authorizationKeys.set(input.requestId, input.idempotencyKey);
 
     const response: AuthorizeResponse = {
+      ...(input.admissionAttemptId?{admissionAttemptId:input.admissionAttemptId}:{}),
       requestId: input.requestId,
       decision: 'deny',
       reasonCode: 'none',
@@ -288,9 +289,11 @@ export class DemoStore implements ControlPlaneStore {
     const existing = this.settlementResponsesByRequest.get(input.requestId);
     if (existing) {
       const known=settlementAmount(input,reservation.amount,reservation.admission);
-      if(existing.status==='pending_review'&&this.settlementKeys.get(`${input.requestId}:lease-expired`)===input.requestId&&input.usageFinal===true&&input.inputTokens!==undefined&&input.outputTokens!==undefined&&!known.pending&&known.billable){
-        const response=await this.reconcileWithinBusinessTransaction({requestId:input.requestId,idempotencyKey:`${input.idempotencyKey}:recovered-final`,actorId:'system:data-plane-recovery',reason:'迟到的完整上游用量，按原预占价格自动核对',mode:'confirm_usage',inputTokens:input.inputTokens,outputTokens:input.outputTokens,cachedInputTokens:input.cachedInputTokens,actualAmount:input.actualAmount});
-        const log=this.callLogs.find(log=>log.requestId===input.requestId)!;log.outcome=input.outcome;log.forwarded=input.forwarded??log.forwarded;log.completedAt=input.completedAt;log.latencyMs=Math.max(0,Date.parse(input.completedAt)-Date.parse(log.startedAt));return response;
+      if(existing.status==='pending_review'&&this.settlementKeys.get(`${input.requestId}:lease-expired`)===input.requestId&&input.usageFinal===true&&input.inputTokens!==undefined&&input.outputTokens!==undefined&&!known.pending&&(known.billable||(input.outcome==='rejected_before_upstream'&&input.forwarded===false))){
+        const response=await this.reconcileWithinBusinessTransaction({requestId:input.requestId,idempotencyKey:`${input.idempotencyKey}:recovered-final`,actorId:'system:data-plane-recovery',reason:known.billable?'迟到的完整上游用量，按原预占价格自动核对':'数据面持久化记录确认未转发，释放原预占',mode:known.billable?'confirm_usage':'release_hold',inputTokens:input.inputTokens,outputTokens:input.outputTokens,cachedInputTokens:input.cachedInputTokens,actualAmount:input.actualAmount});
+        const log=this.callLogs.find(log=>log.requestId===input.requestId)!;log.outcome=input.outcome;log.forwarded=input.forwarded??log.forwarded;log.usageFinal=true;log.errorCode=input.errorCode??log.errorCode;log.completedAt=input.completedAt;log.latencyMs=Math.max(0,Date.parse(input.completedAt)-Date.parse(log.startedAt));
+        for(const scope of reservation.admission.scopes){const window=this.admissionWindows.get(scope.id);if(window?.start===reservation.windowStart)window.tokens=Math.max(0,window.tokens-(reservation.admission.estimatedTokens-input.inputTokens-input.outputTokens));}
+        return response;
       }
       return { ...existing, status: 'already_finalized' };
     }

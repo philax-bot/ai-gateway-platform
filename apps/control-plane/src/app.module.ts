@@ -19,9 +19,10 @@ import { PlatformService } from './platform/platform.service';
 import { PlatformController } from './platform/platform.controller';
 import { MaintenanceService } from './platform/maintenance.service';
 import { MonitoringService } from './platform/monitoring.service';
+import { DiagnosticsController } from './store/diagnostics.controller';
 
 @Module({
-  controllers: [PolicyController, UsageController, GatewaySyncController, CallsController, HealthController, AuthController, PlatformController],
+  controllers: [PolicyController, UsageController, GatewaySyncController, CallsController, HealthController, AuthController, PlatformController, DiagnosticsController],
   providers: [
     { provide: DemoStore, useClass: process.env.STORE_MODE === 'memory' ? DemoStore : PostgresStore },
     PolicyService,

@@ -1,0 +1,323 @@
+{
+  "success": false,
+  "createdAt": "2026-10-28T05:14:30.606Z",
+  "environment": {
+    "node": "v22.23.1",
+    "platform": "win32",
+    "arch": "x64",
+    "cpu": "Intel(R) Core(TM) Ultra X7 358H",
+    "logicalCpus": 16,
+    "memoryGiB": 32,
+    "revision": "d661d6f",
+    "dirty": true,
+    "store": "isolated PostgreSQL schema",
+    "network": "local control plane/gateway/model; PostgreSQL uses the configured development endpoint",
+    "model": "repository deterministic HTTP stand-in; 13 input / 14 output / 4 cached tokens",
+    "scope": "single instance, 4 managed users with one quota batch each; not production or real-model capacity"
+  },
+  "workload": {
+    "requestLimit": 2000,
+    "durationSeconds": 30,
+    "users": 4,
+    "concurrency": 8,
+    "streamEvery": 3,
+    "adminEvery": 8
+  },
+  "database": {
+    "samples": 123,
+    "sampleFailures": 0,
+    "maxClients": 10,
+    "maxLockWaiters": 6,
+    "waitEvents": {
+      "Client:ClientRead": 735,
+      "Lock:transactionid": 129,
+      "Lock:advisory": 207,
+      "running": 8,
+      "IO:WALSync": 3,
+      "Lock:tuple": 2
+    },
+    "externalBlockerSamples": 0
+  },
+  "hotPath": {
+    "enabled": true,
+    "capacity": 2048,
+    "completed": 433,
+    "retained": 433,
+    "dropped": 0,
+    "operations": {
+      "authorize": {
+        "samples": 145,
+        "failures": 0,
+        "elapsedMs": {
+          "p50": 630.98,
+          "p95": 2339.22,
+          "max": 8855.88
+        },
+        "poolWaitMs": {
+          "p50": 0.05,
+          "p95": 0.08,
+          "max": 58.72
+        },
+        "queries": {
+          "p50": 15,
+          "p95": 15,
+          "max": 15
+        },
+        "sqlMs": {
+          "p50": 630.41,
+          "p95": 2338.62,
+          "max": 8855.3
+        },
+        "stages": {
+          "admission_windows": {
+            "p50": 13.95,
+            "p95": 18.91,
+            "max": 38.55
+          },
+          "advisory_lock": {
+            "p50": 204.41,
+            "p95": 370.29,
+            "max": 3218.46
+          },
+          "authorization_records": {
+            "p50": 28.62,
+            "p95": 41.4,
+            "max": 257.2
+          },
+          "credentials": {
+            "p50": 13.79,
+            "p95": 20.37,
+            "max": 29.32
+          },
+          "other": {
+            "p50": 13.61,
+            "p95": 18.85,
+            "max": 39.69
+          },
+          "platform_workspace": {
+            "p50": 73.75,
+            "p95": 1783.72,
+            "max": 8104.14
+          },
+          "quota_batches": {
+            "p50": 36.39,
+            "p95": 402.3,
+            "max": 817.69
+          },
+          "reservation_limit_scopes": {
+            "p50": 28.49,
+            "p95": 38.89,
+            "max": 49.21
+          },
+          "reservations": {
+            "p50": 13.99,
+            "p95": 18.91,
+            "max": 89.54
+          },
+          "transaction": {
+            "p50": 29.36,
+            "p95": 51.97,
+            "max": 116.17
+          }
+        }
+      },
+      "settle": {
+        "samples": 144,
+        "failures": 0,
+        "elapsedMs": {
+          "p50": 472.34,
+          "p95": 816.64,
+          "max": 1275.36
+        },
+        "poolWaitMs": {
+          "p50": 0.05,
+          "p95": 0.1,
+          "max": 0.4
+        },
+        "queries": {
+          "p50": 14,
+          "p95": 14,
+          "max": 14
+        },
+        "sqlMs": {
+          "p50": 471.94,
+          "p95": 816.16,
+          "max": 1275
+        },
+        "stages": {
+          "advisory_lock": {
+            "p50": 200.55,
+            "p95": 326.47,
+            "max": 378.06
+          },
+          "call_logs": {
+            "p50": 13.94,
+            "p95": 19.69,
+            "max": 89.61
+          },
+          "quota_batches": {
+            "p50": 22.72,
+            "p95": 398.74,
+            "max": 954.63
+          },
+          "reservation_limit_scopes": {
+            "p50": 43.11,
+            "p95": 66.19,
+            "max": 488.86
+          },
+          "reservations": {
+            "p50": 28.11,
+            "p95": 40.9,
+            "max": 88.94
+          },
+          "settlement_records": {
+            "p50": 27.68,
+            "p95": 37.87,
+            "max": 83.22
+          },
+          "transaction": {
+            "p50": 28.58,
+            "p95": 43.01,
+            "max": 96.49
+          },
+          "usage_ledger_entries": {
+            "p50": 13.9,
+            "p95": 19.81,
+            "max": 67.32
+          }
+        }
+      },
+      "resolve_credential": {
+        "samples": 144,
+        "failures": 0,
+        "elapsedMs": {
+          "p50": 13.84,
+          "p95": 74.77,
+          "max": 87.86
+        },
+        "poolWaitMs": {
+          "p50": 0.05,
+          "p95": 59.48,
+          "max": 67.68
+        },
+        "queries": {
+          "p50": 1,
+          "p95": 1,
+          "max": 1
+        },
+        "sqlMs": {
+          "p50": 13.71,
+          "p95": 20.44,
+          "max": 87.76
+        },
+        "stages": {
+          "credentials": {
+            "p50": 13.71,
+            "p95": 20.44,
+            "max": 87.76
+          }
+        }
+      }
+    }
+  },
+  "results": {
+    "durationMs": 31957,
+    "drainMs": 1311,
+    "stopReason": "duration",
+    "requests": 144,
+    "successfulRequests": 143,
+    "errors": {
+      "HTTP_503:control_plane_unavailable": 1
+    },
+    "errorRate": 0.006944444444444444,
+    "requestsPerSecond": 4.51,
+    "latencyMs": {
+      "samples": 144,
+      "p50": 1238.29,
+      "p95": 2962.89,
+      "p99": 4066.8,
+      "max": 5060.16
+    },
+    "streamLatencyMs": {
+      "samples": 48,
+      "p50": 1240.77,
+      "p95": 3807.99,
+      "p99": 5060.16,
+      "max": 5060.16
+    },
+    "nonStreamLatencyMs": {
+      "samples": 96,
+      "p50": 1237.9,
+      "p95": 2582.52,
+      "p99": 3577.56,
+      "max": 3577.56
+    },
+    "ttftMs": {
+      "samples": 47,
+      "p50": 720,
+      "p95": 2693,
+      "p99": 3569,
+      "max": 3569
+    },
+    "adminLatencyMs": {
+      "samples": 18,
+      "p50": 832.16,
+      "p95": 9609.52,
+      "p99": 9609.52,
+      "max": 9609.52
+    },
+    "confirmedCalls": 143,
+    "pendingReview": 0,
+    "confirmedAmount": 0.005577,
+    "quotaBefore": 40,
+    "quotaAfter": 39.994423,
+    "chargedMicros": 5577,
+    "expectedChargedMicros": 5616,
+    "actorBalances": [
+      {
+        "actor": 1,
+        "confirmedCalls": 36,
+        "chargedMicros": 1404,
+        "expectedChargedMicros": 1404
+      },
+      {
+        "actor": 2,
+        "confirmedCalls": 35,
+        "chargedMicros": 1365,
+        "expectedChargedMicros": 1365
+      },
+      {
+        "actor": 3,
+        "confirmedCalls": 36,
+        "chargedMicros": 1404,
+        "expectedChargedMicros": 1404
+      },
+      {
+        "actor": 4,
+        "confirmedCalls": 36,
+        "chargedMicros": 1404,
+        "expectedChargedMicros": 1404
+      }
+    ],
+    "outbox": {
+      "queued": 0,
+      "blocked": 0,
+      "active": 0,
+      "oldestQueuedAgeMs": 0,
+      "oldestBlockedAgeMs": 0,
+      "retryAttempts": 0,
+      "authorizing": 0,
+      "authorizationPending": 0,
+      "authorizationBlocked": 0,
+      "writePending": 0
+    },
+    "outboxItems": [],
+    "ledgerEntries": 143,
+    "unfinishedReservations": 0,
+    "activeLimitScopes": 0
+  },
+  "gatewayEvents": [],
+  "serviceFailureCategories": [],
+  "failure": "all requests must complete\n\n143 !== 144\n",
+  "evidenceDirectory": "D:\\Workspace\\pri\\ai-gateway-platform\\.runtime\\load-7b1eb71806cc47b89567d426ad6a5ddf"
+}

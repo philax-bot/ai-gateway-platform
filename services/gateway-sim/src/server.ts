@@ -110,27 +110,41 @@ async function handleCompletions(request: IncomingMessage, response: ServerRespo
   const retryOfRequestId=typeof retryHeader==='string'?retryHeader:null;
   const idempotencyKey=String(request.headers['idempotency-key']??requestId);
   let credential: ResolvedCredential|null;
-  let decision: AuthorizeResponse;
   try {
     const resolved=await controlPlane<ResolvedCredential|null>('/internal/v1/policy/credentials/resolve', { apiKey:(request.headers.authorization??'').replace(/^Bearer\s+/i,'') });
     if(resolved.status!==200) throw new Error('credential lookup failed');
     credential=resolved.value;
     if(!credential) { sendJson(response,401,{error:{type:'authentication_error',message:'invalid API key'}},origin); return; }
-    const auth=await controlPlane<AuthorizeResponse>('/internal/v1/policy/authorize', {
-      requestId,idempotencyKey,identity:credential.identity,purpose:credential.purpose,modelId:body.model,mode:'chat',
+  } catch { sendJson(response,503,{error:{type:'control_plane_unavailable',message:'authorization service is unavailable'},requestId},origin); return; }
+  const admissionAttemptId=randomUUID();
+  const authorization:AuthorizeRequest={
+      requestId,idempotencyKey,admissionAttemptId,identity:credential.identity,purpose:credential.purpose,modelId:body.model,mode:'chat',
       estimatedInputTokens:estimateChatInput(body),expectedPriceVersion:typeof request.headers['x-price-version']==='string'?request.headers['x-price-version']:undefined,
       maxOutputTokens:requestedOutput as number|undefined,requestFingerprint:createHash('sha256').update(JSON.stringify(body)).digest('hex'),policyVersion:'policy-local-1',
       retryOfRequestId,
-    } satisfies AuthorizeRequest);
+  };
+  try{await journal.beginAuthorization(authorization);}catch{
+    sendJson(response,503,{error:{type:'journal_unavailable',message:'authorization journal is unavailable; authorization was not requested'},requestId},origin);return;
+  }
+  const defer=()=>journal.deferAuthorization(admissionAttemptId).catch(()=>undefined);
+  const forget=()=>journal.forgetAuthorization(admissionAttemptId).catch(()=>defer());
+  let decision:AuthorizeResponse;
+  try{
+    const auth=await controlPlane<AuthorizeResponse>('/internal/v1/policy/authorize',authorization);
     if(auth.status!==200) {
+      if(auth.status===400||auth.status===409)await forget();else await defer();
       sendJson(response,auth.status===409?409:auth.status===400?400:503,{error:{type:auth.status===400?'invalid_request_error':'authorization_error',message:auth.status===400?'retry reference is invalid':'authorization unavailable or conflicting'},requestId},origin); return;
     }
     decision=auth.value;
-  } catch { sendJson(response,503,{error:{type:'control_plane_unavailable',message:'authorization service is unavailable'},requestId},origin); return; }
+    if(!decision||!['allow','deny'].includes(decision.decision))throw new Error('invalid authorization response');
+  } catch {await defer();sendJson(response,503,{error:{type:'control_plane_unavailable',message:'authorization service is unavailable; unresolved authorization will be recovered'},requestId},origin); return; }
   if(decision.decision!=='allow'||!decision.reservation) {
+    if(decision.decision==='allow'){await defer();sendJson(response,503,{error:{type:'authorization_error',message:'authorization response is incomplete'},requestId},origin);return;}
+    await forget();
     sendJson(response,decision.reasonCode==='rate_limited'?429:decision.reasonCode==='request_limit_exceeded'?400:decision.reasonCode==='price_unconfigured'?503:403,{error:{type:'policy_denied',code:decision.reasonCode,message:decision.reasonMessage,...(decision.requestLimits?{details:{requestLimits:decision.requestLimits}}:{})},requestId},origin); return;
   }
-  if(decision.replayed) {
+  if(decision.replayed||decision.requestId!==requestId||(decision.admissionAttemptId&&decision.admissionAttemptId!==admissionAttemptId)) {
+    if(decision.admissionAttemptId===admissionAttemptId)await defer();else await forget();
     sendJson(response,409,{error:{type:'request_already_authorized',message:'request already authorized; repeat forwarding is disabled'},requestId:decision.requestId},origin); return;
   }
   const logicalModel=body.model;
@@ -139,7 +153,8 @@ async function handleCompletions(request: IncomingMessage, response: ServerRespo
   const baseSettlement:SettlementRequest={requestId,idempotencyKey:`${idempotencyKey}:settlement`,reservationId:decision.reservation.reservationId,
     outcome:'rejected_before_upstream',forwarded:false,usageFinal:true,inputTokens:0,outputTokens:0,cachedInputTokens:0,actualAmount:0,currency:'CNY',completedAt:new Date().toISOString(),
     modelId:logicalModel,purpose:credential.purpose,subjectId:credential.identity.subjectId};
-  try{await journal.admitted(baseSettlement);}catch{
+  try{await journal.admitted(baseSettlement);await journal.forgetAuthorization(admissionAttemptId);}catch{
+    await defer();
     try{await controlPlane('/internal/v1/usage/settlements',baseSettlement);}catch{/* control plane retains the reservation for reconciliation */}
     sendJson(response,503,{error:{type:'journal_unavailable',message:'usage journal is unavailable; upstream was not called'},requestId},origin);return;
   }
@@ -225,7 +240,7 @@ async function handleCompletions(request: IncomingMessage, response: ServerRespo
   const errorCode=outcome==='completed'?undefined:deadline?.phase?`upstream_${deadline.phase}_timeout`:draining&&outcome==='partial'?'gateway_stopping':outcome==='upstream_error'?`upstream_http_${upstream?.status??'connection'}`:outcome==='rejected_before_upstream'?'controlled_configuration_unavailable':outcome;
   const settlement: SettlementRequest={...baseSettlement,outcome,forwarded:dispatched,ttftMs,errorCode,...usage,usageFinal,upstreamRequestId,actualAmount:configured?undefined:outcome==='completed'||outcome==='partial'?0.02:0,completedAt:new Date().toISOString()};
   let settled=false;
-  try{settled=await journal.finalize(settlement);}catch{console.error(JSON.stringify({event:'settlement_journal_failed',requestId,reservationId:settlement.reservationId}));}
+  try{settled=await journal.finalize(settlement);}catch(error){console.error(JSON.stringify({event:'settlement_journal_failed',requestId,reservationId:settlement.reservationId,errorName:error instanceof Error?error.name:'unknown',causeCode:(error as NodeJS.ErrnoException).code??null}));}
   if(!settled) { sendJson(response,503,{error:{type:'settlement_pending',message:'usage settlement is pending durable replay or reconciliation'},requestId},origin); return; }
   if(clientCancelled||response.destroyed) return;
   if(streamStarted) {
@@ -251,8 +266,8 @@ async function handleOutbox(request:IncomingMessage,response:ServerResponse){
   }
   if(request.method==='POST'&&url.pathname==='/internal/v1/outbox/retry'){
     let body:Record<string,unknown>;try{body=await readJson(request);}catch{sendJson(response,400,{error:{type:'invalid_request_error',message:'invalid JSON body'}});return;}
-    if(!isRequestReference(body.requestId)||typeof body.reason!=='string'||!body.reason.trim()||body.reason.length>1000||/[\u0000-\u001f\u007f]/.test(body.reason)||Object.keys(body).some(key=>!['requestId','reason'].includes(key))){sendJson(response,400,{error:{type:'invalid_request_error',message:'requestId and a reason of 1–1000 characters are required; settlement changes are forbidden'}});return;}
-    try{sendJson(response,200,{requestId:body.requestId,delivered:await journal.retryBlocked(body.requestId,body.reason.trim())});}
+    if(!isRequestReference(body.requestId)||(body.admissionAttemptId!==undefined&&!isRequestReference(body.admissionAttemptId))||typeof body.reason!=='string'||!body.reason.trim()||body.reason.length>1000||/[\u0000-\u001f\u007f]/.test(body.reason)||Object.keys(body).some(key=>!['requestId','reason','admissionAttemptId'].includes(key))){sendJson(response,400,{error:{type:'invalid_request_error',message:'requestId and a reason of 1–1000 characters are required; settlement changes are forbidden'}});return;}
+    try{sendJson(response,200,{requestId:body.requestId,delivered:body.admissionAttemptId?await journal.retryAuthorization(body.requestId,body.admissionAttemptId as string,body.reason.trim()):await journal.retryBlocked(body.requestId,body.reason.trim())});}
     catch(error){const code=(error as {code?:string}).code;sendJson(response,code==='ENOENT'?404:code==='OUTBOX_NOT_BLOCKED'?409:503,{error:{type:code==='ENOENT'?'outbox_not_found':code==='OUTBOX_NOT_BLOCKED'?'outbox_not_blocked':'journal_unavailable'}});}
     return;
   }
@@ -284,6 +299,6 @@ function shutdown(){
   })().then(()=>{clearTimeout(drain);clearTimeout(deadline);process.exit(0);}).catch(()=>process.exit(1));});
 }
 process.on('SIGTERM',shutdown);process.on('SIGINT',shutdown);
-await journal.initialize(async event=>(await controlPlane<SettlementResponse>('/internal/v1/usage/settlements',event)).status);
+await journal.initialize(async event=>(await controlPlane<SettlementResponse>('/internal/v1/usage/settlements',event)).status,input=>controlPlane<AuthorizeResponse>('/internal/v1/policy/authorize',input));
 const host=process.env.HOST??'127.0.0.1';
 server.listen(port,host,()=>console.log(`gateway listening on ${host}:${port}`));

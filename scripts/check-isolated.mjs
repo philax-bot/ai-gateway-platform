@@ -8,6 +8,7 @@ import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { resolve, sep } from 'node:path';
 import { checkBusiness } from './check-business.mjs';
+import { checkAuthorizationRecovery } from './check-authorization-recovery.mjs';
 
 const root=fileURLToPath(new URL('../', import.meta.url));
 const require=createRequire(resolve(root,'apps/control-plane/package.json'));
@@ -64,6 +65,8 @@ try {
   const gateway=start('services/gateway-sim/dist/server.js',{PORT:String(gwPort),CONTROL_PLANE_URL:cp,MODEL_URL:model,SERVICE_TOKEN:'local-service-token',UPSTREAM_TIMEOUT_MS:'600',GATEWAY_JOURNAL_DIR:resolve(ownedDirectory,'gateway')});
   await ready(`${gw}/health`,gateway);
   const headers={'content-type':'application/json',authorization:'Bearer local-service-token'};
+  assertions+=await checkAuthorizationRecovery({controlPlaneUrl:cp,modelUrl:model,start,freePort,runtimeDirectory:ownedDirectory,
+    inspectLedger:postgres?async requestId=>(await admin.query(`select kind from "${schema}".usage_ledger_entries where request_id=$1`,[requestId])).rows:undefined});
   async function call(path,body) {
     const r=await fetch(`${cp}${path}`,{method:body?'POST':'GET',headers,body:body?JSON.stringify(body):undefined,signal:AbortSignal.timeout(6000)});
     return {status:r.status,body:await r.json()};
@@ -86,6 +89,7 @@ try {
     return {r,id};
   }
 
+  if(!process.argv.includes('--recovery-only')){
   const legacy=start('scripts/check-local-vertical-slice.mjs',{CONTROL_PLANE_URL:cp,GATEWAY_URL:gw,MODEL_URL:model,SERVICE_TOKEN:'local-service-token'});
   const legacyCode=await new Promise(resolve=>legacy.once('exit',resolve));
   check(legacyCode===0,legacy.diagnostic());
@@ -203,6 +207,7 @@ try {
     const monitoringAfter=(await admin.query(`select payload->'monitoring'->'collectionEvents' as events from "${schema}".platform_workspace where id='org-demo'`)).rows[0].events;
     check(monitoringBefore.length>0&&monitoringBefore.every(e=>monitoringAfter.some(v=>v.id===e.id&&v.acknowledgedAt===e.acknowledgedAt)),'collection event identities and acknowledgements survive PostgreSQL restart');
     console.log('PASS PostgreSQL restart preserves balances and call logs');
+  }
   }
   console.log(`PASS ${assertions} assertions (${postgres?'isolated PostgreSQL schema':'memory store'}; ${process.env.SIMULATION_MODEL_URL?'Postman simulation':'repository HTTP model mock'})`);
 } catch(error) {

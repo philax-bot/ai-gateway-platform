@@ -22,6 +22,7 @@ export function authorizationFingerprint(input: AuthorizeRequest): string {
     || (input.requestFingerprint!==undefined&&!/^[a-f0-9]{64}$/.test(input.requestFingerprint))
     || (input.expectedPriceVersion!==undefined&&(typeof input.expectedPriceVersion!=='string'||input.expectedPriceVersion.length>128))
     || (input.retryOfRequestId!==undefined&&input.retryOfRequestId!==null&&!isRequestReference(input.retryOfRequestId))
+    || (input.admissionAttemptId!==undefined&&!isRequestReference(input.admissionAttemptId))
     || !['personal', 'project', 'application'].includes(input.purpose)
     || !['chat', 'embeddings', 'rerank', 'image', 'audio'].includes(input.mode)) {
     throw new BadRequestException('invalid authorization request');

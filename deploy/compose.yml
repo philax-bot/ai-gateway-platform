@@ -15,6 +15,7 @@ services:
       DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in the private runtime configuration}
       DATABASE_SCHEMA: ${DATABASE_SCHEMA:?Set DATABASE_SCHEMA}
       SERVICE_TOKEN: ${SERVICE_TOKEN:?Set a strong SERVICE_TOKEN}
+      CONTROL_PLANE_DIAGNOSTICS: ${CONTROL_PLANE_DIAGNOSTICS:-false}
       BOOTSTRAP_TOKEN: ${BOOTSTRAP_TOKEN:?Set a different strong BOOTSTRAP_TOKEN}
       WEB_ORIGIN: ${PUBLIC_ORIGIN:?Set the exact public HTTPS origin}
       COOKIE_SECURE: 'true'

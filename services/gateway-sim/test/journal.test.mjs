@@ -1,11 +1,20 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, realpath, readdir, readFile, writeFile, rm } from 'node:fs/promises';
+import { mkdtemp, realpath, readdir, readFile, writeFile, rm, rename, mkdir, rmdir } from 'node:fs/promises';
+import {createHash} from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { basename, join, sep } from 'node:path';
 import { SettlementJournal } from '../dist/journal.js';
 
 const event=()=>({requestId:crypto.randomUUID(),idempotencyKey:crypto.randomUUID(),reservationId:crypto.randomUUID(),outcome:'completed',usageFinal:true,inputTokens:10,outputTokens:8,cachedInputTokens:0,completedAt:new Date().toISOString()});
+
+test('restart retains final usage fsynced before a failed replacement of the dispatch record',()=>fixture(async(directory,newJournal)=>{
+  let journal=newJournal();await journal.initialize(async()=>503);const final={...event(),forwarded:true},key=createHash('sha256').update(final.requestId).digest('hex'),target=join(directory,`${key}.json`),saved=`${target}.saved`;
+  await journal.admitted({...final,outcome:'rejected_before_upstream',forwarded:false,inputTokens:0,outputTokens:0});await journal.dispatched(final.requestId);
+  await rename(target,saved);await mkdir(target);await assert.rejects(journal.finalize(final));await journal.close();await rmdir(target);await rename(saved,target);
+  const events=[];journal=newJournal();await journal.initialize(async event=>{events.push(event);return 200;});
+  assert.deepEqual(events,[final]);assert.equal((await journal.status()).queued,0);assert.equal((await journal.status()).writePending,0);
+}));
 async function fixture(work){
   const directory=await mkdtemp(join(tmpdir(),'agp-journal-')),journals=[];
   try{await work(directory,()=>{const j=new SettlementJournal(directory);journals.push(j);return j;});}

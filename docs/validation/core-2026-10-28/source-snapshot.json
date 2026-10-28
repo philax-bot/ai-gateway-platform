@@ -1,0 +1,161 @@
+{
+  "createdAt": "2026-10-28T05:44:12.292Z",
+  "baseRevision": "d661d6f6f62b906fd1e4651b871c70f1b08e337c",
+  "branch": "codex/control-plane-p0",
+  "dirty": true,
+  "note": "Final source snapshot for completed local regression; earlier load experiments differ and are described in the P0 record.",
+  "files": [
+    {
+      "path": ".env.example",
+      "sha256": "d5bdf04d844b1a882b69b7fde2540c3b0983705fcf7c5054f0d21e3264175544"
+    },
+    {
+      "path": ".github/workflows/core.yml",
+      "sha256": "7d965b65d6db4977c1f25af8377ac6845d4ee135b06f21406e03970433027ac0"
+    },
+    {
+      "path": "apps/control-plane/migrations/012_batch_advisory_locks.sql",
+      "sha256": "08df3fa0d822bb1bf7808f3f93685408ecf52078ac9cb6d7601b00dcda584de1"
+    },
+    {
+      "path": "apps/control-plane/src/app.module.ts",
+      "sha256": "b4061e62620cc11b03a091fbb5dc4ebf3cd135fea9117c713ad0dfeb0b3d98dc"
+    },
+    {
+      "path": "apps/control-plane/src/platform/collection-monitoring.spec.ts",
+      "sha256": "a811399c0b81969837deceb2de2089a6d7d9fb347b6573e70aaa091c16edd0a0"
+    },
+    {
+      "path": "apps/control-plane/src/platform/domain.ts",
+      "sha256": "21633ec4390ec26b67e9d2c366206f3510e4150f533b791f7ada492644249a61"
+    },
+    {
+      "path": "apps/control-plane/src/platform/maintenance-lock.spec.ts",
+      "sha256": "41967f8ff41d4b4930edd0a930b824177da4f8383f3f76cc4b96837161345fdd"
+    },
+    {
+      "path": "apps/control-plane/src/platform/maintenance.service.ts",
+      "sha256": "b8d97849703a48009ba69b14c5c7bc4c152195eadd48ebeac62a84d8bf59736b"
+    },
+    {
+      "path": "apps/control-plane/src/platform/monitoring.service.ts",
+      "sha256": "9934bc5801a041b399ba615e9da07e494011e116a578531002cd5dc81d607955"
+    },
+    {
+      "path": "apps/control-plane/src/platform/retention.ts",
+      "sha256": "b2ead3ffbee9779a74999ee6a90ab909da3de26860d876d490053b664c48e7ee"
+    },
+    {
+      "path": "apps/control-plane/src/platform/workspace.repository.ts",
+      "sha256": "dc62c989a75cdd0a2a2572719a197d7d29abf3e4652e946f1f3c5987f01371ad"
+    },
+    {
+      "path": "apps/control-plane/src/store/accounting.ts",
+      "sha256": "a9afc750bf31f4d9e37e129ab956764053f728ea33e432a2185b037de9bf0d37"
+    },
+    {
+      "path": "apps/control-plane/src/store/authorization-recovery.spec.ts",
+      "sha256": "f3bde482b88f8ea2c5a405961aa223ae2d49ada65352ff65e9857e9739bffd02"
+    },
+    {
+      "path": "apps/control-plane/src/store/demo.store.ts",
+      "sha256": "ca74aa4f1a2aef0259db66c19739b518b57993fb17a6a157b6d841b587136389"
+    },
+    {
+      "path": "apps/control-plane/src/store/diagnostics.controller.ts",
+      "sha256": "f95db5da7aa036ea6a2aedbc7714cbc9768df0236a455ff9101df6edbb3d4c03"
+    },
+    {
+      "path": "apps/control-plane/src/store/hot-path-diagnostics.spec.ts",
+      "sha256": "d94f8814428288da42a4bb0c2bcd0b858bb1c4a054f1be8113b8da49f6069874"
+    },
+    {
+      "path": "apps/control-plane/src/store/hot-path-diagnostics.ts",
+      "sha256": "40cf481b49c4a5e748676c3854ee7cc879bc6044826b93f6d14cafbdecd24ef6"
+    },
+    {
+      "path": "apps/control-plane/src/store/postgres.store.ts",
+      "sha256": "4a5d0fe573066b4e47bf2e09f9fe1e0aa142bdd429c93fc05e7fc58a3aed487d"
+    },
+    {
+      "path": "contracts/data-plane-operations-v0.1.yaml",
+      "sha256": "9fb5afe3208fde311436a8f7d997735a2a1c7d0ea40bae0fd616e60068708934"
+    },
+    {
+      "path": "contracts/gateway-control-plane-v0.1.yaml",
+      "sha256": "63f02c5494197c79d4304b8f161fb4e3445121b01df1dfb2cd6952b1444bf0b3"
+    },
+    {
+      "path": "deploy/compose.yml",
+      "sha256": "5d6e4625b04b310cf4bb1fe8e97e7562c272c207347fd406eb26fc7ad0a2e3a2"
+    },
+    {
+      "path": "deploy/runtime.env.example",
+      "sha256": "b742c4556b954b054d4df4c170ffa65e399ff9acb1cb76f45f77bf80b0f1310b"
+    },
+    {
+      "path": "packages/contracts/src/index.ts",
+      "sha256": "c0b338956ce6915e3903035f898fa420929030b468ffd53d24e0cbdc98848915"
+    },
+    {
+      "path": "scripts/check-authorization-recovery.mjs",
+      "sha256": "7c53e73c19edaec53bf1879a564350ba1081be3c9b2ac116313045f232fc5ea9"
+    },
+    {
+      "path": "scripts/check-backup.mjs",
+      "sha256": "213724b6f15689ee42be903eda86d5830e6a9a700ddad230fc81c18428e6d8d5"
+    },
+    {
+      "path": "scripts/check-isolated.mjs",
+      "sha256": "2752ca048a3bd18c17f0f9bc8c596482a0bd777a097c9a57ac5637bb164b7348"
+    },
+    {
+      "path": "scripts/check-load.mjs",
+      "sha256": "8c37c529047624be623b88696e2bfe1edc8fb2954a82622d7117e7d97422e257"
+    },
+    {
+      "path": "scripts/lib/backup.mjs",
+      "sha256": "0b3770bbb7c71e815d2aeea352392c5d93243cb12c31866e015995c77f1770ba"
+    },
+    {
+      "path": "scripts/outbox.mjs",
+      "sha256": "1228e047ccf2e8df3090f82348580016432c09136f5d73f8034598a612ebd027"
+    },
+    {
+      "path": "services/gateway-sim/src/authorization-journal.ts",
+      "sha256": "7b303fe5423f4f85d970163e3e99bf211226324711067347b66efd3c757c0513"
+    },
+    {
+      "path": "services/gateway-sim/src/journal-file.ts",
+      "sha256": "f84820c352e47e50df692c40e6184ae68f867140b2d204c52e22665290db3d8b"
+    },
+    {
+      "path": "services/gateway-sim/src/journal.ts",
+      "sha256": "98c0084bd9869b2ee7f8857764cc5095fb9d37d7856498bbb2a4d398e2636056"
+    },
+    {
+      "path": "services/gateway-sim/src/server.ts",
+      "sha256": "88866c9e1872b9561d034e8ece61fdefe2a45024fcf052b96df737439c2b1827"
+    },
+    {
+      "path": "services/gateway-sim/test/authorization-journal.test.mjs",
+      "sha256": "bb53e322984cb0fd553f469d9c29ff393ddc1e9b236f9070c6107a425476557e"
+    },
+    {
+      "path": "services/gateway-sim/test/http-fixture.mjs",
+      "sha256": "bf832d4c21bf7c4aa626f629442d5c9d7e4b71ecc8263ba7ad96b0f312e22caf"
+    },
+    {
+      "path": "services/gateway-sim/test/journal-file.test.mjs",
+      "sha256": "a9dbb9bd9981e718809b9704aa6bcf63efc2416a641467ad5e1a71d89230eaf0"
+    },
+    {
+      "path": "services/gateway-sim/test/journal.test.mjs",
+      "sha256": "2a1f549f1d5f742a42a263b8815573ad1170c7d5b5ea41d8db3ab50a596f0906"
+    },
+    {
+      "path": "services/gateway-sim/test/outbox.test.mjs",
+      "sha256": "04e758d79099044afce7de1d693042120bb839f29006d88726cf96a82e537bf4"
+    }
+  ]
+}

@@ -14,6 +14,7 @@ import { callVisible, type CallScope } from './call-query';
 import { queryPostgresCalls, type CallRow } from './postgres-call-query';
 import { databaseSchema,runtimeMode } from '@ai-gateway/contracts';
 import { applyMigrations,loadMigrations } from './migrations';
+import { hotPathDiagnostics } from './hot-path-diagnostics';
 
 interface VerificationRow {
   id:string; operator_id:string; service_id:string; service_name:string; config_version:number; state:VerificationRun['state'];
@@ -85,9 +86,7 @@ export class PostgresStore extends DemoStore implements OnModuleDestroy {
   async onModuleDestroy(): Promise<void> { this.redis?.disconnect(); await this.pool.end(); }
 
   private async lock(client: PoolClient, keys: string[]): Promise<void> {
-    for (const key of [...new Set(keys)].sort()) {
-      await client.query('select pg_advisory_xact_lock(hashtextextended($1,0))', [key]);
-    }
+    if(keys.length)await client.query('select gateway_lock_keys($1::text[])',[[...new Set(keys)].sort()]);
   }
 
   private async saveAuthorization(client:PoolClient,input:AuthorizeRequest,response:AuthorizeResponse,fingerprint:string){
@@ -101,12 +100,12 @@ export class PostgresStore extends DemoStore implements OnModuleDestroy {
 
   async authorize(input: AuthorizeRequest): Promise<AuthorizeResponse> {
     const fingerprint = authorizationFingerprint(input);
-    const client = await this.pool.connect();
+    const trace=hotPathDiagnostics.start('authorize');
+    const raw=await this.pool.connect().catch(error=>{trace.finish(true);throw error;});
+    const client=trace.acquired(raw);let failed=false;
     try {
       await client.query('begin');
       await this.lock(client, [`authorize-key:${input.idempotencyKey}`, `authorize-request:${input.requestId}`]);
-      const workspace=await client.query('select payload from platform_workspace where id=$1 for share',['org-demo']);
-      const reason=workspace.rowCount?businessDenial(workspace.rows[0].payload as WorkspaceState,input):null;
       const previous = await client.query('select * from authorization_records where idempotency_key=$1 or request_id=$2', [input.idempotencyKey,input.requestId]);
       if (previous.rowCount) {
         const r = previous.rows[0];
@@ -114,10 +113,12 @@ export class PostgresStore extends DemoStore implements OnModuleDestroy {
         await client.query('commit');
         return { ...(r.response as AuthorizeResponse), replayed: true };
       }
+      const workspace=await client.query('select payload from platform_workspace where id=$1 for share',['org-demo']);
+      const reason=workspace.rowCount?businessDenial(workspace.rows[0].payload as WorkspaceState,input):null;
       if(input.retryOfRequestId){
         if(!retryLinkAllowed(input,await this.retryTargetWithin(client,input.retryOfRequestId)))throw new ConflictException('retry reference is not available');
       }
-      const response: AuthorizeResponse = { requestId: input.requestId, decision: 'deny', reasonCode: 'none', reasonMessage: '', policyVersion: input.policyVersion, reservation: null };
+      const response: AuthorizeResponse = { ...(input.admissionAttemptId?{admissionAttemptId:input.admissionAttemptId}:{}),requestId: input.requestId, decision: 'deny', reasonCode: 'none', reasonMessage: '', policyVersion: input.policyVersion, reservation: null };
       if(reason){response.reasonCode=reason;response.reasonMessage=admissionDenialMessage(reason);await this.saveAuthorization(client,input,response,fingerprint);await client.query('commit');return response;}
       const result = await client.query('select * from credentials where credential_id=$1', [input.identity.credentialId]);
       const c = result.rows[0];
@@ -148,12 +149,13 @@ export class PostgresStore extends DemoStore implements OnModuleDestroy {
           await this.lock(client,a.scopes.map(scope=>`limit:${scope.id}`));
           const windowResult=await client.query("select date_trunc('minute',clock_timestamp()) as start,clock_timestamp() as now");
           const windowStart=windowResult.rows[0].start as Date;
-          let limited=false;
-          for(const scope of a.scopes){
-            const window=await client.query('select requests,tokens from admission_windows where scope_id=$1 and window_start=$2',[scope.id,windowStart]);
-            const active=await client.query('select count(*)::int as total from reservation_limit_scopes where scope_id=$1 and active=true and expires_at>clock_timestamp()',[scope.id]);
-            if((scope.rpm!==undefined&&Number(window.rows[0]?.requests??0)+1>scope.rpm)||(scope.tpm!==undefined&&Number(window.rows[0]?.tokens??0)+a.estimatedTokens>scope.tpm)||(scope.concurrency!==undefined&&active.rows[0].total>=scope.concurrency)){limited=true;break;}
-          }
+          const limits=await client.query(`select s.id,coalesce(w.requests,0) as requests,coalesce(w.tokens,0) as tokens,
+            (select count(*)::int from reservation_limit_scopes r where r.scope_id=s.id and r.active=true and r.expires_at>clock_timestamp()) as active
+            from unnest($1::text[]) s(id) left join admission_windows w on w.scope_id=s.id and w.window_start=$2`,[a.scopes.map(scope=>scope.id),windowStart]);
+          const limited=a.scopes.some(scope=>{
+            const row=limits.rows.find(row=>row.id===scope.id)!;
+            return (scope.rpm!==undefined&&Number(row.requests)+1>scope.rpm)||(scope.tpm!==undefined&&Number(row.tokens)+a.estimatedTokens>scope.tpm)||(scope.concurrency!==undefined&&Number(row.active)>=scope.concurrency);
+          });
           if(limited){
             response.reasonCode='rate_limited';response.reasonMessage='an applicable subject, pool, service or shared-resource limit is reached';
             response.admission=a;await this.saveAuthorization(client,input,response,fingerprint);
@@ -164,21 +166,23 @@ export class PostgresStore extends DemoStore implements OnModuleDestroy {
           response.decision = 'allow';response.admission=a; response.reservation = { reservationId,sourceType:b.source_type,sourceId:b.id,reservedAmount:a.reservedAmount,currency:'CNY',expiresAt };
           await client.query(`insert into reservations(reservation_id,request_id,idempotency_key,fingerprint,amount,batch_id,identity,purpose,model_id,created_at,expires_at,admission,retry_of_request_id)
             values($1,$2,$3,$4,$5,$6,$7,$8,$9,now(),$10,$11,$12)`, [reservationId,input.requestId,input.idempotencyKey,fingerprint,a.reservedAmount,b.id,input.identity,input.purpose,input.modelId,expiresAt,a,input.retryOfRequestId??null]);
-          for(const scope of a.scopes){
-            await client.query(`insert into admission_windows(scope_id,window_start,requests,tokens) values($1,$2,1,$3)
-              on conflict(scope_id,window_start) do update set requests=admission_windows.requests+1,tokens=admission_windows.tokens+excluded.tokens`,[scope.id,windowStart,a.estimatedTokens]);
-            await client.query('insert into reservation_limit_scopes(reservation_id,scope_id,window_start,estimated_tokens,expires_at) values($1,$2,$3,$4,$5)',[reservationId,scope.id,windowStart,a.estimatedTokens,expiresAt]);
-          }
+          const scopeIds=a.scopes.map(scope=>scope.id);
+          await client.query(`insert into admission_windows(scope_id,window_start,requests,tokens) select id,$2,1,$3 from unnest($1::text[]) s(id)
+            on conflict(scope_id,window_start) do update set requests=admission_windows.requests+1,tokens=admission_windows.tokens+excluded.tokens`,[scopeIds,windowStart,a.estimatedTokens]);
+          await client.query(`insert into reservation_limit_scopes(reservation_id,scope_id,window_start,estimated_tokens,expires_at)
+            select $1,id,$3,$4,$5 from unnest($2::text[]) s(id)`,[reservationId,scopeIds,windowStart,a.estimatedTokens,expiresAt]);
         }
       }
       await this.saveAuthorization(client,input,response,fingerprint);
       await client.query('commit'); return response;
-    } catch (error) { await client.query('rollback'); throw error; } finally { client.release(); }
+    } catch (error) { failed=true;await client.query('rollback'); throw error; } finally { trace.finish(failed);raw.release(); }
   }
 
   async settle(input: SettlementRequest): Promise<SettlementResponse> {
     settlementAmount(input, RESERVATION_AMOUNT);
-    const client = await this.pool.connect();
+    const trace=hotPathDiagnostics.start('settle');
+    const raw=await this.pool.connect().catch(error=>{trace.finish(true);throw error;});
+    const client=trace.acquired(raw);let failed=false;
     try {
       await client.query('begin');
       await this.lock(client, [`settle-key:${input.idempotencyKey}`, `settle-request:${input.requestId}`]);
@@ -190,9 +194,11 @@ export class PostgresStore extends DemoStore implements OnModuleDestroy {
       if (previous.rows.some((p) => p.request_id !== input.requestId)) throw new ConflictException('settlement key belongs to another request');
       if (previous.rowCount) {
         const known=settlementAmount(input,Number(r.amount),r.admission);
-        if(previous.rows[0].response?.status==='pending_review'&&previous.rows[0].idempotency_key===`${input.requestId}:lease-expired`&&input.usageFinal===true&&input.inputTokens!==undefined&&input.outputTokens!==undefined&&!known.pending&&known.billable){
-          const recovered=await this.reconcileWithinBusinessTransaction({requestId:input.requestId,idempotencyKey:`${input.idempotencyKey}:recovered-final`,actorId:'system:data-plane-recovery',reason:'迟到的完整上游用量，按原预占价格自动核对',mode:'confirm_usage',inputTokens:input.inputTokens,outputTokens:input.outputTokens,cachedInputTokens:input.cachedInputTokens,actualAmount:input.actualAmount},client);
-          await client.query('update call_logs set outcome=$1,completed_at=$2,latency_ms=$3,forwarded=coalesce($5,forwarded) where request_id=$4',[input.outcome,input.completedAt,Math.max(0,Math.min(2147483647,Date.parse(input.completedAt)-r.created_at.getTime())),input.requestId,input.forwarded??null]);await client.query('commit');return recovered;
+        if(previous.rows[0].response?.status==='pending_review'&&previous.rows[0].idempotency_key===`${input.requestId}:lease-expired`&&input.usageFinal===true&&input.inputTokens!==undefined&&input.outputTokens!==undefined&&!known.pending&&(known.billable||(input.outcome==='rejected_before_upstream'&&input.forwarded===false))){
+          const recovered=await this.reconcileWithinBusinessTransaction({requestId:input.requestId,idempotencyKey:`${input.idempotencyKey}:recovered-final`,actorId:'system:data-plane-recovery',reason:known.billable?'迟到的完整上游用量，按原预占价格自动核对':'数据面持久化记录确认未转发，释放原预占',mode:known.billable?'confirm_usage':'release_hold',inputTokens:input.inputTokens,outputTokens:input.outputTokens,cachedInputTokens:input.cachedInputTokens,actualAmount:input.actualAmount},client);
+          const scopes=await client.query('select scope_id from reservation_limit_scopes where reservation_id=$1',[r.reservation_id]);await this.lock(client,scopes.rows.map(scope=>`limit:${scope.scope_id}`));
+          await client.query(`update admission_windows w set tokens=greatest(0,w.tokens-(r.estimated_tokens-$2::bigint-$3::bigint)) from reservation_limit_scopes r where r.reservation_id=$1 and w.scope_id=r.scope_id and w.window_start=r.window_start`,[r.reservation_id,input.inputTokens,input.outputTokens]);
+          await client.query('update call_logs set outcome=$1,completed_at=$2,latency_ms=$3,forwarded=coalesce($5,forwarded),usage_final=true,error_code=coalesce($6,error_code) where request_id=$4',[input.outcome,input.completedAt,Math.max(0,Math.min(2147483647,Date.parse(input.completedAt)-r.created_at.getTime())),input.requestId,input.forwarded??null,input.errorCode??null]);await client.query('commit');return recovered;
         }
         await client.query('commit');
         return { ...(previous.rows[0].response as SettlementResponse),status:'already_finalized' };
@@ -207,22 +213,27 @@ export class PostgresStore extends DemoStore implements OnModuleDestroy {
       const scopes=await client.query('select * from reservation_limit_scopes where reservation_id=$1',[r.reservation_id]);
       await this.lock(client,scopes.rows.map(scope=>`limit:${scope.scope_id}`));
       await client.query('update reservation_limit_scopes set active=false where reservation_id=$1',[r.reservation_id]);
-      if(input.usageFinal!==false&&input.inputTokens!==undefined&&input.outputTokens!==undefined){for(const scope of scopes.rows){
-        await client.query('update admission_windows set tokens=greatest(0,tokens-$1) where scope_id=$2 and window_start=$3',[Number(scope.estimated_tokens)-input.inputTokens-input.outputTokens,scope.scope_id,scope.window_start]);
-      }}
+      if(input.usageFinal!==false&&input.inputTokens!==undefined&&input.outputTokens!==undefined){
+        await client.query(`update admission_windows w set tokens=greatest(0,w.tokens-(r.estimated_tokens-$2::bigint-$3::bigint))
+          from reservation_limit_scopes r where r.reservation_id=$1 and w.scope_id=r.scope_id and w.window_start=r.window_start`,[r.reservation_id,input.inputTokens,input.outputTokens]);
+      }
       if(response.ledgerEntryId)await client.query('insert into usage_ledger_entries(id,request_id,reservation_id,batch_id,kind,amount,detail) values($1,$2,$3,$4,$5,$6,$7)',[response.ledgerEntryId,input.requestId,r.reservation_id,r.batch_id,billable?'settlement':'release',amount,{reservedAmount:Number(r.amount),releasedAmount:Number(r.amount)-amount,admission:r.admission}]);
       await client.query('insert into settlement_records(request_id,idempotency_key,response) values($1,$2,$3)', [input.requestId,input.idempotencyKey,response]);
-      await client.query(`insert into call_logs(request_id,started_at,completed_at,subject_type,subject_id,credential_id,purpose,model_id,outcome,input_tokens,output_tokens,cached_input_tokens,actual_amount,billable_state,reservation_id,project_id,admission,organization_id,latency_ms,usage_final,forwarded,upstream_request_id,retry_of_request_id)
-        values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23)`, [input.requestId,r.created_at,input.completedAt,r.identity.subjectType,r.identity.subjectId,r.identity.credentialId,r.purpose,r.model_id,input.outcome,input.inputTokens??0,input.outputTokens??0,input.cachedInputTokens??0,amount,response.billableState,r.reservation_id,r.identity.projectId??null,r.admission,r.identity.organizationId??null,Math.max(0,Math.min(2147483647,Date.parse(input.completedAt)-r.created_at.getTime())),input.usageFinal!==false&&input.inputTokens!==undefined&&input.outputTokens!==undefined,input.forwarded??(input.outcome==='rejected_before_upstream'?false:null),input.upstreamRequestId??null,r.retry_of_request_id??null]);
-      await client.query('update call_logs set ttft_ms=$1,error_code=$2 where request_id=$3',[input.ttftMs??null,input.errorCode??null,input.requestId]);
+      await client.query(`insert into call_logs(request_id,started_at,completed_at,subject_type,subject_id,credential_id,purpose,model_id,outcome,input_tokens,output_tokens,cached_input_tokens,actual_amount,billable_state,reservation_id,project_id,admission,organization_id,latency_ms,usage_final,forwarded,upstream_request_id,retry_of_request_id,ttft_ms,error_code)
+        values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25)`, [input.requestId,r.created_at,input.completedAt,r.identity.subjectType,r.identity.subjectId,r.identity.credentialId,r.purpose,r.model_id,input.outcome,input.inputTokens??0,input.outputTokens??0,input.cachedInputTokens??0,amount,response.billableState,r.reservation_id,r.identity.projectId??null,r.admission,r.identity.organizationId??null,Math.max(0,Math.min(2147483647,Date.parse(input.completedAt)-r.created_at.getTime())),input.usageFinal!==false&&input.inputTokens!==undefined&&input.outputTokens!==undefined,input.forwarded??(input.outcome==='rejected_before_upstream'?false:null),input.upstreamRequestId??null,r.retry_of_request_id??null,input.ttftMs??null,input.errorCode??null]);
       await client.query('commit'); return response;
-    } catch (error) { await client.query('rollback'); throw error; } finally { client.release(); }
+    } catch (error) { failed=true;await client.query('rollback'); throw error; } finally { trace.finish(failed);raw.release(); }
   }
 
   async getDemoCredential(apiKey: string): Promise<DemoCredential | null> {
     if(typeof apiKey!=='string'||apiKey.length>4096)return null;
-    const result = await this.pool.query('select * from credentials where (api_key=$1 or api_key=$2) and active=true', [apiKey,`sha256:${createHash('sha256').update(apiKey).digest('hex')}`]);
-    const r=result.rows[0]; return r ? { credentialId:r.credential_id,identity:r.identity,purpose:r.purpose,modelIds:parseModelIds(r.model_ids) } : null;
+    const trace=hotPathDiagnostics.start('resolve_credential');
+    const raw=await this.pool.connect().catch(error=>{trace.finish(true);throw error;});
+    const client=trace.acquired(raw);let failed=false;
+    try{
+      const result=await client.query('select * from credentials where (api_key=$1 or api_key=$2) and active=true',[apiKey,`sha256:${createHash('sha256').update(apiKey).digest('hex')}`]);
+      const r=result.rows[0];return r?{credentialId:r.credential_id,identity:r.identity,purpose:r.purpose,modelIds:parseModelIds(r.model_ids)}:null;
+    }catch(error){failed=true;throw error;}finally{trace.finish(failed);raw.release();}
   }
   async listCalls(): Promise<CallLog[]> {
     const result=await this.pool.query('select * from call_logs order by completed_at desc limit 200');

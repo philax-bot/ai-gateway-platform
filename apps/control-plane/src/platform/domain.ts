@@ -132,6 +132,9 @@ export async function syncResources(tx:WorkspaceTransaction){
   }
   for(const member of s.members){try{activeMember(s,member.id);}catch{await tx.disableCredentials(member.id);}}
 }
+export function hasPeriodicWork(s:WorkspaceState){
+  return s.entitlements.some(e=>e.planSnapshot.cadence==='monthly'&&futureGrantStatus(s,e)==='scheduled'&&!alreadyFunded(s,e.memberId,e.planSnapshot));
+}
 export async function runPeriodic(tx:WorkspaceTransaction){
   const s=tx.state,issued=[];
   for(const e of s.entitlements){

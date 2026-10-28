@@ -4,6 +4,7 @@ import type { PoolClient } from 'pg';
 import { DemoStore, type CredentialRecord } from '../store/demo.store';
 import { PostgresStore } from '../store/postgres.store';
 import { initialWorkspace } from './seed';
+import {hotPathDiagnostics} from '../store/hot-path-diagnostics';
 
 export interface WorkspaceTransaction {
   state: WorkspaceState;
@@ -45,7 +46,9 @@ export class WorkspaceRepository {
 
   async view(projectId?:string) {
     if(!(this.store instanceof PostgresStore)) return this.store.exclusive(async()=>{const batches=await this.context(this.memory).batches();return {state:structuredClone(this.memory),batches,budgets:await this.context(this.memory).budgetBatches(),consumedByBatch:projectId?await this.store.confirmedAmountsForBatches(batches.filter(b=>b.projectId===projectId).map(b=>b.id)):{}};});
-    return this.store.withClient(async client=>{
+    const trace=hotPathDiagnostics.start('workspace_view');
+    return this.store.withClient(async raw=>{
+      const client=trace.acquired(raw);let failed=false;
       await client.query('begin isolation level repeatable read read only');
       try {
         const result=await client.query('select payload from platform_workspace where id=$1',['org-demo']);
@@ -54,13 +57,15 @@ export class WorkspaceRepository {
         const batches=await tx.batches();
         const value={state,batches,budgets:await tx.budgetBatches(),consumedByBatch:projectId?await this.store.confirmedAmountsForBatches(batches.filter(b=>b.projectId===projectId).map(b=>b.id),client):{}};
         await client.query('commit');return value;
-      } catch(error){await client.query('rollback');throw error;}
-    });
+      } catch(error){failed=true;await client.query('rollback');throw error;}finally{trace.finish(failed);}
+    }).catch(error=>{trace.finish(true);throw error;});
   }
 
   async transact<T>(work: (tx: WorkspaceTransaction) => Promise<T>,options:{incrementRevision?:boolean}={}): Promise<T> {
     if (this.store instanceof PostgresStore) {
-      return this.store.withClient(async client => {
+      const trace=hotPathDiagnostics.start('workspace_write');
+      return this.store.withClient(async raw => {
+        const client=trace.acquired(raw);let failed=false;
         await client.query('begin');
         try {
           const result = await client.query('select payload from platform_workspace where id=$1 for update', ['org-demo']);
@@ -69,8 +74,8 @@ export class WorkspaceRepository {
           const value = await work(this.context(state, client));
           if(JSON.stringify(state)!==before){if(options.incrementRevision!==false)state.revision++;await client.query('update platform_workspace set payload=$1,revision=$2,updated_at=now() where id=$3', [state,state.revision,state.tenantId]);}
           await client.query('commit'); return value;
-        } catch (error) { await client.query('rollback'); throw error; }
-      });
+        } catch (error) { failed=true;await client.query('rollback'); throw error; }finally{trace.finish(failed);}
+      }).catch(error=>{trace.finish(true);throw error;});
     }
     return this.store.exclusive(async () => {
       const state = structuredClone(this.memory);

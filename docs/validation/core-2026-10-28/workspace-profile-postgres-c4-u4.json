@@ -1,0 +1,478 @@
+{
+  "success": true,
+  "createdAt": "2026-10-28T05:31:25.752Z",
+  "environment": {
+    "node": "v22.23.1",
+    "platform": "win32",
+    "arch": "x64",
+    "cpu": "Intel(R) Core(TM) Ultra X7 358H",
+    "logicalCpus": 16,
+    "memoryGiB": 32,
+    "revision": "d661d6f",
+    "dirty": true,
+    "store": "isolated PostgreSQL schema",
+    "network": "local control plane/gateway/model; PostgreSQL uses the configured development endpoint",
+    "model": "repository deterministic HTTP stand-in; 13 input / 14 output / 4 cached tokens",
+    "scope": "single instance, 4 managed users with one quota batch each; not production or real-model capacity"
+  },
+  "workload": {
+    "requestLimit": 2000,
+    "durationSeconds": 30,
+    "users": 4,
+    "concurrency": 4,
+    "streamEvery": 3,
+    "adminEvery": 8
+  },
+  "database": {
+    "samples": 105,
+    "sampleFailures": 0,
+    "maxClients": 4,
+    "maxLockWaiters": 3,
+    "waitEvents": {
+      "Client:ClientRead": 316,
+      "Lock:advisory": 77,
+      "Lock:transactionid": 22,
+      "running": 4,
+      "IO:WALSync": 1
+    },
+    "externalBlockerSamples": 0,
+    "maxTransactionAgeMs": 3591,
+    "graphAtMax": [
+      {
+        "pid": 725819,
+        "state": "active",
+        "waitType": "Lock",
+        "wait": "transactionid",
+        "ageMs": 336,
+        "blockers": [
+          725835
+        ],
+        "stage": "platform_workspace"
+      },
+      {
+        "pid": 725835,
+        "state": "idle in transaction",
+        "waitType": "Client",
+        "wait": "ClientRead",
+        "ageMs": 3591,
+        "blockers": [],
+        "stage": "reservations"
+      },
+      {
+        "pid": 725836,
+        "state": "idle in transaction",
+        "waitType": "Client",
+        "wait": "ClientRead",
+        "ageMs": 154,
+        "blockers": [],
+        "stage": "reservations"
+      },
+      {
+        "pid": 725837,
+        "state": "active",
+        "waitType": "Lock",
+        "wait": "advisory",
+        "ageMs": 740,
+        "blockers": [
+          725835
+        ],
+        "stage": "gateway_lock_keys"
+      }
+    ]
+  },
+  "hotPath": {
+    "enabled": true,
+    "capacity": 2048,
+    "completed": 241,
+    "retained": 241,
+    "dropped": 0,
+    "operations": {
+      "authorize": {
+        "samples": 68,
+        "failures": 0,
+        "elapsedMs": {
+          "p50": 578.42,
+          "p95": 2604.92,
+          "max": 3770.46
+        },
+        "poolWaitMs": {
+          "p50": 0.03,
+          "p95": 0.07,
+          "max": 0.31
+        },
+        "queries": {
+          "p50": 15,
+          "p95": 15,
+          "max": 15
+        },
+        "sqlMs": {
+          "p50": 577.83,
+          "p95": 2604.53,
+          "max": 3770.1
+        },
+        "localMs": {
+          "p50": 0.34,
+          "p95": 0.64,
+          "max": 1.87
+        },
+        "stages": {
+          "admission_windows": {
+            "p50": 16.34,
+            "p95": 83.28,
+            "max": 398.88
+          },
+          "advisory_lock": {
+            "p50": 92.36,
+            "p95": 444.55,
+            "max": 1154.93
+          },
+          "authorization_records": {
+            "p50": 42.72,
+            "p95": 132.51,
+            "max": 290.89
+          },
+          "credentials": {
+            "p50": 17.22,
+            "p95": 58.83,
+            "max": 664.13
+          },
+          "other": {
+            "p50": 19.21,
+            "p95": 97.49,
+            "max": 312.11
+          },
+          "platform_workspace": {
+            "p50": 118.27,
+            "p95": 1510.05,
+            "max": 2150.5
+          },
+          "quota_batches": {
+            "p50": 40.47,
+            "p95": 170.52,
+            "max": 632.01
+          },
+          "reservation_limit_scopes": {
+            "p50": 38.36,
+            "p95": 103.25,
+            "max": 208.57
+          },
+          "reservations": {
+            "p50": 18.12,
+            "p95": 89.27,
+            "max": 253.78
+          },
+          "transaction": {
+            "p50": 41.67,
+            "p95": 134.4,
+            "max": 620.41
+          }
+        }
+      },
+      "settle": {
+        "samples": 68,
+        "failures": 0,
+        "elapsedMs": {
+          "p50": 470.4,
+          "p95": 1339.36,
+          "max": 2816.83
+        },
+        "poolWaitMs": {
+          "p50": 0.03,
+          "p95": 0.06,
+          "max": 0.07
+        },
+        "queries": {
+          "p50": 14,
+          "p95": 14,
+          "max": 14
+        },
+        "sqlMs": {
+          "p50": 470.14,
+          "p95": 1339.16,
+          "max": 2816.49
+        },
+        "localMs": {
+          "p50": 0.22,
+          "p95": 0.4,
+          "max": 0.53
+        },
+        "stages": {
+          "advisory_lock": {
+            "p50": 172.14,
+            "p95": 588.13,
+            "max": 1376.48
+          },
+          "call_logs": {
+            "p50": 16.16,
+            "p95": 70.31,
+            "max": 490.45
+          },
+          "quota_batches": {
+            "p50": 18.9,
+            "p95": 315.1,
+            "max": 988.91
+          },
+          "reservation_limit_scopes": {
+            "p50": 55.46,
+            "p95": 135.82,
+            "max": 293.39
+          },
+          "reservations": {
+            "p50": 44.19,
+            "p95": 300.44,
+            "max": 379.29
+          },
+          "settlement_records": {
+            "p50": 41.48,
+            "p95": 127.41,
+            "max": 344.37
+          },
+          "transaction": {
+            "p50": 36.5,
+            "p95": 99.86,
+            "max": 305.9
+          },
+          "usage_ledger_entries": {
+            "p50": 16.12,
+            "p95": 52.97,
+            "max": 77.28
+          }
+        }
+      },
+      "resolve_credential": {
+        "samples": 68,
+        "failures": 0,
+        "elapsedMs": {
+          "p50": 17.31,
+          "p95": 95.8,
+          "max": 270.83
+        },
+        "poolWaitMs": {
+          "p50": 0.03,
+          "p95": 0.06,
+          "max": 213.17
+        },
+        "queries": {
+          "p50": 1,
+          "p95": 1,
+          "max": 1
+        },
+        "sqlMs": {
+          "p50": 17.21,
+          "p95": 58.09,
+          "max": 95.74
+        },
+        "localMs": {
+          "p50": 0.04,
+          "p95": 0.07,
+          "max": 0.12
+        },
+        "stages": {
+          "credentials": {
+            "p50": 17.21,
+            "p95": 58.09,
+            "max": 95.74
+          }
+        }
+      },
+      "workspace_write": {
+        "samples": 25,
+        "failures": 0,
+        "elapsedMs": {
+          "p50": 310,
+          "p95": 1581.07,
+          "max": 1752.74
+        },
+        "poolWaitMs": {
+          "p50": 0.04,
+          "p95": 0.11,
+          "max": 0.12
+        },
+        "queries": {
+          "p50": 5,
+          "p95": 13,
+          "max": 14
+        },
+        "sqlMs": {
+          "p50": 290.02,
+          "p95": 1580.63,
+          "max": 1713.46
+        },
+        "localMs": {
+          "p50": 1.78,
+          "p95": 39.86,
+          "max": 41.95
+        },
+        "stages": {
+          "credentials": {
+            "p50": 0,
+            "p95": 196.77,
+            "max": 682.79
+          },
+          "platform_workspace": {
+            "p50": 86.82,
+            "p95": 1517.56,
+            "max": 1670.43
+          },
+          "quota_batches": {
+            "p50": 39.46,
+            "p95": 282.99,
+            "max": 550.1
+          },
+          "transaction": {
+            "p50": 36.25,
+            "p95": 188.14,
+            "max": 217.9
+          }
+        }
+      },
+      "workspace_view": {
+        "samples": 12,
+        "failures": 0,
+        "elapsedMs": {
+          "p50": 175.86,
+          "p95": 578.27,
+          "max": 578.27
+        },
+        "poolWaitMs": {
+          "p50": 0.03,
+          "p95": 0.08,
+          "max": 0.08
+        },
+        "queries": {
+          "p50": 5,
+          "p95": 5,
+          "max": 5
+        },
+        "sqlMs": {
+          "p50": 175.55,
+          "p95": 578.14,
+          "max": 578.14
+        },
+        "localMs": {
+          "p50": 0.11,
+          "p95": 0.23,
+          "max": 0.23
+        },
+        "stages": {
+          "other": {
+            "p50": 15.14,
+            "p95": 82.89,
+            "max": 82.89
+          },
+          "platform_workspace": {
+            "p50": 73.62,
+            "p95": 227.88,
+            "max": 227.88
+          },
+          "quota_batches": {
+            "p50": 19.38,
+            "p95": 331.34,
+            "max": 331.34
+          },
+          "transaction": {
+            "p50": 34.89,
+            "p95": 171.72,
+            "max": 171.72
+          }
+        }
+      }
+    }
+  },
+  "results": {
+    "durationMs": 30381,
+    "drainMs": 1444,
+    "stopReason": "duration",
+    "requests": 68,
+    "successfulRequests": 68,
+    "errors": {},
+    "errorRate": 0,
+    "requestsPerSecond": 2.24,
+    "latencyMs": {
+      "samples": 68,
+      "p50": 1300.08,
+      "p95": 3538.76,
+      "p99": 4412.81,
+      "max": 4412.81
+    },
+    "streamLatencyMs": {
+      "samples": 23,
+      "p50": 1390.62,
+      "p95": 3538.76,
+      "p99": 4207.97,
+      "max": 4207.97
+    },
+    "nonStreamLatencyMs": {
+      "samples": 45,
+      "p50": 1251.22,
+      "p95": 3175.81,
+      "p99": 4412.81,
+      "max": 4412.81
+    },
+    "ttftMs": {
+      "samples": 23,
+      "p50": 728,
+      "p95": 2651,
+      "p99": 3110,
+      "max": 3110
+    },
+    "adminLatencyMs": {
+      "samples": 9,
+      "p50": 1090.07,
+      "p95": 4218.51,
+      "p99": 4218.51,
+      "max": 4218.51
+    },
+    "confirmedCalls": 68,
+    "pendingReview": 0,
+    "confirmedAmount": 0.002652,
+    "quotaBefore": 40,
+    "quotaAfter": 39.997348,
+    "chargedMicros": 2652,
+    "expectedChargedMicros": 2652,
+    "actorBalances": [
+      {
+        "actor": 1,
+        "confirmedCalls": 17,
+        "chargedMicros": 663,
+        "expectedChargedMicros": 663
+      },
+      {
+        "actor": 2,
+        "confirmedCalls": 17,
+        "chargedMicros": 663,
+        "expectedChargedMicros": 663
+      },
+      {
+        "actor": 3,
+        "confirmedCalls": 17,
+        "chargedMicros": 663,
+        "expectedChargedMicros": 663
+      },
+      {
+        "actor": 4,
+        "confirmedCalls": 17,
+        "chargedMicros": 663,
+        "expectedChargedMicros": 663
+      }
+    ],
+    "outbox": {
+      "queued": 0,
+      "blocked": 0,
+      "active": 0,
+      "oldestQueuedAgeMs": 0,
+      "oldestBlockedAgeMs": 0,
+      "retryAttempts": 0,
+      "authorizing": 0,
+      "authorizationPending": 0,
+      "authorizationBlocked": 0,
+      "writePending": 0
+    },
+    "outboxItems": [],
+    "ledgerEntries": 68,
+    "unfinishedReservations": 0,
+    "activeLimitScopes": 0
+  },
+  "gatewayEvents": [],
+  "serviceFailureCategories": []
+}

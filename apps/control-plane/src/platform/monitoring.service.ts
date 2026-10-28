@@ -39,6 +39,7 @@ export class MonitoringService {
       try{summary=(await this.store.queryCalls({from,to,serviceId:rule.serviceId??undefined,modelId:rule.modelId??undefined,limit:1})).summary;}catch{failedStages.push('rule_windows');}
       if(due)readings.push({rule,reading:metricReading(rule,summary,from,to,new Date().toISOString())});
     }
+    if(!collect&&!failedStages.length&&!readings.length)return {evaluated:0,collectionQuality:snapshot.collection.quality};
     return this.repository.transact(async tx=>{
       const m=monitoringState(tx.state);let evaluated=0;
       for(const prepared of readings){

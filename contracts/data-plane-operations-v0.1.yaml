@@ -6,19 +6,19 @@ security: [{serviceToken: []}]
 paths:
   /internal/v1/outbox:
     get:
-      summary: Inspect durable settlement backlog without request or response text
+      summary: Inspect durable authorization and settlement backlog without request or response text
       parameters:
         - in: query
           name: requestId
           schema: {type: string, maxLength: 160}
       responses:
         '200':
-          description: Aggregate queued/blocked/active counts, oldest ages in milliseconds and retry attempts; up to 100 metadata-only entries. Use requestId to inspect a specific event beyond the first 100. Inspection does not change retry state.
+          description: Aggregate queued/blocked/active counts (including authorization intents and failed final writes), writePending and authorizing/authorizationPending/authorizationBlocked counts, oldest ages and retry attempts; up to 100 metadata-only entries. A write_pending entry retains original final usage for storage retry. Authorization phases have an authorization_ prefix and include admissionAttemptId and errorCode, never identity or fingerprints. Use requestId for a specific event beyond the first 100. Inspection does not change retry state.
         '400': {description: Invalid request reference}
         '401': {description: Service token required; user API keys are not accepted}
   /internal/v1/outbox/retry:
     post:
-      summary: Retry one blocked settlement after the contract/configuration has been repaired
+      summary: Retry one blocked authorization or settlement after the contract/configuration has been repaired
       description: >-
         Reuses the original settlement and idempotency key. Never generates a new model request.
         No settlement field may be supplied or changed. Concurrent retries for the same
@@ -26,6 +26,10 @@ paths:
         use this endpoint. Audit event outbox_manual_retry records service-token actor,
         requestId, reason and retry count in structured operational logs; failed delivery
         retains the last manual retry on disk. No bulk retry is provided.
+        Supply admissionAttemptId to select a blocked authorization intent; it reuses the
+        original authorization input and then releases only a proven unforwarded owned hold.
+        An authorization_manual_retry audit event identifies the attempt. Ownerless legacy
+        records remain blocked until ownership can be established; retries never invent it.
       requestBody:
         required: true
         content:
@@ -36,6 +40,7 @@ paths:
               required: [requestId, reason]
               properties:
                 requestId: {type: string, minLength: 1, maxLength: 160}
+                admissionAttemptId: {type: string, minLength: 1, maxLength: 160}
                 reason: {type: string, minLength: 1, maxLength: 1000}
       responses:
         '200': {description: Request ID and delivered boolean; false means the original event remains queued or blocked}

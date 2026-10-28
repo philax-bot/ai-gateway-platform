@@ -14,6 +14,19 @@ tags:
   - name: Usage
   - name: GatewaySync
 paths:
+  /internal/v1/diagnostics/hot-path:
+    get:
+      summary: Read opt-in, bounded process-local PostgreSQL hot-path timings
+      security: [{serviceToken: []}]
+      description: >-
+        CONTROL_PLANE_DIAGNOSTICS=true enables up to 2048 completed authorize, settle and
+        credential-resolution, workspace-write and workspace-view samples. Returns retained/dropped counts and aggregate p50/p95/max
+        elapsed, pool wait, SQL round-trip count, SQL wall time by fixed stage labels and local time outside SQL.
+        SQL time includes database/network/lock wait, not only server execution.
+        No SQL, bind values, identities, keys or request text are retained. Default is disabled.
+      responses:
+        '200': {description: Enabled flag, capacity, completed/retained/dropped counts and per-operation aggregates}
+        '401': {description: Service token required; employee API keys are not accepted}
   /api/v1/platform/applications/{id}:
     get:
       summary: Read application setup progress and independent finance within owner or operator scope
@@ -408,6 +421,11 @@ components:
       properties:
         requestId: {type: string, minLength: 1}
         idempotencyKey: {type: string, minLength: 8}
+        admissionAttemptId:
+          type: string
+          minLength: 1
+          maxLength: 160
+          description: Unique physical gateway attempt. Excluded from the logical fingerprint to preserve existing keys. The first committed attempt owns any reservation; a retry must never claim another attempt's hold.
         identity: {$ref: '#/components/schemas/RequestIdentity'}
         purpose: {type: string, enum: [personal, project, application]}
         modelId: {type: string, minLength: 1}
@@ -445,6 +463,9 @@ components:
       required: [requestId, decision, policyVersion, reservation]
       properties:
         requestId: {type: string}
+        admissionAttemptId:
+          type: string
+          description: First committed physical attempt, preserved on every replay. Legacy records may omit it; an unknown owner must never be inferred from the retry.
         decision: {type: string, enum: [allow, deny]}
         reasonCode: {type: string, enum: [none, credential_invalid, model_not_open, service_unavailable, no_quota, quota_insufficient, policy_stale, subject_disabled, dependency_unavailable, price_unconfigured, rate_limited, request_limit_exceeded]}
         admission:

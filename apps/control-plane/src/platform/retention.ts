@@ -51,11 +51,14 @@ export function applyRetention(state:WorkspaceState,prepared:ReturnType<typeof p
   const run:RetentionRun={id:newId('retention'),executedAt:new Date().toISOString(),checkedAt:prepared.report.checkedAt,cutoff:prepared.report.cutoff,days:prepared.report.days,source,actorId,removed:prepared.report.eligible};
   state.retention={lastRun:run};return run;
 }
-export function scheduledRetention(state:WorkspaceState){
-  if(state.settings.retentionAutomatic!==true)return null;
+export function retentionDue(state:WorkspaceState){
+  if(state.settings.retentionAutomatic!==true)return false;
   const today=(at:string)=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(at));
   const last=state.retention?.lastRun;
-  if(last&&last.days===state.settings.retentionDays&&today(last.executedAt)===today(new Date().toISOString()))return null;
+  return !(last&&last.days===state.settings.retentionDays&&today(last.executedAt)===today(new Date().toISOString()));
+}
+export function scheduledRetention(state:WorkspaceState){
+  if(!retentionDue(state))return null;
   const run=applyRetention(state,prepareRetention(state),'system:retention','automatic');
   state.audit.push({id:newId('audit'),actorId:run.actorId,action:'retention.run',objectId:run.id,reason:'按已启用的每日保留策略清理运行辅助记录',createdAt:run.executedAt,detail:{...run}});
   return run;

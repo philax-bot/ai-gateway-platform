@@ -82,7 +82,7 @@ describe('collection failures are independent, actionable and evidence based',()
 describe('monitoring still runs when periodic business maintenance fails',()=>{
   it('preserves the business failure, reports maintenance unavailable and still evaluates monitoring',async()=>{
     const store=new DemoStore(),repo=new WorkspaceRepository(store),monitor=new MonitoringService(repo,store),failure=new Error('business maintenance unavailable');
-    vi.spyOn(repo,'transact').mockRejectedValue(failure);const evaluate=vi.spyOn(monitor,'evaluate').mockResolvedValue({evaluated:0,collectionQuality:'collected'});
+    vi.spyOn(repo,'read').mockRejectedValue(failure);const evaluate=vi.spyOn(monitor,'evaluate').mockResolvedValue({evaluated:0,collectionQuality:'collected'});
     const maintenance=new MaintenanceService(repo,store,monitor);await expect(maintenance.run()).rejects.toBe(failure);expect(evaluate).toHaveBeenCalledOnce();expect(maintenance.status()).toMatchObject({running:false,error:'maintenance_unavailable',lastSuccessAt:null});
   });
   it('serializes overlapping runs and surfaces monitoring failures',async()=>{
