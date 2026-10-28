@@ -246,7 +246,7 @@ export class PlatformService {
         s.audit.push({...audit,objectName:describeAudit(s,audit).objectName});
         s.operations[c.idempotencyKey]={fingerprint,result:safeResult(result)};
         return {result,revision:s.revision+1,replayed:false};
-      });
+      },{diagnosticContext:'business_command'});
     } catch(error){
       if(c.type==='approval.execute')await this.repository.transact(async tx=>{
         const actor=activeMember(tx.state,actorId),a=tx.state.approvals.find(a=>a.id===c.payload.id);
@@ -254,7 +254,7 @@ export class PlatformService {
           a.status='failed';a.failure=error instanceof Error?error.message:'execution failed';
           tx.state.audit.push({id:newId('audit'),actorId,action:'approval.execution_failed',objectId:a.id,reason:a.failure,createdAt:now(),detail:{}});
         }
-      });
+      },{diagnosticContext:'approval_failure'});
       throw error;
     }
   }
@@ -337,7 +337,7 @@ export class PlatformService {
       current.verification=passed?'passed':'failed';current.verificationMessage=this.verificationMessage(finished);current.verifiedAt=now();await syncResources(tx);
       tx.state.audit.push({id:newId('audit'),actorId,action:'service.verify',objectId:serviceId,reason:current.verificationMessage,createdAt:now(),detail:{passed,runId:finished.id,configVersion:service.configVersion,costState:summary.internalCost===null?'unknown':'priced',internalCost:summary.internalCost}});
       return true;
-    });
+    },{diagnosticContext:'service_verification'});
     const currentService=pick((await this.repository.read()).services,serviceId,'service');
     return {...currentService,verificationRun:finished,verificationApplied:applied,replayed};
   }
@@ -366,7 +366,7 @@ export class PlatformService {
       pick(tx.state.keys,result.key.id,'key').internal=true;
       await syncResources(tx);
       return {token:result.secret,expiresAt:result.key.expiresAt};
-    });
+    },{diagnosticContext:'online_credential'});
   }
   async quote(actorId:string,payload:Record<string,unknown>){
     const {state:s,batches}=await this.repository.view();activeMember(s,actorId);

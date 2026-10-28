@@ -24,7 +24,7 @@ export function expiry(value: unknown): string {
 export function pick<T extends {id:string}>(items:T[], id:unknown, label:string):T {
   const item=items.find(i=>i.id===id);if(!item)throw new NotFoundException(`${label} not found`);return item;
 }
-export function activeMember(state: WorkspaceState,id:string): Member {
+export function activeMember(state: Pick<WorkspaceState,'members'|'organizations'>,id:string): Member {
   const member=pick(state.members,id,'member');
   if(!member.active||(member.validUntil&&Date.parse(member.validUntil)<=Date.now()))throw new ForbiddenException('member is disabled or expired');
   let organization=pick(state.organizations,member.organizationId,'organization');
@@ -50,7 +50,7 @@ export function range(state:WorkspaceState,value:unknown):ModelRange {
   if(r.mode==='specific'&&(!ids.length||ids.some(id=>!pool.entries.some(e=>e.definitionId===id))))throw new BadRequestException('specific range must select models in this pool');
   return {poolId:pool.id,mode:r.mode,definitionIds:ids};
 }
-export function availableModels(state:WorkspaceState,r:ModelRange):string[] {
+export function availableModels(state:Pick<WorkspaceState,'pools'|'services'|'definitions'>,r:ModelRange):string[] {
   const pool=state.pools.find(p=>p.id===r.poolId);if(!pool)return [];
   return pool.entries.filter(e=>e.open&&(r.mode==='follow'||r.definitionIds.includes(e.definitionId)))
     .filter(e=>state.services.some(s=>s.id===e.serviceId&&s.active&&s.verification==='passed'&&s.mappings.some(m=>m.definitionId===e.definitionId)))

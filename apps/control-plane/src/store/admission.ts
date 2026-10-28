@@ -1,7 +1,8 @@
 import { BadRequestException } from '@nestjs/common';
 import { createHash } from 'node:crypto';
-import type { AdmissionScope, AdmissionSnapshot, AuthorizeRequest, PriceSnapshot, ReasonCode, RequestLimitDiagnostic, UsageLimits, WorkspaceState } from '@ai-gateway/contracts';
+import type { AdmissionScope, AdmissionSnapshot, AuthorizeRequest, PriceSnapshot, ReasonCode, RequestLimitDiagnostic, UsageLimits } from '@ai-gateway/contracts';
 import { businessDenial } from '../platform/domain';
+import type {AdmissionWorkspace} from './admission-policy-lock';
 
 export const LEGACY_RESERVATION_AMOUNT=0.02;
 export const legacyAdmission=():AdmissionSnapshot=>({kind:'legacy_simulation',route:null,price:null,reservedAmount:LEGACY_RESERVATION_AMOUNT,estimatedTokens:0,scopes:[]});
@@ -42,7 +43,7 @@ export function costForUsage(price:PriceSnapshot,inputTokens:number,outputTokens
   return Number(micros)/1e6;
 }
 
-export function admissionForBatch(state:WorkspaceState|undefined,input:AuthorizeRequest,batch:BatchScope,managedQuote=false):AdmissionResult {
+export function admissionForBatch(state:AdmissionWorkspace|undefined,input:AuthorizeRequest,batch:BatchScope,managedQuote=false):AdmissionResult {
   const key=state?.keys.find(k=>k.credentialId===input.identity.credentialId);
   if(!state||(!key&&!managedQuote))return {admission:legacyAdmission()};
   if(batch.sourceId!==input.identity.subjectId||batch.purpose!==input.purpose||batch.projectId!==(input.identity.projectId??null))return {reason:'model_not_open'};

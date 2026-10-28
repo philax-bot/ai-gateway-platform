@@ -2,14 +2,17 @@
 // Fault selectors are test-only and never sent to a real model provider.
 const { createServer } = require('node:http');
 const requests=[];
+let totalRequests=0;
 const server=createServer(async (req, res) => {
   if (req.url === '/health') { res.end('{"status":"ok","environment":"mock"}'); return; }
   if(req.url==='/_test/requests'){res.setHeader('content-type','application/json');res.end(JSON.stringify(requests));return;}
+  if(req.url==='/_test/stats'){res.setHeader('content-type','application/json');res.end(JSON.stringify({totalRequests,retainedRequests:requests.length,engine:'deterministic-local-http',modelInference:false}));return;}
   if (req.method !== 'POST' || req.url !== '/v1/chat/completions') { res.writeHead(404); res.end('{}'); return; }
   if(process.env.MOCK_API_TOKEN&&req.headers.authorization!==`Bearer ${process.env.MOCK_API_TOKEN}`){res.writeHead(401,{'content-type':'application/json'});res.end('{"error":{"type":"mock_authentication_failed"}}');return;}
   const chunks=[];
   for await (const chunk of req) chunks.push(chunk);
   const body=JSON.parse(Buffer.concat(chunks).toString() || '{}');
+  totalRequests++;
   requests.push({requestId:req.headers['x-request-id']??null,model:body.model,maxOutput:body.max_tokens??body.max_completion_tokens??null,stream:body.stream===true,tools:Array.isArray(body.tools)?body.tools.map(tool=>tool.function?.name):[]});if(requests.length>500)requests.shift();
   // Distinct upstream request identifier so call tracing is testable end to end.
   res.setHeader('x-request-id',`upstream-${String(req.headers['x-request-id']??'local').slice(0,140)}`);

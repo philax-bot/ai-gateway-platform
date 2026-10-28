@@ -35,6 +35,7 @@ jobs:
       - run: pnpm build
       - run: pnpm typecheck
       - run: pnpm test
+      - run: node scripts/check-policy-lock.mjs
       - run: node scripts/check-isolated.mjs
       - run: node scripts/check-isolated.mjs --postgres
       - run: node scripts/check-load.mjs --requests 24 --concurrency 4

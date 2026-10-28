@@ -1,0 +1,318 @@
+{
+  "createdAt": "2026-10-28T08:42:23.661Z",
+  "baseRevision": "359d7f0be279ba9e0f44f5e01f1ac59bbd3fa98e",
+  "sourceSnapshot": "source-snapshot.json",
+  "scope": {
+    "upstream": "deterministic-local-http",
+    "implementation": "postman/mocks/test-model/default.js",
+    "realModelRequests": 0,
+    "targetDeployment": "deferred",
+    "capacity": "single-instance development PostgreSQL endpoint; excludes production/DeepSeek capacity",
+    "managementLatencySlo": "not established; observed long tails remain"
+  },
+  "checks": [
+    {
+      "command": "pnpm build",
+      "status": "passed"
+    },
+    {
+      "command": "pnpm typecheck",
+      "status": "passed"
+    },
+    {
+      "command": "pnpm test",
+      "status": "passed",
+      "counts": {
+        "contracts": 18,
+        "controlPlane": 127,
+        "gateway": 41,
+        "total": 186
+      }
+    },
+    {
+      "command": "node scripts/check-isolated.mjs",
+      "status": "passed",
+      "assertions": 371
+    },
+    {
+      "command": "node scripts/check-isolated.mjs --postgres",
+      "status": "passed",
+      "assertions": 427
+    },
+    {
+      "command": "node scripts/check-policy-lock.mjs",
+      "status": "passed",
+      "assertions": 19
+    },
+    {
+      "command": "node scripts/check-monitoring-pool.mjs",
+      "status": "passed",
+      "assertions": 10
+    },
+    {
+      "command": "PG_BIN=<local-bin> node scripts/check-delivery.mjs --backup",
+      "status": "passed",
+      "assertions": 56,
+      "migrationAssertionsIncluded": 12
+    },
+    {
+      "command": "YAML unique-key parsing",
+      "status": "passed",
+      "files": 5
+    },
+    {
+      "command": "node --check changed JavaScript verification/mock files",
+      "status": "passed",
+      "files": 5
+    }
+  ],
+  "capacity": [
+    {
+      "file": "accepted-c1-u1-60s.json",
+      "success": true,
+      "users": 1,
+      "concurrency": 1,
+      "durationSeconds": 60,
+      "requests": 106,
+      "successfulRequests": 106,
+      "errors": {},
+      "latencyMs": {
+        "samples": 106,
+        "p50": 494.16,
+        "p95": 638.28,
+        "p99": 1119.38,
+        "max": 1433.17
+      },
+      "adminLatencyMs": {
+        "samples": 14,
+        "p50": 242.31,
+        "p95": 477.58,
+        "p99": 477.58,
+        "max": 477.58
+      },
+      "mockGenerationRequests": 106,
+      "chargedMicros": 4134,
+      "expectedChargedMicros": 4134,
+      "unfinishedReservations": 0,
+      "activeLimitScopes": 0,
+      "outbox": {
+        "queued": 0,
+        "blocked": 0,
+        "active": 0,
+        "oldestQueuedAgeMs": 0,
+        "oldestBlockedAgeMs": 0,
+        "retryAttempts": 0,
+        "authorizing": 0,
+        "authorizationPending": 0,
+        "authorizationBlocked": 0,
+        "writePending": 0
+      }
+    },
+    {
+      "file": "accepted-c1-u4-60s.json",
+      "success": true,
+      "users": 4,
+      "concurrency": 1,
+      "durationSeconds": 60,
+      "requests": 92,
+      "successfulRequests": 92,
+      "errors": {},
+      "latencyMs": {
+        "samples": 92,
+        "p50": 562.76,
+        "p95": 864.61,
+        "p99": 1506.75,
+        "max": 1506.75
+      },
+      "adminLatencyMs": {
+        "samples": 12,
+        "p50": 282.77,
+        "p95": 554.21,
+        "p99": 554.21,
+        "max": 554.21
+      },
+      "mockGenerationRequests": 92,
+      "chargedMicros": 3588,
+      "expectedChargedMicros": 3588,
+      "unfinishedReservations": 0,
+      "activeLimitScopes": 0,
+      "outbox": {
+        "queued": 0,
+        "blocked": 0,
+        "active": 0,
+        "oldestQueuedAgeMs": 0,
+        "oldestBlockedAgeMs": 0,
+        "retryAttempts": 0,
+        "authorizing": 0,
+        "authorizationPending": 0,
+        "authorizationBlocked": 0,
+        "writePending": 0
+      }
+    },
+    {
+      "file": "accepted-c4-u1-60s.json",
+      "success": true,
+      "users": 1,
+      "concurrency": 4,
+      "durationSeconds": 60,
+      "requests": 236,
+      "successfulRequests": 236,
+      "errors": {},
+      "latencyMs": {
+        "samples": 236,
+        "p50": 961.76,
+        "p95": 1359.73,
+        "p99": 1583.76,
+        "max": 2060.67
+      },
+      "adminLatencyMs": {
+        "samples": 30,
+        "p50": 387.97,
+        "p95": 1131.96,
+        "p99": 2346.2,
+        "max": 2346.2
+      },
+      "mockGenerationRequests": 236,
+      "chargedMicros": 9204,
+      "expectedChargedMicros": 9204,
+      "unfinishedReservations": 0,
+      "activeLimitScopes": 0,
+      "outbox": {
+        "queued": 0,
+        "blocked": 0,
+        "active": 0,
+        "oldestQueuedAgeMs": 0,
+        "oldestBlockedAgeMs": 0,
+        "retryAttempts": 0,
+        "authorizing": 0,
+        "authorizationPending": 0,
+        "authorizationBlocked": 0,
+        "writePending": 0
+      }
+    },
+    {
+      "file": "accepted-c4-u4-60s.json",
+      "success": true,
+      "users": 4,
+      "concurrency": 4,
+      "durationSeconds": 60,
+      "requests": 243,
+      "successfulRequests": 243,
+      "errors": {},
+      "latencyMs": {
+        "samples": 243,
+        "p50": 781.9,
+        "p95": 1517.87,
+        "p99": 2157.2,
+        "max": 2307.91
+      },
+      "adminLatencyMs": {
+        "samples": 31,
+        "p50": 585.82,
+        "p95": 2588.38,
+        "p99": 9083.42,
+        "max": 9083.42
+      },
+      "mockGenerationRequests": 243,
+      "chargedMicros": 9477,
+      "expectedChargedMicros": 9477,
+      "unfinishedReservations": 0,
+      "activeLimitScopes": 0,
+      "outbox": {
+        "queued": 0,
+        "blocked": 0,
+        "active": 0,
+        "oldestQueuedAgeMs": 0,
+        "oldestBlockedAgeMs": 0,
+        "retryAttempts": 0,
+        "authorizing": 0,
+        "authorizationPending": 0,
+        "authorizationBlocked": 0,
+        "writePending": 0
+      }
+    },
+    {
+      "file": "accepted-c8-u1-60s.json",
+      "success": true,
+      "users": 1,
+      "concurrency": 8,
+      "durationSeconds": 60,
+      "requests": 226,
+      "successfulRequests": 226,
+      "errors": {},
+      "latencyMs": {
+        "samples": 226,
+        "p50": 1917.29,
+        "p95": 3683.27,
+        "p99": 4240.73,
+        "max": 4655.58
+      },
+      "adminLatencyMs": {
+        "samples": 29,
+        "p50": 396.56,
+        "p95": 602.68,
+        "p99": 608.37,
+        "max": 608.37
+      },
+      "mockGenerationRequests": 226,
+      "chargedMicros": 8814,
+      "expectedChargedMicros": 8814,
+      "unfinishedReservations": 0,
+      "activeLimitScopes": 0,
+      "outbox": {
+        "queued": 0,
+        "blocked": 0,
+        "active": 0,
+        "oldestQueuedAgeMs": 0,
+        "oldestBlockedAgeMs": 0,
+        "retryAttempts": 0,
+        "authorizing": 0,
+        "authorizationPending": 0,
+        "authorizationBlocked": 0,
+        "writePending": 0
+      }
+    },
+    {
+      "file": "accepted-c8-u4-180s.json",
+      "success": true,
+      "users": 4,
+      "concurrency": 8,
+      "durationSeconds": 180,
+      "requests": 712,
+      "successfulRequests": 712,
+      "errors": {},
+      "latencyMs": {
+        "samples": 712,
+        "p50": 1800.45,
+        "p95": 2951.4,
+        "p99": 3565.99,
+        "max": 4138.12
+      },
+      "adminLatencyMs": {
+        "samples": 89,
+        "p50": 990.28,
+        "p95": 2677.82,
+        "p99": 5491.75,
+        "max": 5491.75
+      },
+      "mockGenerationRequests": 712,
+      "chargedMicros": 27768,
+      "expectedChargedMicros": 27768,
+      "unfinishedReservations": 0,
+      "activeLimitScopes": 0,
+      "outbox": {
+        "queued": 0,
+        "blocked": 0,
+        "active": 0,
+        "oldestQueuedAgeMs": 0,
+        "oldestBlockedAgeMs": 0,
+        "retryAttempts": 0,
+        "authorizing": 0,
+        "authorizationPending": 0,
+        "authorizationBlocked": 0,
+        "writePending": 0
+      }
+    }
+  ],
+  "totalSuccessfulRequests": 1615
+}

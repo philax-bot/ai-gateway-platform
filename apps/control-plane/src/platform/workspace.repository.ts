@@ -4,7 +4,8 @@ import type { PoolClient } from 'pg';
 import { DemoStore, type CredentialRecord } from '../store/demo.store';
 import { PostgresStore } from '../store/postgres.store';
 import { initialWorkspace } from './seed';
-import {hotPathDiagnostics} from '../store/hot-path-diagnostics';
+import {hotPathDiagnostics,type DiagnosticContext} from '../store/hot-path-diagnostics';
+import {admissionPolicyState,lockAdmissionPolicy} from '../store/admission-policy-lock';
 
 export interface WorkspaceTransaction {
   state: WorkspaceState;
@@ -61,32 +62,36 @@ export class WorkspaceRepository {
     }).catch(error=>{trace.finish(true);throw error;});
   }
 
-  async transact<T>(work: (tx: WorkspaceTransaction) => Promise<T>,options:{incrementRevision?:boolean}={}): Promise<T> {
+  async transact<T>(work: (tx: WorkspaceTransaction) => Promise<T>,options:{incrementRevision?:boolean;diagnosticContext?:DiagnosticContext;runtimeOnly?:boolean}={}): Promise<T> {
+    const runtimeOnly=options.runtimeOnly===true;
     if (this.store instanceof PostgresStore) {
-      const trace=hotPathDiagnostics.start('workspace_write');
+      const trace=hotPathDiagnostics.start('workspace_write',options.diagnosticContext??null);
       return this.store.withClient(async raw => {
         const client=trace.acquired(raw);let failed=false;
-        await client.query('begin');
+        await client.query('begin isolation level read committed');
         try {
+          if(!runtimeOnly)await lockAdmissionPolicy(client,false);
           const result = await client.query('select payload from platform_workspace where id=$1 for update', ['org-demo']);
           const state = result.rows[0].payload as WorkspaceState;
-          const before=JSON.stringify(state);
-          const value = await work(this.context(state, client));
-          if(JSON.stringify(state)!==before){if(options.incrementRevision!==false)state.revision++;await client.query('update platform_workspace set payload=$1,revision=$2,updated_at=now() where id=$3', [state,state.revision,state.tenantId]);}
+          const before=JSON.stringify(state),policyBefore=runtimeOnly?admissionPolicyState(state):null;
+          const value = await work(this.context(state, client,runtimeOnly));
+          if(runtimeOnly&&admissionPolicyState(state)!==policyBefore)throw new ConflictException('runtime transaction cannot change admission policy');
+          if(JSON.stringify(state)!==before){if(!runtimeOnly&&options.incrementRevision!==false)state.revision++;await client.query('update platform_workspace set payload=$1,revision=$2,updated_at=now() where id=$3', [state,state.revision,state.tenantId]);}
           await client.query('commit'); return value;
         } catch (error) { failed=true;await client.query('rollback'); throw error; }finally{trace.finish(failed);}
       }).catch(error=>{trace.finish(true);throw error;});
     }
     return this.store.exclusive(async () => {
       const state = structuredClone(this.memory);
-      const before=JSON.stringify(state);
+      const before=JSON.stringify(state),policyBefore=runtimeOnly?admissionPolicyState(state):null;
       const oldBatches = structuredClone(this.store.quotaBatches);
       const oldCredentials = structuredClone(this.store.credentials);
       const oldBudgets = structuredClone(this.budgets);
       const previousReview=structuredClone({reservations:this.store.reservationsByRequest,idempotency:this.store.reservationsByIdempotency,responses:this.store.settlementResponsesByRequest,logs:this.store.callLogs,ledger:this.store.ledgerEntries,reconciliations:this.store.reconciliationRecords});
       try {
-        const result = await work(this.context(state));
-        if(JSON.stringify(state)!==before){if(options.incrementRevision!==false)state.revision++;this.memory=state;}return result;
+        const result = await work(this.context(state,undefined,runtimeOnly));
+        if(runtimeOnly&&admissionPolicyState(state)!==policyBefore)throw new ConflictException('runtime transaction cannot change admission policy');
+        if(JSON.stringify(state)!==before){if(!runtimeOnly&&options.incrementRevision!==false)state.revision++;this.memory=state;}return result;
       } catch (error) {
         this.store.quotaBatches.clear(); oldBatches.forEach((value,key) => this.store.quotaBatches.set(key,value));
         this.store.credentials.clear(); oldCredentials.forEach((value,key) => this.store.credentials.set(key,value));
@@ -101,18 +106,20 @@ export class WorkspaceRepository {
     });
   }
 
-  private context(state: WorkspaceState, client?: PoolClient): WorkspaceTransaction {
+  private context(state: WorkspaceState, client?: PoolClient,runtimeOnly=false): WorkspaceTransaction {
+    const writable=()=>{if(runtimeOnly)throw new ConflictException('runtime transaction cannot change funds or credentials');};
     return {
       state,
       queryCalls:(input,scope)=>this.store.queryCalls(input,scope,client),
       inFlightCounts:()=>this.store.inFlightCounts(client),
-      reconcile:input=>this.store.reconcileWithinBusinessTransaction(input,client),
+      reconcile:input=>{writable();return this.store.reconcileWithinBusinessTransaction(input,client);},
       batches: async () => {
         if (!client) return [...this.store.quotaBatches.values()].map(b => ({...b,entitlementId:b.entitlementId??null,sourceBatchId:b.sourceBatchId??null}));
         const result = await client.query('select * from quota_batches order by expires_at,id');
         return result.rows.map(r => ({id:r.id,sourceType:r.source_type,sourceId:r.source_id,organizationId:r.organization_id,projectId:r.project_id,totalAmount:Number(r.total_amount),availableAmount:Number(r.available_amount),modelIds:r.model_ids,expiresAt:r.expires_at.toISOString(),purpose:r.purpose,entitlementId:r.entitlement_id,sourceBatchId:r.source_batch_id,closedAt:r.closed_at?.toISOString()??null,closedAmount:Number(r.closed_amount)}));
       },
       grant: async batch => {
+        writable();
         if (!client) {
           if (this.store.quotaBatches.has(batch.id)) throw new ConflictException('quota batch already exists');
           this.store.quotaBatches.set(batch.id, structuredClone(batch)); return;
@@ -121,16 +128,19 @@ export class WorkspaceRepository {
           values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,[batch.id,batch.sourceType,batch.sourceId,batch.organizationId,batch.projectId,batch.totalAmount,batch.availableAmount,JSON.stringify(batch.modelIds),batch.expiresAt,batch.purpose,batch.entitlementId,batch.sourceBatchId]);
       },
       updateBatchModels: async (id, modelIds) => {
+        writable();
         if(!client){const batch=this.store.quotaBatches.get(id);if(batch)batch.modelIds=[...modelIds];return;}
         await client.query('update quota_batches set model_ids=$1 where id=$2',[JSON.stringify(modelIds),id]);
       },
       saveCredential: async credential => {
+        writable();
         if (!client) { this.store.credentials.set(credential.apiKey, structuredClone(credential)); return; }
         await client.query(`insert into credentials(credential_id,api_key,identity,purpose,active,model_ids) values($1,$2,$3,$4,$5,$6)
           on conflict(credential_id) do update set active=excluded.active,model_ids=excluded.model_ids,identity=excluded.identity`,
           [credential.credentialId,credential.apiKey,credential.identity,credential.purpose,credential.active,JSON.stringify(credential.modelIds)]);
       },
       disableCredentials: async subjectId => {
+        writable();
         if (!client) {for(const c of this.store.credentials.values())if(c.identity.subjectId===subjectId)c.active=false;return;}
         await client.query("update credentials set active=false where identity->>'subjectId'=$1",[subjectId]);
       },
@@ -140,10 +150,12 @@ export class WorkspaceRepository {
         return result.rows.map(r => ({id:r.id,projectId:r.project_id,totalAmount:Number(r.total_amount),availableAmount:Number(r.available_amount),expiresAt:r.expires_at.toISOString(),createdAt:r.created_at.toISOString(),closedAt:r.closed_at?.toISOString()??null,closedAmount:Number(r.closed_amount)}));
       },
       fundBudget: async batch => {
+        writable();
         if (!client) {if(this.budgets.has(batch.id))throw new ConflictException('budget batch already exists');this.budgets.set(batch.id,structuredClone(batch));return;}
         await client.query('insert into project_budget_batches(id,project_id,total_amount,available_amount,expires_at,created_at) values($1,$2,$3,$4,$5,$6)',[batch.id,batch.projectId,batch.totalAmount,batch.availableAmount,batch.expiresAt,batch.createdAt]);
       },
       allocateBudget: async (id,amount) => {
+        writable();
         if (!client) {
           const batch=this.budgets.get(id);
           if(!batch || batch.closedAt || Date.parse(batch.expiresAt)<=Date.now() || batch.availableAmount<amount)throw new ConflictException('source budget is expired or insufficient');
@@ -153,6 +165,7 @@ export class WorkspaceRepository {
         if(!result.rowCount)throw new ConflictException('source budget is expired or insufficient');
       },
       closeProjectBalances:async projectId=>{
+        writable();
         if(!client){let memberAmount=0,budgetAmount=0;const at=new Date().toISOString();
           for(const batch of this.store.quotaBatches.values())if(batch.projectId===projectId&&!batch.closedAt){memberAmount+=batch.availableAmount;batch.closedAmount=Number(((batch.closedAmount??0)+batch.availableAmount).toFixed(6));batch.availableAmount=0;batch.closedAt=at;batch.modelIds=[];}
           for(const batch of this.budgets.values())if(batch.projectId===projectId&&!batch.closedAt){budgetAmount+=batch.availableAmount;batch.closedAmount=Number(((batch.closedAmount??0)+batch.availableAmount).toFixed(6));batch.availableAmount=0;batch.closedAt=at;}

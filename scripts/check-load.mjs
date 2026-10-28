@@ -31,6 +31,7 @@ try{
   await mkdir(runtime,{recursive:true});assert.ok((await realpath(runtime)).startsWith((await realpath(root))+sep));await mkdir(directory);
   const [cpPort,gwPort,modelPort]=await Promise.all([freePort(),freePort(),freePort()]);
   const cp=`http://127.0.0.1:${cpPort}`,gw=`http://127.0.0.1:${gwPort}`,model=`http://127.0.0.1:${modelPort}`,serviceToken=`load-${randomUUID()}`;
+  const diagnostics=()=>fetch(`${cp}/internal/v1/diagnostics/hot-path`,{headers:{authorization:`Bearer ${serviceToken}`},signal:AbortSignal.timeout(1000)}).then(response=>response.json());
   let dbEnv={};
   if(postgres){
     const require=createRequire(resolve(root,'apps/control-plane/package.json')),{Pool}=require('pg');
@@ -53,7 +54,7 @@ try{
   async function command(type,payload,cookie=admin){const c={type,payload,idempotencyKey:randomUUID()},preview=await request('/api/v1/platform/preview',c,cookie);return (await request('/api/v1/platform/commands',{...c,previewToken:preview.body.previewToken},cookie)).body.result;}
   await command('settings.update',{limits:{mode:'custom',rpm:100000,tpm:1000000000,concurrency:Math.max(concurrency,5),maxOutputTokens:128}});
   const initial=await state(),service=initial.services[0],pool=initial.pools[0];
-  await command('save.service',{...service,baseUrl:model,mappings:service.mappings.map(mapping=>({...mapping,inputPrice:1,outputPrice:2,cachedInputPrice:.5}))});
+  await command('save.service',{...service,baseUrl:model,credentialRef:null,mappings:service.mappings.map(mapping=>({...mapping,inputPrice:1,outputPrice:2,cachedInputPrice:.5}))});
   assert.equal((await request(`/api/v1/platform/services/${service.id}/verify`,{},admin)).body.verification,'passed');
   await command('save.pool',{...pool,entries:pool.entries.map(entry=>({...entry,open:true}))});
   const range={poolId:pool.id,mode:'follow',definitionIds:[]};
@@ -68,17 +69,28 @@ try{
   }
   const actorIds=new Set(actors.map(actor=>actor.id)),balance=s=>s.quotaBatches.filter(batch=>actorIds.has(batch.sourceId)).reduce((sum,batch)=>sum+Math.round(batch.availableAmount*1e6),0);
   const beforeState=await state(),before=balance(beforeState);
+  const configuredService=beforeState.services.find(item=>item.id===service.id);assert.equal(configuredService.baseUrl,model);assert.equal(configuredService.credentialRef,null);
+  const checkpoint=(await diagnostics()).completed,mockBefore=(await fetch(`${model}/_test/stats`).then(response=>response.json())).totalRequests;
+  report.environment.upstream={modelId:'test-model',implementation:'postman/mocks/test-model/default.js',engine:'deterministic-local-http',allowUpstreamRequests:false,allowUpstreamValidation:false,modelInference:false};
+  report.workload.diagnosticsCheckpoint=checkpoint;
   if(db){
+    const policyExpression=createRequire(resolve(root,'apps/control-plane/package.json'))(resolve(root,'apps/control-plane/dist/store/admission-policy-lock.js')).ADMISSION_POLICY_SQL;
+    report.database.workspaceSize=(await db.query(`select octet_length(payload::text) as full_bytes,
+      octet_length((payload-array['monitoring','notifications','sessions','audit','operations','retention']::text[])::text) as policy_bytes,
+      octet_length((${policyExpression})::text) as admission_bytes
+      from "${schema}".platform_workspace where id='org-demo'`)).rows[0];
     const sample=()=>{if(sampling)return;sampling=true;lastSample=(async()=>{try{
-      const rows=(await db.query(`select a.pid,a.state,a.query,pg_blocking_pids(a.pid) as blockers,extract(epoch from clock_timestamp()-a.xact_start)*1000 as age_ms,a.wait_event_type,a.wait_event,
+      const rows=(await db.query(`select a.pid,a.state,a.query,a.backend_xid::text as xid,pg_blocking_pids(a.pid) as blockers,extract(epoch from clock_timestamp()-a.xact_start)*1000 as age_ms,extract(epoch from clock_timestamp()-a.query_start)*1000 as query_age_ms,a.wait_event_type,a.wait_event,
         (select count(*)::int from pg_stat_activity b where b.pid=any(pg_blocking_pids(a.pid)) and b.application_name<>$1) as external_blockers
         from pg_stat_activity a where a.application_name=$1`,[schema])).rows;
       report.database.samples++;report.database.maxClients=Math.max(report.database.maxClients,rows.length);report.database.maxLockWaiters=Math.max(report.database.maxLockWaiters,rows.filter(row=>row.wait_event_type==='Lock').length);
       report.database.externalBlockerSamples=(report.database.externalBlockerSamples??0)+rows.reduce((sum,row)=>sum+row.external_blockers,0);
-      const age=Math.max(0,...rows.map(row=>Number(row.age_ms??0)));
-      if(age>(report.database.maxTransactionAgeMs??0)){
-        report.database.maxTransactionAgeMs=Math.round(age);
-        report.database.graphAtMax=rows.map(({query,...row})=>({pid:row.pid,state:row.state,waitType:row.wait_event_type,wait:row.wait_event,ageMs:Math.round(Number(row.age_ms??0)),blockers:row.blockers,stage:['platform_workspace','quota_batches','gateway_lock_keys','reservations','admission_windows','reservation_limit_scopes','call_logs'].find(stage=>query.includes(stage))??(query==='commit'?'commit':'other')}));
+      const graph=()=>rows.map(({query,...row})=>({pid:row.pid,state:row.state,waitType:row.wait_event_type,wait:row.wait_event,xid:row.xid,ageMs:Math.round(Number(row.age_ms??0)),queryAgeMs:Math.round(Number(row.query_age_ms??0)),blockers:row.blockers,command:/^\s*(\w+)/.exec(query)?.[1]?.toLowerCase()??'other',rowLock:/\bfor\s+update\b/i.test(query)?'update':/\bfor\s+share\b/i.test(query)?'share':null,stage:['platform_workspace','quota_batches','gateway_lock_keys','reservations','admission_windows','reservation_limit_scopes','call_logs'].find(stage=>query.includes(stage))??(query==='commit'?'commit':'other')}));
+      const age=Math.max(0,...rows.map(row=>Number(row.age_ms??0))),waitAge=Math.max(0,...rows.filter(row=>row.state==='active'&&row.wait_event_type==='Lock').map(row=>Number(row.query_age_ms??0)));
+      if(age>(report.database.maxTransactionAgeMs??0)){report.database.maxTransactionAgeMs=Math.round(age);report.database.graphAtMax=graph();}
+      if(waitAge>(report.database.maxQueryLockWaitMs??0)){
+        report.database.maxQueryLockWaitMs=Math.round(waitAge);report.database.blockingGraph=graph();
+        if(waitAge>=1000)try{const live=await diagnostics();report.database.activeAtMaxWait=live.active;}catch{report.database.traceCaptureFailures=(report.database.traceCaptureFailures??0)+1;}
       }
       for(const row of rows){const key=row.wait_event_type?`${row.wait_event_type}:${row.wait_event}`:'running';report.database.waitEvents[key]=(report.database.waitEvents[key]??0)+1;}
     }catch{report.database.sampleFailures++;}})().finally(()=>{sampling=false;});};sample();sampleTimer=setInterval(sample,250);
@@ -105,7 +117,8 @@ try{
   const logs=[];
   for(const actor of actors){let page=(await request('/api/v1/platform/calls/query',{subjectId:actor.id,limit:200},admin)).body;logs.push(...page.items);while(page.nextCursor){page=(await request('/api/v1/platform/calls/query',{subjectId:actor.id,limit:200,cursor:page.nextCursor},admin)).body;logs.push(...page.items);}}
   for(const log of logs)if(log.ttftMs!=null)ttft.push(log.ttftMs);
-  report.hotPath=await fetch(`${cp}/internal/v1/diagnostics/hot-path`,{headers:{authorization:`Bearer ${serviceToken}`}}).then(response=>response.json());
+  report.hotPath=await fetch(`${cp}/internal/v1/diagnostics/hot-path?after=${checkpoint}`,{headers:{authorization:`Bearer ${serviceToken}`}}).then(response=>response.json());
+  report.upstream={...(await fetch(`${model}/_test/stats`).then(response=>response.json())),workloadRequests:0};report.upstream.workloadRequests=report.upstream.totalRequests-mockBefore;
   const inspected=await fetch(`${gw}/internal/v1/outbox`,{headers:{authorization:`Bearer ${serviceToken}`}}).then(response=>response.json());
   const actorBalances=actors.map((actor,index)=>{
     const funds=s=>s.quotaBatches.filter(batch=>batch.sourceId===actor.id).reduce((sum,batch)=>sum+Math.round(batch.availableAmount*1e6),0),calls=logs.filter(log=>log.subjectId===actor.id&&log.billableState==='confirmed').length;
@@ -118,6 +131,7 @@ try{
   report.serviceFailureCategories=[...new Set(children.flatMap(child=>child.diagnostic().match(categories)??[]))];
   if(db){const row=(await db.query(`select (select count(*)::int from "${schema}".usage_ledger_entries where kind='settlement') as ledger,(select count(*)::int from "${schema}".reservations where finalized=false) as unfinished,(select count(*)::int from "${schema}".reservation_limit_scopes where active=true) as active_scopes`)).rows[0];report.results.ledgerEntries=row.ledger;report.results.unfinishedReservations=row.unfinished;report.results.activeLimitScopes=row.active_scopes;}
   assert.equal(successes,actualRequests,'all requests must complete');assert.equal(logs.length,actualRequests);assert.equal(new Set(logs.map(log=>log.requestId)).size,actualRequests);assert.ok(logs.every(log=>ids.includes(log.requestId)&&log.billableState==='confirmed'&&log.actualAmount===.000039));
+  assert.equal(report.upstream.workloadRequests,actualRequests,'every generation must go to the counted local stand-in exactly once');
   assert.equal(report.results.pendingReview,0);assert.equal(before-after,actualRequests*39,'original-source funds must match confirmed usage exactly');assert.equal(outbox.queued+outbox.blocked+outbox.active,0);
   assert.ok(actorBalances.every(actor=>actor.chargedMicros===actor.expectedChargedMicros),'each actor spends only its own original quota');
   if(db){assert.equal(report.results.ledgerEntries,actualRequests);assert.equal(report.results.unfinishedReservations,0);assert.equal(report.results.activeLimitScopes,0);assert.ok(report.database.samples>0&&report.database.maxClients>0,'database sampler must observe actual tagged application connections');}

@@ -27,7 +27,7 @@ export class AuthService {
       member.directoryId=directoryId;member.name=name;member.passwordHash=passwordHash(password);
       tx.state.audit.push({id:randomBytes(16).toString('hex'),actorId:member.id,action:'workspace.bootstrap',objectId:member.id,reason:'initial setup',createdAt:now(),detail:{}});
       return {initialized:true};
-    });
+    },{diagnosticContext:'auth_setup'});
   }
 
   async login(body:Record<string,unknown>,ip:string) {
@@ -45,7 +45,7 @@ export class AuthService {
       tx.state.sessions=tx.state.sessions.filter(s=>Date.parse(s.expiresAt)>Date.now());
       tx.state.sessions.push({tokenHash:hash(token),memberId:member.id,createdAt:now(),expiresAt:new Date(Date.now()+8*60*60_000).toISOString()});
       return {token,member:this.publicMember(member)};
-    });
+    },{diagnosticContext:'auth_login'});
     this.attempts.delete(ip);return result;
   }
 
@@ -58,7 +58,7 @@ export class AuthService {
   }
 
   async logout(token:string) {
-    await this.repository.transact(async tx=>{tx.state.sessions=tx.state.sessions.filter(s=>s.tokenHash!==hash(token));});
+    await this.repository.transact(async tx=>{tx.state.sessions=tx.state.sessions.filter(s=>s.tokenHash!==hash(token));},{diagnosticContext:'auth_logout'});
     return {loggedOut:true};
   }
 

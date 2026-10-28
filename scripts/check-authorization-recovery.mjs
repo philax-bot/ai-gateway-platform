@@ -61,6 +61,8 @@ export async function checkAuthorizationRecovery({controlPlaneUrl,modelUrl,start
     check((await fetch(`${controlPlaneUrl}/internal/v1/diagnostics/hot-path`)).status===401,'diagnostics requires service token');
     check((await fetch(`${controlPlaneUrl}/internal/v1/diagnostics/hot-path`,{headers:{authorization:'Bearer local-employee-key'}})).status===401,'employee key cannot read diagnostics');
     check((await rpc('/internal/v1/diagnostics/hot-path')).enabled===false,'diagnostics is off by default');
+    check((await fetch(`${controlPlaneUrl}/internal/v1/diagnostics/hot-path?after=-1`,{headers})).status===400,'diagnostic checkpoint rejects negative input');
+    check((await fetch(`${controlPlaneUrl}/internal/v1/diagnostics/hot-path?after=private-value`,{headers})).status===400,'diagnostic checkpoint rejects non-numeric input');
     for(const mode of ['drop','late_commit']){
       const r=rule(mode),before=await quota(),response=await request(gateways[0],r.id);check(response.status===503,`${mode} returns unavailable without forwarding`);await response.text();await released(r.id,before);
       check(r.authHits>=2,'unknown authorization outcome is resolved by idempotent replay');

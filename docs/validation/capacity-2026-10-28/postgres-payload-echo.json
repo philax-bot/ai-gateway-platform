@@ -1,0 +1,78 @@
+{
+  "createdAt": "2026-10-28T08:07:56.346Z",
+  "kind": "read-only PostgreSQL payload echo; no platform data, model requests or business writes",
+  "results": [
+    {
+      "responseBytes": 3072,
+      "samples": 8,
+      "timings": [
+        82,
+        14.32,
+        13.19,
+        11.09,
+        14.22,
+        10.43,
+        12.17,
+        11.13
+      ],
+      "p50": 12.17,
+      "p95": 82,
+      "errors": []
+    },
+    {
+      "responseBytes": 24576,
+      "samples": 8,
+      "timings": [
+        24.72,
+        23.16,
+        13.17,
+        12.61,
+        14.4,
+        13.61,
+        13.61,
+        13.47
+      ],
+      "p50": 13.61,
+      "p95": 24.72,
+      "errors": []
+    },
+    {
+      "responseBytes": 98304,
+      "samples": 8,
+      "timings": [
+        27.05,
+        35.25,
+        42.27,
+        38.98,
+        160.87,
+        372.9,
+        26.49,
+        124.63
+      ],
+      "p50": 38.98,
+      "p95": 372.9,
+      "errors": []
+    },
+    {
+      "responseBytes": 262146,
+      "samples": 8,
+      "timings": [
+        392.81,
+        450.48,
+        504.83,
+        371.87,
+        428.87,
+        432.17,
+        442.12,
+        450.32
+      ],
+      "p50": 432.17,
+      "p95": 504.83,
+      "errors": []
+    }
+  ],
+  "eventLoopDelayMs": {
+    "p95": 29.69,
+    "max": 34.8
+  }
+}

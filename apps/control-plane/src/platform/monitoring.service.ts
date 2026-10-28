@@ -55,6 +55,6 @@ export class MonitoringService {
       }
       if(collect||failedStages.length)applyCollectionReading(tx.state,failedStages,bucket,new Date().toISOString());
       return {evaluated,collectionQuality:m.collection.quality};
-    },{incrementRevision:false});
+    },{incrementRevision:false,runtimeOnly:true,diagnosticContext:'monitoring_commit'});
   }
 }

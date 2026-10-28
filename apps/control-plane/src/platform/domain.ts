@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import type { Approval, AuthorizeRequest, AutoRule, BusinessQuotaBatch, Entitlement, Member, Plan,ReasonCode, WorkspaceState } from '@ai-gateway/contracts';
 import type { WorkspaceTransaction } from './workspace.repository';
 import { activeMember, availableModels, now, pick } from './validation';
+import type {AdmissionWorkspace} from '../store/admission-policy-lock';
 
 export const newId=(prefix:string)=>`${prefix}-${randomUUID()}`;
 export const valid=(date:string|null)=>date===null||Date.parse(date)>Date.now();
@@ -35,11 +36,11 @@ export function canApprove(s:WorkspaceState,actor:Member,a:Approval):boolean {
   }
   return actor.roles.includes('operator');
 }
-export function memberModels(s:WorkspaceState,memberId:string,projectId:string|null=null):string[]{
+export function memberModels(s:Pick<WorkspaceState,'projects'|'entitlements'|'pools'|'services'|'definitions'>,memberId:string,projectId:string|null=null):string[]{
   if(projectId){const p=s.projects.find(p=>p.id===projectId&&p.status==='active'&&p.memberIds.includes(memberId));return p?availableModels(s,p.range):[];}
   return [...new Set(s.entitlements.filter(e=>e.memberId===memberId&&e.status==='active'&&valid(e.expiresAt)).flatMap(e=>availableModels(s,e.range)))];
 }
-export function businessDenial(s:WorkspaceState,input:AuthorizeRequest):ReasonCode|null {
+export function businessDenial(s:AdmissionWorkspace,input:AuthorizeRequest):ReasonCode|null {
   const key=s.keys.find(k=>k.credentialId===input.identity.credentialId);
   if(!key){
     if(process.env.ENABLE_DEMO_CREDENTIALS==='false'||input.identity.organizationId!==s.tenantId||!['credential-demo-001','credential-project-demo-001'].includes(input.identity.credentialId))return 'credential_invalid';

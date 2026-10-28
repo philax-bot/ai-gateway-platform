@@ -23,9 +23,19 @@ paths:
         credential-resolution, workspace-write and workspace-view samples. Returns retained/dropped counts and aggregate p50/p95/max
         elapsed, pool wait, SQL round-trip count, SQL wall time by fixed stage labels and local time outside SQL.
         SQL time includes database/network/lock wait, not only server execution.
+        Includes up to 128 active operations, the last 24 fixed-label statement steps per operation,
+        backend PID, fixed caller context and the eight slowest retained operations.
+        Event-loop delay covers the process lifetime rather than the selected completed-sample window.
         No SQL, bind values, identities, keys or request text are retained. Default is disabled.
+      parameters:
+        - in: query
+          name: after
+          description: Exclusive completed-operation sequence checkpoint. Filters completed samples only; active operations remain live. Older samples may already have left the bounded ring.
+          required: false
+          schema: {type: integer, minimum: 0, maximum: 9007199254740991, default: 0}
       responses:
-        '200': {description: Enabled flag, capacity, completed/retained/dropped counts and per-operation aggregates}
+        '200': {description: Enabled flag, capacity, completed/after/retained/dropped counts, per-operation aggregates, active operations, slow operations and event-loop delay. Dropped is the lifetime ring eviction count.}
+        '400': {description: Checkpoint must be a non-negative safe integer}
         '401': {description: Service token required; employee API keys are not accepted}
   /api/v1/platform/applications/{id}:
     get:

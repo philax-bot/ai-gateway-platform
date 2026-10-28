@@ -1,0 +1,101 @@
+{
+  "createdAt": "2026-10-28T08:39:42.575Z",
+  "baseRevision": "359d7f0be279ba9e0f44f5e01f1ac59bbd3fa98e",
+  "branch": "codex/control-plane-p0",
+  "workingTreeDirty": true,
+  "scope": "Changed source, migration, mock, contract, CI and verification files; unchanged files are pinned by baseRevision. SHA-256 uses raw working-tree bytes.",
+  "files": [
+    {
+      "path": ".github/workflows/core.yml",
+      "sha256": "fa890ae98edb1182379fef41ca6218dabafa740bd13ddc17442c8551e1ad65fb"
+    },
+    {
+      "path": "apps/control-plane/migrations/013_admission_lock_protocol.sql",
+      "sha256": "add766d1b10cfa2e1a655516188aedc1e1d5f8833b2cb50647c041b69173494d"
+    },
+    {
+      "path": "apps/control-plane/src/platform/auth.service.ts",
+      "sha256": "180148c281fd214357f131641007b6afd505de93a96698c3f3d18b8df4382974"
+    },
+    {
+      "path": "apps/control-plane/src/platform/domain.ts",
+      "sha256": "f5c09b6d57b47b0d0d721516cd47bc060c23311d3eee296f4afd88dba43b2f0f"
+    },
+    {
+      "path": "apps/control-plane/src/platform/maintenance-lock.spec.ts",
+      "sha256": "85b677d2f58f72dfc06a829f22f25354459a4b965d4b7f07054753bc73114865"
+    },
+    {
+      "path": "apps/control-plane/src/platform/maintenance.service.ts",
+      "sha256": "17294d960ba18da1f93be40b2c140eb2179b5d2cecd60842e7367136b8ecc862"
+    },
+    {
+      "path": "apps/control-plane/src/platform/monitoring.service.ts",
+      "sha256": "99a34e46436631e4a6e7761fc7f2038ae8577b34ed5acb8384d61a46fc5adc25"
+    },
+    {
+      "path": "apps/control-plane/src/platform/platform.service.ts",
+      "sha256": "49070a9d0ac2791abb617297617767e2ecff9bcfcdc189b347f931b8ece37836"
+    },
+    {
+      "path": "apps/control-plane/src/platform/validation.ts",
+      "sha256": "7cdc5f3ac699e565d7fb226dbd0fcb3a30f41c6f5c98c5fdfa4e10e4f43d32c5"
+    },
+    {
+      "path": "apps/control-plane/src/platform/workspace-runtime.spec.ts",
+      "sha256": "b80059900dd515c4171bdf6cddd0f86cee11165e50739bd59abbb2a0a546eb65"
+    },
+    {
+      "path": "apps/control-plane/src/platform/workspace.repository.ts",
+      "sha256": "000ccc20a471c9bd045db1f53e98781536efa8e43587112f9ae6a65e76c10561"
+    },
+    {
+      "path": "apps/control-plane/src/store/admission-policy-lock.ts",
+      "sha256": "3b9079cf21656c8eaaed66d8d18ccf4cb282261e4b0194b58bb3397162ef393c"
+    },
+    {
+      "path": "apps/control-plane/src/store/admission.ts",
+      "sha256": "a96215ac2b1eded1dd1003297fe49724298769cfc3ad33d1415fa0f900249a75"
+    },
+    {
+      "path": "apps/control-plane/src/store/diagnostics.controller.ts",
+      "sha256": "ab4896eb5d08a1574a6162b1b0af32564f2f59112c2f2498dd007e15789283de"
+    },
+    {
+      "path": "apps/control-plane/src/store/hot-path-diagnostics.spec.ts",
+      "sha256": "ee7d3c5c5bcd2707d91c79ace05b6e48ec8b298b355b3bd0e27232bd384644f8"
+    },
+    {
+      "path": "apps/control-plane/src/store/hot-path-diagnostics.ts",
+      "sha256": "d1d2a372eb60591809f5e7163d858c024b135e35eaedf171a4896b3b21d4195c"
+    },
+    {
+      "path": "apps/control-plane/src/store/postgres.store.ts",
+      "sha256": "efb8584d06796f8bf2e90416031e144864ca3dc538f8580a62f99af0cbf3a05c"
+    },
+    {
+      "path": "contracts/gateway-control-plane-v0.1.yaml",
+      "sha256": "10c2c203695d20bb8daa77891fcbbe0e69664c2eed0a6576dd3fc9cb222e3b59"
+    },
+    {
+      "path": "postman/mocks/test-model/default.js",
+      "sha256": "2f73519c07829b2af852ec8d7fa0454428d58b57567df1d46427b7c4d896609b"
+    },
+    {
+      "path": "scripts/check-authorization-recovery.mjs",
+      "sha256": "573d44e902b45b94148d9fa638b2c86696bca9572b44acb5d00edcbe8ec1a23d"
+    },
+    {
+      "path": "scripts/check-backup.mjs",
+      "sha256": "dbc9655394b6f39f1b4af551b02b5411106461c26c0359ba72e339283e18caa1"
+    },
+    {
+      "path": "scripts/check-load.mjs",
+      "sha256": "d86c694039638c4edce7ce1c8826fc860db478889efaa6d8ff27c402e1d77712"
+    },
+    {
+      "path": "scripts/check-policy-lock.mjs",
+      "sha256": "a97819aaa08a4bfea6633055d926fb867c6119ced2cc3d3de05c43c87ad003c8"
+    }
+  ]
+}

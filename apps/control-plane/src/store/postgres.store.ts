@@ -15,6 +15,7 @@ import { queryPostgresCalls, type CallRow } from './postgres-call-query';
 import { databaseSchema,runtimeMode } from '@ai-gateway/contracts';
 import { applyMigrations,loadMigrations } from './migrations';
 import { hotPathDiagnostics } from './hot-path-diagnostics';
+import { ADMISSION_POLICY_SQL,lockAdmissionPolicy,type AdmissionWorkspace } from './admission-policy-lock';
 
 interface VerificationRow {
   id:string; operator_id:string; service_id:string; service_name:string; config_version:number; state:VerificationRun['state'];
@@ -54,8 +55,9 @@ export class PostgresStore extends DemoStore implements OnModuleDestroy {
       await client.query('begin');
       const schema=databaseSchema(process.env);if(schema&&(await client.query('select current_schema() as name')).rows[0].name!==schema)throw new Error('Configured DATABASE_SCHEMA must already exist and be accessible');
       await applyMigrations(client,loadMigrations(directory));
-      const mode=runtimeMode(process.env),installation=await client.query('select mode from platform_installation where singleton=true for update');
+      const mode=runtimeMode(process.env),installation=await client.query('select mode,admission_lock_version from platform_installation where singleton=true for update');
       if(installation.rowCount&&installation.rows[0].mode!==mode)throw new Error('Database installation mode differs; choose the matching mode or a separate schema');
+      if(installation.rowCount&&installation.rows[0].admission_lock_version!==2)throw new Error('Database admission lock protocol is incompatible');
       if(mode==='production'){
         const fixtures=await client.query(`select credential_id from credentials where api_key in ('local-employee-key','local-project-key') union all select id from quota_batches where id in ('personal-batch-demo-001','project-member-batch-demo-001') union all select id from platform_workspace where payload->'members' @> '[{"id":"operator-demo-001"}]'::jsonb or payload->'members' @> '[{"id":"employee-demo-001"}]'::jsonb or payload->'definitions' @> '[{"id":"definition-test-model"}]'::jsonb`);
         if(fixtures.rowCount)throw new Error('Development fixtures detected; use a separate clean production schema');
@@ -104,7 +106,7 @@ export class PostgresStore extends DemoStore implements OnModuleDestroy {
     const raw=await this.pool.connect().catch(error=>{trace.finish(true);throw error;});
     const client=trace.acquired(raw);let failed=false;
     try {
-      await client.query('begin');
+      await client.query('begin isolation level read committed');
       await this.lock(client, [`authorize-key:${input.idempotencyKey}`, `authorize-request:${input.requestId}`]);
       const previous = await client.query('select * from authorization_records where idempotency_key=$1 or request_id=$2', [input.idempotencyKey,input.requestId]);
       if (previous.rowCount) {
@@ -113,8 +115,9 @@ export class PostgresStore extends DemoStore implements OnModuleDestroy {
         await client.query('commit');
         return { ...(r.response as AuthorizeResponse), replayed: true };
       }
-      const workspace=await client.query('select payload from platform_workspace where id=$1 for share',['org-demo']);
-      const reason=workspace.rowCount?businessDenial(workspace.rows[0].payload as WorkspaceState,input):null;
+      await lockAdmissionPolicy(client,true);
+      const workspace=await client.query(`select ${ADMISSION_POLICY_SQL} as payload from platform_workspace where id=$1`,['org-demo']);
+      const reason=workspace.rowCount?businessDenial(workspace.rows[0].payload as AdmissionWorkspace,input):null;
       if(input.retryOfRequestId){
         if(!retryLinkAllowed(input,await this.retryTargetWithin(client,input.retryOfRequestId)))throw new ConflictException('retry reference is not available');
       }
@@ -136,7 +139,7 @@ export class PostgresStore extends DemoStore implements OnModuleDestroy {
         let candidateReason:AuthorizeResponse['reasonCode']='no_quota';
         let candidateLimits:AuthorizeResponse['requestLimits'];
         for(const candidate of batches.rows){
-          const quote=admissionForBatch(workspace.rows[0]?.payload as WorkspaceState|undefined,input,{sourceId:candidate.source_id,purpose:candidate.purpose,projectId:candidate.project_id,entitlementId:candidate.entitlement_id});
+          const quote=admissionForBatch(workspace.rows[0]?.payload as AdmissionWorkspace|undefined,input,{sourceId:candidate.source_id,purpose:candidate.purpose,projectId:candidate.project_id,entitlementId:candidate.entitlement_id});
           if(quote.reason){candidateReason=quote.reason;candidateLimits=quote.requestLimits;continue;}eligible++;
           if(Number(candidate.available_amount)>=quote.admission.reservedAmount){b=candidate;admission=quote.admission;break;}
         }

@@ -26,12 +26,12 @@ export class MaintenanceService implements OnApplicationBootstrap,OnModuleDestro
       try{
         // Idle ticks must not queue exclusive workspace locks ahead of admissions.
         // Actual grant/retention work is still rechecked inside its normal transaction.
-        if(hasPeriodicWork(await this.repository.read()))issued=await this.repository.transact(async tx=>{const result=await runPeriodic(tx);if(result.issuedBatchIds.length)await syncResources(tx);return result.issuedBatchIds.length;});
+        if(hasPeriodicWork(await this.repository.read()))issued=await this.repository.transact(async tx=>{const result=await runPeriodic(tx);if(result.issuedBatchIds.length)await syncResources(tx);return result.issuedBatchIds.length;},{diagnosticContext:'periodic_grant'});
         const reservations=await this.store.listExpiredReservations();expired=reservations.length;
         for(const reservation of reservations)await this.store.settle({...reservation,idempotencyKey:`${reservation.requestId}:lease-expired`,outcome:'partial',usageFinal:false,inputTokens:0,outputTokens:0,cachedInputTokens:0,actualAmount:0,completedAt:new Date().toISOString()});
       }catch(error){failure=error;}
       try{await this.monitoring?.evaluate();}catch(error){failure??=error;}
-      try{if(retentionDue(await this.repository.read()))await this.repository.transact(async tx=>scheduledRetention(tx.state),{incrementRevision:false});}catch(error){failure??=error;}
+      try{if(retentionDue(await this.repository.read()))await this.repository.transact(async tx=>scheduledRetention(tx.state),{incrementRevision:false,runtimeOnly:true,diagnosticContext:'retention'});}catch(error){failure??=error;}
       if(failure)throw failure;
       this.state.lastSuccessAt=new Date().toISOString();this.state.error=null;
       return {issued,expired};

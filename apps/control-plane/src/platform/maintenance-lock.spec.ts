@@ -14,7 +14,7 @@ describe('idle maintenance does not acquire the admission workspace write lock',
     const store=new DemoStore(),repo=new WorkspaceRepository(store),maintenance=new MaintenanceService(repo,store);
     await repo.transact(async tx=>{tx.state.settings.retentionAutomatic=true;});
     const transact=repo.transact.bind(repo);let entered=0;
-    repo.transact=(work,options)=>transact(async tx=>{entered++;tx.state.settings.retentionAutomatic=false;return work(tx);},options);
+    repo.transact=async(work,options)=>{entered++;await transact(async tx=>{tx.state.settings.retentionAutomatic=false;});return transact(work,options);};
     await maintenance.run();expect(entered).toBe(1);expect((await repo.read()).retention).toBeUndefined();
   });
 });

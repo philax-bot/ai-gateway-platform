@@ -1,0 +1,2028 @@
+{
+  "success": true,
+  "createdAt": "2026-10-28T08:30:12.562Z",
+  "environment": {
+    "node": "v22.23.1",
+    "platform": "win32",
+    "arch": "x64",
+    "cpu": "Intel(R) Core(TM) Ultra X7 358H",
+    "logicalCpus": 16,
+    "memoryGiB": 32,
+    "revision": "359d7f0",
+    "dirty": true,
+    "store": "isolated PostgreSQL schema",
+    "network": "local control plane/gateway/model; PostgreSQL uses the configured development endpoint",
+    "model": "repository deterministic HTTP stand-in; 13 input / 14 output / 4 cached tokens",
+    "scope": "single instance, 4 managed users with one quota batch each; not production or real-model capacity",
+    "upstream": {
+      "modelId": "test-model",
+      "implementation": "postman/mocks/test-model/default.js",
+      "engine": "deterministic-local-http",
+      "allowUpstreamRequests": false,
+      "allowUpstreamValidation": false,
+      "modelInference": false
+    }
+  },
+  "workload": {
+    "requestLimit": 2000,
+    "durationSeconds": 180,
+    "users": 4,
+    "concurrency": 8,
+    "streamEvery": 3,
+    "adminEvery": 8,
+    "diagnosticsCheckpoint": 25
+  },
+  "database": {
+    "samples": 681,
+    "sampleFailures": 0,
+    "maxClients": 8,
+    "maxLockWaiters": 7,
+    "waitEvents": {
+      "running": 47,
+      "Client:ClientRead": 2669,
+      "Lock:transactionid": 1140,
+      "Lock:advisory": 1461,
+      "Lock:tuple": 58,
+      "IO:WALSync": 17,
+      "Client:ClientWrite": 48,
+      "IO:WALWrite": 1
+    },
+    "workspaceSize": {
+      "full_bytes": 43583,
+      "policy_bytes": 13974,
+      "admission_bytes": 9560
+    },
+    "externalBlockerSamples": 0,
+    "maxTransactionAgeMs": 2617,
+    "graphAtMax": [
+      {
+        "pid": 733623,
+        "state": "idle",
+        "waitType": "Client",
+        "wait": "ClientRead",
+        "xid": null,
+        "ageMs": 0,
+        "queryAgeMs": 5,
+        "blockers": [],
+        "command": "commit",
+        "rowLock": null,
+        "stage": "commit"
+      },
+      {
+        "pid": 733631,
+        "state": "idle in transaction",
+        "waitType": "Client",
+        "wait": "ClientRead",
+        "xid": "32794",
+        "ageMs": 2617,
+        "queryAgeMs": 450,
+        "blockers": [],
+        "command": "select",
+        "rowLock": null,
+        "stage": "gateway_lock_keys"
+      },
+      {
+        "pid": 733632,
+        "state": "idle in transaction",
+        "waitType": "Client",
+        "wait": "ClientRead",
+        "xid": null,
+        "ageMs": 929,
+        "queryAgeMs": 880,
+        "blockers": [],
+        "command": "select",
+        "rowLock": null,
+        "stage": "platform_workspace"
+      },
+      {
+        "pid": 733634,
+        "state": "active",
+        "waitType": "Lock",
+        "wait": "transactionid",
+        "xid": "32795",
+        "ageMs": 336,
+        "queryAgeMs": 219,
+        "blockers": [
+          733631
+        ],
+        "command": "update",
+        "rowLock": null,
+        "stage": "quota_batches"
+      },
+      {
+        "pid": 733633,
+        "state": "idle in transaction",
+        "waitType": "Client",
+        "wait": "ClientRead",
+        "xid": null,
+        "ageMs": 21,
+        "queryAgeMs": 6,
+        "blockers": [],
+        "command": "select",
+        "rowLock": null,
+        "stage": "gateway_lock_keys"
+      },
+      {
+        "pid": 733635,
+        "state": "idle in transaction",
+        "waitType": "Client",
+        "wait": "ClientRead",
+        "xid": "32793",
+        "ageMs": 527,
+        "queryAgeMs": 444,
+        "blockers": [],
+        "command": "update",
+        "rowLock": null,
+        "stage": "quota_batches"
+      },
+      {
+        "pid": 733636,
+        "state": "active",
+        "waitType": "Lock",
+        "wait": "advisory",
+        "xid": "32796",
+        "ageMs": 135,
+        "queryAgeMs": 18,
+        "blockers": [
+          733631
+        ],
+        "command": "select",
+        "rowLock": null,
+        "stage": "gateway_lock_keys"
+      },
+      {
+        "pid": 733637,
+        "state": "idle in transaction",
+        "waitType": "Client",
+        "wait": "ClientRead",
+        "xid": null,
+        "ageMs": 727,
+        "queryAgeMs": 677,
+        "blockers": [],
+        "command": "select",
+        "rowLock": null,
+        "stage": "platform_workspace"
+      }
+    ],
+    "maxQueryLockWaitMs": 1094,
+    "blockingGraph": [
+      {
+        "pid": 733623,
+        "state": "active",
+        "waitType": "Lock",
+        "wait": "transactionid",
+        "xid": null,
+        "ageMs": 323,
+        "queryAgeMs": 79,
+        "blockers": [
+          733632
+        ],
+        "command": "select",
+        "rowLock": "update",
+        "stage": "quota_batches"
+      },
+      {
+        "pid": 733631,
+        "state": "active",
+        "waitType": "Lock",
+        "wait": "advisory",
+        "xid": "32987",
+        "ageMs": 655,
+        "queryAgeMs": 385,
+        "blockers": [
+          733635,
+          733637
+        ],
+        "command": "select",
+        "rowLock": null,
+        "stage": "gateway_lock_keys"
+      },
+      {
+        "pid": 733632,
+        "state": "active",
+        "waitType": "Lock",
+        "wait": "advisory",
+        "xid": "32985",
+        "ageMs": 1075,
+        "queryAgeMs": 2,
+        "blockers": [
+          733635,
+          733637,
+          733631
+        ],
+        "command": "select",
+        "rowLock": null,
+        "stage": "gateway_lock_keys"
+      },
+      {
+        "pid": 733634,
+        "state": "idle in transaction",
+        "waitType": "Client",
+        "wait": "ClientRead",
+        "xid": null,
+        "ageMs": 21,
+        "queryAgeMs": 0,
+        "blockers": [],
+        "command": "select",
+        "rowLock": null,
+        "stage": "gateway_lock_keys"
+      },
+      {
+        "pid": 733633,
+        "state": "active",
+        "waitType": "Lock",
+        "wait": "transactionid",
+        "xid": "32986",
+        "ageMs": 1203,
+        "queryAgeMs": 1094,
+        "blockers": [
+          733635
+        ],
+        "command": "select",
+        "rowLock": "update",
+        "stage": "quota_batches"
+      },
+      {
+        "pid": 733635,
+        "state": "idle in transaction",
+        "waitType": "Client",
+        "wait": "ClientRead",
+        "xid": "32981",
+        "ageMs": 1691,
+        "queryAgeMs": 1,
+        "blockers": [],
+        "command": "update",
+        "rowLock": null,
+        "stage": "quota_batches"
+      },
+      {
+        "pid": 733636,
+        "state": "active",
+        "waitType": "Lock",
+        "wait": "transactionid",
+        "xid": "32989",
+        "ageMs": 385,
+        "queryAgeMs": 152,
+        "blockers": [
+          733637
+        ],
+        "command": "update",
+        "rowLock": null,
+        "stage": "quota_batches"
+      },
+      {
+        "pid": 733637,
+        "state": "active",
+        "waitType": "Lock",
+        "wait": "advisory",
+        "xid": "32988",
+        "ageMs": 863,
+        "queryAgeMs": 486,
+        "blockers": [
+          733635
+        ],
+        "command": "select",
+        "rowLock": null,
+        "stage": "gateway_lock_keys"
+      }
+    ],
+    "activeAtMaxWait": [
+      {
+        "operation": "authorize",
+        "context": null,
+        "backendPid": 733635,
+        "startedAt": 1793176344484,
+        "elapsedMs": 1726.92,
+        "phase": "query",
+        "idleMs": 0,
+        "currentQuery": {
+          "stage": "admission_windows",
+          "command": "write",
+          "lock": null,
+          "elapsedMs": 3,
+          "startedAt": 1793176346208,
+          "endedAt": null
+        },
+        "lastQuery": {
+          "stage": "reservations",
+          "command": "write",
+          "lock": null,
+          "elapsedMs": 14.18,
+          "startedAt": 1793176346194,
+          "endedAt": 1793176346208
+        }
+      },
+      {
+        "operation": "authorize",
+        "context": null,
+        "backendPid": 733633,
+        "startedAt": 1793176344978,
+        "elapsedMs": 1233.16,
+        "phase": "query",
+        "idleMs": 0,
+        "currentQuery": {
+          "stage": "quota_batches",
+          "command": "read",
+          "lock": "update",
+          "elapsedMs": 1125,
+          "startedAt": 1793176345086,
+          "endedAt": null
+        },
+        "lastQuery": {
+          "stage": "credentials",
+          "command": "read",
+          "lock": null,
+          "elapsedMs": 13.62,
+          "startedAt": 1793176345073,
+          "endedAt": 1793176345086
+        }
+      },
+      {
+        "operation": "settle",
+        "context": null,
+        "backendPid": 733632,
+        "startedAt": 1793176345102,
+        "elapsedMs": 1108.58,
+        "phase": "query",
+        "idleMs": 0,
+        "currentQuery": {
+          "stage": "advisory_lock",
+          "command": "read",
+          "lock": "advisory",
+          "elapsedMs": 39,
+          "startedAt": 1793176346172,
+          "endedAt": null
+        },
+        "lastQuery": {
+          "stage": "reservation_limit_scopes",
+          "command": "read",
+          "lock": null,
+          "elapsedMs": 58.71,
+          "startedAt": 1793176346113,
+          "endedAt": 1793176346172
+        }
+      },
+      {
+        "operation": "authorize",
+        "context": null,
+        "backendPid": 733637,
+        "startedAt": 1793176345316,
+        "elapsedMs": 895.41,
+        "phase": "query",
+        "idleMs": 0,
+        "currentQuery": {
+          "stage": "advisory_lock",
+          "command": "read",
+          "lock": "advisory",
+          "elapsedMs": 534,
+          "startedAt": 1793176345677,
+          "endedAt": null
+        },
+        "lastQuery": {
+          "stage": "quota_batches",
+          "command": "read",
+          "lock": "update",
+          "elapsedMs": 194.6,
+          "startedAt": 1793176345483,
+          "endedAt": 1793176345677
+        }
+      },
+      {
+        "operation": "settle",
+        "context": null,
+        "backendPid": 733631,
+        "startedAt": 1793176345515,
+        "elapsedMs": 696.16,
+        "phase": "query",
+        "idleMs": 0,
+        "currentQuery": {
+          "stage": "advisory_lock",
+          "command": "read",
+          "lock": "advisory",
+          "elapsedMs": 498,
+          "startedAt": 1793176345713,
+          "endedAt": null
+        },
+        "lastQuery": {
+          "stage": "reservation_limit_scopes",
+          "command": "read",
+          "lock": null,
+          "elapsedMs": 35.95,
+          "startedAt": 1793176345677,
+          "endedAt": 1793176345713
+        }
+      },
+      {
+        "operation": "settle",
+        "context": null,
+        "backendPid": 733636,
+        "startedAt": 1793176345715,
+        "elapsedMs": 496.36,
+        "phase": "query",
+        "idleMs": 0,
+        "currentQuery": {
+          "stage": "quota_batches",
+          "command": "write",
+          "lock": null,
+          "elapsedMs": 196,
+          "startedAt": 1793176346015,
+          "endedAt": null
+        },
+        "lastQuery": {
+          "stage": "settlement_records",
+          "command": "read",
+          "lock": null,
+          "elapsedMs": 18.84,
+          "startedAt": 1793176345996,
+          "endedAt": 1793176346015
+        }
+      },
+      {
+        "operation": "authorize",
+        "context": null,
+        "backendPid": 733623,
+        "startedAt": 1793176345824,
+        "elapsedMs": 386.95,
+        "phase": "query",
+        "idleMs": 0,
+        "currentQuery": {
+          "stage": "quota_batches",
+          "command": "read",
+          "lock": "update",
+          "elapsedMs": 123,
+          "startedAt": 1793176346088,
+          "endedAt": null
+        },
+        "lastQuery": {
+          "stage": "credentials",
+          "command": "read",
+          "lock": null,
+          "elapsedMs": 20.56,
+          "startedAt": 1793176346068,
+          "endedAt": 1793176346088
+        }
+      },
+      {
+        "operation": "settle",
+        "context": null,
+        "backendPid": 733634,
+        "startedAt": 1793176346119,
+        "elapsedMs": 92.14,
+        "phase": "query",
+        "idleMs": 0,
+        "currentQuery": {
+          "stage": "settlement_records",
+          "command": "read",
+          "lock": null,
+          "elapsedMs": 2,
+          "startedAt": 1793176346209,
+          "endedAt": null
+        },
+        "lastQuery": {
+          "stage": "reservations",
+          "command": "read",
+          "lock": "update",
+          "elapsedMs": 14.54,
+          "startedAt": 1793176346194,
+          "endedAt": 1793176346209
+        }
+      }
+    ]
+  },
+  "hotPath": {
+    "enabled": true,
+    "capacity": 2048,
+    "completed": 2255,
+    "after": 25,
+    "retained": 2048,
+    "dropped": 207,
+    "eventLoopDelayMs": {
+      "p95": 31.52,
+      "max": 357.83
+    },
+    "active": [],
+    "slowOperations": [
+      {
+        "operation": "authorize",
+        "context": null,
+        "backendPid": 733631,
+        "sequence": 1241,
+        "startedAt": 1793176321432,
+        "elapsedMs": 2734.19,
+        "poolWaitMs": 0.04,
+        "queries": 16,
+        "failed": false,
+        "omittedSteps": 0,
+        "steps": [
+          {
+            "stage": "transaction",
+            "command": "begin",
+            "lock": null,
+            "elapsedMs": 12.25,
+            "startedAt": 1793176321432,
+            "endedAt": 1793176321444
+          },
+          {
+            "stage": "advisory_lock",
+            "command": "read",
+            "lock": "advisory",
+            "elapsedMs": 14.05,
+            "startedAt": 1793176321444,
+            "endedAt": 1793176321458
+          },
+          {
+            "stage": "authorization_records",
+            "command": "read",
+            "lock": null,
+            "elapsedMs": 13.15,
+            "startedAt": 1793176321458,
+            "endedAt": 1793176321472
+          },
+          {
+            "stage": "advisory_lock",
+            "command": "read",
+            "lock": "advisory",
+            "elapsedMs": 11.85,
+            "startedAt": 1793176321472,
+            "endedAt": 1793176321483
+          },
+          {
+            "stage": "platform_workspace",
+            "command": "read",
+            "lock": null,
+            "elapsedMs": 1647.72,
+            "startedAt": 1793176321484,
+            "endedAt": 1793176323131
+          },
+          {
+            "stage": "credentials",
+            "command": "read",
+            "lock": null,
+            "elapsedMs": 11.15,
+            "startedAt": 1793176323131,
+            "endedAt": 1793176323142
+          },
+          {
+            "stage": "quota_batches",
+            "command": "read",
+            "lock": "update",
+            "elapsedMs": 457.22,
+            "startedAt": 1793176323143,
+            "endedAt": 1793176323600
+          },
+          {
+            "stage": "advisory_lock",
+            "command": "read",
+            "lock": "advisory",
+            "elapsedMs": 458.52,
+            "startedAt": 1793176323600,
+            "endedAt": 1793176324058
+          },
+          {
+            "stage": "other",
+            "command": "read",
+            "lock": null,
+            "elapsedMs": 14.74,
+            "startedAt": 1793176324058,
+            "endedAt": 1793176324073
+          },
+          {
+            "stage": "reservation_limit_scopes",
+            "command": "read",
+            "lock": null,
+            "elapsedMs": 13.27,
+            "startedAt": 1793176324073,
+            "endedAt": 1793176324086
+          },
+          {
+            "stage": "quota_batches",
+            "command": "write",
+            "lock": null,
+            "elapsedMs": 12.78,
+            "startedAt": 1793176324086,
+            "endedAt": 1793176324099
+          },
+          {
+            "stage": "reservations",
+            "command": "write",
+            "lock": null,
+            "elapsedMs": 11.82,
+            "startedAt": 1793176324099,
+            "endedAt": 1793176324111
+          },
+          {
+            "stage": "admission_windows",
+            "command": "write",
+            "lock": null,
+            "elapsedMs": 14.32,
+            "startedAt": 1793176324111,
+            "endedAt": 1793176324125
+          },
+          {
+            "stage": "reservation_limit_scopes",
+            "command": "write",
+            "lock": null,
+            "elapsedMs": 15.2,
+            "startedAt": 1793176324126,
+            "endedAt": 1793176324141
+          },
+          {
+            "stage": "authorization_records",
+            "command": "write",
+            "lock": null,
+            "elapsedMs": 10.92,
+            "startedAt": 1793176324141,
+            "endedAt": 1793176324152
+          },
+          {
+            "stage": "transaction",
+            "command": "commit",
+            "lock": null,
+            "elapsedMs": 14.54,
+            "startedAt": 1793176324152,
+            "endedAt": 1793176324166
+          }
+        ]
+      },
+      {
+        "operation": "authorize",
+        "context": null,
+        "backendPid": 733637,
+        "sequence": 279,
+        "startedAt": 1793176240478,
+        "elapsedMs": 2714.65,
+        "poolWaitMs": 0.07,
+        "queries": 16,
+        "failed": false,
+        "omittedSteps": 0,
+        "steps": [
+          {
+            "stage": "transaction",
+            "command": "begin",
+            "lock": null,
+            "elapsedMs": 13.63,
+            "startedAt": 1793176240478,
+            "endedAt": 1793176240491
+          },
+          {
+            "stage": "advisory_lock",
+            "command": "read",
+            "lock": "advisory",
+            "elapsedMs": 12.87,
+            "startedAt": 1793176240491,
+            "endedAt": 1793176240504
+          },
+          {
+            "stage": "authorization_records",
+            "command": "read",
+            "lock": null,
+            "elapsedMs": 13.29,
+            "startedAt": 1793176240504,
+            "endedAt": 1793176240517
+          },
+          {
+            "stage": "advisory_lock",
+            "command": "read",
+            "lock": "advisory",
+            "elapsedMs": 12.55,
+            "startedAt": 1793176240518,
+            "endedAt": 1793176240530
+          },
+          {
+            "stage": "platform_workspace",
+            "command": "read",
+            "lock": null,
+            "elapsedMs": 1691.23,
+            "startedAt": 1793176240530,
+            "endedAt": 1793176242221
+          },
+          {
+            "stage": "credentials",
+            "command": "read",
+            "lock": null,
+            "elapsedMs": 16.26,
+            "startedAt": 1793176242221,
+            "endedAt": 1793176242238
+          },
+          {
+            "stage": "quota_batches",
+            "command": "read",
+            "lock": "update",
+            "elapsedMs": 15.61,
+            "startedAt": 1793176242238,
+            "endedAt": 1793176242253
+          },
+          {
+            "stage": "advisory_lock",
+            "command": "read",
+            "lock": "advisory",
+            "elapsedMs": 815.99,
+            "startedAt": 1793176242253,
+            "endedAt": 1793176243069
+          },
+          {
+            "stage": "other",
+            "command": "read",
+            "lock": null,
+            "elapsedMs": 13.55,
+            "startedAt": 1793176243069,
+            "endedAt": 1793176243083
+          },
+          {
+            "stage": "reservation_limit_scopes",
+            "command": "read",
+            "lock": null,
+            "elapsedMs": 22.37,
+            "startedAt": 1793176243083,
+            "endedAt": 1793176243105
+          },
+          {
+            "stage": "quota_batches",
+            "command": "write",
+            "lock": null,
+            "elapsedMs": 15.24,
+            "startedAt": 1793176243105,
+            "endedAt": 1793176243121
+          },
+          {
+            "stage": "reservations",
+            "command": "write",
+            "lock": null,
+            "elapsedMs": 12.65,
+            "startedAt": 1793176243121,
+            "endedAt": 1793176243133
+          },
+          {
+            "stage": "admission_windows",
+            "command": "write",
+            "lock": null,
+            "elapsedMs": 13.82,
+            "startedAt": 1793176243133,
+            "endedAt": 1793176243147
+          },
+          {
+            "stage": "reservation_limit_scopes",
+            "command": "write",
+            "lock": null,
+            "elapsedMs": 15.75,
+            "startedAt": 1793176243147,
+            "endedAt": 1793176243163
+          },
+          {
+            "stage": "authorization_records",
+            "command": "write",
+            "lock": null,
+            "elapsedMs": 14.1,
+            "startedAt": 1793176243163,
+            "endedAt": 1793176243177
+          },
+          {
+            "stage": "transaction",
+            "command": "commit",
+            "lock": null,
+            "elapsedMs": 15.07,
+            "startedAt": 1793176243177,
+            "endedAt": 1793176243192
+          }
+        ]
+      },
+      {
+        "operation": "authorize",
+        "context": null,
+        "backendPid": 733636,
+        "sequence": 1303,
+        "startedAt": 1793176326475,
+        "elapsedMs": 2388.66,
+        "poolWaitMs": 0.11,
+        "queries": 16,
+        "failed": false,
+        "omittedSteps": 0,
+        "steps": [
+          {
+            "stage": "transaction",
+            "command": "begin",
+            "lock": null,
+            "elapsedMs": 12.02,
+            "startedAt": 1793176326475,
+            "endedAt": 1793176326487
+          },
+          {
+            "stage": "advisory_lock",
+            "command": "read",
+            "lock": "advisory",
+            "elapsedMs": 18.32,
+            "startedAt": 1793176326487,
+            "endedAt": 1793176326505
+          },
+          {
+            "stage": "authorization_records",
+            "command": "read",
+            "lock": null,
+            "elapsedMs": 13.73,
+            "startedAt": 1793176326505,
+            "endedAt": 1793176326519
+          },
+          {
+            "stage": "advisory_lock",
+            "command": "read",
+            "lock": "advisory",
+            "elapsedMs": 14.7,
+            "startedAt": 1793176326519,
+            "endedAt": 1793176326534
+          },
+          {
+            "stage": "platform_workspace",
+            "command": "read",
+            "lock": null,
+            "elapsedMs": 1651.73,
+            "startedAt": 1793176326534,
+            "endedAt": 1793176328185
+          },
+          {
+            "stage": "credentials",
+            "command": "read",
+            "lock": null,
+            "elapsedMs": 11.77,
+            "startedAt": 1793176328185,
+            "endedAt": 1793176328197
+          },
+          {
+            "stage": "quota_batches",
+            "command": "read",
+            "lock": "update",
+            "elapsedMs": 254.33,
+            "startedAt": 1793176328197,
+            "endedAt": 1793176328452
+          },
+          {
+            "stage": "advisory_lock",
+            "command": "read",
+            "lock": "advisory",
+            "elapsedMs": 257.36,
+            "startedAt": 1793176328452,
+            "endedAt": 1793176328709
+          },
+          {
+            "stage": "other",
+            "command": "read",
+            "lock": null,
+            "elapsedMs": 13.3,
+            "startedAt": 1793176328709,
+            "endedAt": 1793176328722
+          },
+          {
+            "stage": "reservation_limit_scopes",
+            "command": "read",
+            "lock": null,
+            "elapsedMs": 13.91,
+            "startedAt": 1793176328722,
+            "endedAt": 1793176328736
+          },
+          {
+            "stage": "quota_batches",
+            "command": "write",
+            "lock": null,
+            "elapsedMs": 12.36,
+            "startedAt": 1793176328736,
+            "endedAt": 1793176328749
+          },
+          {
+            "stage": "reservations",
+            "command": "write",
+            "lock": null,
+            "elapsedMs": 13.14,
+            "startedAt": 1793176328749,
+            "endedAt": 1793176328762
+          },
+          {
+            "stage": "admission_windows",
+            "command": "write",
+            "lock": null,
+            "elapsedMs": 13.32,
+            "startedAt": 1793176328762,
+            "endedAt": 1793176328775
+          },
+          {
+            "stage": "reservation_limit_scopes",
+            "command": "write",
+            "lock": null,
+            "elapsedMs": 12.62,
+            "startedAt": 1793176328775,
+            "endedAt": 1793176328788
+          },
+          {
+            "stage": "authorization_records",
+            "command": "write",
+            "lock": null,
+            "elapsedMs": 13.7,
+            "startedAt": 1793176328788,
+            "endedAt": 1793176328802
+          },
+          {
+            "stage": "transaction",
+            "command": "commit",
+            "lock": null,
+            "elapsedMs": 61.66,
+            "startedAt": 1793176328802,
+            "endedAt": 1793176328863
+          }
+        ]
+      },
+      {
+        "operation": "authorize",
+        "context": null,
+        "backendPid": 733632,
+        "sequence": 820,
+        "startedAt": 1793176285519,
+        "elapsedMs": 2386.52,
+        "poolWaitMs": 0.06,
+        "queries": 16,
+        "failed": false,
+        "omittedSteps": 0,
+        "steps": [
+          {
+            "stage": "transaction",
+            "command": "begin",
+            "lock": null,
+            "elapsedMs": 19.17,
+            "startedAt": 1793176285519,
+            "endedAt": 1793176285538
+          },
+          {
+            "stage": "advisory_lock",
+            "command": "read",
+            "lock": "advisory",
+            "elapsedMs": 12.58,
+            "startedAt": 1793176285538,
+            "endedAt": 1793176285551
+          },
+          {
+            "stage": "authorization_records",
+            "command": "read",
+            "lock": null,
+            "elapsedMs": 15.38,
+            "startedAt": 1793176285551,
+            "endedAt": 1793176285566
+          },
+          {
+            "stage": "advisory_lock",
+            "command": "read",
+            "lock": "advisory",
+            "elapsedMs": 19.47,
+            "startedAt": 1793176285566,
+            "endedAt": 1793176285586
+          },
+          {
+            "stage": "platform_workspace",
+            "command": "read",
+            "lock": null,
+            "elapsedMs": 1027.12,
+            "startedAt": 1793176285586,
+            "endedAt": 1793176286613
+          },
+          {
+            "stage": "credentials",
+            "command": "read",
+            "lock": null,
+            "elapsedMs": 15.66,
+            "startedAt": 1793176286613,
+            "endedAt": 1793176286628
+          },
+          {
+            "stage": "quota_batches",
+            "command": "read",
+            "lock": "update",
+            "elapsedMs": 614.01,
+            "startedAt": 1793176286628,
+            "endedAt": 1793176287242
+          },
+          {
+            "stage": "advisory_lock",
+            "command": "read",
+            "lock": "advisory",
+            "elapsedMs": 369.47,
+            "startedAt": 1793176287243,
+            "endedAt": 1793176287612
+          },
+          {
+            "stage": "other",
+            "command": "read",
+            "lock": null,
+            "elapsedMs": 15.32,
+            "startedAt": 1793176287612,
+            "endedAt": 1793176287628
+          },
+          {
+            "stage": "reservation_limit_scopes",
+            "command": "read",
+            "lock": null,
+            "elapsedMs": 32.26,
+            "startedAt": 1793176287628,
+            "endedAt": 1793176287660
+          },
+          {
+            "stage": "quota_batches",
+            "command": "write",
+            "lock": null,
+            "elapsedMs": 14.69,
+            "startedAt": 1793176287660,
+            "endedAt": 1793176287675
+          },
+          {
+            "stage": "reservations",
+            "command": "write",
+            "lock": null,
+            "elapsedMs": 73.27,
+            "startedAt": 1793176287675,
+            "endedAt": 1793176287748
+          },
+          {
+            "stage": "admission_windows",
+            "command": "write",
+            "lock": null,
+            "elapsedMs": 109.83,
+            "startedAt": 1793176287748,
+            "endedAt": 1793176287858
+          },
+          {
+            "stage": "reservation_limit_scopes",
+            "command": "write",
+            "lock": null,
+            "elapsedMs": 17.85,
+            "startedAt": 1793176287858,
+            "endedAt": 1793176287876
+          },
+          {
+            "stage": "authorization_records",
+            "command": "write",
+            "lock": null,
+            "elapsedMs": 13.95,
+            "startedAt": 1793176287876,
+            "endedAt": 1793176287890
+          },
+          {
+            "stage": "transaction",
+            "command": "commit",
+            "lock": null,
+            "elapsedMs": 15.63,
+            "startedAt": 1793176287890,
+            "endedAt": 1793176287905
+          }
+        ]
+      },
+      {
+        "operation": "authorize",
+        "context": null,
+        "backendPid": 733633,
+        "sequence": 1356,
+        "startedAt": 1793176330557,
+        "elapsedMs": 2316.85,
+        "poolWaitMs": 0.05,
+        "queries": 16,
+        "failed": false,
+        "omittedSteps": 0,
+        "steps": [
+          {
+            "stage": "transaction",
+            "command": "begin",
+            "lock": null,
+            "elapsedMs": 14.59,
+            "startedAt": 1793176330557,
+            "endedAt": 1793176330571
+          },
+          {
+            "stage": "advisory_lock",
+            "command": "read",
+            "lock": "advisory",
+            "elapsedMs": 12.77,
+            "startedAt": 1793176330572,
+            "endedAt": 1793176330584
+          },
+          {
+            "stage": "authorization_records",
+            "command": "read",
+            "lock": null,
+            "elapsedMs": 17.03,
+            "startedAt": 1793176330584,
+            "endedAt": 1793176330601
+          },
+          {
+            "stage": "advisory_lock",
+            "command": "read",
+            "lock": "advisory",
+            "elapsedMs": 12.68,
+            "startedAt": 1793176330601,
+            "endedAt": 1793176330614
+          },
+          {
+            "stage": "platform_workspace",
+            "command": "read",
+            "lock": null,
+            "elapsedMs": 772,
+            "startedAt": 1793176330614,
+            "endedAt": 1793176331386
+          },
+          {
+            "stage": "credentials",
+            "command": "read",
+            "lock": null,
+            "elapsedMs": 20.89,
+            "startedAt": 1793176331386,
+            "endedAt": 1793176331407
+          },
+          {
+            "stage": "quota_batches",
+            "command": "read",
+            "lock": "update",
+            "elapsedMs": 925.92,
+            "startedAt": 1793176331407,
+            "endedAt": 1793176332333
+          },
+          {
+            "stage": "advisory_lock",
+            "command": "read",
+            "lock": "advisory",
+            "elapsedMs": 366.11,
+            "startedAt": 1793176332333,
+            "endedAt": 1793176332699
+          },
+          {
+            "stage": "other",
+            "command": "read",
+            "lock": null,
+            "elapsedMs": 13.37,
+            "startedAt": 1793176332699,
+            "endedAt": 1793176332713
+          },
+          {
+            "stage": "reservation_limit_scopes",
+            "command": "read",
+            "lock": null,
+            "elapsedMs": 13.69,
+            "startedAt": 1793176332713,
+            "endedAt": 1793176332726
+          },
+          {
+            "stage": "quota_batches",
+            "command": "write",
+            "lock": null,
+            "elapsedMs": 70.38,
+            "startedAt": 1793176332726,
+            "endedAt": 1793176332797
+          },
+          {
+            "stage": "reservations",
+            "command": "write",
+            "lock": null,
+            "elapsedMs": 18.63,
+            "startedAt": 1793176332797,
+            "endedAt": 1793176332815
+          },
+          {
+            "stage": "admission_windows",
+            "command": "write",
+            "lock": null,
+            "elapsedMs": 13.78,
+            "startedAt": 1793176332815,
+            "endedAt": 1793176332829
+          },
+          {
+            "stage": "reservation_limit_scopes",
+            "command": "write",
+            "lock": null,
+            "elapsedMs": 13.43,
+            "startedAt": 1793176332829,
+            "endedAt": 1793176332843
+          },
+          {
+            "stage": "authorization_records",
+            "command": "write",
+            "lock": null,
+            "elapsedMs": 16.12,
+            "startedAt": 1793176332843,
+            "endedAt": 1793176332859
+          },
+          {
+            "stage": "transaction",
+            "command": "commit",
+            "lock": null,
+            "elapsedMs": 14.81,
+            "startedAt": 1793176332859,
+            "endedAt": 1793176332874
+          }
+        ]
+      },
+      {
+        "operation": "authorize",
+        "context": null,
+        "backendPid": 733623,
+        "sequence": 374,
+        "startedAt": 1793176247954,
+        "elapsedMs": 2296.56,
+        "poolWaitMs": 0.06,
+        "queries": 16,
+        "failed": false,
+        "omittedSteps": 0,
+        "steps": [
+          {
+            "stage": "transaction",
+            "command": "begin",
+            "lock": null,
+            "elapsedMs": 11.57,
+            "startedAt": 1793176247954,
+            "endedAt": 1793176247966
+          },
+          {
+            "stage": "advisory_lock",
+            "command": "read",
+            "lock": "advisory",
+            "elapsedMs": 12.21,
+            "startedAt": 1793176247966,
+            "endedAt": 1793176247978
+          },
+          {
+            "stage": "authorization_records",
+            "command": "read",
+            "lock": null,
+            "elapsedMs": 13.17,
+            "startedAt": 1793176247978,
+            "endedAt": 1793176247991
+          },
+          {
+            "stage": "advisory_lock",
+            "command": "read",
+            "lock": "advisory",
+            "elapsedMs": 17.22,
+            "startedAt": 1793176247991,
+            "endedAt": 1793176248009
+          },
+          {
+            "stage": "platform_workspace",
+            "command": "read",
+            "lock": null,
+            "elapsedMs": 1642.59,
+            "startedAt": 1793176248009,
+            "endedAt": 1793176249651
+          },
+          {
+            "stage": "credentials",
+            "command": "read",
+            "lock": null,
+            "elapsedMs": 27.31,
+            "startedAt": 1793176249651,
+            "endedAt": 1793176249679
+          },
+          {
+            "stage": "quota_batches",
+            "command": "read",
+            "lock": "update",
+            "elapsedMs": 112.82,
+            "startedAt": 1793176249679,
+            "endedAt": 1793176249791
+          },
+          {
+            "stage": "advisory_lock",
+            "command": "read",
+            "lock": "advisory",
+            "elapsedMs": 355.71,
+            "startedAt": 1793176249792,
+            "endedAt": 1793176250147
+          },
+          {
+            "stage": "other",
+            "command": "read",
+            "lock": null,
+            "elapsedMs": 13.17,
+            "startedAt": 1793176250147,
+            "endedAt": 1793176250161
+          },
+          {
+            "stage": "reservation_limit_scopes",
+            "command": "read",
+            "lock": null,
+            "elapsedMs": 12.74,
+            "startedAt": 1793176250161,
+            "endedAt": 1793176250173
+          },
+          {
+            "stage": "quota_batches",
+            "command": "write",
+            "lock": null,
+            "elapsedMs": 13.06,
+            "startedAt": 1793176250173,
+            "endedAt": 1793176250186
+          },
+          {
+            "stage": "reservations",
+            "command": "write",
+            "lock": null,
+            "elapsedMs": 14.06,
+            "startedAt": 1793176250186,
+            "endedAt": 1793176250200
+          },
+          {
+            "stage": "admission_windows",
+            "command": "write",
+            "lock": null,
+            "elapsedMs": 12.78,
+            "startedAt": 1793176250201,
+            "endedAt": 1793176250213
+          },
+          {
+            "stage": "reservation_limit_scopes",
+            "command": "write",
+            "lock": null,
+            "elapsedMs": 11.62,
+            "startedAt": 1793176250213,
+            "endedAt": 1793176250225
+          },
+          {
+            "stage": "authorization_records",
+            "command": "write",
+            "lock": null,
+            "elapsedMs": 12.06,
+            "startedAt": 1793176250225,
+            "endedAt": 1793176250237
+          },
+          {
+            "stage": "transaction",
+            "command": "commit",
+            "lock": null,
+            "elapsedMs": 13.87,
+            "startedAt": 1793176250237,
+            "endedAt": 1793176250251
+          }
+        ]
+      },
+      {
+        "operation": "authorize",
+        "context": null,
+        "backendPid": 733634,
+        "sequence": 1338,
+        "startedAt": 1793176329000,
+        "elapsedMs": 2275.47,
+        "poolWaitMs": 0.03,
+        "queries": 16,
+        "failed": false,
+        "omittedSteps": 0,
+        "steps": [
+          {
+            "stage": "transaction",
+            "command": "begin",
+            "lock": null,
+            "elapsedMs": 10.96,
+            "startedAt": 1793176329000,
+            "endedAt": 1793176329011
+          },
+          {
+            "stage": "advisory_lock",
+            "command": "read",
+            "lock": "advisory",
+            "elapsedMs": 11.14,
+            "startedAt": 1793176329011,
+            "endedAt": 1793176329022
+          },
+          {
+            "stage": "authorization_records",
+            "command": "read",
+            "lock": null,
+            "elapsedMs": 14.65,
+            "startedAt": 1793176329022,
+            "endedAt": 1793176329037
+          },
+          {
+            "stage": "advisory_lock",
+            "command": "read",
+            "lock": "advisory",
+            "elapsedMs": 9.92,
+            "startedAt": 1793176329037,
+            "endedAt": 1793176329047
+          },
+          {
+            "stage": "platform_workspace",
+            "command": "read",
+            "lock": null,
+            "elapsedMs": 1620.95,
+            "startedAt": 1793176329047,
+            "endedAt": 1793176330668
+          },
+          {
+            "stage": "credentials",
+            "command": "read",
+            "lock": null,
+            "elapsedMs": 12.61,
+            "startedAt": 1793176330668,
+            "endedAt": 1793176330680
+          },
+          {
+            "stage": "quota_batches",
+            "command": "read",
+            "lock": "update",
+            "elapsedMs": 178.15,
+            "startedAt": 1793176330680,
+            "endedAt": 1793176330859
+          },
+          {
+            "stage": "advisory_lock",
+            "command": "read",
+            "lock": "advisory",
+            "elapsedMs": 270.91,
+            "startedAt": 1793176330859,
+            "endedAt": 1793176331130
+          },
+          {
+            "stage": "other",
+            "command": "read",
+            "lock": null,
+            "elapsedMs": 12.5,
+            "startedAt": 1793176331130,
+            "endedAt": 1793176331142
+          },
+          {
+            "stage": "reservation_limit_scopes",
+            "command": "read",
+            "lock": null,
+            "elapsedMs": 19.35,
+            "startedAt": 1793176331142,
+            "endedAt": 1793176331162
+          },
+          {
+            "stage": "quota_batches",
+            "command": "write",
+            "lock": null,
+            "elapsedMs": 13.85,
+            "startedAt": 1793176331162,
+            "endedAt": 1793176331175
+          },
+          {
+            "stage": "reservations",
+            "command": "write",
+            "lock": null,
+            "elapsedMs": 11.87,
+            "startedAt": 1793176331175,
+            "endedAt": 1793176331187
+          },
+          {
+            "stage": "admission_windows",
+            "command": "write",
+            "lock": null,
+            "elapsedMs": 17.64,
+            "startedAt": 1793176331187,
+            "endedAt": 1793176331205
+          },
+          {
+            "stage": "reservation_limit_scopes",
+            "command": "write",
+            "lock": null,
+            "elapsedMs": 42.25,
+            "startedAt": 1793176331205,
+            "endedAt": 1793176331247
+          },
+          {
+            "stage": "authorization_records",
+            "command": "write",
+            "lock": null,
+            "elapsedMs": 15.32,
+            "startedAt": 1793176331247,
+            "endedAt": 1793176331263
+          },
+          {
+            "stage": "transaction",
+            "command": "commit",
+            "lock": null,
+            "elapsedMs": 12.82,
+            "startedAt": 1793176331263,
+            "endedAt": 1793176331275
+          }
+        ]
+      },
+      {
+        "operation": "authorize",
+        "context": null,
+        "backendPid": 733637,
+        "sequence": 1439,
+        "startedAt": 1793176336094,
+        "elapsedMs": 2201.99,
+        "poolWaitMs": 0.05,
+        "queries": 16,
+        "failed": false,
+        "omittedSteps": 0,
+        "steps": [
+          {
+            "stage": "transaction",
+            "command": "begin",
+            "lock": null,
+            "elapsedMs": 15.89,
+            "startedAt": 1793176336094,
+            "endedAt": 1793176336110
+          },
+          {
+            "stage": "advisory_lock",
+            "command": "read",
+            "lock": "advisory",
+            "elapsedMs": 12.9,
+            "startedAt": 1793176336110,
+            "endedAt": 1793176336122
+          },
+          {
+            "stage": "authorization_records",
+            "command": "read",
+            "lock": null,
+            "elapsedMs": 13.01,
+            "startedAt": 1793176336123,
+            "endedAt": 1793176336136
+          },
+          {
+            "stage": "advisory_lock",
+            "command": "read",
+            "lock": "advisory",
+            "elapsedMs": 14.92,
+            "startedAt": 1793176336136,
+            "endedAt": 1793176336150
+          },
+          {
+            "stage": "platform_workspace",
+            "command": "read",
+            "lock": null,
+            "elapsedMs": 1684.88,
+            "startedAt": 1793176336151,
+            "endedAt": 1793176337835
+          },
+          {
+            "stage": "credentials",
+            "command": "read",
+            "lock": null,
+            "elapsedMs": 11.81,
+            "startedAt": 1793176337835,
+            "endedAt": 1793176337847
+          },
+          {
+            "stage": "quota_batches",
+            "command": "read",
+            "lock": "update",
+            "elapsedMs": 35.57,
+            "startedAt": 1793176337847,
+            "endedAt": 1793176337883
+          },
+          {
+            "stage": "advisory_lock",
+            "command": "read",
+            "lock": "advisory",
+            "elapsedMs": 307.47,
+            "startedAt": 1793176337883,
+            "endedAt": 1793176338190
+          },
+          {
+            "stage": "other",
+            "command": "read",
+            "lock": null,
+            "elapsedMs": 11.85,
+            "startedAt": 1793176338191,
+            "endedAt": 1793176338202
+          },
+          {
+            "stage": "reservation_limit_scopes",
+            "command": "read",
+            "lock": null,
+            "elapsedMs": 16.09,
+            "startedAt": 1793176338202,
+            "endedAt": 1793176338218
+          },
+          {
+            "stage": "quota_batches",
+            "command": "write",
+            "lock": null,
+            "elapsedMs": 11.82,
+            "startedAt": 1793176338218,
+            "endedAt": 1793176338230
+          },
+          {
+            "stage": "reservations",
+            "command": "write",
+            "lock": null,
+            "elapsedMs": 11.83,
+            "startedAt": 1793176338230,
+            "endedAt": 1793176338242
+          },
+          {
+            "stage": "admission_windows",
+            "command": "write",
+            "lock": null,
+            "elapsedMs": 12.27,
+            "startedAt": 1793176338242,
+            "endedAt": 1793176338254
+          },
+          {
+            "stage": "reservation_limit_scopes",
+            "command": "write",
+            "lock": null,
+            "elapsedMs": 12.94,
+            "startedAt": 1793176338254,
+            "endedAt": 1793176338267
+          },
+          {
+            "stage": "authorization_records",
+            "command": "write",
+            "lock": null,
+            "elapsedMs": 12.05,
+            "startedAt": 1793176338267,
+            "endedAt": 1793176338279
+          },
+          {
+            "stage": "transaction",
+            "command": "commit",
+            "lock": null,
+            "elapsedMs": 16.06,
+            "startedAt": 1793176338280,
+            "endedAt": 1793176338296
+          }
+        ]
+      }
+    ],
+    "operations": {
+      "authorize": {
+        "samples": 657,
+        "failures": 0,
+        "elapsedMs": {
+          "p50": 900.59,
+          "p95": 1896.17,
+          "max": 2734.19
+        },
+        "poolWaitMs": {
+          "p50": 0.05,
+          "p95": 0.07,
+          "max": 0.3
+        },
+        "queries": {
+          "p50": 16,
+          "p95": 16,
+          "max": 16
+        },
+        "sqlMs": {
+          "p50": 899.9,
+          "p95": 1895.61,
+          "max": 2733.51
+        },
+        "localMs": {
+          "p50": 0.59,
+          "p95": 0.77,
+          "max": 1.37
+        },
+        "stages": {
+          "admission_windows": {
+            "p50": 14.37,
+            "p95": 34.14,
+            "max": 109.83
+          },
+          "advisory_lock": {
+            "p50": 320.81,
+            "p95": 609.42,
+            "max": 1059.45
+          },
+          "authorization_records": {
+            "p50": 29.98,
+            "p95": 68.01,
+            "max": 467.22
+          },
+          "credentials": {
+            "p50": 14.36,
+            "p95": 42.63,
+            "max": 269
+          },
+          "other": {
+            "p50": 14.43,
+            "p95": 31.1,
+            "max": 100.17
+          },
+          "platform_workspace": {
+            "p50": 42.56,
+            "p95": 850.66,
+            "max": 1733.44
+          },
+          "quota_batches": {
+            "p50": 121.09,
+            "p95": 628.7,
+            "max": 1193.34
+          },
+          "reservation_limit_scopes": {
+            "p50": 30.48,
+            "p95": 61.6,
+            "max": 258.83
+          },
+          "reservations": {
+            "p50": 14.83,
+            "p95": 33.04,
+            "max": 257.53
+          },
+          "transaction": {
+            "p50": 30.81,
+            "p95": 75.83,
+            "max": 327.55
+          }
+        }
+      },
+      "settle": {
+        "samples": 657,
+        "failures": 0,
+        "elapsedMs": {
+          "p50": 765.79,
+          "p95": 1428.57,
+          "max": 1960.52
+        },
+        "poolWaitMs": {
+          "p50": 0.05,
+          "p95": 0.07,
+          "max": 0.3
+        },
+        "queries": {
+          "p50": 14,
+          "p95": 14,
+          "max": 14
+        },
+        "sqlMs": {
+          "p50": 765.41,
+          "p95": 1428.21,
+          "max": 1960.07
+        },
+        "localMs": {
+          "p50": 0.37,
+          "p95": 0.47,
+          "max": 0.55
+        },
+        "stages": {
+          "advisory_lock": {
+            "p50": 284.76,
+            "p95": 543.43,
+            "max": 1075.03
+          },
+          "call_logs": {
+            "p50": 14.76,
+            "p95": 30.19,
+            "max": 96.96
+          },
+          "quota_batches": {
+            "p50": 298.76,
+            "p95": 752.76,
+            "max": 1228.57
+          },
+          "reservation_limit_scopes": {
+            "p50": 45.81,
+            "p95": 100.8,
+            "max": 288.48
+          },
+          "reservations": {
+            "p50": 30.38,
+            "p95": 76.7,
+            "max": 333.06
+          },
+          "settlement_records": {
+            "p50": 29.35,
+            "p95": 59.25,
+            "max": 176.63
+          },
+          "transaction": {
+            "p50": 30.93,
+            "p95": 74.07,
+            "max": 349.74
+          },
+          "usage_ledger_entries": {
+            "p50": 14.77,
+            "p95": 35.16,
+            "max": 201.94
+          }
+        }
+      },
+      "resolve_credential": {
+        "samples": 649,
+        "failures": 0,
+        "elapsedMs": {
+          "p50": 14.96,
+          "p95": 37.08,
+          "max": 454.46
+        },
+        "poolWaitMs": {
+          "p50": 0.05,
+          "p95": 0.07,
+          "max": 0.31
+        },
+        "queries": {
+          "p50": 1,
+          "p95": 1,
+          "max": 1
+        },
+        "sqlMs": {
+          "p50": 14.84,
+          "p95": 36.99,
+          "max": 454.37
+        },
+        "localMs": {
+          "p50": 0.06,
+          "p95": 0.09,
+          "max": 0.37
+        },
+        "stages": {
+          "credentials": {
+            "p50": 14.84,
+            "p95": 36.99,
+            "max": 454.37
+          }
+        }
+      },
+      "workspace_write": {
+        "samples": 3,
+        "failures": 0,
+        "elapsedMs": {
+          "p50": 137.5,
+          "p95": 163.47,
+          "max": 163.47
+        },
+        "poolWaitMs": {
+          "p50": 0.05,
+          "p95": 0.06,
+          "max": 0.06
+        },
+        "queries": {
+          "p50": 4,
+          "p95": 4,
+          "max": 4
+        },
+        "sqlMs": {
+          "p50": 136.5,
+          "p95": 162.37,
+          "max": 162.37
+        },
+        "localMs": {
+          "p50": 0.96,
+          "p95": 1.04,
+          "max": 1.04
+        },
+        "stages": {
+          "platform_workspace": {
+            "p50": 88.43,
+            "p95": 106.82,
+            "max": 106.82
+          },
+          "transaction": {
+            "p50": 38.08,
+            "p95": 92.75,
+            "max": 92.75
+          }
+        }
+      },
+      "workspace_view": {
+        "samples": 82,
+        "failures": 0,
+        "elapsedMs": {
+          "p50": 131.74,
+          "p95": 255.21,
+          "max": 634.23
+        },
+        "poolWaitMs": {
+          "p50": 0.04,
+          "p95": 0.1,
+          "max": 0.15
+        },
+        "queries": {
+          "p50": 5,
+          "p95": 5,
+          "max": 5
+        },
+        "sqlMs": {
+          "p50": 131.52,
+          "p95": 255.05,
+          "max": 634.04
+        },
+        "localMs": {
+          "p50": 0.13,
+          "p95": 0.17,
+          "max": 0.25
+        },
+        "stages": {
+          "other": {
+            "p50": 13.94,
+            "p95": 44.44,
+            "max": 75.73
+          },
+          "platform_workspace": {
+            "p50": 68.78,
+            "p95": 141.63,
+            "max": 361.7
+          },
+          "quota_batches": {
+            "p50": 14.41,
+            "p95": 27.75,
+            "max": 73.78
+          },
+          "transaction": {
+            "p50": 29.73,
+            "p95": 65.73,
+            "max": 262.41
+          }
+        }
+      }
+    }
+  },
+  "upstream": {
+    "totalRequests": 713,
+    "retainedRequests": 500,
+    "engine": "deterministic-local-http",
+    "modelInference": false,
+    "workloadRequests": 712
+  },
+  "results": {
+    "durationMs": 182130,
+    "drainMs": 2915,
+    "stopReason": "duration",
+    "requests": 712,
+    "successfulRequests": 712,
+    "errors": {},
+    "errorRate": 0,
+    "requestsPerSecond": 3.91,
+    "latencyMs": {
+      "samples": 712,
+      "p50": 1800.45,
+      "p95": 2951.4,
+      "p99": 3565.99,
+      "max": 4138.12
+    },
+    "streamLatencyMs": {
+      "samples": 238,
+      "p50": 1822.93,
+      "p95": 2907.52,
+      "p99": 3458.61,
+      "max": 3609.67
+    },
+    "nonStreamLatencyMs": {
+      "samples": 474,
+      "p50": 1778.01,
+      "p95": 2954.97,
+      "p99": 3686.56,
+      "max": 4138.12
+    },
+    "ttftMs": {
+      "samples": 238,
+      "p50": 988,
+      "p95": 1907,
+      "p99": 2201,
+      "max": 2451
+    },
+    "adminLatencyMs": {
+      "samples": 89,
+      "p50": 990.28,
+      "p95": 2677.82,
+      "p99": 5491.75,
+      "max": 5491.75
+    },
+    "confirmedCalls": 712,
+    "pendingReview": 0,
+    "confirmedAmount": 0.027768,
+    "quotaBefore": 40,
+    "quotaAfter": 39.972232,
+    "chargedMicros": 27768,
+    "expectedChargedMicros": 27768,
+    "actorBalances": [
+      {
+        "actor": 1,
+        "confirmedCalls": 178,
+        "chargedMicros": 6942,
+        "expectedChargedMicros": 6942
+      },
+      {
+        "actor": 2,
+        "confirmedCalls": 178,
+        "chargedMicros": 6942,
+        "expectedChargedMicros": 6942
+      },
+      {
+        "actor": 3,
+        "confirmedCalls": 178,
+        "chargedMicros": 6942,
+        "expectedChargedMicros": 6942
+      },
+      {
+        "actor": 4,
+        "confirmedCalls": 178,
+        "chargedMicros": 6942,
+        "expectedChargedMicros": 6942
+      }
+    ],
+    "outbox": {
+      "queued": 0,
+      "blocked": 0,
+      "active": 0,
+      "oldestQueuedAgeMs": 0,
+      "oldestBlockedAgeMs": 0,
+      "retryAttempts": 0,
+      "authorizing": 0,
+      "authorizationPending": 0,
+      "authorizationBlocked": 0,
+      "writePending": 0
+    },
+    "outboxItems": [],
+    "ledgerEntries": 712,
+    "unfinishedReservations": 0,
+    "activeLimitScopes": 0
+  },
+  "gatewayEvents": [],
+  "serviceFailureCategories": []
+}
