@@ -52,6 +52,7 @@ export interface Approval {
 }
 export interface ManagedKey {
   internal?: boolean;
+  onlineSessionHash?: string;
   id: string; credentialId: string; name: string; ownerId: string; subjectType: 'employee' | 'application'; subjectId: string;
   purpose: 'personal' | 'project' | 'application'; projectId: string | null; masked: string; keyHash: string;
   status: 'active' | 'disabled' | 'revoked'; createdAt: string; expiresAt: string; lastUsedAt: string | null;
@@ -95,7 +96,7 @@ export interface ApplicationDetail {
   application:Application;ownerName:string;organizationName:string;poolName:string;
   status:'disabled'|'model_unavailable'|'price_unconfigured'|'no_quota'|'quota_insufficient'|'ready';
   models:PurposeView['models'];availableAmount:number;batches:BusinessQuotaBatch[];
-  keys:Omit<ManagedKey,'keyHash'>[];calls:import('./calls.js').CallPage;history:AuditEntry[];
+  keys:Omit<ManagedKey,'keyHash'|'onlineSessionHash'>[];calls:import('./calls.js').CallPage;history:AuditEntry[];
 }
 export interface PlatformCommand { type: string; idempotencyKey: string; payload: Record<string, unknown>; expectedRevision?: number; previewToken?: string }
 export interface EntitlementMigrationRow {
@@ -130,7 +131,7 @@ export interface PlatformSnapshot {
   members: (Pick<PublicMember,'id'|'name'|'organizationId'|'roles'|'active'> & Partial<PublicMember>)[];
   definitions: ModelDefinition[]; services: ModelService[]; pools: ModelPool[]; plans: Plan[]; rules: AutoRule[];
   entitlements: (Entitlement & {futureGrantStatus:'scheduled'|'manually_stopped'|'rule_not_matching'|'inactive'})[]; projects: Project[]; applications: Application[]; approvals: Approval[];
-  keys: Omit<ManagedKey,'keyHash'>[]; distributions: Distribution[]; audit: AuditEntry[]; notifications: Notification[];
+  keys: Omit<ManagedKey,'keyHash'|'onlineSessionHash'>[]; distributions: Distribution[]; audit: AuditEntry[]; notifications: Notification[];
   quotaBatches: BusinessQuotaBatch[]; projectBudgets: ProjectBudgetBatch[];
   purposes: PurposeView[];
   callLogs: import('./index.js').CallLog[];

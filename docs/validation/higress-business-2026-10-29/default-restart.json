@@ -1,0 +1,56 @@
+{
+  "success": true,
+  "checkedAt": "2026-10-29T15:12:01.138Z",
+  "before": {
+    "defaultWorkspacePresent": true,
+    "liveBudgetHash": "64ec2a0fdd806efcef7a199bcc689baef5ddfd7df694e6b046b14c9d1c2bc063",
+    "workspaceId": "20bea9e2-970a-4e7d-98eb-12ca16e81692",
+    "stateFileHash": "e7b742a224289865187386d14dce3cc5cbcb98fa22844dcee1af4bc14194d5fe",
+    "businessConfigurationHash": "e7f267f7e4f24b7586b046da7d4e5d4ac894ee7bb03ca69d1e9e632563288e2c",
+    "fundsHash": "5626134a433f2ff7c8932f9aca6a874ef157ca45fa9b3732a3b3eb580bff118a",
+    "fundedBatches": 8
+  },
+  "after": {
+    "defaultWorkspacePresent": true,
+    "liveBudgetHash": "64ec2a0fdd806efcef7a199bcc689baef5ddfd7df694e6b046b14c9d1c2bc063",
+    "workspaceId": "20bea9e2-970a-4e7d-98eb-12ca16e81692",
+    "stateFileHash": "e7b742a224289865187386d14dce3cc5cbcb98fa22844dcee1af4bc14194d5fe",
+    "businessConfigurationHash": "e7f267f7e4f24b7586b046da7d4e5d4ac894ee7bb03ca69d1e9e632563288e2c",
+    "fundsHash": "5626134a433f2ff7c8932f9aca6a874ef157ca45fa9b3732a3b3eb580bff118a",
+    "fundedBatches": 8
+  },
+  "health": [
+    {
+      "web": 200
+    },
+    {
+      "status": "ok",
+      "dataPlane": "higress",
+      "outbox": {
+        "queued": 0,
+        "blocked": 0,
+        "active": 0,
+        "oldestQueuedAgeMs": 0,
+        "oldestBlockedAgeMs": 0,
+        "retryAttempts": 0,
+        "authorizing": 0,
+        "authorizationPending": 0,
+        "authorizationBlocked": 0,
+        "writePending": 0
+      }
+    },
+    {
+      "status": "ok",
+      "database": "up",
+      "cache": "disabled",
+      "maintenance": {
+        "lastRunAt": "2026-10-29T15:11:49.950Z",
+        "lastSuccessAt": "2026-10-29T15:11:50.399Z",
+        "error": null,
+        "running": false
+      }
+    }
+  ],
+  "launchCommand": "pnpm dev",
+  "higressRoutesPrepared": 2
+}

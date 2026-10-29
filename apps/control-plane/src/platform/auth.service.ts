@@ -3,6 +3,7 @@ import { randomBytes } from 'node:crypto';
 import type { Member } from '@ai-gateway/contracts';
 import { WorkspaceRepository } from './workspace.repository';
 import { activeMember, hash, now, passwordHash, text, verifyPassword } from './validation';
+import { syncResources } from './domain';
 
 @Injectable()
 export class AuthService {
@@ -58,7 +59,11 @@ export class AuthService {
   }
 
   async logout(token:string) {
-    await this.repository.transact(async tx=>{tx.state.sessions=tx.state.sessions.filter(s=>s.tokenHash!==hash(token));},{diagnosticContext:'auth_logout'});
+    await this.repository.transact(async tx=>{
+      const sessionHash=hash(token);tx.state.sessions=tx.state.sessions.filter(s=>s.tokenHash!==sessionHash);
+      let changed=false;for(const key of tx.state.keys)if(key.internal&&key.onlineSessionHash===sessionHash&&key.status!=='revoked'){key.status='revoked';changed=true;}
+      if(changed)await syncResources(tx);
+    },{diagnosticContext:'auth_logout'});
     return {loggedOut:true};
   }
 

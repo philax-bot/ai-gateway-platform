@@ -1,0 +1,53 @@
+{
+  "before": {
+    "request": {
+      "label": "previously active project online identity after logout",
+      "requestId": "business-79d018ce-be30-43e8-96bb-f164e68a12bf",
+      "httpStatus": 200
+    },
+    "call": {
+      "request_id": "business-79d018ce-be30-43e8-96bb-f164e68a12bf",
+      "subject_id": "member-59b299f7-33fa-48cf-9876-15f39d08b099",
+      "purpose": "project",
+      "project_id": "project-402ba025-43a0-4eb0-8334-ab613971eba6",
+      "billable_state": "confirmed",
+      "actual_amount": "0.000132",
+      "usage_final": true
+    },
+    "higressAccessObserved": true
+  },
+  "after": {
+    "request": {
+      "label": "previously active project online identity after logout",
+      "requestId": "business-b23542df-4c2d-40c0-8220-c44b1c46c846",
+      "httpStatus": 401,
+      "reason": "authentication_error"
+    },
+    "modelForwarded": false,
+    "settlementRows": []
+  },
+  "unaffected": [
+    {
+      "label": "other login online identity after first session logout",
+      "requestId": "business-46b94765-e436-4511-9a2f-67c776367769",
+      "httpStatus": 200,
+      "purpose": "project",
+      "subjectId": "member-f987e6d7-738b-4d65-b63b-1ca6cbc84a9a",
+      "projectId": "project-c61de357-81da-4ca1-acf3-f16d7f015e65",
+      "batchId": "quota-c825625e-3b4d-4ab7-b44e-25ef1f0f2b46",
+      "amount": 0.000132,
+      "billableState": "confirmed"
+    },
+    {
+      "label": "ordinary project API Key after web logout",
+      "requestId": "business-b05e070b-55d3-4276-bb9c-fbd5090e0f0c",
+      "httpStatus": 200,
+      "purpose": "project",
+      "subjectId": "member-f987e6d7-738b-4d65-b63b-1ca6cbc84a9a",
+      "projectId": "project-c61de357-81da-4ca1-acf3-f16d7f015e65",
+      "batchId": "quota-c825625e-3b4d-4ab7-b44e-25ef1f0f2b46",
+      "amount": 0.000132,
+      "billableState": "confirmed"
+    }
+  ]
+}

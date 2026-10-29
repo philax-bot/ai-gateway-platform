@@ -70,7 +70,7 @@ paths:
     post:
       security: [{sessionCookie: []}]
       responses:
-        '200': {description: Session revoked and cookie cleared}
+        '200': {description: Session and its issued online identities revoked; cookie cleared. Other sessions and ordinary API Keys retain their independent access.}
   /api/v1/platform/services/{id}/verify:
     post:
       security: [{sessionCookie: []}]
@@ -115,9 +115,10 @@ paths:
   /api/v1/platform/online-credential:
     post:
       security: [{sessionCookie: []}]
-      description: Issue an internal purpose-bound online identity valid for at most five minutes. No user-created API key is required. The transient token is not persisted in plaintext or included in the user's key list.
+      description: Issue an internal purpose-bound online identity bound server-side to the issuing login session, valid for at most five minutes and never beyond that session expiry. Logout revokes identities from that session only. No user-created API key is required. The transient token is not persisted in plaintext or included in the user's key list; its private session linkage is never returned.
       responses:
         '200': {description: Transient token and expiry for the authenticated actor's personal or project purpose}
+        '401': {description: Login required or issuing session expired before identity creation}
         '409': {description: No open authorized model in this purpose}
   /api/v1/platform/quote:
     post:

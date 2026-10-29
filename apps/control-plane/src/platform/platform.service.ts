@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, ForbiddenException, Injectable, Optional, ServiceUnavailableException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, Optional, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
 import { createHmac, randomBytes, randomUUID } from 'node:crypto';
 import type { ApplicationDetail, ApprovalDetail, AuthorizeRequest, CallQuery, ModelRange, PlatformCommand, ProjectDetail, PurposeView, ReasonCode, ReconciliationRequest, RequestLimitDiagnostic, UsageLimits, VerificationMappingResult, VerificationRun, WorkspaceState } from '@ai-gateway/contracts';
 import { chatCompletionsUrl,estimateChatInput,extractUpstreamUsage,isRequestReference,readUpstreamRequestId,summarizeVerification } from '@ai-gateway/contracts';
@@ -22,7 +22,7 @@ import { fetchVerifiedUpstream, verificationCost, verificationFailure, verificat
 import {HigressProvider} from '../gateway/higress.provider';
 
 type SafeJson=string|number|boolean|null|SafeJson[]|{[key:string]:SafeJson};
-const safeResult=(value:unknown):SafeJson=>Array.isArray(value)?value.map(safeResult):value&&typeof value==='object'?Object.fromEntries(Object.entries(value).filter(([key])=>!['secret','password','passwordHash','keyHash'].includes(key)).map(([key,v])=>[key,safeResult(v)])):typeof value==='string'||typeof value==='number'||typeof value==='boolean'||value===null?value:null;
+const safeResult=(value:unknown):SafeJson=>Array.isArray(value)?value.map(safeResult):value&&typeof value==='object'?Object.fromEntries(Object.entries(value).filter(([key])=>!['secret','password','passwordHash','keyHash','onlineSessionHash'].includes(key)).map(([key,v])=>[key,safeResult(v)])):typeof value==='string'||typeof value==='number'||typeof value==='boolean'||value===null?value:null;
 
 @Injectable()
 export class PlatformService {
@@ -362,12 +362,15 @@ export class PlatformService {
     return this.store.relatedCalls(requestId,this.callScope(state,actorId));
   }
 
-  async onlineCredential(actorId:string,payload:Record<string,unknown>){
+  async onlineCredential(actorId:string,payload:Record<string,unknown>,sessionToken:string){
     if(payload.purpose!=='personal'&&payload.purpose!=='project')throw new BadRequestException('online use requires a personal or project purpose');
     return this.repository.transact(async tx=>{
       const actor=activeMember(tx.state,actorId);
-      const result=await workflowAction(tx,actor,'key.issue',{name:'在线会话临时身份',purpose:payload.purpose,projectId:payload.projectId,expiresAt:new Date(Date.now()+5*60000).toISOString()}) as {key:{id:string;expiresAt:string};secret:string};
-      pick(tx.state.keys,result.key.id,'key').internal=true;
+      const session=tx.state.sessions.find(s=>s.tokenHash===hash(sessionToken)&&s.memberId===actorId&&valid(s.expiresAt));
+      if(!sessionToken||!session)throw new UnauthorizedException('session expired');
+      const expiresAt=new Date(Math.min(Date.now()+5*60000,Date.parse(session.expiresAt))).toISOString();
+      const result=await workflowAction(tx,actor,'key.issue',{name:'在线会话临时身份',purpose:payload.purpose,projectId:payload.projectId,expiresAt}) as {key:{id:string;expiresAt:string};secret:string};
+      const key=pick(tx.state.keys,result.key.id,'key');key.internal=true;key.onlineSessionHash=session.tokenHash;
       await syncResources(tx);
       return {token:result.secret,expiresAt:result.key.expiresAt};
     },{diagnosticContext:'online_credential'});

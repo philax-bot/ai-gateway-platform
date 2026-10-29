@@ -9,17 +9,18 @@ import {connectionConfig} from './lib/backup.mjs';
 import {databaseFaultProxy} from './higress/database-fault-proxy.mjs';
 import {runStabilityChecks} from './higress/stability-checks.mjs';
 import {completedSse} from './higress/pi-evidence.mjs';
+import {runBusinessChecks,captureDefaultState} from './higress/business-checks.mjs';
 
 const root=process.cwd(),id=randomUUID(),directory=resolve(root,'.runtime',`higress-provider-${id}`);
 const require=createRequire(resolve(root,'apps/control-plane/package.json')),{Pool}=require('pg');
 const {resourceId}=require(resolve(root,'apps/control-plane/dist/gateway/higress.resources.js'));
 const schema=`agp_hg_${id.replaceAll('-','')}`,token=randomUUID(),password=randomUUID(),children=[],secrets=[token,password];
-const stability=process.argv.includes('--stability'),duration=Number(process.argv.find(arg=>arg.startsWith('--duration='))?.split('=')[1]??180);
-assert.ok(process.argv.slice(2).every(arg=>arg==='--'||arg==='--stability'||/^--duration=\d+$/.test(arg))&&Number.isInteger(duration)&&duration>=60&&duration<=1800,'use --stability [--duration=60..1800]');
+const stability=process.argv.includes('--stability'),business=process.argv.includes('--business'),duration=Number(process.argv.find(arg=>arg.startsWith('--duration='))?.split('=')[1]??180);
+assert.ok(process.argv.slice(2).every(arg=>arg==='--'||arg==='--stability'||arg==='--business'||/^--duration=\d+$/.test(arg))&&!(stability&&business)&&Number.isInteger(duration)&&duration>=60&&duration<=1800,'use --business or --stability [--duration=60..1800]');
 const report={success:false,createdAt:new Date().toISOString(),scope:{database:'isolated PostgreSQL schema',higress:'pinned real runtime',model:'local deterministic fixture',realModelRequests:0,defaultWorkspaceTouched:false},checks:[]};
 const pause=ms=>new Promise(r=>setTimeout(r,ms)),output=resolve(root,process.env.HIGRESS_PROVIDER_REPORT_PATH??`.runtime/higress-provider-results/${id}.json`);
 const check=(value,label)=>{assert.ok(value,label);report.checks.push(label);};
-let hg,db,control,gateway,phase='preflight',cp,gw,cookie='',databaseProxy;
+let hg,db,control,gateway,phase='preflight',cp,gw,cookie='',databaseProxy,defaultBefore;
 const clean=Object.fromEntries(Object.entries(process.env).filter(([key])=>!/^UPSTREAM_|^HIGRESS_|^GATEWAY_|^DATABASE_|^PGOPTIONS$|^NODE_OPTIONS$/.test(key)));
 let common;
 function start(file,env){const child=spawn(process.execPath,[resolve(root,file)],{cwd:root,windowsHide:true,stdio:['ignore','pipe','pipe'],env:{...clean,...common,...env}});let out='';child.stdout.on('data',v=>out=(out+v).slice(-6000));child.stderr.on('data',v=>out=(out+v).slice(-6000));child.output=()=>out;children.push(child);return child;}
@@ -36,6 +37,7 @@ function call({scenario='POC_BASIC',stream=false,tools,messages,requestId=random
 try{
   await mkdir(directory,{recursive:true});await writeFile(resolve(directory,'empty.env'),'');
   const {connectionString}=await connectionConfig();db=new Pool({connectionString,connectionTimeoutMillis:5000});await db.query(`create schema "${schema}"`);
+  if(business)defaultBefore=await captureDefaultState({root,db});
   db.on('error',()=>{});if(stability)databaseProxy=await databaseFaultProxy(connectionString);
   hg=await openHigress({root,directory:resolve(directory,'runtime'),fixture:true});secrets.push(hg.state.apiToken,hg.state.proxyToken,hg.state.modelToken);
   const controlPort=await freePort(),gatewayPort=await freePort();cp=`http://127.0.0.1:${controlPort}`;gw=`http://127.0.0.1:${gatewayPort}`;
@@ -121,6 +123,7 @@ try{
   const failed=await sync({...input,idempotencyKey:'provider-failed',previousVersion:'provider-v1',desiredVersion:'provider-v3'});check(failed.status==='rejected'&&failed.appliedVersion==='provider-v1','failed publication retains last applied version');
   await hg.run(['start',hg.name+'-management']);
   if(stability){phase='stability and fault recovery';await runStabilityChecks({root,id,schema,db,hg,cp,gw,input,service,key,actor,range,report,check,api,ok,state,command,sync,call,waitLog,pause,duration,secrets,databaseProxy,stopControl:()=>stop(control),startControl,controlAlive:()=>control.exitCode===null});}
+  if(business){phase='business lifecycle and scoped access';await runBusinessChecks({id,schema,db,hg,cp,gw,adminCookie:cookie,service,report,check,state,call,waitLog,pause,secrets});}
   const final=await state();
   // The workspace snapshot intentionally contains only the latest 200 calls.
   // Financial conservation requires the complete original subject ledger.
@@ -130,6 +133,7 @@ try{
   report.accounting={total,available,confirmed,held,calls:logs.length,fixtureRequests:(await requests()).length,source:'complete PostgreSQL subject ledger',workspaceSnapshotCalls:final.callLogs.length};
   check(Math.abs(total-available-confirmed-held)<1e-7,'original funds equal remaining balance, confirmed usage and unknown holds');
   const health=await fetch(gw+'/health').then(r=>r.json());report.outbox=health.outbox;check(health.outbox.queued===0&&health.outbox.blocked===0&&health.outbox.writePending===0,'gateway durable outbox is drained');
+  if(business){const after=await captureDefaultState({root,db});report.defaultPreservation={before:defaultBefore,after};assert.deepEqual(after,defaultBefore);check(true,'default accounts, configuration, funds, state file and real-model budget remain unchanged');}
   report.success=true;
 }catch(error){report.error={phase,message:secrets.reduce((s,key)=>s.replaceAll(key,'[redacted]'),error.message)};console.error(report.error);process.exitCode=1;}
 finally{

@@ -1,7 +1,7 @@
 import { Body, Controller, Get, HttpCode, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
 import type { CallQuery, PlatformCommand } from '@ai-gateway/contracts';
 import { PlatformService } from './platform.service';
-import { SessionGuard, type UserRequest } from './session.guard';
+import { SessionGuard, sessionToken, type UserRequest } from './session.guard';
 import { MaintenanceService } from './maintenance.service';
 import { operator } from './validation';
 import { MonitoringService } from './monitoring.service';
@@ -36,7 +36,7 @@ export class PlatformController {
   @Get('/services/:id/verifications')
   verifications(@Req() request:UserRequest,@Param('id') id:string,@Query('limit') limit?:string,@Query('before') before?:string){return this.platform.verificationHistory(request.actor.id,id,{limit,before});}
   @Post('/online-credential') @HttpCode(200)
-  onlineCredential(@Req() request:UserRequest,@Body() body:Record<string,unknown>){return this.platform.onlineCredential(request.actor.id,body);}
+  onlineCredential(@Req() request:UserRequest,@Body() body:Record<string,unknown>){return this.platform.onlineCredential(request.actor.id,body,sessionToken(request));}
   @Post('/quote') @HttpCode(200)
   quote(@Req() request:UserRequest,@Body() body:Record<string,unknown>){return this.platform.quote(request.actor.id,body);}
   @Post('/maintenance/run') @HttpCode(200)

@@ -3,6 +3,7 @@ import type { PlatformCommand } from '@ai-gateway/contracts';
 import { DemoStore } from '../store/demo.store';
 import { WorkspaceRepository } from './workspace.repository';
 import { PlatformService } from './platform.service';
+import { hash } from './validation';
 const operator='operator-demo-001',employee='employee-demo-001',range={poolId:'pool-local-test',mode:'follow',definitionIds:[]};
 describe('scoped key details and integration data',()=>{
   let repo:WorkspaceRepository,platform:PlatformService;
@@ -24,7 +25,8 @@ describe('scoped key details and integration data',()=>{
     await command('save.member',{id:employee,directoryId:'employee',name:'停用原负责人',organizationId:'department-engineering',active:false});expect((await platform.keyDetail(next.id,issued.key.id)).sourceActive).toBe(true);
   });
   it('never exposes online internal identities as normal managed keys',async()=>{
-    const plan=await command('save.plan',{name:'在线方案',range,amount:10,cadence:'once',quotaDays:30,entitlementDays:365});await command('distribution.execute',{planId:plan.id,memberIds:[employee]});await platform.onlineCredential(employee,{purpose:'personal'});
+    const plan=await command('save.plan',{name:'在线方案',range,amount:10,cadence:'once',quotaDays:30,entitlementDays:365});await command('distribution.execute',{planId:plan.id,memberIds:[employee]});
+    const token='key-detail-online-session';await repo.transact(async tx=>{tx.state.sessions.push({tokenHash:hash(token),memberId:employee,createdAt:new Date().toISOString(),expiresAt:new Date(Date.now()+60000).toISOString()});});await platform.onlineCredential(employee,{purpose:'personal'},token);
     const key=(await repo.read()).keys.find(k=>k.internal)!;expect(key).toBeDefined();await expect(platform.keyDetail(operator,key.id)).rejects.toThrow('outside');await expect(platform.keyDetail(employee,key.id)).rejects.toThrow('outside');
   });
 });

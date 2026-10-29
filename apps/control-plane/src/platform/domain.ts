@@ -9,7 +9,7 @@ export const newId=(prefix:string)=>`${prefix}-${randomUUID()}`;
 export const valid=(date:string|null)=>date===null||Date.parse(date)>Date.now();
 export const days=(count:number)=>new Date(Date.now()+count*86400000).toISOString();
 export function publicMember(member:Member){const {passwordHash,...value}=member;return value;}
-export function publicKey(key:WorkspaceState['keys'][number]){const {keyHash,...value}=key;return value;}
+export function publicKey(key:WorkspaceState['keys'][number]){const {keyHash,onlineSessionHash,...value}=key;return value;}
 export function manager(s:WorkspaceState,actor:Member,projectId:unknown){
   const p=pick(s.projects,projectId,'project');
   if(!actor.roles.includes('operator')&&p.managerId!==actor.id)throw new ForbiddenException('project manager responsibility required');return p;
@@ -48,6 +48,7 @@ export function businessDenial(s:AdmissionWorkspace,input:AuthorizeRequest):Reas
     return null;
   }
   if(key.status!=='active'||!valid(key.expiresAt))return 'credential_invalid';
+  if(key.internal&&!key.onlineSessionHash)return 'credential_invalid';
   if(key.subjectType==='employee'){try{activeMember(s,key.subjectId);}catch{return 'subject_disabled';}}
   else if(!s.applications.some(a=>a.id===key.subjectId&&a.active))return 'subject_disabled';
   if(key.projectId&&!s.projects.some(p=>p.id===key.projectId&&p.status==='active'&&p.memberIds.includes(key.subjectId)))return 'credential_invalid';
@@ -127,6 +128,7 @@ export async function syncResources(tx:WorkspaceTransaction){
   }
   for(const key of s.keys){
     let active=key.status==='active'&&valid(key.expiresAt),models:string[]=[];
+    if(key.internal)active=active&&!!key.onlineSessionHash;
     if(key.subjectType==='employee'){try{activeMember(s,key.subjectId);}catch{active=false;}models=memberModels(s,key.subjectId,key.projectId);}
     else {const app=s.applications.find(a=>a.id===key.subjectId);active=active&&!!app?.active;models=app?availableModels(s,app.range):[];}
     await tx.saveCredential({credentialId:key.credentialId,apiKey:`sha256:${key.keyHash}`,identity:{credentialId:key.credentialId,subjectType:key.subjectType,subjectId:key.subjectId,organizationId:s.tenantId,projectId:key.projectId},purpose:key.purpose,active,modelIds:models});

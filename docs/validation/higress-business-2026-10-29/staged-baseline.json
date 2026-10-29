@@ -1,0 +1,8 @@
+{
+  "success": true,
+  "checkedAt": "2026-10-29T15:22:20.642Z",
+  "stagedTreeAtValidation": "6c624c3f0029054e296b4302d4dc20181612982a",
+  "backendBuildPackages": 3,
+  "controlPlaneTests": 144,
+  "scope": "Git index exported independently; pre-existing Agent, read-optimization and UI changes excluded; installed external dependencies bound by absolute package real paths"
+}

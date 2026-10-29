@@ -1,0 +1,485 @@
+{
+  "success": false,
+  "createdAt": "2026-10-29T14:44:45.395Z",
+  "scope": {
+    "database": "isolated PostgreSQL schema",
+    "higress": "pinned real runtime",
+    "model": "local deterministic fixture",
+    "realModelRequests": 0,
+    "defaultWorkspaceTouched": false
+  },
+  "checks": [
+    "formal Provider confirms runtime: null",
+    "identical idempotency key replays the original durable operation",
+    "changed idempotency payload is rejected",
+    "optimistic previousVersion conflict is rejected",
+    "unsupported policy publication is explicit",
+    "management relay requires its separate service credential",
+    "diagnostic verification uses the formal Higress route",
+    "logical model survives formal Provider non-stream dispatch",
+    "PostgreSQL settles returned and cached usage",
+    "original control-plane prices determine the charge",
+    "public call evidence contains the original route and hides private transport",
+    "Higress performs the immutable physical-model mapping and output bound",
+    "the private hop credential is removed before forwarding to the model",
+    "configuration probes never escape to the model backend",
+    "Higress rejects missing, managed or invalid hop credentials",
+    "Higress rejects missing, managed or invalid hop credentials",
+    "Higress rejects missing, managed or invalid hop credentials",
+    "SSE model and terminal usage survive Higress",
+    "tool arguments survive formal dispatch",
+    "tool result round trip succeeds",
+    "cancelled unknown usage remains pending review in PostgreSQL",
+    "cancellation closes the downstream model connection",
+    "split SSE response markers are reconstructed after the real Higress hop",
+    "explicit retry keeps the original unknown hold and its independent PostgreSQL settlement",
+    "only the retried completed generation receives a unique settlement ledger row",
+    "invalid managed credential is rejected",
+    "invalid managed credential never reaches Higress inference",
+    "5xx without usage keeps an unknown hold: 500/upstream_http_500/pending_review",
+    "Higress retries and failover remain disabled",
+    "project request passes through Higress",
+    "PostgreSQL records the original project attribution",
+    "project usage does not debit personal funds",
+    "application request passes through Higress",
+    "application usage stays in its own PostgreSQL scope",
+    "five concurrent PostgreSQL requests reserve the single affordable hold once",
+    "losing budget contenders never reach the model",
+    "concurrent reservation never overdraws the funded PostgreSQL batch",
+    "configuration operation survives control-plane restart",
+    "idempotent replay survives PostgreSQL restart of the process",
+    "applied route survives control-plane and gateway restart",
+    "configuration journal contains no plaintext credential",
+    "a new desired version is runtime-confirmed",
+    "explicit rollback restores the immutable prior version: null",
+    "failed publication retains last applied version",
+    "business: unopened employee cannot issue an authorized personal Key",
+    "business: employee cannot operate enterprise plans",
+    "business: applicant cannot approve their own personal application",
+    "business: approval alone does not create personal funds",
+    "business: personal opening execution replays without issuing money again",
+    "business: approved amount reaches exactly one original personal funding batch",
+    "business: applicant sees the original request, approved amount and effective result",
+    "business: employee first online request completes through the gateway",
+    "business: employee first online request settles fixture usage at the original configured price",
+    "business: employee first online request retains the correct business owner and purpose",
+    "business: employee first online request spends only its original scoped batch",
+    "business: first online use does not require a user-created API Key",
+    "business: idempotent Key replay never reveals plaintext again",
+    "business: employee workspace does not expose stored credential material",
+    "business: personal API request completes through the gateway",
+    "business: personal API request settles fixture usage at the original configured price",
+    "business: personal API request retains the correct business owner and purpose",
+    "business: personal API request spends only its original scoped batch",
+    "business: membership without allocation is refused before generation",
+    "business: membership without allocation never reaches the model",
+    "business: membership without allocation leaves all scoped funds unchanged",
+    "business: membership without allocation creates no reservation",
+    "business: ordinary project member cannot approve another member quota",
+    "business: project approval does not allocate money before execution",
+    "business: manager execution is idempotent",
+    "business: project allocation retains original budget, expiry and unallocated funds",
+    "business: project member request completes through the gateway",
+    "business: project member request settles fixture usage at the original configured price",
+    "business: project member request retains the correct business owner and purpose",
+    "business: project member request spends only its original scoped batch",
+    "business: removed project member old Key is refused before generation",
+    "business: removed project member old Key never reaches the model",
+    "business: removed project member old Key leaves all scoped funds unchanged",
+    "business: removed project member old Key creates no reservation",
+    "business: restored project membership completes through the gateway",
+    "business: restored project membership settles fixture usage at the original configured price",
+    "business: restored project membership retains the correct business owner and purpose",
+    "business: restored project membership spends only its original scoped batch",
+    "business: application ownership does not grant personal access",
+    "business: repeated application approval execution funds the application only once",
+    "business: another employee cannot issue an application Key",
+    "business: application request completes through the gateway",
+    "business: application request settles fixture usage at the original configured price",
+    "business: application request retains the correct business owner and purpose",
+    "business: application request spends only its original scoped batch",
+    "business: application owner reads their own application call"
+  ],
+  "firstPublication": {
+    "status": "applied",
+    "provider": "higress",
+    "errorCode": null,
+    "resourceId": "route-769a0a4c44f946ecc1fdbba02371b8f1",
+    "operationId": "provider-op-224d58e9-4583-4736-b524-1014fffe1978",
+    "appliedVersion": "provider-v1",
+    "desiredVersion": "provider-v1"
+  },
+  "verification": [
+    {
+      "outcome": "passed",
+      "usage": {
+        "complete": true,
+        "inputTokens": 13,
+        "outputTokens": 14,
+        "cachedInputTokens": 4
+      },
+      "cost": {
+        "price": {
+          "unit": "per_million_tokens",
+          "version": "05d708408f7c5ffff0892e99",
+          "currency": "CNY",
+          "inputPrice": 2,
+          "outputPrice": 8,
+          "cachedInputPrice": 0.5
+        },
+        "state": "priced",
+        "amount": 0.000132
+      }
+    }
+  ],
+  "splitMarkerRetry": {
+    "source": "d91b93f7-7951-49b2-aea6-022af328467c",
+    "requestId": "3d7e036e-8e65-477b-9da5-e055ca0a1d7f",
+    "originalState": "pending_review",
+    "retryState": "confirmed",
+    "retryOfRequestId": "d91b93f7-7951-49b2-aea6-022af328467c",
+    "ledgerEntries": [
+      {
+        "request_id": "3d7e036e-8e65-477b-9da5-e055ca0a1d7f",
+        "entries": 1
+      }
+    ]
+  },
+  "errorSample": {
+    "status": 500,
+    "log": {
+      "requestId": "0c81a738-913a-49f3-b39e-7c771099242d",
+      "upstreamRequestId": "upstream-0c81a738-913a-49f3-b39e-7c771099242d",
+      "retryOfRequestId": null,
+      "startedAt": "2026-10-29T14:45:37.276Z",
+      "completedAt": "2026-10-29T14:45:35.952Z",
+      "subjectType": "employee",
+      "subjectId": "operator-demo-001",
+      "credentialId": "credential-06a7436b-271a-450f-820d-b396d5b93702",
+      "purpose": "personal",
+      "projectId": null,
+      "modelId": "test-model",
+      "outcome": "upstream_error",
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "cachedInputTokens": 0,
+      "actualAmount": 0,
+      "billableState": "pending_review",
+      "reservationId": "reservation-93e3403f-645c-4df7-be29-a96a44223dae",
+      "admission": {
+        "kind": "configured",
+        "price": {
+          "unit": "per_million_tokens",
+          "version": "7d70f49b9a793ccc2c50ab62",
+          "currency": "CNY",
+          "inputPrice": 2,
+          "outputPrice": 8,
+          "cachedInputPrice": 0.5
+        },
+        "reservedAmount": 0.00036,
+        "route": {
+          "serviceId": "service-local-test",
+          "poolId": "pool-local-test",
+          "definitionId": "definition-test-model",
+          "upstreamModel": "physical-model"
+        }
+      },
+      "organizationId": "org-demo",
+      "errorCode": "upstream_http_500",
+      "latencyMs": 0,
+      "usageFinal": false,
+      "forwarded": true,
+      "ttftMs": null
+    }
+  },
+  "rollback": {
+    "status": "applied",
+    "provider": "higress",
+    "errorCode": null,
+    "resourceId": "route-769a0a4c44f946ecc1fdbba02371b8f1",
+    "operationId": "provider-op-fa53efb2-efa9-4118-8cce-a6ca6162a64e",
+    "appliedVersion": "provider-v1",
+    "desiredVersion": "provider-v1"
+  },
+  "business": {
+    "phase": "application owner without personal entitlement",
+    "scope": "authenticated HTTP business flows; real Higress and isolated PostgreSQL; deterministic model; no browser acceptance",
+    "requests": [
+      {
+        "label": "employee first online request",
+        "requestId": "business-3a712a44-ccd5-4c7a-a603-c87a9de65a49",
+        "httpStatus": 200,
+        "purpose": "personal",
+        "subjectId": "member-197ea9bd-4452-4ab2-8887-b4649c19b624",
+        "projectId": null,
+        "batchId": "quota-f99110b7-8046-4046-9f5b-da75f287e280",
+        "amount": 0.000132,
+        "billableState": "confirmed"
+      },
+      {
+        "label": "personal API request",
+        "requestId": "business-ca2c61e0-f61e-4668-ad65-7e247ccbd481",
+        "httpStatus": 200,
+        "purpose": "personal",
+        "subjectId": "member-197ea9bd-4452-4ab2-8887-b4649c19b624",
+        "projectId": null,
+        "batchId": "quota-f99110b7-8046-4046-9f5b-da75f287e280",
+        "amount": 0.000132,
+        "billableState": "confirmed"
+      },
+      {
+        "label": "membership without allocation",
+        "requestId": "business-c617285a-316c-4753-bfcd-ea2dd95ed5e8",
+        "httpStatus": 403,
+        "reason": "no_quota"
+      },
+      {
+        "label": "project member request",
+        "requestId": "business-b80ae40d-5c33-45e0-8cf1-b5460383d614",
+        "httpStatus": 200,
+        "purpose": "project",
+        "subjectId": "member-197ea9bd-4452-4ab2-8887-b4649c19b624",
+        "projectId": "project-83e00dd3-daa8-4aa4-89fa-b418518abb74",
+        "batchId": "quota-8b0a9edd-a520-4268-992c-05c528403bb2",
+        "amount": 0.000132,
+        "billableState": "confirmed"
+      },
+      {
+        "label": "removed project member old Key",
+        "requestId": "business-9c3f57b4-7da0-4e9d-a432-bafa691c15b7",
+        "httpStatus": 403,
+        "reason": "credential_invalid"
+      },
+      {
+        "label": "restored project membership",
+        "requestId": "business-7941cb49-7ea3-4df6-8ccd-22bec5f16326",
+        "httpStatus": 200,
+        "purpose": "project",
+        "subjectId": "member-197ea9bd-4452-4ab2-8887-b4649c19b624",
+        "projectId": "project-83e00dd3-daa8-4aa4-89fa-b418518abb74",
+        "batchId": "quota-8b0a9edd-a520-4268-992c-05c528403bb2",
+        "amount": 0.000132,
+        "billableState": "confirmed"
+      },
+      {
+        "label": "application request",
+        "requestId": "business-bd160923-aea3-4c4f-8e4d-53a9b16208bd",
+        "httpStatus": 200,
+        "purpose": "application",
+        "subjectId": "application-10f75e0a-2b57-413d-9e77-5794442ae6aa",
+        "projectId": null,
+        "batchId": "quota-e04ea5da-83ec-4eab-a458-ba404c800765",
+        "amount": 0.000132,
+        "billableState": "confirmed"
+      }
+    ],
+    "denials": [
+      {
+        "kind": "command",
+        "type": "key.issue",
+        "httpStatus": 409,
+        "code": "no open authorized model for this purpose"
+      },
+      {
+        "kind": "command",
+        "type": "save.plan",
+        "httpStatus": 403,
+        "code": "operator role required"
+      },
+      {
+        "kind": "command",
+        "type": "approval.decide",
+        "httpStatus": 403,
+        "code": "not responsible for this approval, or self approval"
+      },
+      {
+        "kind": "command",
+        "type": "approval.decide",
+        "httpStatus": 403,
+        "code": "not responsible for this approval, or self approval"
+      },
+      {
+        "kind": "command",
+        "type": "key.issue",
+        "httpStatus": 409,
+        "code": "no open authorized model for this purpose"
+      },
+      {
+        "kind": "command",
+        "type": "key.issue",
+        "httpStatus": 403,
+        "code": "application owner responsibility required"
+      }
+    ],
+    "actors": [
+      {
+        "id": "member-197ea9bd-4452-4ab2-8887-b4649c19b624",
+        "role": "employee"
+      },
+      {
+        "id": "member-3758a152-fdf4-4062-a4db-891f4c35ec76",
+        "role": "manager"
+      },
+      {
+        "id": "member-323ab46c-10fe-4f3b-aa06-8df7e68b343f",
+        "role": "application-owner"
+      },
+      {
+        "id": "member-e9a208f5-ad45-4841-9732-080862fa63ae",
+        "role": "peer"
+      }
+    ],
+    "approvals": [
+      {
+        "id": "approval-f9c389b4-5cee-413c-9af3-754c73bf6600",
+        "kind": "personal_open",
+        "status": "effective",
+        "requested": 0.3,
+        "approved": 0.2
+      },
+      {
+        "id": "approval-9c2b0793-8964-49c7-b847-623654e39f28",
+        "kind": "project_member_quota",
+        "status": "effective",
+        "requested": 0.2,
+        "approved": 0.1
+      }
+    ],
+    "successfulRequests": [
+      "business-3a712a44-ccd5-4c7a-a603-c87a9de65a49",
+      "business-ca2c61e0-f61e-4668-ad65-7e247ccbd481",
+      "business-b80ae40d-5c33-45e0-8cf1-b5460383d614",
+      "business-7941cb49-7ea3-4df6-8ccd-22bec5f16326",
+      "business-bd160923-aea3-4c4f-8e4d-53a9b16208bd"
+    ],
+    "deniedRequests": [
+      "business-c617285a-316c-4753-bfcd-ea2dd95ed5e8",
+      "business-9c3f57b4-7da0-4e9d-a432-bafa691c15b7"
+    ],
+    "batches": [
+      {
+        "id": "quota-8b0a9edd-a520-4268-992c-05c528403bb2",
+        "source_id": "member-197ea9bd-4452-4ab2-8887-b4649c19b624",
+        "purpose": "project",
+        "project_id": "project-83e00dd3-daa8-4aa4-89fa-b418518abb74",
+        "total_amount": "0.100000",
+        "available_amount": "0.099736",
+        "closed_amount": "0.000000"
+      },
+      {
+        "id": "quota-e04ea5da-83ec-4eab-a458-ba404c800765",
+        "source_id": "application-10f75e0a-2b57-413d-9e77-5794442ae6aa",
+        "purpose": "application",
+        "project_id": null,
+        "total_amount": "0.250000",
+        "available_amount": "0.249868",
+        "closed_amount": "0.000000"
+      },
+      {
+        "id": "quota-f99110b7-8046-4046-9f5b-da75f287e280",
+        "source_id": "member-197ea9bd-4452-4ab2-8887-b4649c19b624",
+        "purpose": "personal",
+        "project_id": null,
+        "total_amount": "0.200000",
+        "available_amount": "0.199736",
+        "closed_amount": "0.000000"
+      }
+    ],
+    "calls": [
+      {
+        "request_id": "business-3a712a44-ccd5-4c7a-a603-c87a9de65a49",
+        "subject_id": "member-197ea9bd-4452-4ab2-8887-b4649c19b624",
+        "purpose": "personal",
+        "project_id": null,
+        "billable_state": "confirmed",
+        "actual_amount": "0.000132",
+        "usage_final": true
+      },
+      {
+        "request_id": "business-7941cb49-7ea3-4df6-8ccd-22bec5f16326",
+        "subject_id": "member-197ea9bd-4452-4ab2-8887-b4649c19b624",
+        "purpose": "project",
+        "project_id": "project-83e00dd3-daa8-4aa4-89fa-b418518abb74",
+        "billable_state": "confirmed",
+        "actual_amount": "0.000132",
+        "usage_final": true
+      },
+      {
+        "request_id": "business-9c3f57b4-7da0-4e9d-a432-bafa691c15b7",
+        "subject_id": "member-197ea9bd-4452-4ab2-8887-b4649c19b624",
+        "purpose": "project",
+        "project_id": "project-83e00dd3-daa8-4aa4-89fa-b418518abb74",
+        "billable_state": "not_billable",
+        "actual_amount": "0.000000",
+        "usage_final": true
+      },
+      {
+        "request_id": "business-b80ae40d-5c33-45e0-8cf1-b5460383d614",
+        "subject_id": "member-197ea9bd-4452-4ab2-8887-b4649c19b624",
+        "purpose": "project",
+        "project_id": "project-83e00dd3-daa8-4aa4-89fa-b418518abb74",
+        "billable_state": "confirmed",
+        "actual_amount": "0.000132",
+        "usage_final": true
+      },
+      {
+        "request_id": "business-bd160923-aea3-4c4f-8e4d-53a9b16208bd",
+        "subject_id": "application-10f75e0a-2b57-413d-9e77-5794442ae6aa",
+        "purpose": "application",
+        "project_id": null,
+        "billable_state": "confirmed",
+        "actual_amount": "0.000132",
+        "usage_final": true
+      },
+      {
+        "request_id": "business-c617285a-316c-4753-bfcd-ea2dd95ed5e8",
+        "subject_id": "member-e9a208f5-ad45-4841-9732-080862fa63ae",
+        "purpose": "project",
+        "project_id": "project-83e00dd3-daa8-4aa4-89fa-b418518abb74",
+        "billable_state": "not_billable",
+        "actual_amount": "0.000000",
+        "usage_final": true
+      },
+      {
+        "request_id": "business-ca2c61e0-f61e-4668-ad65-7e247ccbd481",
+        "subject_id": "member-197ea9bd-4452-4ab2-8887-b4649c19b624",
+        "purpose": "personal",
+        "project_id": null,
+        "billable_state": "confirmed",
+        "actual_amount": "0.000132",
+        "usage_final": true
+      }
+    ],
+    "ledger": [
+      {
+        "request_id": "business-3a712a44-ccd5-4c7a-a603-c87a9de65a49",
+        "entries": 1
+      },
+      {
+        "request_id": "business-7941cb49-7ea3-4df6-8ccd-22bec5f16326",
+        "entries": 1
+      },
+      {
+        "request_id": "business-b80ae40d-5c33-45e0-8cf1-b5460383d614",
+        "entries": 1
+      },
+      {
+        "request_id": "business-bd160923-aea3-4c4f-8e4d-53a9b16208bd",
+        "entries": 1
+      },
+      {
+        "request_id": "business-ca2c61e0-f61e-4668-ad65-7e247ccbd481",
+        "entries": 1
+      }
+    ]
+  },
+  "error": {
+    "phase": "business lifecycle and scoped access",
+    "message": "business: employee cannot read another application call"
+  },
+  "diagnostics": {
+    "model": "",
+    "gateway": "port_failure\":\"delayed_connect_error:_Connection_refused\"}\n{\"request_id\":\"f86a04be-a9db-49af-a6cb-8cc6b4e67f4c\",\"response_code\":\"503\",\"route_name\":\"atlas-6584afda41983203771a624bb469b9d5-probe\",\"flags\":\"UF\",\"transport_failure\":\"delayed_connect_error:_Connection_refused\"}\n{\"request_id\":\"d1093568-688b-467d-8c3b-b3aa731add13\",\"response_code\":\"503\",\"route_name\":\"atlas-6584afda41983203771a624bb469b9d5-probe\",\"flags\":\"UF\",\"transport_failure\":\"delayed_connect_error:_Connection_refused\"}\n{\"request_id\":\"f0cbc597-d503-44d9-afc0-ceef56c3529f\",\"response_code\":\"200\",\"route_name\":\"atlas-6584afda41983203771a624bb469b9d5-probe\",\"flags\":\"-\",\"transport_failure\":\"-\"}\n{\"request_id\":\"a40795a6-a9cf-4e78-9922-15dae827b65d\",\"response_code\":\"200\",\"route_name\":\"atlas-6584afda41983203771a624bb469b9d5\",\"flags\":\"-\",\"transport_failure\":\"-\"}\n{\"request_id\":\"386ced44-32e6-4f1e-b900-17950ff5ce76\",\"response_code\":\"200\",\"route_name\":\"atlas-6584afda41983203771a624bb469b9d5\",\"flags\":\"-\",\"transport_failure\":\"-\"}\n{\"request_id\":\"1a396291-3a66-47c9-a612-6f8df4c4fb08\",\"response_code\":\"401\",\"route_name\":\"atlas-6584afda41983203771a624bb469b9d5-probe\",\"flags\":\"-\",\"transport_failure\":\"-\"}\n{\"request_id\":\"e2af91b1-89f9-433f-a4e0-1abb44ae8beb\",\"response_code\":\"401\",\"route_name\":\"atlas-6584afda41983203771a624bb469b9d5-probe\",\"flags\":\"-\",\"transport_failure\":\"-\"}\n{\"request_id\":\"65a8eb66-e14c-4f2b-a744-2bbe03bd3292\",\"response_code\":\"401\",\"route_name\":\"atlas-6584afda41983203771a624bb469b9d5-probe\",\"flags\":\"-\",\"transport_failure\":\"-\"}\n{\"request_id\":\"646be2e7-ec55-4d20-a206-24257d392fea\",\"response_code\":\"200\",\"route_name\":\"atlas-6584afda41983203771a624bb469b9d5\",\"flags\":\"-\",\"transport_failure\":\"-\"}\n{\"request_id\":\"b5b984a5-99a8-4c92-a441-0b76a3599856\",\"response_code\":\"200\",\"route_name\":\"atlas-6584afda41983203771a624bb469b9d5\",\"flags\":\"-\",\"transport_failure\":\"-\"}\n{\"request_id\":\"9d8b7b36-f127-4d11-aba6-21ea83dc8107\",\"response_code\":\"200\",\"route_name\":\"atlas-6584afda41983203771a624bb469b9d5\",\"flags\":\"-\",\"transport_failure\":\"-\"}\n{\"request_id\":\"d91b93f7-7951-49b2-aea6-022af328467c\",\"response_code\":\"200\",\"route_name\":\"atlas-6584afda41983203771a624bb469b9d5\",\"flags\":\"DC\",\"transport_failure\":\"-\"}\n{\"request_id\":\"3d7e036e-8e65-477b-9da5-e055ca0a1d7f\",\"response_code\":\"200\",\"route_name\":\"atlas-6584afda41983203771a624bb469b9d5\",\"flags\":\"-\",\"transport_failure\":\"-\"}\n{\"request_id\":\"0c81a738-913a-49f3-b39e-7c771099242d\",\"response_code\":\"500\",\"route_name\":\"atlas-6584afda41983203771a624bb469b9d5\",\"flags\":\"-\",\"transport_failure\":\"-\"}\n{\"request_id\":\"57b1d17b-7c6a-4f1c-96a7-edbb0a5e5615\",\"response_code\":\"200\",\"route_name\":\"atlas-6584afda41983203771a624bb469b9d5\",\"flags\":\"-\",\"transport_failure\":\"-\"}\n{\"request_id\":\"bbb4bb49-6a74-466b-b471-d0fb7677b374\",\"response_code\":\"200\",\"route_name\":\"atlas-6584afda41983203771a624bb469b9d5\",\"flags\":\"-\",\"transport_failure\":\"-\"}\n{\"request_id\":\"7a8ab6df-13f4-40ea-8e8e-d40034fa05d2\",\"response_code\":\"200\",\"route_name\":\"atlas-6584afda41983203771a624bb469b9d5\",\"flags\":\"DC\",\"transport_failure\":\"-\"}\n{\"request_id\":\"e7011881-e441-4eee-af5f-d5ae6c47b7b1\",\"response_code\":\"200\",\"route_name\":\"atlas-6584afda41983203771a624bb469b9d5\",\"flags\":\"-\",\"transport_failure\":\"-\"}\n{\"request_id\":\"5dc88658-287b-4a79-995b-614f3b3cda88\",\"response_code\":\"503\",\"route_name\":\"higress-console\",\"flags\":\"URX,UF\",\"transport_failure\":\"delayed_connect_error:_Connection_refused\"}\n{\"request_id\":\"c2429793-a4d5-4c64-89eb-909a9a860e56\",\"response_code\":\"503\",\"route_name\":\"atlas-c1d3aacb6e57210550114658a98cfe4b-probe\",\"flags\":\"UF\",\"transport_failure\":\"delayed_connect_error:_Connection_refused\"}\n{\"request_id\":\"1edf598a-398d-4cb8-b7f4-9c3fe39828f1\",\"response_code\":\"503\",\"route_name\":\"atlas-c1d3aacb6e57210550114658a98cfe4b-probe\",\"flags\":\"UF\",\"transport_failure\":\"delayed_connect_error:_Connection_refused\"}\n{\"request_id\":\"fb936a6f-bbde-4862-9083-a2803cad3395\",\"response_code\":\"200\",\"route_name\":\"atlas-c1d3aacb6e57210550114658a98cfe4b-probe\",\"flags\":\"-\",\"transport_failure\":\"-\"}\n{\"request_id\":\"72dbe9f6-34e5-401f-84e4-d92975cca04a\",\"response_code\":\"200\",\"route_name\":\"atlas-6584afda41983203771a624bb469b9d5-probe\",\"flags\":\"-\",\"transport_failure\":\"-\"}\n{\"request_id\":\"business-3a712a44-ccd5-4c7a-a603-c87a9de65a49\",\"response_code\":\"200\",\"route_name\":\"atlas-6584afda41983203771a624bb469b9d5\",\"flags\":\"-\",\"transport_failure\":\"-\"}\n{\"request_id\":\"business-ca2c61e0-f61e-4668-ad65-7e247ccbd481\",\"response_code\":\"200\",\"route_name\":\"atlas-6584afda41983203771a624bb469b9d5\",\"flags\":\"-\",\"transport_failure\":\"-\"}\n{\"request_id\":\"business-b80ae40d-5c33-45e0-8cf1-b5460383d614\",\"response_code\":\"200\",\"route_name\":\"atlas-6584afda41983203771a624bb469b9d5\",\"flags\":\"-\",\"transport_failure\":\"-\"}\n{\"request_id\":\"business-7941cb49-7ea3-4df6-8ccd-22bec5f16326\",\"response_code\":\"200\",\"route_name\":\"atlas-6584afda41983203771a624bb469b9d5\",\"flags\":\"-\",\"transport_failure\":\"-\"}\n{\"request_id\":\"business-bd160923-aea3-4c4f-8e4d-53a9b16208bd\",\"response_code\":\"200\",\"route_name\":\"atlas-6584afda41983203771a624bb469b9d5\",\"flags\":\"-\",\"transport_failure\":\"-\"}\n"
+  },
+  "completedAt": "2026-10-29T14:46:42.983Z"
+}
