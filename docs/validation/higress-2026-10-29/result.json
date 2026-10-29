@@ -1,0 +1,184 @@
+{
+  "success": true,
+  "createdAt": "2026-10-29T03:09:33.047Z",
+  "branch": "codex/higress-poc",
+  "scope": {
+    "higress": true,
+    "higressImage": "higress-registry.cn-hangzhou.cr.aliyuncs.com/higress/all-in-one@sha256:e650ae5244bb89e95a7cbe5188b9c0c9caf7a165aa5e4c89364e37a1e3efbb24",
+    "modelImage": "docker.io/library/node@sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681a8d18c0e2bc2e402",
+    "model": "deterministic local HTTP fixture",
+    "realModelRequests": 0,
+    "controlPlane": "isolated memory",
+    "network": "internal container network; loopback access only",
+    "hostAccess": "task-owned SSH tunnel",
+    "deployment": false
+  },
+  "checks": [
+    "real pinned Higress route v1 is observed in the data plane",
+    "Higress rejects a missing, invalid or platform demo key",
+    "Higress rejects a missing, invalid or platform demo key",
+    "Higress rejects a missing, invalid or platform demo key",
+    "Higress management ports remain private; data-plane access is loopback only",
+    "container network has no external route",
+    "PoC resources refer only to the local fixture and bundled plugins",
+    "isolated real control plane is initialized",
+    "PoC operator logs in with an isolated password",
+    "non-stream response retains the logical model",
+    "real control plane settles input/output/cache usage using its price snapshot",
+    "Higress plugin maps the admitted alias to the physical model and applies its own upstream credential",
+    "upstream request ID survives both proxies",
+    "opaque platform request IDs also survive Higress without being regenerated",
+    "duplicate authorization cannot forward a second generation",
+    "idempotent call reaches the model exactly once",
+    "SSE preserves final completion marker and logical model metadata",
+    "SSE forwards its first bytes before delayed final usage",
+    "streaming usage settles exactly once",
+    "non-stream tool arguments and reasoning survive Higress",
+    "tool result and reasoning history complete a second round trip",
+    "fragmented UTF-8 SSE tool arguments remain intact",
+    "tool call uses the same authoritative usage and price calculation",
+    "tool call uses the same authoritative usage and price calculation",
+    "tool call uses the same authoritative usage and price calculation",
+    "missing final SSE usage retains its original reservation for review",
+    "client cancellation remains distinct from upstream failure and preserves unknown cost",
+    "client cancellation closes the model connection through Higress",
+    "upstream HTTP failure is returned",
+    "Higress does not retry a failed generation or perform fallback",
+    "first-byte timeout remains enforced around Higress",
+    "timeout with unknown generation cost retains its hold",
+    "invalid platform key is refused before Higress",
+    "invalid platform key never reaches the model",
+    "publisher marks v1 applied only after a successful runtime probe",
+    "new desired version is observed at the real Higress data port",
+    "unusable configuration is rejected without claiming a new applied version",
+    "explicit rollback restores the last working Higress route",
+    "normal authoritative settlement resumes after rollback",
+    "completed usage is durably queued while settlement delivery is unavailable",
+    "gateway restart replays the original complete usage into the real ledger",
+    "durable replay produces one authoritative call record",
+    "control plane retains settlement when its response is lost",
+    "replay after a lost settlement response does not charge twice",
+    "forced gateway exit during a stream restores unknown usage as pending review",
+    "insufficient quota is refused by the real control plane",
+    "quota refusal produces no model request",
+    "a live stream retains the shared service concurrency slot",
+    "concurrent quota refusal happens before Higress inference",
+    "service deactivation denies new managed requests",
+    "deactivated service never reaches inference",
+    "original funded batch equals remaining funds plus confirmed charges and unknown holds",
+    "gateway access log records metadata without prompts, responses or credentials",
+    "report contains no test credentials"
+  ],
+  "configOperations": [
+    {
+      "desiredVersion": "v1",
+      "appliedVersion": "v1",
+      "status": "applied",
+      "observedVersion": "v1",
+      "errorCode": null
+    },
+    {
+      "desiredVersion": "v2",
+      "appliedVersion": "v2",
+      "status": "applied",
+      "observedVersion": "v2",
+      "errorCode": null
+    },
+    {
+      "desiredVersion": "v3",
+      "appliedVersion": "v2",
+      "status": "rejected",
+      "observedVersion": "v3",
+      "errorCode": "runtime_not_confirmed"
+    },
+    {
+      "desiredVersion": "v2",
+      "appliedVersion": "v2",
+      "status": "applied",
+      "observedVersion": "v2",
+      "errorCode": null
+    }
+  ],
+  "latency": {
+    "stream": {
+      "firstByteMs": 80.08960000000297,
+      "totalMs": 808.8819000000003
+    },
+    "direct": {
+      "count": 8,
+      "p50Ms": 123.59799999999814,
+      "maxMs": 140.6748000000007
+    },
+    "higress": {
+      "count": 8,
+      "p50Ms": 122.91019999999844,
+      "maxMs": 141.41719999999623
+    }
+  },
+  "cleanup": {
+    "containersRemoved": true,
+    "networkRemoved": true,
+    "existingWorkspacesTouched": false
+  },
+  "images": [
+    {
+      "requested": "higress-registry.cn-hangzhou.cr.aliyuncs.com/higress/all-in-one@sha256:e650ae5244bb89e95a7cbe5188b9c0c9caf7a165aa5e4c89364e37a1e3efbb24",
+      "id": "7913108aabc6a69d7d9b3e7f02392d4312e7b8677f6c21ad3fcf36b41ef4f58a",
+      "os": "linux",
+      "architecture": "amd64"
+    },
+    {
+      "requested": "docker.io/library/node@sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681a8d18c0e2bc2e402",
+      "id": "7c3b093add7c43400ee83b815ab2cda98794a10045bcf76ce9bb2f89b97cbc5c",
+      "os": "linux",
+      "architecture": "amd64"
+    }
+  ],
+  "tracing": {
+    "clientRequestId": "14585d4e-7333-43e5-b669-ec44a3d17a5a",
+    "upstreamRequestId": "upstream-14585d4e-7333-43e5-b669-ec44a3d17a5a",
+    "modelRequests": [
+      {
+        "requestId": "3d5ead25-0352-4bf4-ae51-35b8180ef3f9",
+        "model": "physical-model",
+        "stream": false,
+        "maxOutput": 1,
+        "includeUsage": false,
+        "tools": [],
+        "hasToolResult": false,
+        "closed": true
+      },
+      {
+        "requestId": "14585d4e-7333-43e5-b669-ec44a3d17a5a",
+        "model": "physical-model",
+        "stream": false,
+        "maxOutput": 32,
+        "includeUsage": false,
+        "tools": [],
+        "hasToolResult": false,
+        "closed": true
+      }
+    ]
+  },
+  "accounting": {
+    "calls": 34,
+    "confirmed": 25,
+    "pendingReview": 6,
+    "modelRequests": 36,
+    "operator": {
+      "total": 1,
+      "available": 0.994522,
+      "spent": 0.0033000000000000013,
+      "heldAmount": 0.0021780000000000002
+    }
+  },
+  "sourceHashes": {
+    "scripts/check-higress.mjs": "03ba03fe1960f81fc5955453fb6427d2b4c9d4e5be6c7a4505fe4db10e7ae737",
+    "scripts/higress/poc-config.mjs": "a9405c45f1bb2cc4fb9cfc1fb534e65745d6c386ee8287f1e94aa5459dc57bd2",
+    "scripts/higress/file-publisher.mjs": "391d2c345d3c214ca05f59ddbdecd6e155fc2e260e6f7a2d3a9384580bf5cc45",
+    "scripts/higress/model-fixture.cjs": "893eb2824d4e3a122e4f69100bf68cf25b4c842c208687b9759294a1a3546973",
+    "services/gateway-sim/dist/server.js": "239ca235d3392a0fce47c4e632b180a7e1f26470371723221f104e649bbf2895",
+    "apps/control-plane/dist/main.js": "ec86d54cd10ce5ea80c016340f8f740b84b791df916d61c1813f157d4d4f5dc3"
+  },
+  "completedAt": "2026-10-29T03:10:42.355Z"
+}

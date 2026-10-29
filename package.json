@@ -17,6 +17,7 @@
     "check:load": "pnpm --filter @ai-gateway/control-plane... --filter @ai-gateway/gateway-sim... build && node scripts/check-load.mjs",
     "check:load:postgres": "pnpm --filter @ai-gateway/control-plane... --filter @ai-gateway/gateway-sim... build && node scripts/check-load.mjs --postgres",
     "check:gateway": "pnpm --filter @ai-gateway/contracts build && pnpm --filter @ai-gateway/gateway-sim test",
+    "check:higress": "pnpm --filter @ai-gateway/control-plane... --filter @ai-gateway/gateway-sim... build && node --test scripts/higress/file-publisher.test.mjs && node scripts/check-higress.mjs",
     "check:delivery": "pnpm build && node scripts/check-delivery.mjs",
     "check:backup": "pnpm build && node scripts/check-delivery.mjs --backup",
     "check:containers": "node scripts/check-container.mjs",
