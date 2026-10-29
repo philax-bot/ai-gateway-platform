@@ -1,0 +1,285 @@
+{
+  "success": false,
+  "createdAt": "2026-10-29T12:20:56.873Z",
+  "scope": {
+    "database": "isolated PostgreSQL schema",
+    "provider": "formal HigressProvider",
+    "model": "DeepSeek official; reused existing configuration",
+    "defaultWorkspaceTouched": false
+  },
+  "checks": [
+    "zero-generation readiness confirms the actual Higress route before reserving a real request",
+    "real DeepSeek connection verification passes through formal HigressProvider",
+    "actual Pi CLI completes the coding task through Higress",
+    "Pi actually reads, edits and executes local tests",
+    "Pi completes multiple model/tool turns without automatic generation retries",
+    "independent execution confirms the Pi-generated tests pass",
+    "independent contract cases confirm deduplication, conflict rejection, number validation, funds protection and immutability",
+    "Pi supplies at least seven executable test cases",
+    "original Pi models/settings and CC Switch database remain unchanged"
+  ],
+  "calls": [],
+  "budgetAtStart": {
+    "maxRequests": 20,
+    "maxEstimatedAmount": 1,
+    "attempts": 11,
+    "estimatedUpperBound": 0.07890799999999999
+  },
+  "priceSnapshot": {
+    "inputPrice": 2,
+    "outputPrice": 8,
+    "cachedInputPrice": 0.04
+  },
+  "runtimePreparation": {
+    "enabled": true,
+    "routes": [
+      {
+        "resourceId": "route-769a0a4c44f946ecc1fdbba02371b8f1",
+        "status": "unavailable"
+      },
+      {
+        "resourceId": "route-89b3bb5b9a96a253b77f5099b5f58e81",
+        "status": "applied"
+      }
+    ]
+  },
+  "budget": {
+    "maxRequests": 20,
+    "maxEstimatedAmount": 1,
+    "attempts": 17,
+    "estimatedUpperBound": 0.288022
+  },
+  "verification": [
+    {
+      "outcome": "passed",
+      "httpStatus": 200,
+      "errorCode": null,
+      "usage": {
+        "complete": true,
+        "inputTokens": 32,
+        "outputTokens": 1,
+        "cachedInputTokens": 0
+      },
+      "cost": {
+        "price": {
+          "unit": "per_million_tokens",
+          "version": "7d991236dfb63612acf74670",
+          "currency": "CNY",
+          "inputPrice": 2,
+          "outputPrice": 8,
+          "cachedInputPrice": 0.04
+        },
+        "state": "priced",
+        "amount": 0.000072
+      }
+    }
+  ],
+  "pi": {
+    "version": "1.4.0",
+    "coding": {
+      "exitCode": 0,
+      "durationMs": 13023,
+      "toolNames": [
+        "read",
+        "read",
+        "powershell",
+        "write",
+        "write",
+        "powershell"
+      ],
+      "toolErrors": 0,
+      "modelTurns": 4,
+      "automaticRetry": false,
+      "answerHash": "0ddfe3687ebf02c4457b59afc0fd69b9a42b52012e58990e27449282156db26b",
+      "answerCharacters": 18,
+      "stopReason": "stop"
+    },
+    "independentTests": {
+      "passed": true,
+      "testCount": 10,
+      "contractCases": 13
+    },
+    "artifactDirectory": "D:\\Workspace\\pri\\ai-gateway-platform\\.runtime\\higress-pi-artifacts\\7dd7c49d-29cd-415a-8bde-5306beb037e8",
+    "long": {
+      "exitCode": 0,
+      "durationMs": 48636,
+      "toolNames": [],
+      "toolErrors": 0,
+      "modelTurns": 1,
+      "automaticRetry": false,
+      "answerHash": "cfcb3181c7260a6d3a7eae8ba77b63735c2d58e2520fa8b93a914b7b8cf403b6",
+      "answerCharacters": 12445,
+      "stopReason": "length",
+      "scenarios": 22,
+      "finalMarkerMatched": false
+    },
+    "requests": [
+      {
+        "requestId": "higress-pi-4c8bb533-ba4a-4c82-abb7-39a92e7f5025",
+        "phase": "coding",
+        "maxOutputTokens": 2048,
+        "stream": true,
+        "startedAt": "2026-10-29T12:21:45.199Z",
+        "chunks": 18,
+        "bytes": 15294,
+        "httpStatus": 200,
+        "headersMs": 605,
+        "usage": {
+          "prompt_tokens": 1100,
+          "completion_tokens": 111,
+          "total_tokens": 1211,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 1100
+        },
+        "finishReason": "tool_calls",
+        "done": true,
+        "durationMs": 1707,
+        "generationSpanMs": 220,
+        "firstDeltaMs": 1258,
+        "maxDeltaGapMs": 27
+      },
+      {
+        "requestId": "higress-pi-8b894c65-def2-4b39-b64c-706e3352a67e",
+        "phase": "coding",
+        "maxOutputTokens": 2048,
+        "stream": true,
+        "startedAt": "2026-10-29T12:21:47.668Z",
+        "chunks": 310,
+        "bytes": 505384,
+        "httpStatus": 200,
+        "headersMs": 369,
+        "usage": {
+          "prompt_tokens": 1459,
+          "completion_tokens": 1603,
+          "total_tokens": 3062,
+          "prompt_tokens_details": {
+            "cached_tokens": 1152
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 231
+          },
+          "prompt_cache_hit_tokens": 1152,
+          "prompt_cache_miss_tokens": 307
+        },
+        "finishReason": "tool_calls",
+        "done": true,
+        "durationMs": 6735,
+        "generationSpanMs": 5717,
+        "firstDeltaMs": 815,
+        "maxDeltaGapMs": 396
+      },
+      {
+        "requestId": "higress-pi-97c4376f-7e83-49b9-9ace-fce26fa462bb",
+        "phase": "coding",
+        "maxOutputTokens": 2048,
+        "stream": true,
+        "startedAt": "2026-10-29T12:21:54.413Z",
+        "chunks": 7,
+        "bytes": 5587,
+        "httpStatus": 200,
+        "headersMs": 374,
+        "usage": {
+          "prompt_tokens": 3097,
+          "completion_tokens": 44,
+          "total_tokens": 3141,
+          "prompt_tokens_details": {
+            "cached_tokens": 2944
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 0
+          },
+          "prompt_cache_hit_tokens": 2944,
+          "prompt_cache_miss_tokens": 153
+        },
+        "finishReason": "tool_calls",
+        "done": true,
+        "durationMs": 1274,
+        "generationSpanMs": 65,
+        "firstDeltaMs": 1026,
+        "maxDeltaGapMs": 29
+      },
+      {
+        "requestId": "higress-pi-9da1b181-5934-42af-abc2-0964e24e570d",
+        "phase": "coding",
+        "maxOutputTokens": 2048,
+        "stream": true,
+        "startedAt": "2026-10-29T12:21:56.548Z",
+        "chunks": 14,
+        "bytes": 12793,
+        "httpStatus": 200,
+        "headersMs": 354,
+        "usage": {
+          "prompt_tokens": 3652,
+          "completion_tokens": 39,
+          "total_tokens": 3691,
+          "prompt_tokens_details": {
+            "cached_tokens": 3072
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 31
+          },
+          "prompt_cache_hit_tokens": 3072,
+          "prompt_cache_miss_tokens": 580
+        },
+        "finishReason": "stop",
+        "done": true,
+        "durationMs": 1656,
+        "generationSpanMs": 247,
+        "firstDeltaMs": 1175,
+        "maxDeltaGapMs": 78
+      },
+      {
+        "requestId": "higress-pi-fe7d05b6-e5b4-4135-8442-c0088c832791",
+        "phase": "long",
+        "maxOutputTokens": 8192,
+        "stream": true,
+        "startedAt": "2026-10-29T12:21:59.341Z",
+        "chunks": 2548,
+        "bytes": 2577596,
+        "httpStatus": 200,
+        "headersMs": 354,
+        "usage": {
+          "prompt_tokens": 817,
+          "completion_tokens": 8192,
+          "total_tokens": 9009,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 5342
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 817
+        },
+        "finishReason": "length",
+        "done": true,
+        "durationMs": 48597,
+        "generationSpanMs": 47760,
+        "firstDeltaMs": 500,
+        "maxDeltaGapMs": 599
+      }
+    ],
+    "originalConfigurationsUnchanged": true,
+    "aggregateBudget": {
+      "maxRequests": 20,
+      "maxEstimatedAmount": 1,
+      "attempts": 17,
+      "estimatedUpperBound": 0.288022
+    }
+  },
+  "error": {
+    "phase": "actual Pi coding, long stream and cancellation",
+    "message": "Pi completes the substantive 48-scenario review without truncation"
+  },
+  "higressDiagnostics": {
+    "gateway": "\"}\n{\"request_id\":\"294db28b-8c0e-4e9c-b15d-092a81d99d7f\",\"response_code\":\"200\",\"route_name\":\"atlas-c59211cafce68e0a5f8cee807b0b53e6-probe\",\"flags\":\"-\",\"transport_failure\":\"-\"}\n{\"request_id\":\"0647a448-973e-45ff-810a-cbec33918b9d\",\"response_code\":\"200\",\"route_name\":\"atlas-c59211cafce68e0a5f8cee807b0b53e6-probe\",\"flags\":\"-\",\"transport_failure\":\"-\"}\n{\"request_id\":\"322350f6-f217-4adb-8586-c3bd16a7238d\",\"response_code\":\"200\",\"route_name\":\"atlas-c59211cafce68e0a5f8cee807b0b53e6-probe\",\"flags\":\"-\",\"transport_failure\":\"-\"}\n{\"request_id\":\"55a93294-6b45-471a-a1d1-83f2a2c10135\",\"response_code\":\"200\",\"route_name\":\"atlas-c59211cafce68e0a5f8cee807b0b53e6-probe\",\"flags\":\"-\",\"transport_failure\":\"-\"}\n{\"request_id\":\"1c29bf3b-826b-4d2f-989d-75e5d8b57ec1\",\"response_code\":\"200\",\"route_name\":\"atlas-c59211cafce68e0a5f8cee807b0b53e6-probe\",\"flags\":\"-\",\"transport_failure\":\"-\"}\n{\"request_id\":\"0ddc85d8-b3b9-4f98-9c3f-6e049bb68a37\",\"response_code\":\"200\",\"route_name\":\"atlas-c59211cafce68e0a5f8cee807b0b53e6-probe\",\"flags\":\"-\",\"transport_failure\":\"-\"}\n{\"request_id\":\"7cc13cae-200c-4ff4-acfa-a8678a17db19\",\"response_code\":\"200\",\"route_name\":\"atlas-c59211cafce68e0a5f8cee807b0b53e6-probe\",\"flags\":\"-\",\"transport_failure\":\"-\"}\n{\"request_id\":\"0560e1ab-c662-4916-9976-46f2580368ed\",\"response_code\":\"200\",\"route_name\":\"atlas-c59211cafce68e0a5f8cee807b0b53e6-probe\",\"flags\":\"-\",\"transport_failure\":\"-\"}\n{\"request_id\":\"69db15e9-8477-43ff-8592-f135680bc364\",\"response_code\":\"200\",\"route_name\":\"atlas-c59211cafce68e0a5f8cee807b0b53e6-probe\",\"flags\":\"-\",\"transport_failure\":\"-\"}\n{\"request_id\":\"3d15974f-6ffc-4d6a-b2c2-6402ee506ac8\",\"response_code\":\"200\",\"route_name\":\"atlas-c59211cafce68e0a5f8cee807b0b53e6-probe\",\"flags\":\"-\",\"transport_failure\":\"-\"}\n{\"request_id\":\"13f8bc77-24d8-4a8d-953f-ed4874abc594\",\"response_code\":\"200\",\"route_name\":\"atlas-c59211cafce68e0a5f8cee807b0b53e6-probe\",\"flags\":\"-\",\"transport_failure\":\"-\"}\n{\"request_id\":\"7d643580-c790-4b96-8101-e24e42a3a7ad\",\"response_code\":\"200\",\"route_name\":\"atlas-c59211cafce68e0a5f8cee807b0b53e6-probe\",\"flags\":\"-\",\"transport_failure\":\"-\"}\n{\"request_id\":\"1bde0138-eb6a-472d-8c30-174c4b6521b5\",\"response_code\":\"200\",\"route_name\":\"atlas-c59211cafce68e0a5f8cee807b0b53e6-probe\",\"flags\":\"-\",\"transport_failure\":\"-\"}\n{\"request_id\":\"f685a0ad-48ce-4823-8d26-65e0b26ac009\",\"response_code\":\"200\",\"route_name\":\"atlas-c59211cafce68e0a5f8cee807b0b53e6-probe\",\"flags\":\"-\",\"transport_failure\":\"-\"}\n{\"request_id\":\"59dbdada-6b70-415b-9fbf-4b3ee879f5c3\",\"response_code\":\"200\",\"route_name\":\"atlas-c59211cafce68e0a5f8cee807b0b53e6-probe\",\"flags\":\"-\",\"transport_failure\":\"-\"}\n{\"request_id\":\"e22ad572-7e14-4619-9727-12034d5758fa\",\"response_code\":\"200\",\"route_name\":\"atlas-c59211cafce68e0a5f8cee807b0b53e6-probe\",\"flags\":\"-\",\"transport_failure\":\"-\"}\n{\"request_id\":\"18a7745a-d93f-4f53-9d66-cea8412bf3ac\",\"response_code\":\"200\",\"route_name\":\"atlas-c59211cafce68e0a5f8cee807b0b53e6-probe\",\"flags\":\"-\",\"transport_failure\":\"-\"}\n{\"request_id\":\"5a05cc9e-67fb-44b2-805d-358c4f466bbc\",\"response_code\":\"200\",\"route_name\":\"atlas-c59211cafce68e0a5f8cee807b0b53e6-probe\",\"flags\":\"-\",\"transport_failure\":\"-\"}\n{\"request_id\":\"d10f2da3-fc21-41a3-aa7d-82bdee13a0b1\",\"response_code\":\"200\",\"route_name\":\"atlas-c59211cafce68e0a5f8cee807b0b53e6-probe\",\"flags\":\"-\",\"transport_failure\":\"-\"}\n{\"request_id\":\"c09dc516-394e-4835-8f0c-a0010800f80e\",\"response_code\":\"200\",\"route_name\":\"atlas-c59211cafce68e0a5f8cee807b0b53e6-probe\",\"flags\":\"-\",\"transport_failure\":\"-\"}\n{\"request_id\":\"0b4f8ff6-9264-4a2e-8719-21ffc4219d35\",\"response_code\":\"200\",\"route_name\":\"atlas-c59211cafce68e0a5f8cee807b0b53e6-probe\",\"flags\":\"-\",\"transport_failure\":\"-\"}\n{\"request_id\":\"7f61eaa1-b12b-4d0b-a451-ae4ad8320ac3\",\"response_code\":\"200\",\"route_name\":\"atlas-c59211cafce68e0a5f8cee807b0b53e6-probe\",\"flags\":\"-\",\"transport_failure\":\"-\"}\n{\"request_id\":\"6ce6a44c-e8ef-4b7b-99fe-965f2b8bc8a1\",\"response_code\":\"200\",\"route_name\":\"atlas-c59211cafce68e0a5f8cee807b0b53e6-probe\",\"flags\":\"-\",\"transport_failure\":\"-\"}\n{\"request_id\":\"1664a9ef-e621-4412-bea1-d137ba9f1d25\",\"response_code\":\"200\",\"route_name\":\"atlas-c59211cafce68e0a5f8cee807b0b53e6-probe\",\"flags\":\"-\",\"transport_failure\":\"-\"}\n{\"request_id\":\"b26a65cb-36fd-4b85-9169-7d2584795c9c\",\"response_code\":\"200\",\"route_name\":\"atlas-c59211cafce68e0a5f8cee807b0b53e6-probe\",\"flags\":\"-\",\"transport_failure\":\"-\"}\n{\"request_id\":\"95bdb38e-b788-43a5-a69d-7cb9f0efd582\",\"response_code\":\"200\",\"route_name\":\"atlas-c59211cafce68e0a5f8cee807b0b53e6-probe\",\"flags\":\"-\",\"transport_failure\":\"-\"}\n{\"request_id\":\"f5e82ebe-8d8f-4e87-9edb-d68343ac3905\",\"response_code\":\"200\",\"route_name\":\"atlas-c59211cafce68e0a5f8cee807b0b53e6-probe\",\"flags\":\"-\",\"transport_failure\":\"-\"}\n{\"request_id\":\"2b7d15fe-d0f0-4e9d-901a-35f2ba04bdc1\",\"response_code\":\"200\",\"route_name\":\"atlas-c59211cafce68e0a5f8cee807b0b53e6-probe\",\"flags\":\"-\",\"transport_failure\":\"-\"}\n{\"request_id\":\"b112b4a2-9013-4c84-ae8b-680dfbda6dbd\",\"response_code\":\"200\",\"route_name\":\"atlas-c59211cafce68e0a5f8cee807b0b53e6-probe\",\"flags\":\"-\",\"transport_failure\":\"-\"}\n{\"request_id\":\"003cf534-802c-41cd-a61d-b92cd47a63e1\",\"response_code\":\"200\",\"route_name\":\"atlas-c59211cafce68e0a5f8cee807b0b53e6-probe\",\"flags\":\"-\",\"transport_failure\":\"-\"}\n{\"request_id\":\"cc1c84e1-0f0b-4758-acff-3fba648f90ac\",\"response_code\":\"503\",\"route_name\":\"higress-console\",\"flags\":\"URX,UF\",\"transport_failure\":\"delayed_connect_error:_Connection_refused\"}\n{\"request_id\":\"1d534539-4ac6-4250-8173-efee3ff6f1e5\",\"response_code\":\"503\",\"route_name\":\"atlas-399fc8f1a2d9ab17870bfaa50eae1aac-probe\",\"flags\":\"UF\",\"transport_failure\":\"delayed_connect_error:_Connection_refused\"}\n{\"request_id\":\"dfd3b6b8-358d-466f-a728-d4661db2af81\",\"response_code\":\"503\",\"route_name\":\"atlas-399fc8f1a2d9ab17870bfaa50eae1aac-probe\",\"flags\":\"UF\",\"transport_failure\":\"delayed_connect_error:_Connection_refused\"}\n{\"request_id\":\"4b83955e-f0f5-4c03-af3e-688b2ff0cb1a\",\"response_code\":\"200\",\"route_name\":\"atlas-399fc8f1a2d9ab17870bfaa50eae1aac-probe\",\"flags\":\"-\",\"transport_failure\":\"-\"}\n{\"request_id\":\"02c9f15c-4d88-48d0-ae27-7803d9d60068\",\"response_code\":\"200\",\"route_name\":\"atlas-399fc8f1a2d9ab17870bfaa50eae1aac\",\"flags\":\"-\",\"transport_failure\":\"-\"}\n{\"request_id\":\"higress-pi-4c8bb533-ba4a-4c82-abb7-39a92e7f5025\",\"response_code\":\"200\",\"route_name\":\"atlas-399fc8f1a2d9ab17870bfaa50eae1aac\",\"flags\":\"-\",\"transport_failure\":\"-\"}\n{\"request_id\":\"higress-pi-8b894c65-def2-4b39-b64c-706e3352a67e\",\"response_code\":\"200\",\"route_name\":\"atlas-399fc8f1a2d9ab17870bfaa50eae1aac\",\"flags\":\"-\",\"transport_failure\":\"-\"}\n{\"request_id\":\"higress-pi-97c4376f-7e83-49b9-9ace-fce26fa462bb\",\"response_code\":\"200\",\"route_name\":\"atlas-399fc8f1a2d9ab17870bfaa50eae1aac\",\"flags\":\"-\",\"transport_failure\":\"-\"}\n{\"request_id\":\"higress-pi-9da1b181-5934-42af-abc2-0964e24e570d\",\"response_code\":\"200\",\"route_name\":\"atlas-399fc8f1a2d9ab17870bfaa50eae1aac\",\"flags\":\"-\",\"transport_failure\":\"-\"}\n{\"request_id\":\"higress-pi-fe7d05b6-e5b4-4135-8442-c0088c832791\",\"response_code\":\"200\",\"route_name\":\"atlas-399fc8f1a2d9ab17870bfaa50eae1aac\",\"flags\":\"-\",\"transport_failure\":\"-\"}\n",
+    "controller": "ies, toBeCreated: 0, toBeUpdated: 0, toBeDeleted: 0\n2026-10-29T12:21:41.663982Z\tinfo\tRegistries is reconciled\n2026-10-29T12:21:41.663986Z\tinfo\tReconcileProxies, toBeUpdated: 0, toBeDeleted: 0\n2026-10-29T12:21:41.663987Z\tinfo\tProxies are reconciled\n2026-10-29T12:21:41.663990Z\tinfo\tingress\tMcpbridge reconciled\n2026-10-29T12:21:41.686298Z\tinfo\tads\tfull push happen, reason:map[config:1]\n2026-10-29T12:21:41.751193Z\tinfo\tads\tfull push happen, reason:map[config:1]\n2026-10-29T12:21:41.762944Z\tinfo\tads\tfull push happen, reason:map[config:1]\n2026-10-29T12:21:41.829194Z\tinfo\tingress\tingress: higress-system/atlas-399fc8f1a2d9ab17870bfaa50eae1aac, event: update\n2026-10-29T12:21:41.829220Z\tinfo\tads\tfull push happen, reason:map[config:1]\n2026-10-29T12:21:41.829229Z\tinfo\tads\tfull push happen, reason:map[config:1]\n2026-10-29T12:21:41.829233Z\tinfo\tads\tfull push happen, reason:map[config:1]\n2026-10-29T12:21:41.829235Z\tinfo\tads\tfull push happen, reason:map[config:1]\n2026-10-29T12:21:41.863331Z\tinfo\tads\tfull push happen, reason:map[config:1]\n2026-10-29T12:21:41.863355Z\tinfo\tads\tfull push happen, reason:map[config:1]\n2026-10-29T12:21:41.905362Z\tinfo\tingress\tingress: higress-system/atlas-399fc8f1a2d9ab17870bfaa50eae1aac-probe, event: update\n2026-10-29T12:21:41.905393Z\tinfo\tads\tfull push happen, reason:map[config:1]\n2026-10-29T12:21:41.905403Z\tinfo\tads\tfull push happen, reason:map[config:1]\n2026-10-29T12:21:41.905406Z\tinfo\tads\tfull push happen, reason:map[config:1]\n2026-10-29T12:21:41.905408Z\tinfo\tads\tfull push happen, reason:map[config:1]\n2026-10-29T12:21:41.961710Z\tinfo\tingress\tingress: higress-system/atlas-399fc8f1a2d9ab17870bfaa50eae1aac, event: update\n2026-10-29T12:21:41.961741Z\tinfo\tingress\tno need process, ingress: higress-system/atlas-399fc8f1a2d9ab17870bfaa50eae1aac\n2026-10-29T12:21:42.005893Z\tinfo\tads\tPush debounce stable[3] 19 for config VirtualService/higress-system/mcpbridge-virtualservice and 15 more configs: 100.443828ms since last change, 483.687746ms since last push, full=true\n2026-10-29T12:21:42.006457Z\tinfo\tingress\tFound 0 number of basic auth\n2026-10-29T12:21:42.006468Z\tinfo\tingress\tFound 0 number of envoyFilters\n2026-10-29T12:21:42.006472Z\tinfo\tingress\tresource type networking.istio.io/v1/VirtualService, ingress number 5, convert configs number 1\n2026-10-29T12:21:42.006705Z\tinfo\tingress\tresource type networking.istio.io/v1/DestinationRule, ingress number 5, convert configs number 1\n2026-10-29T12:21:42.006774Z\tinfo\tingress\tresource type extensions.istio.io/v1alpha1/WasmPlugin, ingress number 5, convert configs number 5\n2026-10-29T12:21:42.007006Z\tinfo\tingress\tcontroller tracing ConstructEnvoyFilters\n2026-10-29T12:21:42.007009Z\tinfo\tingress\tcontroller gzip ConstructEnvoyFilters\n2026-10-29T12:21:42.007094Z\tinfo\tingress\tcontroller global-option ConstructEnvoyFilters\n2026-10-29T12:21:42.007132Z\tinfo\tingress\tcontroller mcpServer ConstructEnvoyFilters\n2026-10-29T12:21:42.007135Z\tinfo\tingress\tAppend 2 configmap EnvoyFilters\n2026-10-29T12:21:42.007136Z\tinfo\tingress\tresource type networking.istio.io/v1alpha3/EnvoyFilter, configs number 2\n2026-10-29T12:21:42.008192Z\tinfo\tingress\tresource type networking.istio.io/v1/Gateway, ingress number 5, convert configs number 1\n2026-10-29T12:21:42.008256Z\tinfo\tads\tXDS: Pushing Services:0 ConnectedEndpoints:1 Version:2026-10-29T12:21:42Z/3\n2026-10-29T12:21:42.008342Z\tinfo\tads\tnetworking.istio.io/v1/WorkloadEntry: PUSH for node:higress-pilot.higress-system resources:0 size:0B\n2026-10-29T12:21:42.008357Z\tinfo\tads\tnetworking.istio.io/v1/WorkloadGroup: PUSH for node:higress-pilot.higress-system resources:0 size:0B\n2026-10-29T12:21:42.008362Z\tinfo\tads\tsecurity.istio.io/v1/AuthorizationPolicy: PUSH for node:higress-pilot.higress-system resources:0 size:0B\n2026-10-29T12:21:42.008366Z\tinfo\tads\ttelemetry.istio.io/v1/Telemetry: PUSH for node:higress-pilot.higress-system resources:0 size:0B\n2026-10-29T12:21:42.008490Z\tinfo\tingress\tresource type networking.istio.io/v1/DestinationRule, ingress number 5, convert configs number 1\n2026-10-29T12:21:42.008530Z\tinfo\tads\tnetworking.istio.io/v1/DestinationRule: PUSH for node:higress-pilot.higress-system resources:1 size:239B\n2026-10-29T12:21:42.008535Z\tinfo\tads\tnetworking.istio.io/v1beta1/ProxyConfig: PUSH for node:higress-pilot.higress-system resources:0 size:0B\n2026-10-29T12:21:42.008610Z\tinfo\tingress\tresource type extensions.istio.io/v1alpha1/WasmPlugin, ingress number 5, convert configs number 5\n2026-10-29T12:21:42.008796Z\tinfo\tads\textensions.istio.io/v1alpha1/WasmPlugin: PUSH for node:higress-pilot.higress-system resources:5 size:3.3kB\n2026-10-29T12:21:42.008800Z\tinfo\tingress\tcontroller tracing ConstructEnvoyFilters\n2026-10-29T12:21:42.008801Z\tinfo\tingress\tcontroller gzip ConstructEnvoyFilters\n2026-10-29T12:21:42.008907Z\tinfo\tingress\tcontroller global-option ConstructEnvoyFilters\n2026-10-29T12:21:42.008995Z\tinfo\tingress\tcontroller mcpServer ConstructEnvoyFilters\n2026-10-29T12:21:42.008999Z\tinfo\tingress\tAppend 2 configmap EnvoyFilters\n2026-10-29T12:21:42.009001Z\tinfo\tingress\tresource type networking.istio.io/v1alpha3/EnvoyFilter, configs number 2\n2026-10-29T12:21:42.009156Z\tinfo\tads\tnetworking.istio.io/v1alpha3/EnvoyFilter: PUSH for node:higress-pilot.higress-system resources:2 size:1.9kB\n2026-10-29T12:21:42.009985Z\tinfo\tingress\tresource type networking.istio.io/v1/Gateway, ingress number 5, convert configs number 1\n2026-10-29T12:21:42.010043Z\tinfo\tads\tnetworking.istio.io/v1/Gateway: PUSH for node:higress-pilot.higress-system resources:1 size:218B\n2026-10-29T12:21:42.010051Z\tinfo\tads\tsecurity.istio.io/v1/RequestAuthentication: PUSH for node:higress-pilot.higress-system resources:0 size:0B\n2026-10-29T12:21:42.010056Z\tinfo\tads\tnetworking.istio.io/v1/Sidecar: PUSH for node:higress-pilot.higress-system resources:0 size:0B\n2026-10-29T12:21:42.010172Z\tinfo\tingress\tFound 0 number of basic auth\n2026-10-29T12:21:42.010177Z\tinfo\tingress\tFound 0 number of envoyFilters\n2026-10-29T12:21:42.010179Z\tinfo\tingress\tresource type networking.istio.io/v1/VirtualService, ingress number 5, convert configs number 1\n2026-10-29T12:21:42.010281Z\tinfo\tads\tnetworking.istio.io/v1/VirtualService: PUSH for node:higress-pilot.higress-system resources:1 size:1.4kB\n2026-10-29T12:21:42.010286Z\tinfo\tads\tsecurity.istio.io/v1/PeerAuthentication: PUSH for node:higress-pilot.higress-system resources:0 size:0B\n2026-10-29T12:21:42.010342Z\tinfo\tingress\tFound mcp serviceEntries [0x2a9464e31180 0x2a9464e311f0 0x2a9464e31260 0x2a9464e312d0]\n2026-10-29T12:21:42.010347Z\tinfo\tingress\tresource type networking.istio.io/v1/ServiceEntry, ingress number 5, convert configs number 4\n2026-10-29T12:21:42.010403Z\tinfo\tads\tnetworking.istio.io/v1/ServiceEntry: PUSH for node:higress-pilot.higress-system resources:4 size:791B\n2026-10-29T12:21:42.062219Z\tinfo\tingress\tingress: higress-system/atlas-399fc8f1a2d9ab17870bfaa50eae1aac-probe, event: update\n2026-10-29T12:21:42.062270Z\tinfo\tingress\tno need process, ingress: higress-system/atlas-399fc8f1a2d9ab17870bfaa50eae1aac-probe\n"
+  },
+  "completedAt": "2026-10-29T12:23:11.764Z"
+}

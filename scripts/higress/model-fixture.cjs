@@ -27,6 +27,10 @@ createServer(async(req,res)=>{
   const message={role:'assistant',content:needsTool?null:'POC_OK',reasoning_content:'local fixture',...(needsTool?{tool_calls:[tool]}:{})};
   if(!body.stream)return json(res,{id:'fixture',object:'chat.completion',model:body.model,choices:[{index:0,message,finish_reason:needsTool?'tool_calls':'stop'}],usage});
   res.writeHead(200,{'content-type':'text/event-stream','cache-control':'no-cache'});
+  if(scenario==='POC_SPLIT_MARKER'){
+    for(const content of ['HIGRESS','_RETRY','_OK'])event(res,{model:body.model,choices:[{index:0,delta:{content},finish_reason:null}],usage:null});
+    event(res,{model:body.model,choices:[{index:0,delta:{},finish_reason:'stop'}],usage});res.end('data: [DONE]\n\n');return;
+  }
   event(res,{model:body.model,choices:[{index:0,delta:{content:'POC_BEGIN'},finish_reason:null}],usage:null});
   if(scenario==='POC_CANCEL'||scenario==='POC_CRASH'){
     const timer=setTimeout(()=>res.end(),15000);res.on('close',()=>clearTimeout(timer));return;

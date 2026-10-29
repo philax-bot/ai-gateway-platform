@@ -1,0 +1,197 @@
+{
+  "status": "awaiting_additional_request_authorization",
+  "complete": false,
+  "checkedAt": "2026-10-29T12:41:59.368Z",
+  "scope": {
+    "client": "actual Pi CLI 1.4.0",
+    "upstream": "DeepSeek official deepseek-flash",
+    "dataPlane": "real pinned Higress",
+    "database": "isolated PostgreSQL schemas",
+    "defaultWorkspaceTouched": false
+  },
+  "coding": {
+    "exitCode": 0,
+    "durationMs": 13023,
+    "toolNames": [
+      "read",
+      "read",
+      "powershell",
+      "write",
+      "write",
+      "powershell"
+    ],
+    "toolErrors": 0,
+    "modelTurns": 4,
+    "automaticRetry": false,
+    "answerHash": "0ddfe3687ebf02c4457b59afc0fd69b9a42b52012e58990e27449282156db26b",
+    "answerCharacters": 18,
+    "stopReason": "stop",
+    "independentTests": {
+      "passed": true,
+      "testCount": 10,
+      "contractCases": 13
+    },
+    "realHigressAccessObserved": true
+  },
+  "completedLong": {
+    "requestId": "higress-pi-fab3b38d-1fd6-49a0-81a8-0b257f4abe81",
+    "durationMs": 33315,
+    "generationSpanMs": 31863,
+    "maxDeltaGapMs": 487,
+    "usage": {
+      "prompt_tokens": 792,
+      "completion_tokens": 5567,
+      "total_tokens": 6359,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      },
+      "prompt_cache_hit_tokens": 0,
+      "prompt_cache_miss_tokens": 792
+    },
+    "finishReason": "stop",
+    "done": true,
+    "finalMarkerMatched": true,
+    "answerCharacters": 24495,
+    "answerHash": "79293e25c1664b6f1dcdb4ed9467491dac262b2056525cc6ac6e6cfe6640d658",
+    "scenarioMentions": 59,
+    "exactScenarioCountVerified": false,
+    "higressAccessObserved": true
+  },
+  "cancellation": {
+    "requestId": "higress-pi-dcebd10a-f553-4fd2-bebd-8c912351786e",
+    "billableState": "pending_review",
+    "usageFinal": false
+  },
+  "retry": {
+    "requestId": "higress-pi-6a918487-b14a-462e-890b-59394fca96bb",
+    "phase": "retry",
+    "maxOutputTokens": 128,
+    "thinking": "disabled",
+    "stream": true,
+    "startedAt": "2026-10-29T12:34:35.599Z",
+    "chunks": 6,
+    "bytes": 3059,
+    "httpStatus": 200,
+    "headersMs": 341,
+    "usage": {
+      "prompt_tokens": 16,
+      "completion_tokens": 8,
+      "total_tokens": 24,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      },
+      "prompt_cache_hit_tokens": 0,
+      "prompt_cache_miss_tokens": 16
+    },
+    "finishReason": "stop",
+    "done": true,
+    "durationMs": 1260,
+    "generationSpanMs": 107,
+    "firstDeltaMs": 995,
+    "maxDeltaGapMs": 91,
+    "higressAccessObserved": true,
+    "strictMarkerAndPersistedRelationshipGate": "not verified by the retained real report",
+    "directPostgresSnapshotRetained": false
+  },
+  "localRegression": {
+    "success": true,
+    "assertions": 46,
+    "scope": {
+      "database": "isolated PostgreSQL schema",
+      "higress": "pinned real runtime",
+      "model": "local deterministic fixture",
+      "realModelRequests": 0,
+      "defaultWorkspaceTouched": false
+    },
+    "splitMarkerRetry": {
+      "source": "f227d8d2-2c58-453f-907f-b7a5c3752ea1",
+      "requestId": "1c4f8d1b-e86f-4122-aa80-eec23bbc562c",
+      "originalState": "pending_review",
+      "retryState": "confirmed",
+      "retryOfRequestId": "f227d8d2-2c58-453f-907f-b7a5c3752ea1",
+      "ledgerEntries": [
+        {
+          "request_id": "1c4f8d1b-e86f-4122-aa80-eec23bbc562c",
+          "entries": 1
+        }
+      ]
+    }
+  },
+  "unitTests": 5,
+  "backendBuildPackages": 3,
+  "originalConfigurationsUnchanged": true,
+  "budget": {
+    "authorization": "2026-10-29: 20 requests / CNY 1",
+    "price": {
+      "inputPrice": 2,
+      "outputPrice": 8,
+      "cachedInputPrice": 0.04
+    },
+    "maxRequests": 20,
+    "maxEstimatedAmount": 1,
+    "attempts": 20,
+    "estimatedUpperBound": 0.37026800000000004,
+    "updatedAt": "2026-10-29T12:34:35.598Z",
+    "attemptsAtStart": 10,
+    "newAttempts": 10,
+    "estimatedUpperBoundAtStart": 0.078772,
+    "requestedExtension": {
+      "maxRequests": 22,
+      "maxEstimatedAmount": 1,
+      "additionalRequests": 2,
+      "additionalConfiguredPriceEstimateAtMost": 0.02,
+      "approved": false
+    }
+  },
+  "remaining": "rerun only cancellation and linked retry with fixed SSE parsing; retain direct PostgreSQL ledger/funds/outbox snapshot",
+  "defaultHealth": [
+    {
+      "web": 200
+    },
+    {
+      "status": "ok",
+      "dataPlane": "higress",
+      "outbox": {
+        "queued": 0,
+        "blocked": 0,
+        "active": 0,
+        "oldestQueuedAgeMs": 0,
+        "oldestBlockedAgeMs": 0,
+        "retryAttempts": 0,
+        "authorizing": 0,
+        "authorizationPending": 0,
+        "authorizationBlocked": 0,
+        "writePending": 0
+      }
+    },
+    {
+      "status": "ok",
+      "database": "up",
+      "cache": "disabled",
+      "maintenance": {
+        "lastRunAt": "2026-10-29T12:41:31.574Z",
+        "lastSuccessAt": "2026-10-29T12:41:31.991Z",
+        "error": null,
+        "running": false
+      }
+    }
+  ],
+  "evidenceHashes": {
+    "initial-verification-failure.json": "beb37fd6eabed5b256fca1dc67822711dd3fe75d86dcab83e271075eeeb0b3c6",
+    "unrelated-route-preflight.json": "ad8cd613d461f2941aabfc95060ae415a715798ea158c47c4869c68e6dafe1b0",
+    "coding-and-truncated-long.json": "0331776666d9479a14fe68cae7cb94157be0e172f4212ff9b588eaf5f64930bf",
+    "off-selection-rejection.json": "294a6301f37650f89a8bf22cd7374dd2183ee1114384199d26f6e28be5e4d69d",
+    "completed-long-original-check-failure.json": "6bb2408a9720bbc4f3455e51e08a84d86a7882435376779837d41c0605e8df14",
+    "cancel-retry-original-check-failure.json": "c5c595d2c6ccb5fec09342e147480451d8cba65e1d720da9dab3a724a77e6147",
+    "budget-guard.json": "ad2ea8fd655934b2a84953db3727c22ec23128ca5a527a07f785e5e051b9c385",
+    "local-regression.json": "70d29c224413c2cbb2c1f59bd394ded1b555a39fba7d2eda951b499f959a1a64"
+  },
+  "sourceHashes": {
+    "scripts/check-higress-live.mjs": "4cc6db161085ceada909fa7339aca6732c01c847974f9416130a915d260f2dec",
+    "scripts/higress/pi-acceptance.mjs": "46bf961eb6c70b62aee3e8775cce9fa0c1fffd15472fec98cfaf0cd4e9718433",
+    "scripts/higress/pi-evidence.mjs": "e64d3edf3a590a2b83c953a6cab268537691c26fc7f64d3c3aff59fb12a3a306",
+    "scripts/check-higress-provider.mjs": "129516262cb993a1586528a0011ffca0afe65221f63afffc8a58fef5746d6ba2",
+    "scripts/higress/model-fixture.cjs": "b4f89c33c41a2a55b97cbd7370322ab6e7932216f9f6d09c9252cf7a08c3c30d",
+    "scripts/octop-live-config.mjs": "2be3cc65ddf83e57b55716cd6288b1c6706533de436ce64dbd2cc97775faa1a0"
+  }
+}

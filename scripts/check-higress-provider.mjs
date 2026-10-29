@@ -8,6 +8,7 @@ import {openHigress,freePort} from './lib/higress-runtime.mjs';
 import {connectionConfig} from './lib/backup.mjs';
 import {databaseFaultProxy} from './higress/database-fault-proxy.mjs';
 import {runStabilityChecks} from './higress/stability-checks.mjs';
+import {completedSse} from './higress/pi-evidence.mjs';
 
 const root=process.cwd(),id=randomUUID(),directory=resolve(root,'.runtime',`higress-provider-${id}`);
 const require=createRequire(resolve(root,'apps/control-plane/package.json')),{Pool}=require('pg');
@@ -31,7 +32,7 @@ async function command(type,payload){const input={type,payload,idempotencyKey:ra
 const sync=input=>api('/internal/v1/gateway-sync',input,{internal:true}).then(r=>r.value);
 async function waitLog(id){for(let n=0;n<100;n++){const log=(await state()).callLogs.find(l=>l.requestId===id);if(log)return log;await pause(80);}throw new Error('missing_durable_call_log');}
 let key;
-function call({scenario='POC_BASIC',stream=false,tools,messages,requestId=randomUUID(),apiKey=key.secret,...rest}={}){return {requestId,promise:fetch(gw+'/v1/chat/completions',{method:'POST',headers:{authorization:`Bearer ${apiKey}`,'content-type':'application/json','x-request-id':requestId,'idempotency-key':requestId},body:JSON.stringify({model:'test-model',messages:messages??[{role:'user',content:scenario}],max_tokens:32,stream,...(tools?{tools}:{}),...rest}),signal:AbortSignal.timeout(stability?150000:15000)})};}
+function call({scenario='POC_BASIC',stream=false,tools,messages,requestId=randomUUID(),apiKey=key.secret,retryOfRequestId,...rest}={}){return {requestId,promise:fetch(gw+'/v1/chat/completions',{method:'POST',headers:{authorization:`Bearer ${apiKey}`,'content-type':'application/json','x-request-id':requestId,'idempotency-key':requestId,...(retryOfRequestId?{'x-retry-of-request-id':retryOfRequestId}:{})},body:JSON.stringify({model:'test-model',messages:messages??[{role:'user',content:scenario}],max_tokens:32,stream,...(tools?{tools}:{}),...rest}),signal:AbortSignal.timeout(stability?150000:15000)})};}
 try{
   await mkdir(directory,{recursive:true});await writeFile(resolve(directory,'empty.env'),'');
   const {connectionString}=await connectionConfig();db=new Pool({connectionString,connectionTimeoutMillis:5000});await db.query(`create schema "${schema}"`);
@@ -81,6 +82,10 @@ try{
   const toolResult=call({tools:[tool],messages:[{role:'user',content:'Echo'},{role:'assistant',content:null,tool_calls:toolValue.choices[0].message.tool_calls},{role:'tool',tool_call_id:'call-local',content:'上海'}]});check((await toolResult.promise).ok,'tool result round trip succeeds');await waitLog(toolResult.requestId);
   const cancel=call({stream:true,scenario:'POC_CANCEL'}),cancelResponse=await cancel.promise,reader=cancelResponse.body.getReader();await reader.read();await reader.cancel();const cancelled=await waitLog(cancel.requestId);check(cancelled.billableState==='pending_review'&&!cancelled.usageFinal,'cancelled unknown usage remains pending review in PostgreSQL');
   for(let n=0;n<30&&!(await requests()).find(r=>r.requestId===cancel.requestId)?.closed;n++)await pause(100);check((await requests()).find(r=>r.requestId===cancel.requestId)?.closed,'cancellation closes the downstream model connection');
+  const retry=call({stream:true,scenario:'POC_SPLIT_MARKER',retryOfRequestId:cancel.requestId}),retryResponse=await retry.promise,retryBody=completedSse(await retryResponse.text()),retryLog=await waitLog(retry.requestId);
+  check(retryResponse.ok&&retryBody.done&&retryBody.content==='HIGRESS_RETRY_OK','split SSE response markers are reconstructed after the real Higress hop');
+  check(retryLog.billableState==='confirmed'&&retryLog.retryOfRequestId===cancel.requestId&&(await waitLog(cancel.requestId)).billableState==='pending_review','explicit retry keeps the original unknown hold and its independent PostgreSQL settlement');
+  const retryLedger=await db.query(`select request_id,count(*)::int as entries from "${schema}".usage_ledger_entries where kind='settlement' and request_id=any($1::text[]) group by request_id`,[[cancel.requestId,retry.requestId]]);check(retryLedger.rows.length===1&&retryLedger.rows[0].request_id===retry.requestId&&retryLedger.rows[0].entries===1,'only the retried completed generation receives a unique settlement ledger row');report.splitMarkerRetry={source:cancel.requestId,requestId:retry.requestId,originalState:cancelled.billableState,retryState:retryLog.billableState,retryOfRequestId:retryLog.retryOfRequestId,ledgerEntries:retryLedger.rows};
   const before=(await requests()).length,invalid=call({apiKey:'invalid'});check((await invalid.promise).status===401,'invalid managed credential is rejected');check((await requests()).length===before,'invalid managed credential never reaches Higress inference');
   const error=call({scenario:'POC_ERROR'}),errorResponse=await error.promise;await errorResponse.text();const errorLog=await waitLog(error.requestId);report.errorSample={status:errorResponse.status,log:errorLog};check(errorLog.billableState==='pending_review',`5xx without usage keeps an unknown hold: ${errorResponse.status}/${errorLog.errorCode}/${errorLog.billableState}`);check((await requests()).filter(r=>r.requestId===error.requestId).length===1,'Higress retries and failover remain disabled');
   phase='personal, project and application scopes';

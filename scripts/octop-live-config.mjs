@@ -5,10 +5,10 @@ import {resolve} from 'node:path';
 import {estimateChatInput} from '../packages/contracts/dist/index.js';
 
 export class LiveBudget {
-  constructor(price,maxRequests=12,maxAmount=1){this.price=price;this.maxRequests=maxRequests;this.maxAmount=maxAmount;this.attempts=0;this.upper=0;}
+  constructor(price,maxRequests=12,maxAmount=1,maxOutputTokens=1024){assert.ok(Number.isSafeInteger(maxOutputTokens)&&maxOutputTokens>=1&&maxOutputTokens<=8192);this.price=price;this.maxRequests=maxRequests;this.maxAmount=maxAmount;this.maxOutputTokens=maxOutputTokens;this.attempts=0;this.upper=0;}
   reserve(body){
     const max=body.max_completion_tokens??body.max_tokens;
-    assert.ok(Number.isSafeInteger(max)&&max>=1&&max<=1024,'live output must be explicitly bounded to 1024 tokens');
+    assert.ok(Number.isSafeInteger(max)&&max>=1&&max<=this.maxOutputTokens,`live output must be explicitly bounded to ${this.maxOutputTokens} tokens`);
     const upper=(estimateChatInput(body)*Math.max(this.price.inputPrice,this.price.cachedInputPrice)+max*this.price.outputPrice)/1e6;
     assert.ok(Number.isFinite(upper)&&upper>=0,'live price estimate must be finite');
     assert.ok(this.attempts<this.maxRequests&&this.upper+upper<=this.maxAmount,'live request or configured-price budget exhausted');

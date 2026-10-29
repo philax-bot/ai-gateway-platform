@@ -1,0 +1,44 @@
+{
+  "success": false,
+  "createdAt": "2026-10-29T12:39:36.135Z",
+  "scope": {
+    "database": "isolated PostgreSQL schema",
+    "provider": "formal HigressProvider",
+    "model": "DeepSeek official; reused existing configuration",
+    "defaultWorkspaceTouched": false
+  },
+  "checks": [],
+  "calls": [],
+  "budgetAtStart": {
+    "maxRequests": 20,
+    "maxEstimatedAmount": 1,
+    "attempts": 20,
+    "estimatedUpperBound": 0.37026800000000004
+  },
+  "priceSnapshot": {
+    "inputPrice": 2,
+    "outputPrice": 8,
+    "cachedInputPrice": 0.04
+  },
+  "reusedEvidence": {
+    "file": "D:\\Workspace\\pri\\ai-gateway-platform\\.runtime\\higress-live-results\\053b3c0d-f026-439d-82cb-24ba5b0dbda9.json",
+    "sha256": "0331776666d9479a14fe68cae7cb94157be0e172f4212ff9b588eaf5f64930bf",
+    "scope": "previous actual Pi coding and connection verification; copied existing verified service configuration into this isolated schema"
+  },
+  "reusedLongEvidence": {
+    "file": "D:\\Workspace\\pri\\ai-gateway-platform\\.runtime\\higress-live-results\\f8d338f0-6c98-4f92-bec0-b4b3426cc657.json",
+    "sha256": "6bb2408a9720bbc4f3455e51e08a84d86a7882435376779837d41c0605e8df14",
+    "scope": "completed long stream; original scenario-mention counting assertion is retained as failed"
+  },
+  "error": {
+    "phase": "preflight",
+    "message": "authorized request budget exhausted or insufficient for this acceptance phase"
+  },
+  "budget": {
+    "maxRequests": 20,
+    "maxEstimatedAmount": 1,
+    "attempts": 20,
+    "estimatedUpperBound": 0.37026800000000004
+  },
+  "completedAt": "2026-10-29T12:39:36.223Z"
+}
