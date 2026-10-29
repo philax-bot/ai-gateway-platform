@@ -14,6 +14,9 @@ export class GatewaySyncController {
     return this.gatewayService.publish(body);
   }
 
+  @Post('reconcile')
+  reconcile(){return this.gatewayService.reconcile();}
+
   @Get(':resourceId')
   status(@Param('resourceId') resourceId: string) {
     return this.gatewayService.status(resourceId);

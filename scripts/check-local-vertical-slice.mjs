@@ -119,7 +119,7 @@ const syncResponse = await request(`${controlPlaneUrl}/internal/v1/gateway-sync`
 });
 const sync = await json(syncResponse);
 assert(syncResponse?.status === 202, 'gateway sync did not return 202');
-assert(sync?.status === 'applied', 'HigressProvider local sync was not applied');
+assert(sync?.status === 'rejected' && sync?.errorCode === 'provider_unconfigured', 'unconfigured HigressProvider must reject publication');
 
 const afterQuotaResponse = await request(`${controlPlaneUrl}/api/v1/calls/quota`);
 const afterQuota = await json(afterQuotaResponse);

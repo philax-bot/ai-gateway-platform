@@ -3,6 +3,7 @@ import { CallsController } from './calls/calls.controller';
 import { GatewaySyncController } from './gateway/gateway-sync.controller';
 import { GatewayService } from './gateway/gateway.service';
 import { HigressProvider } from './gateway/higress.provider';
+import { GatewaySyncRepository } from './gateway/gateway-sync.repository';
 import { ServiceTokenGuard } from './security/service-token.guard';
 import { PolicyController } from './policy/policy.controller';
 import { PolicyService } from './policy/policy.service';
@@ -29,6 +30,7 @@ import { DiagnosticsController } from './store/diagnostics.controller';
     UsageService,
     GatewayService,
     HigressProvider,
+    GatewaySyncRepository,
     ServiceTokenGuard,
     WorkspaceRepository,
     AuthService,

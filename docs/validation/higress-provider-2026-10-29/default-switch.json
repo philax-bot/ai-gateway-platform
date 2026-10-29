@@ -1,0 +1,168 @@
+{
+  "success": true,
+  "checks": [
+    "existing 5176 web entry is reachable",
+    "default gateway reports Higress",
+    "original local model remains authorized",
+    "existing local fixture dispatches through Higress and settles",
+    "original default workspace completes a real DeepSeek request through Higress"
+  ],
+  "calls": [
+    {
+      "model": "test-model",
+      "status": 200,
+      "requestId": "966fafff-ab3a-478f-8f9a-86b0b8f750da",
+      "log": {
+        "requestId": "966fafff-ab3a-478f-8f9a-86b0b8f750da",
+        "upstreamRequestId": "upstream-966fafff-ab3a-478f-8f9a-86b0b8f750da",
+        "retryOfRequestId": null,
+        "startedAt": "2026-10-29T08:44:01.092Z",
+        "completedAt": "2026-10-29T08:44:01.425Z",
+        "subjectType": "employee",
+        "subjectId": "member-72e50e97-ab65-4125-93de-c4cb803c1e10",
+        "credentialId": "credential-ee23d36a-5eee-41a0-9749-1361f220a454",
+        "purpose": "personal",
+        "projectId": null,
+        "modelId": "test-model",
+        "outcome": "completed",
+        "inputTokens": 13,
+        "outputTokens": 14,
+        "cachedInputTokens": 0,
+        "actualAmount": 0.000068,
+        "billableState": "confirmed",
+        "reservationId": "reservation-baaf526a-660f-467d-b358-26843296985d",
+        "admission": {
+          "kind": "configured",
+          "price": {
+            "unit": "per_million_tokens",
+            "version": "8b8ad9f49092e4b3c420b25a",
+            "currency": "CNY",
+            "inputPrice": 2,
+            "outputPrice": 3,
+            "cachedInputPrice": 0.5
+          },
+          "reservedAmount": 0.000244,
+          "route": {
+            "serviceId": "service-local-test",
+            "poolId": "pool-local-test",
+            "definitionId": "definition-test-model",
+            "upstreamModel": "test-model"
+          }
+        },
+        "organizationId": "org-demo",
+        "errorCode": null,
+        "latencyMs": 333,
+        "usageFinal": true,
+        "forwarded": true,
+        "ttftMs": null
+      }
+    },
+    {
+      "model": "deepseek-flash",
+      "status": 200,
+      "requestId": "0720482d-9d41-476e-90fe-3904061328d3",
+      "log": {
+        "requestId": "0720482d-9d41-476e-90fe-3904061328d3",
+        "upstreamRequestId": null,
+        "retryOfRequestId": null,
+        "startedAt": "2026-10-29T08:44:05.692Z",
+        "completedAt": "2026-10-29T08:44:08.430Z",
+        "subjectType": "employee",
+        "subjectId": "member-72e50e97-ab65-4125-93de-c4cb803c1e10",
+        "credentialId": "credential-ee23d36a-5eee-41a0-9749-1361f220a454",
+        "purpose": "personal",
+        "projectId": null,
+        "modelId": "deepseek-flash",
+        "outcome": "completed",
+        "inputTokens": 40,
+        "outputTokens": 23,
+        "cachedInputTokens": 0,
+        "actualAmount": 0.000264,
+        "billableState": "confirmed",
+        "reservationId": "reservation-2bc869a7-becf-4772-8a82-87b6d12e621e",
+        "admission": {
+          "kind": "configured",
+          "price": {
+            "unit": "per_million_tokens",
+            "version": "b4cec710f89784548b95423d",
+            "currency": "CNY",
+            "inputPrice": 2,
+            "outputPrice": 8,
+            "cachedInputPrice": 0.04
+          },
+          "reservedAmount": 0.000664,
+          "route": {
+            "serviceId": "service-7deb0748-af17-4ac4-8a2c-e9bf6f2d44ff",
+            "poolId": "pool-local-test",
+            "definitionId": "model-a9a85339-b8be-4fe9-9d25-f9e41ae87567",
+            "upstreamModel": "deepseek-flash"
+          }
+        },
+        "organizationId": "org-demo",
+        "errorCode": null,
+        "latencyMs": 2738,
+        "usageFinal": true,
+        "forwarded": true,
+        "ttftMs": null
+      }
+    }
+  ],
+  "health": {
+    "status": "ok",
+    "dataPlane": "higress",
+    "outbox": {
+      "queued": 0,
+      "blocked": 0,
+      "active": 0,
+      "oldestQueuedAgeMs": 0,
+      "oldestBlockedAgeMs": 0,
+      "retryAttempts": 0,
+      "authorizing": 0,
+      "authorizationPending": 0,
+      "authorizationBlocked": 0,
+      "writePending": 0
+    }
+  },
+  "models": [
+    "test-model",
+    "deepseek-flash"
+  ],
+  "budget": {
+    "maxRequests": 20,
+    "maxEstimatedAmount": 1,
+    "attempts": 10,
+    "estimatedUpperBound": 0.078772
+  },
+  "temporaryKeyRevoked": true,
+  "higressAccessEvidence": [
+    {
+      "requestId": "966fafff-ab3a-478f-8f9a-86b0b8f750da",
+      "status": "200",
+      "route": "atlas-5b14de185205df6460aee1e9f84dbbe7"
+    },
+    {
+      "requestId": "0720482d-9d41-476e-90fe-3904061328d3",
+      "status": "200",
+      "route": "atlas-4cc9545dec2586b3f5cf8a57c2561151"
+    }
+  ],
+  "restart": {
+    "preserved": true,
+    "workspaceId": "20bea9e2-970a-4e7d-98eb-12ca16e81692",
+    "schema": "agp_review_20bea9e2970a4e7d98eb12ca16e81692",
+    "businessConfigurationHash": "a3a887c79e7c3f029cdd3a9434221bbc2d8582d1e4792db8b3d2c774ead1b3fa",
+    "quotaHash": "194645db4db17d9207d0bbdbbc22f592c57f4ca809c96349b2f035d501f0d3a6",
+    "activeRoutesHash": "c1b7ab159b555807c9be894baa6abb56013ad9b77fcd0eb225eb5e94de10e633",
+    "routes": [
+      {
+        "resourceId": "route-0606046ca1d009e2b8a29741cf9804dc",
+        "version": "b647d776147675da0882abc576ff3484f9e87c701e6dc7ca902c4d126df92a45"
+      },
+      {
+        "resourceId": "route-769a0a4c44f946ecc1fdbba02371b8f1",
+        "version": "d8680f48b705971aa5dd45287caf2a2573ae6d47f706b580ca6970f437cbe58c"
+      }
+    ]
+  },
+  "checkedAfterRestartAt": "2026-10-29T08:49:41.606Z"
+}

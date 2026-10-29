@@ -40,6 +40,7 @@ export async function openPersistentReview({root,workspace='default',ports,hostn
     }
     const directory=resolve(runtime,`review-postgres-${state.id}`);await mkdir(directory,{recursive:true,mode:0o700});if(await realpath(directory)!==directory)throw new Error('持久审查目录不能指向其他路径');
     const {connectionString}=await connectionConfig();pool=new Pool({connectionString,connectionTimeoutMillis:5000,max:1});
+    pool.on('error',()=>console.error('持久审查数据库的空闲连接已失效；后续查询将重新连接。'));
     const quoted='"'+state.schema+'"';
     let identity;
     try{

@@ -1,0 +1,37 @@
+{
+  "success": true,
+  "checkedAt": "2026-10-29T08:49:41.613Z",
+  "providerChecks": 41,
+  "liveChecks": 13,
+  "defaultChecks": 5,
+  "controlPlaneUnitTests": 172,
+  "gatewayUnitTests": 41,
+  "postgresRegressionAssertions": 428,
+  "postgresRegressionCommand": "node scripts/check-isolated.mjs --postgres",
+  "postgresRegressionScope": "original business path and local HTTP model mock; independent schema removed after validation",
+  "budget": {
+    "authorization": "2026-10-29: 20 requests / CNY 1",
+    "price": {
+      "inputPrice": 2,
+      "outputPrice": 8,
+      "cachedInputPrice": 0.04
+    },
+    "maxRequests": 20,
+    "maxEstimatedAmount": 1,
+    "attempts": 10,
+    "estimatedUpperBound": 0.078772,
+    "updatedAt": "2026-10-29T08:44:04.450Z"
+  },
+  "defaultEntry": "http://localhost:5176/",
+  "defaultDataPlane": "higress",
+  "restartPreserved": true,
+  "sourceHashes": {
+    "apps/control-plane/src/gateway/higress.provider.ts": "9fce72369fb4bd23ff03bc6c543495e44012c8f70cb39545c5f3b24e6b575866",
+    "apps/control-plane/src/gateway/higress.resources.ts": "428781e7c84be7cf0f9c02ee5addc11b4e6384e985bf9bacf85ab36888ee9b5c",
+    "apps/control-plane/src/gateway/gateway-sync.repository.ts": "6b07074fbdb065a845b5c2795b26f8326720d3e2966cccce69f734c6375a8ea0",
+    "apps/control-plane/migrations/014_gateway_sync.sql": "b284b84fe7e75639a43a650964ac8954385583dc6d221508efa2df75dceacf80",
+    "services/gateway-sim/src/server.ts": "5e9eb651bdc659e681742a3d2092b0299167898e18b34bbc0685253b890ff084",
+    "scripts/lib/higress-runtime.mjs": "ded0b8e1332d93eddacf1c28113c7b74d68567f42f85ecd71a02086a8e857ffc",
+    "scripts/review.mjs": "2428424ad863807185c83157238878bb8236d75cfae10b941969c932af22533a"
+  }
+}

@@ -46,6 +46,16 @@ export class PostgresStore extends DemoStore implements OnModuleDestroy {
     ? new Redis(process.env.REDIS_URL, { lazyConnect: true, maxRetriesPerRequest: 1, retryStrategy: () => null })
     : null;
 
+  constructor(){
+    super();
+    // pg evicts a broken idle client itself. An unhandled pool error would crash
+    // the whole control plane and may dump client connection details to stderr.
+    this.pool.on('error',(error:Error&{code?:string})=>{
+      const code=typeof error.code==='string'&&/^[A-Z0-9_]{1,40}$/.test(error.code)?error.code:'unavailable';
+      console.error(JSON.stringify({event:'postgres_idle_connection_error',code}));
+    });
+  }
+
   async initialize(): Promise<void> {
     const directory = [resolve(process.cwd(), 'apps/control-plane/migrations'), resolve(__dirname, '../../migrations')]
       .find((path) => { try { return readdirSync(path).includes('001_initial.sql'); } catch { return false; } });

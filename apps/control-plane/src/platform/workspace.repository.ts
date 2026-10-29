@@ -45,6 +45,11 @@ export class WorkspaceRepository {
     });
   }
 
+  async readGatewayConfiguration():Promise<Pick<WorkspaceState,'services'|'definitions'>>{
+    if(!(this.store instanceof PostgresStore))return structuredClone({services:this.memory.services,definitions:this.memory.definitions});
+    return this.store.withClient(async client=>(await client.query("select jsonb_build_object('services',payload->'services','definitions',payload->'definitions') as payload from platform_workspace where id=$1",['org-demo'])).rows[0].payload);
+  }
+
   async view(projectId?:string) {
     if(!(this.store instanceof PostgresStore)) return this.store.exclusive(async()=>{const batches=await this.context(this.memory).batches();return {state:structuredClone(this.memory),batches,budgets:await this.context(this.memory).budgetBatches(),consumedByBatch:projectId?await this.store.confirmedAmountsForBatches(batches.filter(b=>b.projectId===projectId).map(b=>b.id)):{}};});
     const trace=hotPathDiagnostics.start('workspace_view');

@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, ForbiddenException, Injectable, ServiceUnavailableException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, Optional, ServiceUnavailableException } from '@nestjs/common';
 import { createHmac, randomBytes, randomUUID } from 'node:crypto';
 import type { ApplicationDetail, ApprovalDetail, AuthorizeRequest, CallQuery, ModelRange, PlatformCommand, ProjectDetail, PurposeView, ReasonCode, ReconciliationRequest, RequestLimitDiagnostic, UsageLimits, VerificationMappingResult, VerificationRun, WorkspaceState } from '@ai-gateway/contracts';
 import { chatCompletionsUrl,estimateChatInput,extractUpstreamUsage,isRequestReference,readUpstreamRequestId,summarizeVerification } from '@ai-gateway/contracts';
@@ -19,6 +19,7 @@ import {prepareRetention,requestedRetention,retentionPolicy} from './retention';
 import {auditObjectId,describeAudit,queryAudit} from './audit-query';
 import { prepareEntitlementMigration } from './entitlement-migration';
 import { fetchVerifiedUpstream, verificationCost, verificationFailure, verificationMappingSnapshots, verificationPrice, verificationTimeoutMs } from './verification';
+import {HigressProvider} from '../gateway/higress.provider';
 
 type SafeJson=string|number|boolean|null|SafeJson[]|{[key:string]:SafeJson};
 const safeResult=(value:unknown):SafeJson=>Array.isArray(value)?value.map(safeResult):value&&typeof value==='object'?Object.fromEntries(Object.entries(value).filter(([key])=>!['secret','password','passwordHash','keyHash'].includes(key)).map(([key,v])=>[key,safeResult(v)])):typeof value==='string'||typeof value==='number'||typeof value==='boolean'||value===null?value:null;
@@ -26,7 +27,7 @@ const safeResult=(value:unknown):SafeJson=>Array.isArray(value)?value.map(safeRe
 @Injectable()
 export class PlatformService {
   private readonly previewSecret=randomBytes(32);
-  constructor(private readonly repository:WorkspaceRepository,private readonly store:DemoStore){
+  constructor(private readonly repository:WorkspaceRepository,private readonly store:DemoStore,@Optional() private readonly higress?:HigressProvider){
     this.store.businessState=()=>this.repository.read();
   }
 
@@ -306,7 +307,10 @@ export class PlatformService {
           let result:VerificationMappingResult;
           try{
             // One bounded connect-phase retry inside the helper; never retried after a partial response.
-            const response=await fetchVerifiedUpstream(chatCompletionsUrl(service.baseUrl),{method:'POST',redirect:'error',signal:AbortSignal.timeout(verificationTimeoutMs()),headers:{'content-type':'application/json',...(credential?{authorization:`Bearer ${credential}`}:{})},body:JSON.stringify({model:mapping.upstreamModel,messages:[{role:'user',content:'Connection validation'}],max_tokens:1})});
+            const transport=this.higress?.enabled?await this.higress.transport({serviceId:service.id,definitionId:mapping.definitionId,poolId:'',baseUrl:service.baseUrl,credentialRef:service.credentialRef,upstreamModel:mapping.upstreamModel,maxOutputTokens:1}):null;
+            if(transport?.kind==='unavailable')throw new Error('Higress route is not applied');
+            const hop=transport?.kind==='higress'?transport:null,dispatchCredential=hop?process.env.UPSTREAM_HIGRESS_INTERNAL:credential;
+            const response=await fetchVerifiedUpstream(chatCompletionsUrl(hop?.baseUrl??service.baseUrl),{method:'POST',redirect:'error',signal:AbortSignal.timeout(verificationTimeoutMs()),headers:{'content-type':'application/json',...(dispatchCredential?{authorization:`Bearer ${dispatchCredential}`}:{})},body:JSON.stringify({model:hop?.model??mapping.upstreamModel,messages:[{role:'user',content:'Connection validation'}],max_tokens:1})});
             const upstreamRequestId=readUpstreamRequestId(response.headers);
             const raw=await response.text();
             if(!response.ok){

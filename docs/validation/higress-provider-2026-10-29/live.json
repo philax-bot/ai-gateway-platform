@@ -1,0 +1,316 @@
+{
+  "success": true,
+  "createdAt": "2026-10-29T08:08:11.648Z",
+  "scope": {
+    "database": "isolated PostgreSQL schema",
+    "provider": "formal HigressProvider",
+    "model": "DeepSeek official; reused existing configuration",
+    "defaultWorkspaceTouched": false
+  },
+  "checks": [
+    "real DeepSeek connection verification passes through formal HigressProvider",
+    "real non-stream response, logical model and usage are preserved",
+    "real DeepSeek emits a tool call through Higress",
+    "real model consumes the tool result and completes the round trip",
+    "real cache sample 1 returns usage",
+    "real cache sample 2 returns usage",
+    "real SSE completes with the logical model",
+    "real cancellation stream opens",
+    "cancelled real usage without final evidence stays pending review",
+    "real cached-token usage is observed and persisted",
+    "real PostgreSQL funds reconcile with confirmed costs and cancellation holds",
+    "real configuration operation records contain no plaintext credentials",
+    "real settlement outbox is drained"
+  ],
+  "calls": [
+    {
+      "requestId": "higress-live-879c85a3-f6fe-43a8-8a43-cdcc836cb42d-9",
+      "upstreamRequestId": null,
+      "outcome": "client_cancelled",
+      "forwarded": true,
+      "usageFinal": false,
+      "billableState": "pending_review",
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "cachedInputTokens": 0,
+      "amount": 0,
+      "latencyMs": 1015,
+      "ttftMs": null,
+      "admission": {
+        "kind": "configured",
+        "price": {
+          "unit": "per_million_tokens",
+          "version": "7c436c1ec30d933b3bce6cdd",
+          "currency": "CNY",
+          "inputPrice": 2,
+          "outputPrice": 8,
+          "cachedInputPrice": 0.04
+        },
+        "reservedAmount": 0.008408,
+        "route": {
+          "serviceId": "service-7e23a0b5-8985-4893-ab2a-cb372e7ab15d",
+          "poolId": "pool-131af7ed-3174-4fdc-8d7d-74d3001c94df",
+          "definitionId": "model-d813cdf9-6578-44ce-bdf3-c41530b04c59",
+          "upstreamModel": "deepseek-flash"
+        }
+      }
+    },
+    {
+      "requestId": "higress-live-879c85a3-f6fe-43a8-8a43-cdcc836cb42d-8",
+      "upstreamRequestId": null,
+      "outcome": "completed",
+      "forwarded": true,
+      "usageFinal": true,
+      "billableState": "confirmed",
+      "inputTokens": 49,
+      "outputTokens": 1024,
+      "cachedInputTokens": 0,
+      "amount": 0.00829,
+      "latencyMs": 8358,
+      "ttftMs": null,
+      "admission": {
+        "kind": "configured",
+        "price": {
+          "unit": "per_million_tokens",
+          "version": "7c436c1ec30d933b3bce6cdd",
+          "currency": "CNY",
+          "inputPrice": 2,
+          "outputPrice": 8,
+          "cachedInputPrice": 0.04
+        },
+        "reservedAmount": 0.00847,
+        "route": {
+          "serviceId": "service-7e23a0b5-8985-4893-ab2a-cb372e7ab15d",
+          "poolId": "pool-131af7ed-3174-4fdc-8d7d-74d3001c94df",
+          "definitionId": "model-d813cdf9-6578-44ce-bdf3-c41530b04c59",
+          "upstreamModel": "deepseek-flash"
+        }
+      }
+    },
+    {
+      "requestId": "higress-live-879c85a3-f6fe-43a8-8a43-cdcc836cb42d-7",
+      "upstreamRequestId": null,
+      "outcome": "completed",
+      "forwarded": true,
+      "usageFinal": true,
+      "billableState": "confirmed",
+      "inputTokens": 2201,
+      "outputTokens": 17,
+      "cachedInputTokens": 2048,
+      "amount": 0.000524,
+      "latencyMs": 1078,
+      "ttftMs": null,
+      "admission": {
+        "kind": "configured",
+        "price": {
+          "unit": "per_million_tokens",
+          "version": "7c436c1ec30d933b3bce6cdd",
+          "currency": "CNY",
+          "inputPrice": 2,
+          "outputPrice": 8,
+          "cachedInputPrice": 0.04
+        },
+        "reservedAmount": 0.024578,
+        "route": {
+          "serviceId": "service-7e23a0b5-8985-4893-ab2a-cb372e7ab15d",
+          "poolId": "pool-131af7ed-3174-4fdc-8d7d-74d3001c94df",
+          "definitionId": "model-d813cdf9-6578-44ce-bdf3-c41530b04c59",
+          "upstreamModel": "deepseek-flash"
+        }
+      }
+    },
+    {
+      "requestId": "higress-live-879c85a3-f6fe-43a8-8a43-cdcc836cb42d-6",
+      "upstreamRequestId": null,
+      "outcome": "completed",
+      "forwarded": true,
+      "usageFinal": true,
+      "billableState": "confirmed",
+      "inputTokens": 2201,
+      "outputTokens": 45,
+      "cachedInputTokens": 0,
+      "amount": 0.004762,
+      "latencyMs": 1082,
+      "ttftMs": null,
+      "admission": {
+        "kind": "configured",
+        "price": {
+          "unit": "per_million_tokens",
+          "version": "7c436c1ec30d933b3bce6cdd",
+          "currency": "CNY",
+          "inputPrice": 2,
+          "outputPrice": 8,
+          "cachedInputPrice": 0.04
+        },
+        "reservedAmount": 0.024578,
+        "route": {
+          "serviceId": "service-7e23a0b5-8985-4893-ab2a-cb372e7ab15d",
+          "poolId": "pool-131af7ed-3174-4fdc-8d7d-74d3001c94df",
+          "definitionId": "model-d813cdf9-6578-44ce-bdf3-c41530b04c59",
+          "upstreamModel": "deepseek-flash"
+        }
+      }
+    },
+    {
+      "requestId": "higress-live-879c85a3-f6fe-43a8-8a43-cdcc836cb42d-5",
+      "upstreamRequestId": null,
+      "outcome": "completed",
+      "forwarded": true,
+      "usageFinal": true,
+      "billableState": "confirmed",
+      "inputTokens": 393,
+      "outputTokens": 8,
+      "cachedInputTokens": 256,
+      "amount": 0.000349,
+      "latencyMs": 1004,
+      "ttftMs": null,
+      "admission": {
+        "kind": "configured",
+        "price": {
+          "unit": "per_million_tokens",
+          "version": "7c436c1ec30d933b3bce6cdd",
+          "currency": "CNY",
+          "inputPrice": 2,
+          "outputPrice": 8,
+          "cachedInputPrice": 0.04
+        },
+        "reservedAmount": 0.005594,
+        "route": {
+          "serviceId": "service-7e23a0b5-8985-4893-ab2a-cb372e7ab15d",
+          "poolId": "pool-131af7ed-3174-4fdc-8d7d-74d3001c94df",
+          "definitionId": "model-d813cdf9-6578-44ce-bdf3-c41530b04c59",
+          "upstreamModel": "deepseek-flash"
+        }
+      }
+    },
+    {
+      "requestId": "higress-live-879c85a3-f6fe-43a8-8a43-cdcc836cb42d-4",
+      "upstreamRequestId": null,
+      "outcome": "completed",
+      "forwarded": true,
+      "usageFinal": true,
+      "billableState": "confirmed",
+      "inputTokens": 319,
+      "outputTokens": 55,
+      "cachedInputTokens": 0,
+      "amount": 0.001078,
+      "latencyMs": 1780,
+      "ttftMs": null,
+      "admission": {
+        "kind": "configured",
+        "price": {
+          "unit": "per_million_tokens",
+          "version": "7c436c1ec30d933b3bce6cdd",
+          "currency": "CNY",
+          "inputPrice": 2,
+          "outputPrice": 8,
+          "cachedInputPrice": 0.04
+        },
+        "reservedAmount": 0.004856,
+        "route": {
+          "serviceId": "service-7e23a0b5-8985-4893-ab2a-cb372e7ab15d",
+          "poolId": "pool-131af7ed-3174-4fdc-8d7d-74d3001c94df",
+          "definitionId": "model-d813cdf9-6578-44ce-bdf3-c41530b04c59",
+          "upstreamModel": "deepseek-flash"
+        }
+      }
+    },
+    {
+      "requestId": "higress-live-879c85a3-f6fe-43a8-8a43-cdcc836cb42d-3",
+      "upstreamRequestId": null,
+      "outcome": "completed",
+      "forwarded": true,
+      "usageFinal": true,
+      "billableState": "confirmed",
+      "inputTokens": 44,
+      "outputTokens": 128,
+      "cachedInputTokens": 0,
+      "amount": 0.001112,
+      "latencyMs": 2273,
+      "ttftMs": null,
+      "admission": {
+        "kind": "configured",
+        "price": {
+          "unit": "per_million_tokens",
+          "version": "7c436c1ec30d933b3bce6cdd",
+          "currency": "CNY",
+          "inputPrice": 2,
+          "outputPrice": 8,
+          "cachedInputPrice": 0.04
+        },
+        "reservedAmount": 0.001352,
+        "route": {
+          "serviceId": "service-7e23a0b5-8985-4893-ab2a-cb372e7ab15d",
+          "poolId": "pool-131af7ed-3174-4fdc-8d7d-74d3001c94df",
+          "definitionId": "model-d813cdf9-6578-44ce-bdf3-c41530b04c59",
+          "upstreamModel": "deepseek-flash"
+        }
+      }
+    }
+  ],
+  "budgetAtStart": {
+    "maxRequests": 20,
+    "maxEstimatedAmount": 1,
+    "attempts": 1,
+    "estimatedUpperBound": 0.000136
+  },
+  "priceSnapshot": {
+    "inputPrice": 2,
+    "outputPrice": 8,
+    "cachedInputPrice": 0.04
+  },
+  "budget": {
+    "maxRequests": 20,
+    "maxEstimatedAmount": 1,
+    "attempts": 9,
+    "estimatedUpperBound": 0.078108
+  },
+  "verification": [
+    {
+      "outcome": "passed",
+      "httpStatus": 200,
+      "errorCode": null,
+      "usage": {
+        "complete": true,
+        "inputTokens": 32,
+        "outputTokens": 1,
+        "cachedInputTokens": 0
+      },
+      "cost": {
+        "price": {
+          "unit": "per_million_tokens",
+          "version": "72b33ce26457eca7f131f2c6",
+          "currency": "CNY",
+          "inputPrice": 2,
+          "outputPrice": 8,
+          "cachedInputPrice": 0.04
+        },
+        "state": "priced",
+        "amount": 0.000072
+      }
+    }
+  ],
+  "nonStreamStatus": 200,
+  "stream": {
+    "durationMs": 10547
+  },
+  "accounting": {
+    "originalAmount": 1,
+    "available": 0.975477,
+    "confirmed": 0.016115,
+    "held": 0.008408
+  },
+  "outbox": {
+    "queued": 0,
+    "blocked": 0,
+    "active": 0,
+    "oldestQueuedAgeMs": 0,
+    "oldestBlockedAgeMs": 0,
+    "retryAttempts": 0,
+    "authorizing": 0,
+    "authorizationPending": 0,
+    "authorizationBlocked": 0,
+    "writePending": 0
+  },
+  "completedAt": "2026-10-29T08:09:50.410Z"
+}

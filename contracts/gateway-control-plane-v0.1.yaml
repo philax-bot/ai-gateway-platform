@@ -318,7 +318,7 @@ paths:
   /internal/v1/gateway-sync:
     post:
       tags: [GatewaySync]
-      summary: Publish a desired route or policy version through the selected provider
+      summary: Publish a controlled model route through Higress and confirm runtime delivery
       operationId: publishGatewayVersion
       security: [{serviceToken: []}]
       requestBody:
@@ -328,14 +328,28 @@ paths:
             schema: {$ref: '#/components/schemas/GatewaySyncRequest'}
       responses:
         '202':
-          description: Accepted for idempotent publication
+          description: Publication result; inspect status and errorCode, including rejection and idempotency/version conflicts
           content:
             application/json:
               schema: {$ref: '#/components/schemas/GatewaySyncResponse'}
-        '409':
-          description: Desired version conflicts with a newer version
-        '502':
-          description: Provider rejected or could not apply the desired version
+  /internal/v1/gateway-sync/reconcile:
+    post:
+      tags: [GatewaySync]
+      summary: Prepare active controlled model routes without generating upstream requests
+      security: [{serviceToken: []}]
+      responses:
+        '201':
+          description: Returns enabled and route resourceId/status entries; unavailable routes fail closed
+  /internal/v1/gateway-sync/{resourceId}:
+    get:
+      tags: [GatewaySync]
+      summary: Read the durable last publication result and recover an expired pending lease
+      security: [{serviceToken: []}]
+      parameters:
+        - {in: path, name: resourceId, required: true, schema: {type: string}}
+      responses:
+        '200':
+          description: Last result, or null when no operation exists
 components:
   securitySchemes:
     cookieSession:
@@ -543,12 +557,18 @@ components:
       required: [provider, resourceType, resourceId, desiredVersion, idempotencyKey, spec]
       properties:
         provider: {type: string, enum: [higress]}
-        resourceType: {type: string, enum: [model_route, policy_reference, credential_binding, rate_limit]}
-        resourceId: {type: string}
-        desiredVersion: {type: string}
+        resourceType: {type: string, enum: [model_route, policy_reference, credential_binding, rate_limit], description: Only model_route is implemented; other kinds return unsupported_resource_type. Policies and quota remain authoritative in the control plane.}
+        resourceId: {type: string, description: Deterministic route identity derived from serviceId and definitionId by higress.resources.ts}
+        desiredVersion: {type: string, minLength: 1, maxLength: 160, description: Immutable version label for a controlled route and credential fingerprint}
         previousVersion: {type: [string, 'null']}
-        idempotencyKey: {type: string, minLength: 8}
-        spec: {type: object, additionalProperties: true}
+        idempotencyKey: {type: string, minLength: 1, maxLength: 160}
+        spec:
+          type: object
+          additionalProperties: false
+          required: [serviceId, definitionId]
+          properties:
+            serviceId: {type: string}
+            definitionId: {type: string}
     GatewaySyncResponse:
       type: object
       required: [provider, resourceId, desiredVersion, status]

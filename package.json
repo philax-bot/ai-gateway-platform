@@ -4,11 +4,9 @@
   "packageManager": "pnpm@11.13.1",
   "scripts": {
     "build": "pnpm -r build",
-    "review": "node scripts/review.mjs",
-    "review:postgres": "node scripts/review.mjs --postgres",
     "test": "pnpm -r test",
     "typecheck": "pnpm -r typecheck",
-    "dev": "pnpm --stream --parallel --filter @ai-gateway/control-plane --filter @ai-gateway/gateway-sim --filter @ai-gateway/test-model --filter @ai-gateway/web run dev",
+    "dev": "node scripts/dev.mjs",
     "check:local": "node scripts/check-local-vertical-slice.mjs",
     "check:isolated": "pnpm build && node scripts/check-isolated.mjs",
     "check:web": "pnpm build && node scripts/check-web.mjs",
@@ -24,9 +22,7 @@
     "check:review": "pnpm build && node scripts/check-persistent-review.mjs",
     "backup": "node scripts/backup.mjs backup",
     "restore": "node scripts/backup.mjs restore",
-    "dev:control-plane": "pnpm --filter @ai-gateway/control-plane start:dev",
-    "dev:gateway": "pnpm --filter @ai-gateway/gateway-sim dev",
-    "dev:model": "pnpm --filter @ai-gateway/test-model dev",
-    "dev:web": "pnpm --filter @ai-gateway/web dev"
+    "check:higress:provider": "pnpm --filter @ai-gateway/control-plane... --filter @ai-gateway/gateway-sim... build && node scripts/check-higress-provider.mjs",
+    "check:higress:live": "pnpm --filter @ai-gateway/control-plane... --filter @ai-gateway/gateway-sim... build && node scripts/check-higress-live.mjs --allow-upstream"
   }
 }

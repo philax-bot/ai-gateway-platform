@@ -14,4 +14,5 @@ export class GatewayService {
   status(resourceId: string): Promise<GatewaySyncResponse | null> {
     return this.higressProvider.getSyncStatus(resourceId);
   }
+  reconcile(){return this.higressProvider.reconcile();}
 }

@@ -1,5 +1,12 @@
 # AGENTS.md
 
+## Local development
+
+- Daily startup is `pnpm dev` from the repository root; use `http://localhost:5176/`.
+- It resumes the existing PostgreSQL workspace in `.runtime/review-postgres.json`, starts all four services, and serves Web with Vite hot reload. Restart the same command after backend or shared-contract edits.
+- Do not introduce another daily launcher, parallel memory workspace, or separate service commands. `check:*` scripts remain isolated verification tools.
+- Preserve existing development data and upstream opt-in settings. Do not delete the state file/schema to resolve startup failures.
+
 ## UI work is contract-first
 
 Before changing anything under `apps/web`, read:

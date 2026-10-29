@@ -1,6 +1,8 @@
 # 运行模式与首次安装
 
-`pnpm review` 用于本机人工审查，默认使用隔离内存和本地模型替身。只有显式设置 `REVIEW_ALLOW_UPSTREAM_REQUESTS=true` 时，启动脚本才会把 `ALLOW_UPSTREAM_REQUESTS=true` 和同名 `UPSTREAM_*` 凭据一并传给网关，允许数据面调用已配置且验证通过的外部模型服务；每次调用都会产生真实厂商费用。持久化安装使用显式 `PLATFORM_MODE=production`。原生备份恢复、容器运行和 HTTPS API 已通过本机隔离检查；浏览器证书信任、真实内网入口与正式数据面仍须另行验收，不能只凭模式名称认定已达到生产条件。
+`pnpm dev` 是唯一本地开发入口，沿用原 PostgreSQL 开发 schema，默认在受控代理后接入 Higress，本地模型替身仍可用。页面 http://localhost:5176/，控制面 4301、受控代理 4300、模型替身 4310；前端热更新，后端修改后重启同一命令。数据库连接使用 `apps/control-plane/.env` 或进程环境中的 `DATABASE_URL`。只有显式设置 `REVIEW_ALLOW_UPSTREAM_REQUESTS=true` 才允许调用已配置且验证通过的外部模型；每次调用都会产生真实厂商费用。Higress 模式下，上游凭据由控制面发布到 Higress，代理只接收独立的内部跳转凭据；外呼开关仍按原始上游地址检查。根 `.env` 的 `REVIEW_DATA_PLANE=direct` 可使同一入口恢复直连，保留原配置与账务。详见 [正式接入与验收](architecture/higress-provider-2026-10-29.md)。持久化安装使用显式 `PLATFORM_MODE=production`。原生备份恢复、容器运行和 HTTPS API 已通过本机隔离检查；浏览器证书信任、真实内网入口及生产部署环境仍须另行验收。
+
+独立部署 Higress 时，控制面设置 `GATEWAY_DATA_PLANE=higress`、`HIGRESS_API_URL`、`HIGRESS_API_TOKEN`、`HIGRESS_PROXY_URL`、`UPSTREAM_HIGRESS_INTERNAL`，可选 `HIGRESS_NAMESPACE`（默认 `higress-system`）。管理 API 使用受信任 HTTPS；本机回环地址可使用 HTTP。代理只需 `GATEWAY_DATA_PLANE`、`HIGRESS_PROXY_URL` 和 `UPSTREAM_HIGRESS_INTERNAL`。管理账号只授予对应命名空间内 Ingress/WasmPlugin 的读和创建，以及 `McpBridge/default` 的读写权限。固定镜像、插件版本、请求 ID 保留配置和私有管理面均属于部署前置条件；本地 `pnpm dev` 自动准备这些依赖。
 
 ## 控制面配置
 

@@ -1,0 +1,59 @@
+{
+  "success": false,
+  "createdAt": "2026-10-29T08:05:20.733Z",
+  "scope": {
+    "database": "isolated PostgreSQL schema",
+    "provider": "formal HigressProvider",
+    "model": "DeepSeek official; reused existing configuration",
+    "defaultWorkspaceTouched": false
+  },
+  "checks": [],
+  "calls": [],
+  "budgetAtStart": {
+    "maxRequests": 20,
+    "maxEstimatedAmount": 1,
+    "attempts": 0,
+    "estimatedUpperBound": 0
+  },
+  "priceSnapshot": {
+    "inputPrice": 2,
+    "outputPrice": 8,
+    "cachedInputPrice": 0.04
+  },
+  "budget": {
+    "maxRequests": 20,
+    "maxEstimatedAmount": 1,
+    "attempts": 1,
+    "estimatedUpperBound": 0.000136
+  },
+  "verification": [
+    {
+      "outcome": "failed",
+      "httpStatus": 503,
+      "errorCode": "upstream_error",
+      "usage": {
+        "complete": false,
+        "inputTokens": null,
+        "outputTokens": null,
+        "cachedInputTokens": null
+      },
+      "cost": {
+        "price": {
+          "unit": "per_million_tokens",
+          "version": "4bb019b8ab89249d9d5f80dc",
+          "currency": "CNY",
+          "inputPrice": 2,
+          "outputPrice": 8,
+          "cachedInputPrice": 0.04
+        },
+        "state": "usage_unknown",
+        "amount": null
+      }
+    }
+  ],
+  "error": {
+    "phase": "real provider verification",
+    "message": "real DeepSeek connection verification passes through formal HigressProvider"
+  },
+  "completedAt": "2026-10-29T08:06:25.989Z"
+}

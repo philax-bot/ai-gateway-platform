@@ -77,6 +77,8 @@ export interface RouteSnapshot {
   upstreamModel: string;
   credentialRef: string | null;
   maxOutputTokens: number;
+  /** Private dispatch metadata; the original route and price remain authoritative. */
+  transport?:{kind:'higress';baseUrl:string;model:string;version:string}|{kind:'unavailable'};
 }
 export interface AdmissionScope {
   id: string;

@@ -2,7 +2,7 @@
 
 ## 2026-10-29 Higress 隔离 PoC
 
-用户已恢复 Higress 评估授权，第一阶段真实 Higress 链路 54 项检查通过；结算仍由现有控制面与持久日记负责。配置失败/回滚使用独立 PoC 发布器，正式 `HigressProvider` 与默认数据面尚未替换。详情见 [PoC 记录与覆盖边界](architecture/higress-poc-2026-10-29.md)。下文“暂缓”是对应日期的历史状态。
+正式 `HigressProvider` 已替换直接返回 `applied` 的合同替身，通过认证管理 API 发布并确认路由，配置操作与最后生效版本持久化至 PostgreSQL。41 项真实 Higress/PostgreSQL 检查、13 项 DeepSeek 真实检查及原 5176 工作区的本地/真实模型调用与重启保留检查通过；`pnpm dev` 默认使用 Higress。原控制面、价格快照和结算日记继续负责账务。本轮真实请求累计 10 次，配置价格估算上界 ¥0.078772。见 [正式接入与证据](architecture/higress-provider-2026-10-29.md)。下文“暂缓”与第一阶段 PoC 的未完成项是对应日期的历史状态；生产部署环境验收仍需单独执行。
 
 ## 2026-10-28 控制面可靠性与持续负载
 

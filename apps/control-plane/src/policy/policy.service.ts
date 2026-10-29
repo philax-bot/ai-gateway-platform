@@ -3,14 +3,18 @@ import type { AuthorizeRequest, AuthorizeResponse } from '@ai-gateway/contracts'
 import { DemoStore } from '../store/demo.store';
 import { PlatformService } from '../platform/platform.service';
 import { authorizationFingerprint } from '../store/accounting';
+import {HigressProvider} from '../gateway/higress.provider';
 
 @Injectable()
 export class PolicyService {
-  constructor(private readonly store: DemoStore, @Optional() private readonly platform?: PlatformService) {}
+  constructor(private readonly store: DemoStore, @Optional() private readonly platform?: PlatformService, @Optional() private readonly higress?:HigressProvider) {}
 
   async authorize(input: AuthorizeRequest): Promise<AuthorizeResponse> {
     authorizationFingerprint(input);
-    return this.store.authorize(input);
+    const response=await this.store.authorize(input);
+    const route=response.admission?.route;
+    if(response.decision==='allow'&&route&&this.higress?.enabled)route.transport=await this.higress.transport(route);
+    return response;
   }
 
   getDemoCredential(apiKey: string) {

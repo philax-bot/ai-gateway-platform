@@ -182,14 +182,20 @@ async function handleCompletions(request: IncomingMessage, response: ServerRespo
     const target=new URL(configured?route!.baseUrl:modelUrl);
     if(!['http:','https:'].includes(target.protocol)||target.username||target.password||target.search||target.hash)throw new Error('invalid controlled upstream URL');
     if(!['127.0.0.1','localhost','[::1]'].includes(target.hostname)&&process.env.ALLOW_UPSTREAM_REQUESTS!=='true')throw new Error('external upstream access is disabled');
-    const upstreamCredential=route?.credentialRef?process.env[route.credentialRef]:null;
-    if(route?.credentialRef&&(!/^UPSTREAM_[A-Z0-9_]+$/.test(route.credentialRef)||!upstreamCredential))throw new Error('upstream credential reference is not configured');
-    const forwarded:Record<string,unknown>={...body,model:route?.upstreamModel??logicalModel};
+    if(route?.transport?.kind==='unavailable')throw new Error('Higress route is not applied');
+    const transport=route?.transport?.kind==='higress'?route.transport:null;
+    if(process.env.GATEWAY_DATA_PLANE==='higress'&&!transport)throw new Error('Higress dispatch metadata is required');
+    const dispatchTarget=transport?new URL(transport.baseUrl):target;
+    if(transport&&(!process.env.HIGRESS_PROXY_URL||!transport.baseUrl.startsWith(process.env.HIGRESS_PROXY_URL.replace(/\/$/,'')+'/atlas/')||!/^atlas-[a-f0-9]{32}$/.test(transport.model)))throw new Error('invalid Higress dispatch target');
+    const upstreamCredential=transport?process.env.UPSTREAM_HIGRESS_INTERNAL:route?.credentialRef?process.env[route.credentialRef]:null;
+    if(transport&&!upstreamCredential)throw new Error('Higress credential is not configured');
+    if(!transport&&route?.credentialRef&&(!/^UPSTREAM_[A-Z0-9_]+$/.test(route.credentialRef)||!upstreamCredential))throw new Error('upstream credential reference is not configured');
+    const forwarded:Record<string,unknown>={...body,model:transport?.model??route?.upstreamModel??logicalModel};
     if(configured){if(body.max_completion_tokens!==undefined){forwarded.max_completion_tokens=route!.maxOutputTokens;delete forwarded.max_tokens;}else forwarded.max_tokens=route!.maxOutputTokens;}
     if(body.stream===true)forwarded.stream_options={...(body.stream_options as Record<string,unknown>|undefined),include_usage:true};
     await journal.dispatched(requestId);dispatched=true;
     deadline=new UpstreamDeadline(controller,timeouts);
-    upstream=await dispatchUpstream(chatCompletionsUrl(target.toString()), { method:'POST',redirect:'error', signal:controller.signal,
+    upstream=await dispatchUpstream(chatCompletionsUrl(dispatchTarget.toString()), { method:'POST',redirect:'error', signal:controller.signal,
       headers:{'content-type':'application/json','x-request-id':requestId,...(upstreamCredential?{authorization:`Bearer ${upstreamCredential}`}:{})},body:JSON.stringify(adaptUpstreamChatRequest(target,forwarded)) });
     upstreamStatus=upstream.status;
     upstreamRequestId=readUpstreamRequestId(upstream.headers);
@@ -276,7 +282,7 @@ async function handleOutbox(request:IncomingMessage,response:ServerResponse){
 async function serveRequest(request:IncomingMessage,response:ServerResponse){
   try {
     if(closing){sendJson(response,503,{error:{type:'gateway_stopping',message:'gateway is draining active requests'}},request.headers.origin);return;}
-    if(request.method==='GET'&&request.url==='/health') {const outbox=await journal.status();sendJson(response,200,{status:outbox.blocked||outbox.queued?'degraded':'ok',dataPlane:runtimeMode==='production'?'controlled-proxy':'local-simulation',outbox},request.headers.origin);return;}
+    if(request.method==='GET'&&request.url==='/health') {const outbox=await journal.status();sendJson(response,200,{status:outbox.blocked||outbox.queued?'degraded':'ok',dataPlane:process.env.GATEWAY_DATA_PLANE==='higress'?'higress':runtimeMode==='production'?'controlled-proxy':'local-simulation',outbox},request.headers.origin);return;}
     if(request.url?.startsWith('/internal/v1/outbox')){await handleOutbox(request,response);return;}
     if(request.method==='OPTIONS'&&(request.url==='/v1/chat/completions'||request.url==='/v1/models')) {response.writeHead(204,corsHeaders(request.headers.origin));response.end();return;}
     if(request.method==='GET'&&request.url==='/v1/models') {await handleModels(request,response);return;}

@@ -30,51 +30,24 @@ Signal Atlas Web -> gateway-sim -> control-plane authorize
 
 ## 本地运行
 
-集中人工审查推荐运行 `pnpm review:postgres`，访问 http://localhost:5176/。使用已有开发数据库配置，在独立 schema 中保留审查数据；首次创建五个测试账号，之后重启继续原场景。可重置的内存演示使用 `pnpm review`。入口、账号及短任务路径见 [人工审查清单](docs/MANUAL-REVIEW.md)。先集中人工审查外层，再开展 Higress 代码评估和数据面选型。
-
-环境：Node.js 22、pnpm 11。安装依赖后：
+本地开发统一使用一个命令，安装依赖后在仓库根目录运行：
 
 ```powershell
 pnpm install
-$env:STORE_MODE = 'memory'
 pnpm dev
 ```
 
-打开 [本地页面](http://127.0.0.1:5173)。首次访问初始化管理员（密码至少 12 位），随后使用该账号登录。运营空间按“模型服务验证 → 模型池开放 → 个人方案 → 人员开通”推进；成员账号在组织与成员页创建。服务端口：Web `5173`、模拟网关 `4000`、控制面 `4001`、测试模型 `4010`。
+打开 [本地开发页面](http://localhost:5176/)。首次自动准备五个开发账号，账号和任务路径见 [人工审查清单](docs/MANUAL-REVIEW.md)，统一初始密码 `Review-local-2026!`。
 
-Web 的公开入口可通过 `VITE_CONTROL_PLANE_URL` 和 `VITE_GATEWAY_URL` 配置，示例见 `apps/web/.env.example`；网关值填写不含 `/v1` 的根地址，修改后重新启动或构建 Web。在线调用、密钥页 Base URL 和接入示例共用该配置。此文件只放公开地址，不能放服务令牌或模型凭据。跨域访问还需在控制面/网关配置对应 `WEB_ORIGIN`。
+- 固定端口：Web `5176`、控制面 `4301`、网关 `4300`、本地模型替身 `4310`，全部仅监听本机。
+- 使用 `apps/control-plane/.env` 或进程环境中的 `DATABASE_URL`，沿用既有 `.runtime/review-postgres.json` 指向的独立开发 schema；重启保留账号、资金、Key、配置和调用记录。数据库不可达或端口占用会直接报错，不切换到内存、不另起端口。
+- 前端源码修改后自动更新；后端或共享契约改动后按 Ctrl+C，再运行 `pnpm dev`，自动重新构建。Ctrl+C 统一停止本次启动的服务。
+- Web、网关、控制面及 Octop 导入地址由启动器统一生成，不必分别设置 `STORE_MODE`、`SERVICE_TOKEN` 和 `VITE_*`。运行目录与网关结算日记保持原位置。
+- 默认使用本地模型替身。根 `.env` 中已有的 `REVIEW_ALLOW_UPSTREAM_VALIDATION` / `REVIEW_ALLOW_UPSTREAM_REQUESTS` 显式开关继续生效，开启后真实模型调用会产生费用；启动日志会显示状态。
 
-PostgreSQL 模式保留账户与业务配置；内存模式停进程即丢失本次初始化及业务操作。显式 `PLATFORM_MODE=production` 使用空工作空间，强制独立数据库 schema、强服务/安装口令、HTTPS 页面来源和 Secure Cookie；页面支持输入安装口令。配置、迁移和首次开通见 [运行模式与首次安装](docs/RUNTIME-CONFIGURATION.md)。原生数据库与结算日记的备份恢复已完成隔离验证，操作见 [备份与恢复](docs/BACKUP-RESTORE.md)；HTTPS 同源入口、容器运行和持久卷操作见 [容器与内网运行](docs/CONTAINER-RUNBOOK.md)。实际域名、浏览器证书信任和正式环境仍待验收。
+原 `pnpm review`、`pnpm review:postgres` 和根目录 `dev:*` 分服务入口已移除。专项 `check:*` 仍独立创建临时环境并清理，不作为日常启动方式；`scripts/review.mjs` 是开发启动器及历史隔离检查复用的内部实现。
 
-- `local-employee-key`：保留给隔离回归的个人演示批次 ¥10，不用于新 Web 登录身份。
-- `local-project-key`：保留给隔离回归的演示项目成员批次 ¥20，不用于真实项目预算管理。
-- 上述旧演示凭据的固定 ¥0.02 仅用于隔离回归。新业务凭据使用准入时的服务价格快照，按输入、输出和缓存子集计费；价格未知会拒绝，明确的 0 表示免费。
-- 模拟网关按选定原额度批次关联的模型池/服务动态转发。测试模型首段和最终用量间隔 1.5 秒，便于取消验证；输入预估使用保守 UTF-8 JSON 字节数，不是模型 tokenizer。
-- 网关对已签发密钥提供 OpenAI 兼容入口 `/v1/chat/completions`（非流式与 SSE）和 `/v1/models`（模型发现）。工具侧 Base URL 填到 `/v1`，Key 用平台上签发的 `sa_...`，模型名用模型目录的“对外模型标识”。详见 [运行模式与首次安装](docs/RUNTIME-CONFIGURATION.md#数据面对外接口)。
-- 上游连接阶段的偶发失败只重试一次，且仅在明确未发出任何请求字节时；已开始的响应、取消和超时不会重试，不会重复计费。
-
-内存模式重启即回到演示初始值，不会连接云端账本。如果 pnpm 提示 `ERR_PNPM_IGNORED_BUILDS`，运行 `pnpm approve-builds` 选择 `esbuild` 后重新安装。
-
-## PostgreSQL 开发模式
-
-连接配置保存在 `apps/control-plane/.env`，由控制面的工作目录读取；该文件禁止提交或回显：
-
-```env
-DATABASE_URL=postgresql://<user>:<url-encoded-password>@<cloud-ip>:5432/<database>
-REDIS_URL=redis://:<password>@<cloud-ip>:6379
-SERVICE_TOKEN=local-service-token
-```
-
-```powershell
-$env:STORE_MODE = 'postgres'
-pnpm dev
-```
-
-本机开发使用云服务器 IP/端口；云端同一 Docker 网络的容器才使用数据库服务名。也可以用环境变量直接提供连接串。`STORE_MODE` 未设置时默认使用 PostgreSQL。
-
-启动在事务和 schema 级互斥锁内执行 `apps/control-plane/migrations/*.sql`，`schema_migrations` 记录版本、文件名、内容摘要和时间；重启跳过已执行 SQL，修改已执行脚本、缺失历史版本或迁移失败会拒绝启动并回滚本轮写入。原未跟踪的可重复 001–008 基线可接管，保留余额。开发模式只补缺失的演示记录，不重置余额或重启密钥；正式模式不生成演示种子，并拒绝混用已有开发安装。
-
-健康检查：`GET http://127.0.0.1:4001/health`。PostgreSQL 返回 `database=up`，内存模式返回 `database=memory`；Redis 未配置时返回 `cache=disabled`。
+新业务 Key 使用准入时的服务价格快照，按输入、输出及缓存子集结算；工具 Base URL 填 `http://localhost:4300/v1`。正式环境配置、迁移和首次安装见 [运行模式与首次安装](docs/RUNTIME-CONFIGURATION.md)，备份见 [备份与恢复](docs/BACKUP-RESTORE.md)，部署见 [容器与内网运行](docs/CONTAINER-RUNBOOK.md)。
 
 ## 可重复验收
 
@@ -142,6 +115,6 @@ pnpm check:postgres
 - 模拟网关在授权 RPC 前持久化意图，并用 `admissionAttemptId` 识别第一笔授权的物理归属；授权响应丢失后只恢复授权结果，不重发模型请求。已知未转发且归属吻合才释放原预占；其他网关的归属不触发资金操作，缺少归属的旧记录阻塞供核查。转发前保存准入/分派事件，结算失败保留原事件并在重启后补发。每个实例必须配置独立、持久化的 `GATEWAY_JOURNAL_DIR`；目录写锁只保护本地单实例。已验证进程重启，未验证整机断电/存储损坏。检查/重试用 `scripts/outbox.mjs`，授权意图重试额外指定 `--attempt`；仅接受服务令牌，不能修改原事件或金额。
 - 监控只统计已识别身份、控制面已记录的请求；无流量/采集失败/样本不足不会自动宣称恢复。面板在途是有效预占数量，吞吐为五分钟窗口平均值，不能作为模型容量结论。
 - 新业务 API 已接入密码登录、固定职责与对象范围；新签发密钥仅保存 SHA-256 哈希，完整值只在签发响应出现一次。正式模式已禁用演示种子并拒绝默认服务令牌，开发默认配置仅用于本地/隔离回归；完整权限、部署和运维验收仍未完成。
-- `GatewayProvider` 保持业务对象与 Higress 对象隔离；[Higress 第一阶段隔离 PoC](docs/architecture/higress-poc-2026-10-29.md) 的 54 项检查通过，入口为 `pnpm check:higress`。本轮保留现有代理的准入、持久日记和结算；正式 Provider、PostgreSQL 与真实模型验证仍待完成。
+- `GatewayProvider` 保持业务对象与 Higress 对象隔离；正式 `HigressProvider` 已接入认证管理 API，配置状态与操作保存在 PostgreSQL。41 项真实 Higress/PostgreSQL 检查和 DeepSeek 真实验收通过，日常 `pnpm dev` 默认使用 Higress，原准入、价格快照、持久日记和结算继续生效。见 [实现、验收和恢复方式](docs/architecture/higress-provider-2026-10-29.md)；[第一阶段 PoC](docs/architecture/higress-poc-2026-10-29.md) 保留为历史记录。
 
 验证层级见 [开发边界](docs/DEVELOPMENT-BOUNDARIES.md)，最新证据见 [2026-10-19 验证记录](docs/VALIDATION-ONBOARDING-2026-10-19.md)。本地/Mock/开发数据库结果不等于生产验收。

@@ -1,0 +1,163 @@
+{
+  "success": true,
+  "createdAt": "2026-10-29T08:35:43.537Z",
+  "scope": {
+    "database": "isolated PostgreSQL schema",
+    "higress": "pinned real runtime",
+    "model": "local deterministic fixture",
+    "realModelRequests": 0,
+    "defaultWorkspaceTouched": false
+  },
+  "checks": [
+    "formal Provider confirms runtime: null",
+    "identical idempotency key replays the original durable operation",
+    "changed idempotency payload is rejected",
+    "optimistic previousVersion conflict is rejected",
+    "unsupported policy publication is explicit",
+    "management relay requires its separate service credential",
+    "diagnostic verification uses the formal Higress route",
+    "logical model survives formal Provider non-stream dispatch",
+    "PostgreSQL settles returned and cached usage",
+    "original control-plane prices determine the charge",
+    "public call evidence contains the original route and hides private transport",
+    "Higress performs the immutable physical-model mapping and output bound",
+    "Higress rejects missing, managed or invalid hop credentials",
+    "Higress rejects missing, managed or invalid hop credentials",
+    "Higress rejects missing, managed or invalid hop credentials",
+    "SSE model and terminal usage survive Higress",
+    "tool arguments survive formal dispatch",
+    "tool result round trip succeeds",
+    "cancelled unknown usage remains pending review in PostgreSQL",
+    "cancellation closes the downstream model connection",
+    "invalid managed credential is rejected",
+    "invalid managed credential never reaches Higress inference",
+    "5xx without usage keeps an unknown hold: 500/upstream_http_500/pending_review",
+    "Higress retries and failover remain disabled",
+    "project request passes through Higress",
+    "PostgreSQL records the original project attribution",
+    "project usage does not debit personal funds",
+    "application request passes through Higress",
+    "application usage stays in its own PostgreSQL scope",
+    "five concurrent PostgreSQL requests reserve the single affordable hold once",
+    "losing budget contenders never reach the model",
+    "concurrent reservation never overdraws the funded PostgreSQL batch",
+    "configuration operation survives control-plane restart",
+    "idempotent replay survives PostgreSQL restart of the process",
+    "applied route survives control-plane and gateway restart",
+    "configuration journal contains no plaintext credential",
+    "a new desired version is runtime-confirmed",
+    "explicit rollback restores the immutable prior version: null",
+    "failed publication retains last applied version",
+    "original funds equal remaining balance, confirmed usage and unknown holds",
+    "gateway durable outbox is drained"
+  ],
+  "firstPublication": {
+    "status": "applied",
+    "provider": "higress",
+    "errorCode": null,
+    "resourceId": "route-769a0a4c44f946ecc1fdbba02371b8f1",
+    "operationId": "provider-op-d5b51ac2-e826-47c3-96e5-03ab96a92c18",
+    "appliedVersion": "provider-v1",
+    "desiredVersion": "provider-v1"
+  },
+  "verification": [
+    {
+      "outcome": "passed",
+      "usage": {
+        "complete": true,
+        "inputTokens": 13,
+        "outputTokens": 14,
+        "cachedInputTokens": 4
+      },
+      "cost": {
+        "price": {
+          "unit": "per_million_tokens",
+          "version": "05d708408f7c5ffff0892e99",
+          "currency": "CNY",
+          "inputPrice": 2,
+          "outputPrice": 8,
+          "cachedInputPrice": 0.5
+        },
+        "state": "priced",
+        "amount": 0.000132
+      }
+    }
+  ],
+  "errorSample": {
+    "status": 500,
+    "log": {
+      "requestId": "9916ed52-021d-4f0a-a346-94826e8daf9b",
+      "upstreamRequestId": "upstream-9916ed52-021d-4f0a-a346-94826e8daf9b",
+      "retryOfRequestId": null,
+      "startedAt": "2026-10-29T08:36:41.301Z",
+      "completedAt": "2026-10-29T08:36:41.561Z",
+      "subjectType": "employee",
+      "subjectId": "operator-demo-001",
+      "credentialId": "credential-f5deb916-4829-4975-9656-d4ee4e975af3",
+      "purpose": "personal",
+      "projectId": null,
+      "modelId": "test-model",
+      "outcome": "upstream_error",
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "cachedInputTokens": 0,
+      "actualAmount": 0,
+      "billableState": "pending_review",
+      "reservationId": "reservation-e43d48d0-21ff-4d34-8948-5abad9520359",
+      "admission": {
+        "kind": "configured",
+        "price": {
+          "unit": "per_million_tokens",
+          "version": "7d70f49b9a793ccc2c50ab62",
+          "currency": "CNY",
+          "inputPrice": 2,
+          "outputPrice": 8,
+          "cachedInputPrice": 0.5
+        },
+        "reservedAmount": 0.00036,
+        "route": {
+          "serviceId": "service-local-test",
+          "poolId": "pool-local-test",
+          "definitionId": "definition-test-model",
+          "upstreamModel": "physical-model"
+        }
+      },
+      "organizationId": "org-demo",
+      "errorCode": "upstream_http_500",
+      "latencyMs": 260,
+      "usageFinal": false,
+      "forwarded": true,
+      "ttftMs": null
+    }
+  },
+  "rollback": {
+    "status": "applied",
+    "provider": "higress",
+    "errorCode": null,
+    "resourceId": "route-769a0a4c44f946ecc1fdbba02371b8f1",
+    "operationId": "provider-op-5960095a-78d5-40a5-b52e-52f9f8873441",
+    "appliedVersion": "provider-v1",
+    "desiredVersion": "provider-v1"
+  },
+  "accounting": {
+    "total": 1.05,
+    "available": 1.048486,
+    "confirmed": 0.000792,
+    "held": 0.000722,
+    "calls": 8,
+    "fixtureRequests": 11
+  },
+  "outbox": {
+    "queued": 0,
+    "blocked": 0,
+    "active": 0,
+    "oldestQueuedAgeMs": 0,
+    "oldestBlockedAgeMs": 0,
+    "retryAttempts": 0,
+    "authorizing": 0,
+    "authorizationPending": 0,
+    "authorizationBlocked": 0,
+    "writePending": 0
+  },
+  "completedAt": "2026-10-29T08:37:56.199Z"
+}
