@@ -6,6 +6,7 @@ import {resolve} from 'node:path';
 import {HIGRESS_IMAGE,MODEL_IMAGE,resources} from '../higress/poc-config.mjs';
 
 const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+const tuneMesh=value=>value.replace(/^    dnsRefreshRate:.*$/m,'    dnsRefreshRate: 5s').replace(/    accessLogFormat: \|[\s\S]*?(?=    configSources:)/,'    accessLogFormat: |\n      {"request_id":"%REQ(X-REQUEST-ID)%","response_code":"%RESPONSE_CODE%","route_name":"%ROUTE_NAME%","flags":"%RESPONSE_FLAGS%","transport_failure":"%UPSTREAM_TRANSPORT_FAILURE_REASON%"}\n');
 export function command(binary,args,{root,timeout=30000,allowFailure=false}={}){return new Promise((resolve,reject)=>{
   const child=spawn(binary,args,{cwd:root,windowsHide:true,stdio:['ignore','pipe','pipe']});let out='',err='';
   child.stdout.on('data',v=>out=(out+v).slice(-200000));child.stderr.on('data',v=>err=(err+v).slice(-10000));
@@ -36,16 +37,29 @@ export async function openHigress({root,directory,fixture=false,persistent=false
   }
   try{
     if((await run(['network','exists',name],{allowFailure:true})).code!==0)await run(['network','create','--label',`atlas.runtime=${state.id}`,...(fixture?['--internal']:[]),name]);
+    const network=JSON.parse((await run(['network','inspect',name])).out)[0],subnet=network.subnets?.[0]?.subnet;
+    if(network.labels?.['atlas.runtime']!==state.id)throw new Error('Refusing to modify an unowned network');
+    if(!/^\d+\.\d+\.\d+\.0\/24$/.test(subnet??''))throw new Error('Owned Higress network requires an IPv4 /24 subnet');
+    const prefix=subnet.split('.').slice(0,3).join('.'),gatewayAddress=prefix+'.10',modelAddress=prefix+'.11';
     async function exists(container){const result=await run(['container','inspect',container],{allowFailure:true});if(result.code!==0)return false;const value=JSON.parse(result.out)[0];if(value.Config.Labels['atlas.runtime']!==state.id)throw new Error('Refusing to adopt unowned container');return true;}
-    if(!await exists(name+'-gateway')){
-      await run(['create','--name',name+'-gateway','--label',`atlas.runtime=${state.id}`,'--network',name,'--env','MODE=gateway','--env','O11Y=off','--env','USE_PLUGIN_SERVER=on','--env','GATEWAY_CONCURRENCY=2','--env','GATEWAY_AUTO_HTTPS_ENABLED=false','--pull','never',HIGRESS_IMAGE]);
+    async function detach(container){await run(['stop','--time','1',container],{allowFailure:true});const value=JSON.parse((await run(['inspect',container])).out)[0];if(value.NetworkSettings.Networks?.[name])await run(['network','disconnect',name,container]);}
+    if(await exists(name+'-management'))await run(['stop','--time','1',name+'-management']);
+    const existingModel=fixture&&await exists(name+'-model');if(existingModel)await detach(name+'-model');
+    if(await exists(name+'-gateway')){await detach(name+'-gateway');await run(['network','connect','--ip',gatewayAddress,name,name+'-gateway']);}
+    else{
+      await run(['create','--name',name+'-gateway','--label',`atlas.runtime=${state.id}`,'--network',name,'--ip',gatewayAddress,'--env','MODE=gateway','--env','O11Y=off','--env','USE_PLUGIN_SERVER=on','--env','GATEWAY_CONCURRENCY=2','--env','GATEWAY_AUTO_HTTPS_ENABLED=false','--pull','never',HIGRESS_IMAGE]);
       const defaults=resolve(directory,'defaults');await run(['cp',name+'-gateway:/opt/data/defaultConfig',defaults]);
-      const mesh=resolve(defaults,'configmaps/higress-config.yaml');await writeFile(mesh,(await readFile(mesh,'utf8')).replace(/    accessLogFormat: \|[\s\S]*?(?=    configSources:)/,'    accessLogFormat: |\n      {"request_id":"%REQ(X-REQUEST-ID)%","response_code":"%RESPONSE_CODE%","route_name":"%ROUTE_NAME%","flags":"%RESPONSE_FLAGS%","transport_failure":"%UPSTREAM_TRANSPORT_FAILURE_REASON%"}\n'));
+      const mesh=resolve(defaults,'configmaps/higress-config.yaml');await writeFile(mesh,tuneMesh(await readFile(mesh,'utf8')));
       await run(['cp',defaults+'/.',name+'-gateway:/data']);
       await run(['cp',mesh,name+'-gateway:/opt/data/defaultConfig/configmaps/higress-config.yaml']);
       const requestId=Object.values(resources({proxyToken:state.proxyToken,upstreamToken:state.modelToken})).find(r=>r.kind==='EnvoyFilter');
       const filter=resolve(directory,'request-id.json');await writeFile(filter,JSON.stringify(requestId));await run(['cp',filter,name+'-gateway:/data/envoyfilters/atlas-request-id.yaml']);await unlink(filter);
     }
+    // Upgrade only managed mesh settings; preserve all routes, plugins and stored data.
+    const meshRuntime=resolve(directory,'mesh-runtime.yaml');
+    const copied=await run(['cp',name+'-gateway:/data/configmaps/higress-config.yaml',meshRuntime],{allowFailure:true});
+    if(copied.code!==0)await run(['cp',name+'-gateway:/opt/data/defaultConfig/configmaps/higress-config.yaml',meshRuntime]);
+    await writeFile(meshRuntime,tuneMesh(await readFile(meshRuntime,'utf8')));await run(['cp',meshRuntime,name+'-gateway:/data/configmaps/higress-config.yaml']);await run(['cp',meshRuntime,name+'-gateway:/opt/data/defaultConfig/configmaps/higress-config.yaml']);await unlink(meshRuntime);
     await run(['start',name+'-gateway']);
     if(localModelPort){
       await run(['machine','ssh','podman-machine-default','mkdir','-p','-m','700',socketDirectory]);
@@ -57,14 +71,19 @@ export async function openHigress({root,directory,fixture=false,persistent=false
     if(!await exists(name+'-management')){
       const envFile=resolve(directory,'relay.env');await writeFile(envFile,`API_TOKEN=${state.apiToken}\nLOCAL_MODEL_RELAY=${!!localModelPort}\n`,{mode:0o600});
       try{await run(['create','--name',name+'-management','--label',`atlas.runtime=${state.id}`,'--network',`container:${name}-gateway`,...(localModelPort?['--volume',`${socketDirectory}:/host-relay:ro`]:[]),'--env-file',envFile,'--pull','never',MODEL_IMAGE,'node','/management.cjs']);}finally{await unlink(envFile);}
-      await run(['cp',resolve(root,'scripts/higress/management-relay.cjs'),name+'-management:/management.cjs']);
     }
+    await run(['stop','--time','1',name+'-management'],{allowFailure:true});
+    await run(['cp',resolve(root,'scripts/higress/management-relay.cjs'),name+'-management:/management.cjs']);
+    await run(['cp',resolve(root,'scripts/higress/runtime-readiness.cjs'),name+'-management:/runtime-readiness.cjs']);
     await run(['start',name+'-management']);
     if(fixture){
       if(!await exists(name+'-model')){
-        await run(['create','--name',name+'-model','--label',`atlas.runtime=${state.id}`,'--network',name,'--network-alias','model.poc.test','--env',`MOCK_API_TOKEN=${state.modelToken}`,'--pull','never',MODEL_IMAGE,'node','/fixture.cjs']);
-        await run(['cp',resolve(root,'scripts/higress/model-fixture.cjs'),name+'-model:/fixture.cjs']);
-      }await run(['start',name+'-model']);
+        await run(['create','--name',name+'-model','--label',`atlas.runtime=${state.id}`,'--network',name,'--ip',modelAddress,'--network-alias','model.poc.test','--env',`MOCK_API_TOKEN=${state.modelToken}`,'--pull','never',MODEL_IMAGE,'node','/fixture.cjs']);
+      }
+      else await run(['network','connect','--ip',modelAddress,'--alias','model.poc.test',name,name+'-model']);
+      await run(['stop','--time','1',name+'-model'],{allowFailure:true});
+      await run(['cp',resolve(root,'scripts/higress/model-fixture.cjs'),name+'-model:/fixture.cjs']);
+      await run(['start',name+'-model']);
     }
     const gateway=JSON.parse((await run(['inspect',name+'-gateway'])).out)[0],ip=gateway.NetworkSettings.Networks[name].IPAddress;
     const apiPort=await freePort(),proxyPort=await freePort(),modelPort=fixture?await freePort():null;
@@ -75,7 +94,8 @@ export async function openHigress({root,directory,fixture=false,persistent=false
     const api=`http://127.0.0.1:${apiPort}`,proxy=`http://127.0.0.1:${proxyPort}`;
     let ready=false;for(let n=0;n<300;n++){try{if((await fetch(api+'/apis/networking.k8s.io/v1/namespaces/higress-system/ingresses',{headers:{authorization:`Bearer ${state.apiToken}`},signal:AbortSignal.timeout(800)})).ok){ready=true;break;}}catch{}await pause(200);}
     if(!ready)throw new Error('Authenticated Higress management relay did not start: '+tunnelDiagnostic);
+    if(fixture){let modelReady=false;for(let n=0;n<100;n++){try{if((await fetch(`http://127.0.0.1:${modelPort}/_poc/ready`,{signal:AbortSignal.timeout(500)})).ok){modelReady=true;break;}}catch{}await pause(100);}if(!modelReady)throw new Error('Owned deterministic model fixture did not start');}
     const gatewayEnvironment={GATEWAY_DATA_PLANE:'higress',HIGRESS_PROXY_URL:proxy,UPSTREAM_HIGRESS_INTERNAL:state.proxyToken};
-    return {state,name,api,proxy,model:fixture?`http://127.0.0.1:${modelPort}`:null,close,run,gatewayEnvironment,environment:{...gatewayEnvironment,HIGRESS_API_URL:api,HIGRESS_API_TOKEN:state.apiToken,...(localModelPort?{HIGRESS_LOOPBACK_SOURCE_PORT:String(localModelPort),HIGRESS_LOOPBACK_RELAY_URL:'http://127.0.0.1:8111'}:{HIGRESS_LOOPBACK_HOST:'host.containers.internal'})}};
+    return {state,name,api,proxy,model:fixture?`http://127.0.0.1:${modelPort}`:null,close,run,gatewayEnvironment,environment:{...gatewayEnvironment,HIGRESS_API_URL:api,HIGRESS_API_TOKEN:state.apiToken,HIGRESS_REQUIRE_RUNTIME_READY:'true',...(localModelPort?{HIGRESS_LOOPBACK_SOURCE_PORT:String(localModelPort),HIGRESS_LOOPBACK_RELAY_URL:'http://127.0.0.1:8111'}:{HIGRESS_LOOPBACK_HOST:'host.containers.internal'})}};
   }catch(error){await close();throw error;}
 }

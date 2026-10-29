@@ -6,15 +6,19 @@ import {mkdir,readFile,writeFile,realpath,rm} from 'node:fs/promises';
 import {resolve,sep} from 'node:path';
 import {openHigress,freePort} from './lib/higress-runtime.mjs';
 import {connectionConfig} from './lib/backup.mjs';
+import {databaseFaultProxy} from './higress/database-fault-proxy.mjs';
+import {runStabilityChecks} from './higress/stability-checks.mjs';
 
 const root=process.cwd(),id=randomUUID(),directory=resolve(root,'.runtime',`higress-provider-${id}`);
 const require=createRequire(resolve(root,'apps/control-plane/package.json')),{Pool}=require('pg');
 const {resourceId}=require(resolve(root,'apps/control-plane/dist/gateway/higress.resources.js'));
 const schema=`agp_hg_${id.replaceAll('-','')}`,token=randomUUID(),password=randomUUID(),children=[],secrets=[token,password];
+const stability=process.argv.includes('--stability'),duration=Number(process.argv.find(arg=>arg.startsWith('--duration='))?.split('=')[1]??180);
+assert.ok(process.argv.slice(2).every(arg=>arg==='--'||arg==='--stability'||/^--duration=\d+$/.test(arg))&&Number.isInteger(duration)&&duration>=60&&duration<=1800,'use --stability [--duration=60..1800]');
 const report={success:false,createdAt:new Date().toISOString(),scope:{database:'isolated PostgreSQL schema',higress:'pinned real runtime',model:'local deterministic fixture',realModelRequests:0,defaultWorkspaceTouched:false},checks:[]};
 const pause=ms=>new Promise(r=>setTimeout(r,ms)),output=resolve(root,process.env.HIGRESS_PROVIDER_REPORT_PATH??`.runtime/higress-provider-results/${id}.json`);
 const check=(value,label)=>{assert.ok(value,label);report.checks.push(label);};
-let hg,db,control,gateway,phase='preflight',cp,gw,cookie='',blockSettlement=false,shim;
+let hg,db,control,gateway,phase='preflight',cp,gw,cookie='',databaseProxy;
 const clean=Object.fromEntries(Object.entries(process.env).filter(([key])=>!/^UPSTREAM_|^HIGRESS_|^GATEWAY_|^DATABASE_|^PGOPTIONS$|^NODE_OPTIONS$/.test(key)));
 let common;
 function start(file,env){const child=spawn(process.execPath,[resolve(root,file)],{cwd:root,windowsHide:true,stdio:['ignore','pipe','pipe'],env:{...clean,...common,...env}});let out='';child.stdout.on('data',v=>out=(out+v).slice(-6000));child.stderr.on('data',v=>out=(out+v).slice(-6000));child.output=()=>out;children.push(child);return child;}
@@ -27,20 +31,30 @@ async function command(type,payload){const input={type,payload,idempotencyKey:ra
 const sync=input=>api('/internal/v1/gateway-sync',input,{internal:true}).then(r=>r.value);
 async function waitLog(id){for(let n=0;n<100;n++){const log=(await state()).callLogs.find(l=>l.requestId===id);if(log)return log;await pause(80);}throw new Error('missing_durable_call_log');}
 let key;
-function call({scenario='POC_BASIC',stream=false,tools,messages,requestId=randomUUID(),apiKey=key.secret,...rest}={}){return {requestId,promise:fetch(gw+'/v1/chat/completions',{method:'POST',headers:{authorization:`Bearer ${apiKey}`,'content-type':'application/json','x-request-id':requestId,'idempotency-key':requestId},body:JSON.stringify({model:'test-model',messages:messages??[{role:'user',content:scenario}],max_tokens:32,stream,...(tools?{tools}:{}),...rest}),signal:AbortSignal.timeout(15000)})};}
+function call({scenario='POC_BASIC',stream=false,tools,messages,requestId=randomUUID(),apiKey=key.secret,...rest}={}){return {requestId,promise:fetch(gw+'/v1/chat/completions',{method:'POST',headers:{authorization:`Bearer ${apiKey}`,'content-type':'application/json','x-request-id':requestId,'idempotency-key':requestId},body:JSON.stringify({model:'test-model',messages:messages??[{role:'user',content:scenario}],max_tokens:32,stream,...(tools?{tools}:{}),...rest}),signal:AbortSignal.timeout(stability?150000:15000)})};}
 try{
   await mkdir(directory,{recursive:true});await writeFile(resolve(directory,'empty.env'),'');
   const {connectionString}=await connectionConfig();db=new Pool({connectionString,connectionTimeoutMillis:5000});await db.query(`create schema "${schema}"`);
+  db.on('error',()=>{});if(stability)databaseProxy=await databaseFaultProxy(connectionString);
   hg=await openHigress({root,directory:resolve(directory,'runtime'),fixture:true});secrets.push(hg.state.apiToken,hg.state.proxyToken,hg.state.modelToken);
   const controlPort=await freePort(),gatewayPort=await freePort();cp=`http://127.0.0.1:${controlPort}`;gw=`http://127.0.0.1:${gatewayPort}`;
-  common={PLATFORM_MODE:'development',HOST:'127.0.0.1',DOTENV_CONFIG_PATH:resolve(directory,'empty.env'),STORE_MODE:'postgres',DATABASE_URL:connectionString,DATABASE_SCHEMA:schema,PGOPTIONS:'',REDIS_URL:'',NODE_OPTIONS:'',BOOTSTRAP_TOKEN:'',SERVICE_TOKEN:token,ALLOW_UPSTREAM_REQUESTS:'true',ALLOW_UPSTREAM_VALIDATION:'true',MAINTENANCE_DISABLED:'true',...hg.environment,UPSTREAM_PROVIDER_FIXTURE:hg.state.modelToken};
+  common={PLATFORM_MODE:'development',HOST:'127.0.0.1',DOTENV_CONFIG_PATH:resolve(directory,'empty.env'),STORE_MODE:'postgres',DATABASE_URL:databaseProxy?.connectionString??connectionString,DATABASE_SCHEMA:schema,PGOPTIONS:'',PGAPPNAME:schema,REDIS_URL:'',NODE_OPTIONS:'',BOOTSTRAP_TOKEN:'',SERVICE_TOKEN:token,ALLOW_UPSTREAM_REQUESTS:'true',ALLOW_UPSTREAM_VALIDATION:'true',MAINTENANCE_DISABLED:'true',...hg.environment,UPSTREAM_PROVIDER_FIXTURE:hg.state.modelToken,HIGRESS_REQUIRE_RUNTIME_READY:stability?'false':'true'};
   const startControl=async()=>{control=start('apps/control-plane/dist/main.js',{PORT:String(controlPort)});await ready(cp,control);};await startControl();
-  const startGateway=async()=>{gateway=start('services/gateway-sim/dist/server.js',{PORT:String(gatewayPort),CONTROL_PLANE_URL:cp,GATEWAY_JOURNAL_DIR:resolve(directory,'journal'),UPSTREAM_TIMEOUT_MS:'6000',UPSTREAM_FIRST_BYTE_TIMEOUT_MS:'2000',UPSTREAM_IDLE_TIMEOUT_MS:'2000'});await ready(gw,gateway);};await startGateway();
+  const startGateway=async()=>{gateway=start('services/gateway-sim/dist/server.js',{PORT:String(gatewayPort),CONTROL_PLANE_URL:cp,GATEWAY_JOURNAL_DIR:resolve(directory,'journal'),UPSTREAM_TIMEOUT_MS:stability?'120000':'6000',UPSTREAM_FIRST_BYTE_TIMEOUT_MS:'2000',UPSTREAM_IDLE_TIMEOUT_MS:stability?'5000':'2000'});await ready(gw,gateway);};await startGateway();
   phase='workspace and formal configuration';
   await ok('/api/v1/auth/setup',{directoryId:'higress-provider-admin',name:'Higress Provider 验收',password});await ok('/api/v1/auth/login',{directoryId:'higress-provider-admin',password});
   let service=(await state()).services[0];
   service=await command('save.service',{...service,baseUrl:'http://model.poc.test:4010/v1',credentialRef:'UPSTREAM_PROVIDER_FIXTURE',active:true,limits:{mode:'custom',rpm:1000,concurrency:10,maxOutputTokens:128},mappings:[{...service.mappings[0],upstreamModel:'physical-model',inputPrice:2,outputPrice:8,cachedInputPrice:0.5}]});
   const rid=resourceId({serviceId:service.id,definitionId:service.mappings[0].definitionId}),input={provider:'higress',resourceType:'model_route',resourceId:rid,desiredVersion:'provider-v1',previousVersion:null,idempotencyKey:'provider-first',spec:{serviceId:service.id,definitionId:service.mappings[0].definitionId}};
+  if(stability){
+    phase='cold backend readiness';console.log('CHECK cold backend and zero-generation readiness');await hg.run(['stop','--time','1',hg.name+'-model']);
+    const old=await sync({...input,desiredVersion:'probe-only-v0',idempotencyKey:'probe-only'});check(old.status==='applied','old version-only probe can pass while the backend is stopped');
+    const active=(await db.query(`select payload->'active' as active from "${schema}".gateway_sync_state where resource_id=$1`,[rid])).rows[0].active;
+    const unavailable=await fetch(hg.proxy+`/atlas/${active.name}/v1/chat/completions`,{headers:{'x-atlas-hop-token':`Bearer ${hg.state.proxyToken}`,'x-request-id':'cold-'+id}});await unavailable.text();check(unavailable.status===503,'controlled reproduction shows a route probe alone can hide upstream 503');report.coldStart={baselineProbeApplied:true,baselineStatus:unavailable.status,original503RootCause:'not uniquely established; original transport diagnostic was absent'};
+    common.HIGRESS_REQUIRE_RUNTIME_READY='true';await stop(control);await startControl();input.previousVersion='probe-only-v0';
+    const publishing=sync(input);await pause(2500);check((await api('/internal/v1/gateway-sync/'+rid,undefined,{internal:true})).value.status==='pending','new readiness remains pending until the backend accepts connections');await hg.run(['start',hg.name+'-model']);
+    const published=await publishing;report.coldStart.publication=published;check(published.status==='applied',`cold backend becomes applied only after the main route and endpoint are ready: ${published.errorCode}`);check((await fetch(hg.model+'/_poc/requests').then(r=>r.json())).length===0,'readiness performs no model generation');
+  }
   const first=await sync(input);report.firstPublication=first;check(first.status==='applied',`formal Provider confirms runtime: ${first.errorCode}`);
   check((await sync(input)).operationId===first.operationId,'identical idempotency key replays the original durable operation');
   check((await sync({...input,desiredVersion:'wrong'})).errorCode==='idempotency_conflict','changed idempotency payload is rejected');
@@ -57,6 +71,8 @@ try{
   check(Math.abs(normal.actualAmount-0.000132)<1e-9,'original control-plane prices determine the charge');
   check(normal.admission.route.serviceId===service.id&&normal.admission.route.upstreamModel==='physical-model'&&!JSON.stringify(normal).includes('transport'),'public call evidence contains the original route and hides private transport');
   const seen=(await requests()).find(r=>r.requestId===basic.requestId);check(seen?.model==='physical-model'&&seen.maxOutput===32,'Higress performs the immutable physical-model mapping and output bound');
+  check(seen?.hopCredentialPresent===false,'the private hop credential is removed before forwarding to the model');
+  check((await fetch(hg.model+'/_poc/transport-errors').then(r=>r.json())).every(entry=>!entry.path.endsWith('/_ready')),'configuration probes never escape to the model backend');
   const applied=(await db.query(`select payload from "${schema}".gateway_sync_state where resource_id=$1`,[rid])).rows[0].payload.active;
   for(const credential of ['',key.secret,'invalid']){const response=await fetch(hg.proxy+`/atlas/${applied.name}/_ready`,{headers:credential?{authorization:`Bearer ${credential}`}:{}});check([401,403].includes(response.status),'Higress rejects missing, managed or invalid hop credentials');}
   const stream=call({stream:true}),streamResponse=await stream.promise,raw=await streamResponse.text();check(streamResponse.ok&&raw.includes('data: [DONE]')&&raw.includes('"model":"test-model"'),'SSE model and terminal usage survive Higress');await waitLog(stream.requestId);
@@ -99,15 +115,22 @@ try{
   await hg.run(['stop','--time','1',hg.name+'-management']);
   const failed=await sync({...input,idempotencyKey:'provider-failed',previousVersion:'provider-v1',desiredVersion:'provider-v3'});check(failed.status==='rejected'&&failed.appliedVersion==='provider-v1','failed publication retains last applied version');
   await hg.run(['start',hg.name+'-management']);
-  const final=await state(),batches=final.quotaBatches.filter(b=>b.sourceId===actor.id),logs=final.callLogs.filter(l=>l.subjectId===actor.id);
+  if(stability){phase='stability and fault recovery';await runStabilityChecks({root,id,schema,db,hg,cp,gw,input,service,key,actor,range,report,check,api,ok,state,command,sync,call,waitLog,pause,duration,secrets,databaseProxy,stopControl:()=>stop(control),startControl,controlAlive:()=>control.exitCode===null});}
+  const final=await state();
+  // The workspace snapshot intentionally contains only the latest 200 calls.
+  // Financial conservation requires the complete original subject ledger.
+  const batches=(await db.query(`select total_amount,available_amount from "${schema}".quota_batches where source_id=$1`,[actor.id])).rows.map(row=>({totalAmount:Number(row.total_amount),availableAmount:Number(row.available_amount)}));
+  const logs=(await db.query(`select request_id,billable_state,actual_amount,admission from "${schema}".call_logs where subject_id=$1`,[actor.id])).rows.map(row=>({requestId:row.request_id,billableState:row.billable_state,actualAmount:Number(row.actual_amount),admission:row.admission}));
   const total=batches.reduce((s,b)=>s+b.totalAmount,0),available=batches.reduce((s,b)=>s+b.availableAmount,0),confirmed=logs.filter(l=>l.billableState==='confirmed').reduce((s,l)=>s+l.actualAmount,0),held=logs.filter(l=>l.billableState==='pending_review').reduce((s,l)=>s+(l.admission?.reservedAmount??0),0);
+  report.accounting={total,available,confirmed,held,calls:logs.length,fixtureRequests:(await requests()).length,source:'complete PostgreSQL subject ledger',workspaceSnapshotCalls:final.callLogs.length};
   check(Math.abs(total-available-confirmed-held)<1e-7,'original funds equal remaining balance, confirmed usage and unknown holds');
-  report.accounting={total,available,confirmed,held,calls:logs.length,fixtureRequests:(await requests()).length};
   const health=await fetch(gw+'/health').then(r=>r.json());report.outbox=health.outbox;check(health.outbox.queued===0&&health.outbox.blocked===0&&health.outbox.writePending===0,'gateway durable outbox is drained');
   report.success=true;
 }catch(error){report.error={phase,message:secrets.reduce((s,key)=>s.replaceAll(key,'[redacted]'),error.message)};console.error(report.error);process.exitCode=1;}
 finally{
-  for(const child of children.toReversed())await stop(child);await hg?.close();
+  for(const child of children.toReversed())await stop(child);await databaseProxy?.close();
+  if(hg&&!report.success){report.diagnostics={};for(const [label,args] of Object.entries({model:['logs','--tail','25',hg.name+'-model'],gateway:['exec',hg.name+'-gateway','tail','-c','5000','/var/log/higress/gateway.log']})){const result=await hg.run(args,{allowFailure:true});report.diagnostics[label]=secrets.reduce((text,key)=>text.replaceAll(key,'[redacted]'),result.out+result.err);}}
+  await hg?.close();
   if(db){if(/^agp_hg_[a-f0-9]{32}$/.test(schema))await db.query(`drop schema "${schema}" cascade`);await db.end();}
   report.completedAt=new Date().toISOString();await mkdir(resolve(root,'.runtime/higress-provider-results'),{recursive:true});await writeFile(output,JSON.stringify(report,null,2)+'\n');
   if(report.success){assert.equal(await realpath(directory),resolve(await realpath(resolve(root,'.runtime')),`higress-provider-${id}`));await rm(directory,{recursive:true,force:true});}

@@ -1,0 +1,42 @@
+{
+  "success": false,
+  "originalReport": "046ab80d-3d00-4161-9c26-0c6a11ec0a73",
+  "error": {
+    "phase": "stability and fault recovery",
+    "message": "original funds equal remaining balance, confirmed usage and unknown holds"
+  },
+  "soak": {
+    "durationSeconds": 180,
+    "durationMs": 181141,
+    "users": 4,
+    "concurrency": 8,
+    "requests": 1070,
+    "successful": 1070,
+    "errors": {},
+    "adminReads": 45,
+    "modelRequests": 1070,
+    "ledgerEntries": 1070,
+    "unfinished": 0,
+    "activeScopes": 0,
+    "chargedMicros": 141240,
+    "expectedMicros": 141240,
+    "latencyMs": {
+      "p50": 1220,
+      "p95": 2488,
+      "max": 4202
+    },
+    "outbox": {
+      "queued": 0,
+      "blocked": 0,
+      "active": 0,
+      "oldestQueuedAgeMs": 0,
+      "oldestBlockedAgeMs": 0,
+      "retryAttempts": 0,
+      "authorizing": 0,
+      "authorizationPending": 0,
+      "authorizationBlocked": 0,
+      "writePending": 0
+    }
+  },
+  "diagnosis": "The final subject conservation check used a workspace snapshot limited to the latest 200 calls. Replaced with complete PostgreSQL subject ledger queries and reran the complete suite."
+}

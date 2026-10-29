@@ -1,0 +1,12 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {createRequire} from 'node:module';
+const {inspectRuntime}=createRequire(import.meta.url)('./runtime-readiness.cjs'),name='atlas-'+'a'.repeat(32),cluster='outbound|4010||'+name+'.dns';
+const route={configs:[{route_config:{virtual_hosts:[{routes:[{name,match:{path:`/atlas/${name}/v1/chat/completions`},route:{cluster}}]}]}}]};
+const host={address:{socket_address:{address:'127.0.0.1',port_value:4010}},health_status:{eds_health_status:'HEALTHY'}};
+const inspect=(routes,clusters,connect=async()=>true)=>inspectRuntime(name,{fetchAdmin:async path=>path.startsWith('/config')?routes:clusters,connect});
+test('a probe route alone cannot declare the main route ready',async()=>{assert.equal((await inspect({configs:[]},{cluster_statuses:[]})).code,'route_missing');});
+test('the route must reference an actually observed cluster',async()=>{assert.equal((await inspect(route,{cluster_statuses:[]})).code,'cluster_missing');});
+test('missing or unhealthy endpoints remain unavailable',async()=>{for(const hosts of [[],[{...host,health_status:{eds_health_status:'UNHEALTHY'}}]])assert.equal((await inspect(route,{cluster_statuses:[{name:cluster,host_statuses:hosts}]})).code,'endpoints_missing');});
+test('a published but disconnected backend remains unavailable without inference',async()=>{assert.equal((await inspect(route,{cluster_statuses:[{name:cluster,host_statuses:[host]}]},async()=>false)).code,'upstream_unreachable');});
+test('a connected endpoint confirms readiness without exposing endpoint data',async()=>{assert.deepEqual(await inspect(route,{cluster_statuses:[{name:cluster,host_statuses:[host]}]}),{ready:true,code:'ready'});});

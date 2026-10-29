@@ -1,0 +1,142 @@
+{
+  "before": {
+    "success": false,
+    "error": {
+      "phase": "stability and fault recovery",
+      "message": "new admissions use the replacement model and new price"
+    },
+    "routeChange": {
+      "status": 404,
+      "body": "{}",
+      "transportErrors": [
+        {
+          "method": "GET",
+          "path": "/atlas/atlas-d3f4708e57463d9bf84dab95ee332487/_ready",
+          "requestId": "d5211d2e-e5d1-49a8-bd59-a99db172caba"
+        },
+        {
+          "method": "GET",
+          "path": "/atlas/atlas-d3f4708e57463d9bf84dab95ee332487/_ready",
+          "requestId": "789a60b3-e3a9-40fa-8897-3c5d42273953"
+        },
+        {
+          "method": "GET",
+          "path": "/atlas/atlas-d3f4708e57463d9bf84dab95ee332487/_ready",
+          "requestId": "27d6fb81-c2b6-42f2-99f7-e4d25c720c24"
+        },
+        {
+          "method": "GET",
+          "path": "/atlas/atlas-d3f4708e57463d9bf84dab95ee332487/_ready",
+          "requestId": "7dc4bbc1-f7c7-4c9a-af97-c4b81a4b9e42"
+        },
+        {
+          "method": "GET",
+          "path": "/atlas/atlas-d3f4708e57463d9bf84dab95ee332487/_ready",
+          "requestId": "32b91f42-3143-4285-8d79-f6b82d807d59"
+        },
+        {
+          "method": "GET",
+          "path": "/atlas/atlas-d3f4708e57463d9bf84dab95ee332487/_ready",
+          "requestId": "81c1a9b6-0e36-4e4f-9903-25d51954eb54"
+        },
+        {
+          "method": "GET",
+          "path": "/atlas/atlas-67ee94d37106705c9cff653e41a1c652/_ready",
+          "requestId": "732ce049-5c1e-4c23-9c10-3d49d204e429"
+        },
+        {
+          "method": "GET",
+          "path": "/atlas/atlas-67ee94d37106705c9cff653e41a1c652/_ready",
+          "requestId": "1510f9c8-9240-4a2e-9454-2fb72a70be9f"
+        },
+        {
+          "method": "GET",
+          "path": "/atlas/atlas-9d39d4ff049a7b6826510ecb04e521da/_ready",
+          "requestId": "e783f454-b4b4-4d2d-8b5a-adf3d8f5b0a0"
+        },
+        {
+          "method": "POST",
+          "path": "/atlas/atlas-9d39d4ff049a7b6826510ecb04e521da/v1/chat/completions",
+          "requestId": "03132c89-65f2-4489-bce8-7b06c1ba4441"
+        }
+      ],
+      "old": {
+        "amount": 0.000132,
+        "route": {
+          "serviceId": "service-local-test",
+          "poolId": "pool-local-test",
+          "definitionId": "definition-test-model",
+          "upstreamModel": "physical-model"
+        },
+        "price": {
+          "unit": "per_million_tokens",
+          "version": "7d70f49b9a793ccc2c50ab62",
+          "currency": "CNY",
+          "inputPrice": 2,
+          "outputPrice": 8,
+          "cachedInputPrice": 0.5
+        }
+      },
+      "current": {
+        "amount": 0,
+        "route": {
+          "serviceId": "service-local-test",
+          "poolId": "pool-local-test",
+          "definitionId": "definition-test-model",
+          "upstreamModel": "physical-model-v2"
+        },
+        "price": {
+          "unit": "per_million_tokens",
+          "version": "7df25f8c1942f33300eca0f5",
+          "currency": "CNY",
+          "inputPrice": 3,
+          "outputPrice": 9,
+          "cachedInputPrice": 1
+        },
+        "state": "not_billable",
+        "errorCode": "upstream_http_404"
+      }
+    }
+  },
+  "after": {
+    "status": 200,
+    "body": "{\"id\":\"fixture\",\"object\":\"chat.completion\",\"model\":\"test-model\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"POC_OK\",\"reasoning_content\":\"local fixture\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":13,\"completion_tokens\":14,\"total_tokens\":27,\"prompt_tokens_details\":{\"cached_tokens\":4}}}",
+    "transportErrors": [],
+    "old": {
+      "amount": 0.000132,
+      "route": {
+        "serviceId": "service-local-test",
+        "poolId": "pool-local-test",
+        "definitionId": "definition-test-model",
+        "upstreamModel": "physical-model"
+      },
+      "price": {
+        "unit": "per_million_tokens",
+        "version": "7d70f49b9a793ccc2c50ab62",
+        "currency": "CNY",
+        "inputPrice": 2,
+        "outputPrice": 8,
+        "cachedInputPrice": 0.5
+      }
+    },
+    "current": {
+      "amount": 0.000157,
+      "route": {
+        "serviceId": "service-local-test",
+        "poolId": "pool-local-test",
+        "definitionId": "definition-test-model",
+        "upstreamModel": "physical-model-v2"
+      },
+      "price": {
+        "unit": "per_million_tokens",
+        "version": "7df25f8c1942f33300eca0f5",
+        "currency": "CNY",
+        "inputPrice": 3,
+        "outputPrice": 9,
+        "cachedInputPrice": 1
+      },
+      "state": "confirmed",
+      "errorCode": null
+    }
+  }
+}

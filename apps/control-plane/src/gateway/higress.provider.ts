@@ -60,7 +60,10 @@ export class HigressProvider implements GatewayProvider {
     }catch(error){errorCode=error instanceof Error&&/^[a-z_0-9]+$/.test(error.message)?error.message:'runtime_not_confirmed';}
     return this.repository.change(input.resourceId,state=>{
       const op=state.operations[operationKey];
-      if(op?.response.operationId!==claim.response.operationId)return this.rejected(input,'operation_superseded');
+      if(op?.response.operationId!==claim.response.operationId)return {...this.rejected(input,'operation_superseded'),operationId:claim.response.operationId};
+      if(op.response.status!=='pending'||op.leaseUntil<Date.now()||state.latest?.operationId!==op.response.operationId){
+        this.expire(state);if(op.response.status==='pending'){op.response.status='rejected';op.response.errorCode='operation_superseded';}return op.response;
+      }
       op.response.status=errorCode?'rejected':'applied';op.response.errorCode=errorCode;
       if(!errorCode){state.active={binding:bound,version:input.desiredVersion,name};op.response.appliedVersion=input.desiredVersion;}
       state.latest=op.response;return op.response;
@@ -80,14 +83,29 @@ export class HigressProvider implements GatewayProvider {
   private async upsert(resource:Resource){
     const collection=`/apis/${resource.apiVersion}/namespaces/${resource.metadata.namespace}/${plurals[resource.kind]}`;
     const path=`${collection}/${resource.metadata.name}`;
-    if(resource.kind==='McpBridge'){
+    if(resource.kind==='WasmPlugin'&&resource.metadata.name==='atlas-ai-proxy'){
+      const rule=(resource.spec.matchRules as {ingress:string[]}[])[0];
       for(let attempt=0;attempt<4;attempt++){
-        const prior=await this.request(path),registry=(resource.spec.registries as {name:string}[])[0];
+        const prior=await this.request(path);
+        if(!prior){try{await this.request(collection,'POST',resource);return;}catch(error){if(error instanceof Error&&error.message==='management_request_409')continue;throw error;}}
+        if(prior.metadata?.labels?.['app.kubernetes.io/managed-by']!=='atlas'||prior.spec?.url!==resource.spec.url||prior.spec?.priority!==resource.spec.priority)throw new Error('shared_plugin_ownership_conflict');
+        const rules=(prior.spec.matchRules??[]) as {ingress:string[]}[],existing=rules.find(r=>r.ingress?.includes(rule.ingress[0]));
+        if(existing){if(!containsConfiguration(existing,rule))throw new Error('immutable_plugin_rule_conflict');return;}
+        try{await this.request(path,'PUT',{...prior,spec:{...prior.spec,matchRules:[...rules,rule]}});return;}catch(error){if(!(error instanceof Error)||error.message!=='management_request_409'||attempt===3)throw error;}
+      }
+      throw new Error('shared_plugin_update_conflict');
+    }
+    if(resource.kind==='McpBridge'){
+      const upsertRegistry=async(registry:{name:string})=>{
+      for(let attempt=0;attempt<4;attempt++){
+        const prior=await this.request(path);
         const registries=(prior?.spec?.registries??[]) as {name:string}[],existing=registries.find(item=>item.name===registry.name);
         if(existing){if(!containsConfiguration(existing,registry))throw new Error('immutable_registry_conflict');return;}
         try{await this.request(prior?path:collection,prior?'PUT':'POST',prior?{...prior,spec:{...prior.spec,registries:[...registries,registry]}}:resource);return;}
         catch(error){if(!(error instanceof Error)||error.message!=='management_request_409'||attempt===3)throw error;}
       }
+      };
+      for(const registry of resource.spec.registries as {name:string}[])await upsertRegistry(registry);return;
     }
     const prior=await this.request(path);
     // The bundled API uses protobuf JSON and omits zero-valued enum defaults.
@@ -98,17 +116,28 @@ export class HigressProvider implements GatewayProvider {
   private async observe(name:string){
     const address=process.env.HIGRESS_PROXY_URL!.replace(/\/$/,'')+`/atlas/${name}/_ready`;
     const deadline=Date.now()+20000;
+    let errorCode='runtime_not_confirmed';
     do{
-      try{const response=await fetch(address,{headers:{authorization:`Bearer ${process.env.UPSTREAM_HIGRESS_INTERNAL}`},redirect:'error',signal:AbortSignal.timeout(1200)});if(response.ok&&response.headers.get('x-atlas-config-version')===name&&(await response.text())===name)return;await response.body?.cancel();}catch{}
+      try{const response=await fetch(address,{headers:{'x-atlas-hop-token':`Bearer ${process.env.UPSTREAM_HIGRESS_INTERNAL}`},redirect:'error',signal:AbortSignal.timeout(1200)});if(response.ok&&response.headers.get('x-atlas-config-version')===name&&(await response.text())===name){
+        if(process.env.HIGRESS_REQUIRE_RUNTIME_READY!=='true')return;
+        const runtime=await this.request('/runtime/ready/'+name);if(runtime?.ready===true)return;errorCode='upstream_not_ready';
+      }else await response.body?.cancel();}catch{}
       await new Promise(resolve=>setTimeout(resolve,200));
     }while(Date.now()<deadline);
-    throw new Error('runtime_not_confirmed');
+    throw new Error(errorCode);
   }
-  async transport(route:RouteSnapshot):Promise<NonNullable<RouteSnapshot['transport']>>{
+  async transport(route:RouteSnapshot,verifyRuntime=false):Promise<NonNullable<RouteSnapshot['transport']>>{
     try{
       if(!this.configured())return {kind:'unavailable'};
       const bound=binding(route,this.credential(route)),id=resourceId(route);
       let active=await this.repository.active(id);
+      if(active?.binding===bound&&verifyRuntime){
+        try{await this.observe(active.name);}catch{
+          await this.publishRoute({provider:'higress',resourceType:'model_route',resourceId:id,desiredVersion:active.version,idempotencyKey:`recover-${randomUUID()}`,spec:{serviceId:route.serviceId,definitionId:route.definitionId}});
+          active=await this.repository.active(id);
+          try{if(active)await this.observe(active.name);else return {kind:'unavailable'};}catch{return {kind:'unavailable'};}
+        }
+      }
       if(active?.binding!==bound){
         await this.publishRoute({provider:'higress',resourceType:'model_route',resourceId:id,desiredVersion:bound,idempotencyKey:`auto-${bound}-${Math.floor(Date.now()/60000)}`,spec:{serviceId:route.serviceId,definitionId:route.definitionId}});
         active=await this.repository.active(id);
@@ -122,7 +151,7 @@ export class HigressProvider implements GatewayProvider {
     if(!this.enabled)return {enabled:false,routes:[]};
     const state=await this.workspace.readGatewayConfiguration(),routes=[];
     for(const service of state.services.filter(s=>s.active))for(const mapping of service.mappings){
-      const transport=await this.transport({serviceId:service.id,definitionId:mapping.definitionId,poolId:'',baseUrl:service.baseUrl,credentialRef:service.credentialRef,upstreamModel:mapping.upstreamModel,maxOutputTokens:1});
+      const transport=await this.transport({serviceId:service.id,definitionId:mapping.definitionId,poolId:'',baseUrl:service.baseUrl,credentialRef:service.credentialRef,upstreamModel:mapping.upstreamModel,maxOutputTokens:1},true);
       routes.push({resourceId:resourceId({serviceId:service.id,definitionId:mapping.definitionId}),status:transport.kind==='higress'?'applied':'unavailable'});
     }
     return {enabled:true,routes};

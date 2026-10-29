@@ -1,12 +1,15 @@
 // Development only: authenticate access to the all-in-one's loopback Kubernetes API.
 // The relay shares Higress's network namespace; it never executes container commands.
 const http=require('node:http'),https=require('node:https'),{timingSafeEqual}=require('node:crypto');
+const {inspectRuntime}=require('./runtime-readiness.cjs');
 const expected=Buffer.from('Bearer '+process.env.API_TOKEN);
 http.createServer((req,res)=>{
   const actual=Buffer.from(req.headers.authorization||'');
   if(actual.length!==expected.length||!timingSafeEqual(actual,expected)){res.writeHead(401);res.end('{}');return;}
   if(req.url==='/health'){res.end('{}');return;}
-  if(!['GET','POST','PUT'].includes(req.method)||!/^\/apis\/(networking\.k8s\.io\/v1|networking\.higress\.io\/v1|extensions\.higress\.io\/v1alpha1)\/namespaces\/higress-system\/(ingresses|mcpbridges|wasmplugins)(\/(atlas-[a-z0-9-]+|default))?$/.test(req.url)||(req.method==='PUT'&&!req.url.endsWith('/mcpbridges/default'))){res.writeHead(403);res.end('{}');return;}
+  const readiness=/^\/runtime\/ready\/(atlas-[a-f0-9]{32})$/.exec(req.url);
+  if(req.method==='GET'&&readiness){void inspectRuntime(readiness[1]).then(value=>{res.writeHead(200,{'content-type':'application/json'});res.end(JSON.stringify(value));});return;}
+  if(!['GET','POST','PUT'].includes(req.method)||!/^\/apis\/(networking\.k8s\.io\/v1|networking\.higress\.io\/v1|extensions\.higress\.io\/v1alpha1)\/namespaces\/higress-system\/(ingresses|mcpbridges|wasmplugins)(\/(atlas-[a-z0-9-]+|default))?$/.test(req.url)||(req.method==='PUT'&&!req.url.endsWith('/mcpbridges/default')&&!req.url.endsWith('/wasmplugins/atlas-ai-proxy'))){res.writeHead(403);res.end('{}');return;}
   // TLS exception is confined to the bundled self-signed API on the same loopback.
   const upstream=https.request({hostname:'127.0.0.1',port:18443,path:req.url,method:req.method,rejectUnauthorized:false,headers:{'content-type':'application/json'}},response=>{res.writeHead(response.statusCode,{'content-type':'application/json'});response.pipe(res);});
   upstream.setTimeout(4500,()=>upstream.destroy());upstream.on('error',()=>{if(!res.headersSent)res.writeHead(503);res.end('{}');});

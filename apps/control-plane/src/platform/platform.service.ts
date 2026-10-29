@@ -310,7 +310,7 @@ export class PlatformService {
             const transport=this.higress?.enabled?await this.higress.transport({serviceId:service.id,definitionId:mapping.definitionId,poolId:'',baseUrl:service.baseUrl,credentialRef:service.credentialRef,upstreamModel:mapping.upstreamModel,maxOutputTokens:1}):null;
             if(transport?.kind==='unavailable')throw new Error('Higress route is not applied');
             const hop=transport?.kind==='higress'?transport:null,dispatchCredential=hop?process.env.UPSTREAM_HIGRESS_INTERNAL:credential;
-            const response=await fetchVerifiedUpstream(chatCompletionsUrl(hop?.baseUrl??service.baseUrl),{method:'POST',redirect:'error',signal:AbortSignal.timeout(verificationTimeoutMs()),headers:{'content-type':'application/json',...(dispatchCredential?{authorization:`Bearer ${dispatchCredential}`}:{})},body:JSON.stringify({model:hop?.model??mapping.upstreamModel,messages:[{role:'user',content:'Connection validation'}],max_tokens:1})});
+            const response=await fetchVerifiedUpstream(chatCompletionsUrl(hop?.baseUrl??service.baseUrl),{method:'POST',redirect:'error',signal:AbortSignal.timeout(verificationTimeoutMs()),headers:{'content-type':'application/json',...(dispatchCredential?{[hop?'x-atlas-hop-token':'authorization']:`Bearer ${dispatchCredential}`}:{})},body:JSON.stringify({model:hop?.model??mapping.upstreamModel,messages:[{role:'user',content:'Connection validation'}],max_tokens:1})});
             const upstreamRequestId=readUpstreamRequestId(response.headers);
             const raw=await response.text();
             if(!response.ok){

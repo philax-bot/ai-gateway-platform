@@ -1,0 +1,89 @@
+{
+  "success": true,
+  "checkedAt": "2026-10-29T11:40:41.402Z",
+  "baselineCommit": "8774816",
+  "baselineIndependentBuild": {
+    "packages": 3,
+    "unitTests": 137
+  },
+  "finalIndependentBuild": {
+    "packages": 3,
+    "unitTests": 140
+  },
+  "workspaceControlPlaneTests": 175,
+  "gatewayTests": 41,
+  "runtimeReadinessTests": 5,
+  "stabilityAssertions": 75,
+  "soak": {
+    "durationSeconds": 180,
+    "durationMs": 181305,
+    "users": 4,
+    "concurrency": 8,
+    "requests": 1081,
+    "successful": 1081,
+    "errors": {},
+    "adminReads": 46,
+    "modelRequests": 1081,
+    "ledgerEntries": 1081,
+    "unfinished": 0,
+    "activeScopes": 0,
+    "chargedMicros": 142692,
+    "expectedMicros": 142692,
+    "latencyMs": {
+      "p50": 1230,
+      "p95": 2424,
+      "max": 3925
+    },
+    "outbox": {
+      "queued": 0,
+      "blocked": 0,
+      "active": 0,
+      "oldestQueuedAgeMs": 0,
+      "oldestBlockedAgeMs": 0,
+      "retryAttempts": 0,
+      "authorizing": 0,
+      "authorizationPending": 0,
+      "authorizationBlocked": 0,
+      "writePending": 0
+    }
+  },
+  "longStream": {
+    "durationMs": 35269,
+    "model": "deterministic local HTTP fixture",
+    "inference": false
+  },
+  "faultsCovered": [
+    "cold upstream",
+    "route and price switch during a stream",
+    "control-plane PostgreSQL TCP interruption",
+    "Higress restart during a stream",
+    "control-plane crash with durable pending configuration",
+    "expired publisher fencing"
+  ],
+  "realModelRequestsThisRound": 0,
+  "previousLiveBudget": {
+    "authorization": "2026-10-29: 20 requests / CNY 1",
+    "price": {
+      "inputPrice": 2,
+      "outputPrice": 8,
+      "cachedInputPrice": 0.04
+    },
+    "maxRequests": 20,
+    "maxEstimatedAmount": 1,
+    "attempts": 10,
+    "estimatedUpperBound": 0.078772,
+    "updatedAt": "2026-10-29T08:44:04.450Z"
+  },
+  "sourceHashes": {
+    "apps/control-plane/src/gateway/higress.provider.ts": "0ad3a7da529a75c3413bcc3f4fe0f021050e933f47cea4b2133dc385531de041",
+    "apps/control-plane/src/gateway/higress.resources.ts": "b770c3f4fdef4a8bc9c24cbc4376609dec8ea5ce0208a5416a7c538ff5c9cf2c",
+    "apps/control-plane/src/platform/platform.service.ts": "4edf17eddafcab9d4563e09cb1261d0045adf99821975702c1bb42755a8dad43",
+    "services/gateway-sim/src/server.ts": "588bd16d19aef3106d8f2618f76f6ed59cfed8e7f74d9dc4dd741f54c6f471ce",
+    "scripts/lib/higress-runtime.mjs": "1fa91b4bb2035a84f90fb08648acbf0a1480d05bac6e3569cc7a1334b23f90c1",
+    "scripts/higress/management-relay.cjs": "97ef1a1a4ffe60019477cbd11093b0074d75cb0f74d3f238b7efac10b91df9fa",
+    "scripts/higress/runtime-readiness.cjs": "b60e483127060c0e6d650991d92839b518e972ddcf4884f784ba5e7a4095608f",
+    "scripts/higress/model-fixture.cjs": "93a730ed6c1bdf940ff33a8e49373f57703c50315cf8cd0d7cba4475df119fd9",
+    "scripts/higress/stability-checks.mjs": "f82a468b1a0dc3a8ab9f5cd63d717c1f94f3ad852c92f6b6913562368a916095",
+    "scripts/check-higress-provider.mjs": "74c5d71811e59f6373c8393e6fbde5e4934f89c2d0f3386acae5a88c3abcad97"
+  }
+}

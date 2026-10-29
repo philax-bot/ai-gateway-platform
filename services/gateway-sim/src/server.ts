@@ -196,7 +196,7 @@ async function handleCompletions(request: IncomingMessage, response: ServerRespo
     await journal.dispatched(requestId);dispatched=true;
     deadline=new UpstreamDeadline(controller,timeouts);
     upstream=await dispatchUpstream(chatCompletionsUrl(dispatchTarget.toString()), { method:'POST',redirect:'error', signal:controller.signal,
-      headers:{'content-type':'application/json','x-request-id':requestId,...(upstreamCredential?{authorization:`Bearer ${upstreamCredential}`}:{})},body:JSON.stringify(adaptUpstreamChatRequest(target,forwarded)) });
+      headers:{'content-type':'application/json','x-request-id':requestId,...(upstreamCredential?{[transport?'x-atlas-hop-token':'authorization']:`Bearer ${upstreamCredential}`}:{})},body:JSON.stringify(adaptUpstreamChatRequest(target,forwarded)) });
     upstreamStatus=upstream.status;
     upstreamRequestId=readUpstreamRequestId(upstream.headers);
     if(!upstream.ok) { raw=await boundedText(upstream,()=>deadline!.receivedBytes()); outcome='upstream_error';usageFinal=extractUpstreamUsage(raw)!==null||!configured||upstream.status<500; }
