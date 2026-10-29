@@ -1,6 +1,6 @@
 # Higress 正式 Provider 与本地默认数据面
 
-后续真实 Pi 编程任务、完整长流及剩余自动验收边界见 [Pi / DeepSeek 实际任务记录](higress-pi-deepseek-2026-10-29.md)。
+后续真实 Pi 编程任务、完整长流及取消后关联重试的最终验收见 [Pi / DeepSeek 实际任务记录](higress-pi-deepseek-2026-10-29.md)。
 
 本轮实现将 Higress 接到现有准入代理之后。控制面继续决定身份、用途、额度、并发和价格；原持久日记及 PostgreSQL 账本继续负责结算。第一阶段的 [隔离 PoC](higress-poc-2026-10-29.md) 保留为历史证据。
 

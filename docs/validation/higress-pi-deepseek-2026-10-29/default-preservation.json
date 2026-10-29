@@ -1,0 +1,38 @@
+{
+  "success": true,
+  "checkedAt": "2026-10-29T12:54:49.695Z",
+  "workspaceId": "20bea9e2-970a-4e7d-98eb-12ca16e81692",
+  "businessConfigurationHash": "a3a887c79e7c3f029cdd3a9434221bbc2d8582d1e4792db8b3d2c774ead1b3fa",
+  "fundsHash": "5626134a433f2ff7c8932f9aca6a874ef157ca45fa9b3732a3b3eb580bff118a",
+  "fundedBatches": 8,
+  "health": [
+    200,
+    {
+      "status": "ok",
+      "dataPlane": "higress",
+      "outbox": {
+        "queued": 0,
+        "blocked": 0,
+        "active": 0,
+        "oldestQueuedAgeMs": 0,
+        "oldestBlockedAgeMs": 0,
+        "retryAttempts": 0,
+        "authorizing": 0,
+        "authorizationPending": 0,
+        "authorizationBlocked": 0,
+        "writePending": 0
+      }
+    },
+    {
+      "status": "ok",
+      "database": "up",
+      "cache": "disabled",
+      "maintenance": {
+        "lastRunAt": "2026-10-29T12:54:31.674Z",
+        "lastSuccessAt": "2026-10-29T12:54:32.177Z",
+        "error": null,
+        "running": false
+      }
+    }
+  ]
+}

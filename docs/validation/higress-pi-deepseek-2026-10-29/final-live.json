@@ -1,0 +1,335 @@
+{
+  "success": true,
+  "createdAt": "2026-10-29T12:53:25.625Z",
+  "scope": {
+    "database": "isolated PostgreSQL schema",
+    "provider": "formal HigressProvider",
+    "model": "DeepSeek official; reused existing configuration",
+    "defaultWorkspaceTouched": false
+  },
+  "checks": [
+    "zero-generation readiness confirms the actual Higress route before reserving a real request",
+    "reused Pi coding artifact still passes independent execution",
+    "retained actual Pi evidence confirms a complete real stream longer than 30 seconds",
+    "retained Higress access log confirms the actual completed long request",
+    "real cancellation request opens through Higress",
+    "cancellation happens after actual model output begins",
+    "cancelled unknown usage retains its original hold for review",
+    "explicit post-cancellation request succeeds and settles independently",
+    "new generation does not release or overwrite the earlier unknown-usage hold",
+    "every Pi and cancellation request is observed in actual Higress access logs",
+    "original Pi models/settings and CC Switch database remain unchanged",
+    "real PostgreSQL funds reconcile with confirmed costs and cancellation holds",
+    "each final usage has exactly one settlement and unknown cancellation has none",
+    "persisted real usage reconciles exactly with the original configured price",
+    "real configuration operation records contain no plaintext credentials",
+    "real settlement outbox is drained"
+  ],
+  "calls": [
+    {
+      "requestId": "higress-pi-1be1179b-c1e7-42c0-9064-50dbdb3f63ab",
+      "upstreamRequestId": null,
+      "retryOfRequestId": "higress-pi-a811f743-67cd-4ddd-a280-ba78c6138ae3",
+      "outcome": "completed",
+      "forwarded": true,
+      "usageFinal": true,
+      "billableState": "confirmed",
+      "inputTokens": 16,
+      "outputTokens": 8,
+      "cachedInputTokens": 0,
+      "amount": 0.000096,
+      "latencyMs": 0,
+      "ttftMs": 1395,
+      "admission": {
+        "kind": "configured",
+        "price": {
+          "unit": "per_million_tokens",
+          "version": "b4cec710f89784548b95423d",
+          "currency": "CNY",
+          "inputPrice": 2,
+          "outputPrice": 8,
+          "cachedInputPrice": 0.04
+        },
+        "reservedAmount": 0.001182,
+        "route": {
+          "serviceId": "service-7deb0748-af17-4ac4-8a2c-e9bf6f2d44ff",
+          "poolId": "pool-dfc5a438-5894-40e2-88e4-9c44fac32080",
+          "definitionId": "model-a9a85339-b8be-4fe9-9d25-f9e41ae87567",
+          "upstreamModel": "deepseek-flash"
+        }
+      }
+    },
+    {
+      "requestId": "higress-pi-a811f743-67cd-4ddd-a280-ba78c6138ae3",
+      "upstreamRequestId": null,
+      "retryOfRequestId": null,
+      "outcome": "client_cancelled",
+      "forwarded": true,
+      "usageFinal": false,
+      "billableState": "pending_review",
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "cachedInputTokens": 0,
+      "amount": 0,
+      "latencyMs": 0,
+      "ttftMs": 1391,
+      "admission": {
+        "kind": "configured",
+        "price": {
+          "unit": "per_million_tokens",
+          "version": "b4cec710f89784548b95423d",
+          "currency": "CNY",
+          "inputPrice": 2,
+          "outputPrice": 8,
+          "cachedInputPrice": 0.04
+        },
+        "reservedAmount": 0.008452,
+        "route": {
+          "serviceId": "service-7deb0748-af17-4ac4-8a2c-e9bf6f2d44ff",
+          "poolId": "pool-dfc5a438-5894-40e2-88e4-9c44fac32080",
+          "definitionId": "model-a9a85339-b8be-4fe9-9d25-f9e41ae87567",
+          "upstreamModel": "deepseek-flash"
+        }
+      }
+    }
+  ],
+  "authorizationExtension": {
+    "authorizedBy": "explicit user reply: allow 22 total requests, total CNY 1",
+    "previousAuthorization": "2026-10-29: 20 requests / CNY 1",
+    "previousMaxRequests": 20,
+    "attemptsAtApproval": 20,
+    "estimatedUpperBoundAtApproval": 0.37026800000000004,
+    "additionalRequests": 2,
+    "additionalEstimatedAmount": 0.02
+  },
+  "budgetAtStart": {
+    "maxRequests": 22,
+    "maxEstimatedAmount": 1,
+    "attempts": 20,
+    "estimatedUpperBound": 0.37026800000000004
+  },
+  "priceSnapshot": {
+    "inputPrice": 2,
+    "outputPrice": 8,
+    "cachedInputPrice": 0.04
+  },
+  "reusedEvidence": {
+    "file": "D:\\Workspace\\pri\\ai-gateway-platform\\.runtime\\higress-live-results\\053b3c0d-f026-439d-82cb-24ba5b0dbda9.json",
+    "sha256": "0331776666d9479a14fe68cae7cb94157be0e172f4212ff9b588eaf5f64930bf",
+    "scope": "previous actual Pi coding and connection verification; copied existing verified service configuration into this isolated schema"
+  },
+  "reusedLongEvidence": {
+    "file": "D:\\Workspace\\pri\\ai-gateway-platform\\.runtime\\higress-live-results\\f8d338f0-6c98-4f92-bec0-b4b3426cc657.json",
+    "sha256": "6bb2408a9720bbc4f3455e51e08a84d86a7882435376779837d41c0605e8df14",
+    "scope": "completed long stream; original scenario-mention counting assertion is retained as failed"
+  },
+  "runtimePreparation": {
+    "enabled": true,
+    "routes": [
+      {
+        "resourceId": "route-769a0a4c44f946ecc1fdbba02371b8f1",
+        "status": "unavailable"
+      },
+      {
+        "resourceId": "route-0606046ca1d009e2b8a29741cf9804dc",
+        "status": "applied"
+      }
+    ]
+  },
+  "verificationReused": true,
+  "verification": [
+    {
+      "outcome": "passed",
+      "httpStatus": 200,
+      "errorCode": null,
+      "usage": {
+        "complete": true,
+        "inputTokens": 32,
+        "outputTokens": 1,
+        "cachedInputTokens": 0
+      },
+      "cost": {
+        "price": {
+          "unit": "per_million_tokens",
+          "version": "7d991236dfb63612acf74670",
+          "currency": "CNY",
+          "inputPrice": 2,
+          "outputPrice": 8,
+          "cachedInputPrice": 0.04
+        },
+        "state": "priced",
+        "amount": 0.000072
+      }
+    }
+  ],
+  "pi": {
+    "version": "1.4.0",
+    "coding": {
+      "exitCode": 0,
+      "durationMs": 13023,
+      "toolNames": [
+        "read",
+        "read",
+        "powershell",
+        "write",
+        "write",
+        "powershell"
+      ],
+      "toolErrors": 0,
+      "modelTurns": 4,
+      "automaticRetry": false,
+      "answerHash": "0ddfe3687ebf02c4457b59afc0fd69b9a42b52012e58990e27449282156db26b",
+      "answerCharacters": 18,
+      "stopReason": "stop"
+    },
+    "independentTests": {
+      "passed": true,
+      "testCount": 10,
+      "contractCases": 13
+    },
+    "artifactDirectory": "D:\\Workspace\\pri\\ai-gateway-platform\\.runtime\\higress-pi-artifacts\\7dd7c49d-29cd-415a-8bde-5306beb037e8",
+    "codingEvidenceReused": true,
+    "long": {
+      "exitCode": 0,
+      "durationMs": 33344,
+      "toolNames": [],
+      "toolErrors": 0,
+      "modelTurns": 1,
+      "automaticRetry": false,
+      "answerHash": "79293e25c1664b6f1dcdb4ed9467491dac262b2056525cc6ac6e6cfe6640d658",
+      "answerCharacters": 24495,
+      "stopReason": "stop",
+      "finalMarkerMatched": true,
+      "scenarioMentions": 59,
+      "exactScenarioCountVerified": false,
+      "overThirtySeconds": true,
+      "reused": true,
+      "wire": {
+        "requestId": "higress-pi-fab3b38d-1fd6-49a0-81a8-0b257f4abe81",
+        "phase": "long",
+        "maxOutputTokens": 8192,
+        "thinking": "disabled",
+        "stream": true,
+        "startedAt": "2026-10-29T12:30:42.339Z",
+        "chunks": 1667,
+        "bytes": 1612138,
+        "httpStatus": 200,
+        "headersMs": 515,
+        "usage": {
+          "prompt_tokens": 792,
+          "completion_tokens": 5567,
+          "total_tokens": 6359,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 792
+        },
+        "finishReason": "stop",
+        "done": true,
+        "durationMs": 33315,
+        "generationSpanMs": 31863,
+        "firstDeltaMs": 1194,
+        "maxDeltaGapMs": 487
+      }
+    },
+    "cancellation": {
+      "requestId": "higress-pi-a811f743-67cd-4ddd-a280-ba78c6138ae3",
+      "billableState": "pending_review",
+      "usageFinal": false
+    },
+    "retry": {
+      "requestId": "higress-pi-1be1179b-c1e7-42c0-9064-50dbdb3f63ab",
+      "httpStatus": 200,
+      "contentHash": "963a60475ddbcb608ccf3bebc7419dba3414ee30cf452c6f14229d2bea55d662",
+      "markerMatched": true,
+      "done": true,
+      "finishReason": "stop",
+      "billableState": "confirmed",
+      "usageFinal": true,
+      "retryOfRequestId": "higress-pi-a811f743-67cd-4ddd-a280-ba78c6138ae3"
+    },
+    "explicitRetryRequestId": "higress-pi-1be1179b-c1e7-42c0-9064-50dbdb3f63ab",
+    "requests": [
+      {
+        "requestId": "higress-pi-a811f743-67cd-4ddd-a280-ba78c6138ae3",
+        "phase": "cancel",
+        "maxOutputTokens": 1024,
+        "thinking": "disabled",
+        "stream": true,
+        "startedAt": "2026-10-29T12:54:12.376Z",
+        "chunks": 2,
+        "bytes": 887,
+        "httpStatus": 200,
+        "headersMs": 577,
+        "transportError": "AbortError"
+      },
+      {
+        "requestId": "higress-pi-1be1179b-c1e7-42c0-9064-50dbdb3f63ab",
+        "phase": "retry",
+        "maxOutputTokens": 128,
+        "thinking": "disabled",
+        "stream": true,
+        "startedAt": "2026-10-29T12:54:14.742Z",
+        "chunks": 5,
+        "bytes": 3059,
+        "httpStatus": 200,
+        "headersMs": 707,
+        "usage": {
+          "prompt_tokens": 16,
+          "completion_tokens": 8,
+          "total_tokens": 24,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          },
+          "prompt_cache_hit_tokens": 0,
+          "prompt_cache_miss_tokens": 16
+        },
+        "finishReason": "stop",
+        "done": true,
+        "durationMs": 1729,
+        "generationSpanMs": 85,
+        "firstDeltaMs": 1397,
+        "maxDeltaGapMs": 75
+      }
+    ],
+    "originalConfigurationsUnchanged": true,
+    "aggregateBudget": {
+      "maxRequests": 22,
+      "maxEstimatedAmount": 1,
+      "attempts": 22,
+      "estimatedUpperBound": 0.3799020000000001
+    }
+  },
+  "budget": {
+    "maxRequests": 22,
+    "maxEstimatedAmount": 1,
+    "attempts": 22,
+    "estimatedUpperBound": 0.3799020000000001
+  },
+  "accounting": {
+    "originalAmount": 1,
+    "available": 0.991452,
+    "confirmed": 0.000096,
+    "held": 0.008452
+  },
+  "ledger": [
+    {
+      "request_id": "higress-pi-1be1179b-c1e7-42c0-9064-50dbdb3f63ab",
+      "entries": 1
+    }
+  ],
+  "outbox": {
+    "queued": 0,
+    "blocked": 0,
+    "active": 0,
+    "oldestQueuedAgeMs": 0,
+    "oldestBlockedAgeMs": 0,
+    "retryAttempts": 0,
+    "authorizing": 0,
+    "authorizationPending": 0,
+    "authorizationBlocked": 0,
+    "writePending": 0
+  },
+  "completedAt": "2026-10-29T12:54:41.327Z"
+}

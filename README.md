@@ -115,6 +115,6 @@ pnpm check:postgres
 - 模拟网关在授权 RPC 前持久化意图，并用 `admissionAttemptId` 识别第一笔授权的物理归属；授权响应丢失后只恢复授权结果，不重发模型请求。已知未转发且归属吻合才释放原预占；其他网关的归属不触发资金操作，缺少归属的旧记录阻塞供核查。转发前保存准入/分派事件，结算失败保留原事件并在重启后补发。每个实例必须配置独立、持久化的 `GATEWAY_JOURNAL_DIR`；目录写锁只保护本地单实例。已验证进程重启，未验证整机断电/存储损坏。检查/重试用 `scripts/outbox.mjs`，授权意图重试额外指定 `--attempt`；仅接受服务令牌，不能修改原事件或金额。
 - 监控只统计已识别身份、控制面已记录的请求；无流量/采集失败/样本不足不会自动宣称恢复。面板在途是有效预占数量，吞吐为五分钟窗口平均值，不能作为模型容量结论。
 - 新业务 API 已接入密码登录、固定职责与对象范围；新签发密钥仅保存 SHA-256 哈希，完整值只在签发响应出现一次。正式模式已禁用演示种子并拒绝默认服务令牌，开发默认配置仅用于本地/隔离回归；完整权限、部署和运维验收仍未完成。
-- `GatewayProvider` 保持业务对象与 Higress 对象隔离；正式 `HigressProvider` 已接入认证管理 API，配置状态与操作保存在 PostgreSQL。首次 PostgreSQL/DeepSeek 验收及后续 75 项恢复检查通过，180 秒本地替身负载 1081/1081 成功。日常 `pnpm dev` 默认使用 Higress，原准入、价格快照、持久日记和结算继续生效。见 [接入记录](docs/architecture/higress-provider-2026-10-29.md)、[恢复与负载证据](docs/architecture/higress-stability-2026-10-29.md)；[第一阶段 PoC](docs/architecture/higress-poc-2026-10-29.md) 保留为历史记录。
+- `GatewayProvider` 保持业务对象与 Higress 对象隔离；正式 `HigressProvider` 已接入认证管理 API，配置状态与操作保存在 PostgreSQL。首次 PostgreSQL/DeepSeek 验收及后续 75 项恢复检查通过，180 秒本地替身负载 1081/1081 成功。日常 `pnpm dev` 默认使用 Higress，原准入、价格快照、持久日记和结算继续生效。见 [接入记录](docs/architecture/higress-provider-2026-10-29.md)、[恢复与负载证据](docs/architecture/higress-stability-2026-10-29.md)；[第一阶段 PoC](docs/architecture/higress-poc-2026-10-29.md) 保留为历史记录。 实际 Pi 工具任务、31.863 秒完整长流及取消后关联重试见 [真实任务验收](docs/architecture/higress-pi-deepseek-2026-10-29.md)。
 
 验证层级见 [开发边界](docs/DEVELOPMENT-BOUNDARIES.md)，最新证据见 [2026-10-19 验证记录](docs/VALIDATION-ONBOARDING-2026-10-19.md)。本地/Mock/开发数据库结果不等于生产验收。
