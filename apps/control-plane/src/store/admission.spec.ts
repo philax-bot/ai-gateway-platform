@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { AuthorizeRequest, Entitlement, Plan, SettlementRequest } from '@ai-gateway/contracts';
 import { initialWorkspace } from '../platform/seed';
 import { DemoStore } from './demo.store';
-import { costForUsage } from './admission';
+import { costForUsage,UPSTREAM_MAX_OUTPUT_TOKENS } from './admission';
 import { WorkspaceRepository } from '../platform/workspace.repository';
 import { PlatformService } from '../platform/platform.service';
 
@@ -36,6 +36,17 @@ describe('trusted admission and immutable billing',()=>{
     const platform=new PlatformService(repository,store),input=request();
     const admitted=await store.authorize(input),quoted=await platform.quote(input.identity.subjectId,{purpose:'personal',model:'test-model',messages:[],max_tokens:200});
     expect(admitted.reasonCode).toBe('quota_insufficient');expect(quoted.reasonCode).toBe(admitted.reasonCode);expect(quoted).not.toHaveProperty('requestLimits');
+  });
+  it('defaults an omitted output limit to the upstream ceiling, still capped by policy and context',async()=>{
+    const {store,state,request}=configured();state.settings.limits={mode:'custom',maxOutputTokens:500000};
+    const context=state.definitions[0].contextTokens;
+    const wide=await store.authorize(request({maxOutputTokens:undefined,estimatedInputTokens:100}));
+    expect(wide.decision).toBe('allow');
+    expect(wide.admission!.route!.maxOutputTokens).toBe(Math.min(UPSTREAM_MAX_OUTPUT_TOKENS,context-100));
+    state.settings.limits={mode:'custom',maxOutputTokens:20000};
+    const capped=await store.authorize(request({maxOutputTokens:undefined,estimatedInputTokens:100}));
+    expect(capped.admission!.route!.maxOutputTokens).toBe(20000);
+    expect(capped.requestLimits).toBeUndefined();
   });
   it('explains the binding output limit without reserving funds and preserves it on replay',async()=>{
     const {store,state,batch,request}=configured();state.services[0].limits={mode:'custom',maxOutputTokens:128};

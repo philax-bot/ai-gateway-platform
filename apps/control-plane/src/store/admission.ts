@@ -5,6 +5,8 @@ import { businessDenial } from '../platform/domain';
 import type {AdmissionWorkspace} from './admission-policy-lock';
 
 export const LEGACY_RESERVATION_AMOUNT=0.02;
+/** DeepSeek rejects max_tokens above 393216 on both /chat/completions and /v1/responses (probed 2026-10-30); policy limits still cap it. */
+export const UPSTREAM_MAX_OUTPUT_TOKENS=393216;
 export const legacyAdmission=():AdmissionSnapshot=>({kind:'legacy_simulation',route:null,price:null,reservedAmount:LEGACY_RESERVATION_AMOUNT,estimatedTokens:0,scopes:[]});
 export function publicLogAdmission(admission:AdmissionSnapshot|null|undefined){
   if(!admission)return null;
@@ -95,7 +97,10 @@ export function admissionForBatch(state:AdmissionWorkspace|undefined,input:Autho
   if(service.sharedCapacityId)append(`shared:${service.sharedCapacityId}`,undefined);
   const estimatedInputTokens=input.estimatedInputTokens??0;
   const outputLimit=Math.min(...outputCaps,definition.contextTokens-estimatedInputTokens);
-  const maxOutputTokens=input.maxOutputTokens??Math.min(4096,outputLimit);
+  // Clients that omit an output limit (Codex never sends max_output_tokens) get the upstream model's
+  // own ceiling instead of a small gateway constant. DeepSeek currently rejects max_tokens above
+  // 393216 on both /chat/completions and /v1/responses, verified 2026-10-30; policy caps still apply.
+  const maxOutputTokens=input.maxOutputTokens??Math.min(UPSTREAM_MAX_OUTPUT_TOKENS,outputLimit);
   limitSources.push({source:'model_context',maxOutputTokens:Math.max(0,definition.contextTokens-estimatedInputTokens)});
   if(!Number.isSafeInteger(estimatedInputTokens)||estimatedInputTokens<0||!Number.isSafeInteger(maxOutputTokens)||maxOutputTokens<1||maxOutputTokens>outputLimit)return {reason:'request_limit_exceeded',requestLimits:{estimatedInputTokens,requestedOutputTokens:input.maxOutputTokens??null,allowedOutputTokens:Math.max(0,outputLimit),modelContextTokens:definition.contextTokens,limitSources}};
   const reservePrice={...price,inputPrice:Math.max(price.inputPrice,price.cachedInputPrice)};

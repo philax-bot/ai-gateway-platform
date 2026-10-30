@@ -78,3 +78,21 @@ Codex CLI 0.165.0（`~/.codex/config.toml`：`wire_api = "responses"`、`base_ur
 验证：`@ai-gateway/gateway-sim` 70/70 通过（新增一条断言：Codex 形态的 `namespace` + `web_search` 在原生检查下原样通过，且不会被 Chat 回退接受）；用真实凭据 + 伪造模型重放该请求，控制面返回 `model_not_open` 而不是 `unsupported_parameter`，证明校验已放行、请求已走到准入。
 
 **未验证**：DeepSeek 的 Responses 端点是否接受 `namespace` / `web_search` 这两种工具定义。若上游拒绝，下一步是在原生 Responses 转发前剥离供应商不支持的工具类型（需先取得上游真实返回作为依据），而不是继续放宽网关校验。另需注意：若上游执行了 `web_search`，下一轮输入的 `web_search_call` 条目目前也在拒绝列表内。
+
+### 单次输出上限被硬编码压到 4096
+
+放行工具后 Codex 能过准入，但写长文件时收到 `Incomplete response returned, reason: max_output_tokens`：网关请求记录里 `output=4096`，正好卡死。
+
+根因在 `apps/control-plane/src/store/admission.ts`：客户端未声明输出上限时取 `Math.min(4096, outputLimit)`。Codex 从不发送 `max_output_tokens`，于是每个请求都被这个常量压到 4096 —— 既不是 DeepSeek 的限制（企业设置里 `maxOutputTokens` 是 384000，被常量盖住），也不是客户端配置。
+
+用平台自己的 DeepSeek 凭据直接探测上游（不产生生成，仅校验参数）：
+
+```text
+POST https://api.deepseek.com/chat/completions  max_tokens=999999
+POST https://api.deepseek.com/v1/responses      max_output_tokens=999999
+→ Invalid max_tokens value, the valid range of max_tokens is [1, 393216]
+```
+
+两协议一致，`deepseek-flash` 当前上限 **393216**。因此把常量改为 `UPSTREAM_MAX_OUTPUT_TOKENS=393216`，仍受策略上限与模型上下文约束（当前工作区实际生效 384000）。新增 1 项准入测试断言“未声明时的默认值 = min(上游上限, 策略上限, 剩余上下文)”，控制面 185 项测试通过。
+
+**代价**：单次预留金额随之上升（393216 × ¥8/1M ≈ ¥3.15 上限，按真实用量结算）。工作区可用额度为 ¥19 量级、并发上限 5，暂时够用；若现场演示要压低资金占用，应调低企业设置 `maxOutputTokens`，而不是再动这个常量。新建工作区的种子企业限额仍是 4096，会把默认值压回 4096。
