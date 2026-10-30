@@ -71,6 +71,7 @@ export interface Distribution {
 export interface Session { tokenHash: string; memberId: string; createdAt: string; expiresAt: string }
 export interface WorkspaceSettings { name: string; timezone: 'Asia/Shanghai'; personalDefaultPoolId: string | null; projectDefaultPoolId: string | null; limits: UsageLimits; retentionDays: number; retentionAutomatic?:boolean }
 export interface WorkspaceState {
+  guardrail?: import('./guardrail.js').GuardrailPolicy;
   retention?:{lastRun:import('./retention.js').RetentionRun};
   monitoring?:import('./monitoring.js').MonitoringState;
   version: 1; tenantId: string; revision: number; organizations: Organization[]; members: Member[];

@@ -1,3 +1,4 @@
+export * from './guardrail.js';
 export type SubjectType = 'employee' | 'application';
 export * from './platform.js';
 export * from './calls.js';
@@ -13,6 +14,7 @@ export type Purpose = 'personal' | 'project' | 'application';
 export type RequestMode = 'chat' | 'embeddings' | 'rerank' | 'image' | 'audio';
 export type Decision = 'allow' | 'deny';
 export type ReasonCode =
+  | 'safety_policy_violation'
   | 'none'
   | 'credential_invalid'
   | 'model_not_open'
@@ -35,6 +37,7 @@ export interface RequestIdentity {
 }
 
 export interface AuthorizeRequest {
+  guardrail?: import('./guardrail.js').GuardrailAssessment;
   requestId: string;
   idempotencyKey: string;
   /** Physical gateway attempt, excluded from the logical idempotency fingerprint. */
@@ -104,6 +107,7 @@ export interface RequestLimitDiagnostic {
 }
 
 export interface AuthorizeResponse {
+  guardrail?: import('./guardrail.js').SafetyEvent;
   /** Owner of the first committed authorization; replays preserve it. */
   admissionAttemptId?: string;
   admission?: AdmissionSnapshot;
@@ -186,6 +190,7 @@ export interface GatewaySyncResponse {
 }
 
 export interface CallLog {
+  safety?: import('./guardrail.js').SafetyEvent | null;
   forwarded?:boolean|null;
   ttftMs?:number|null;
   usageFinal?:boolean;

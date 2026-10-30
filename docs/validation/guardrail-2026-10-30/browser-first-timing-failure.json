@@ -1,0 +1,10 @@
+{
+  "success": false,
+  "checks": [
+    "initial policy explicitly off",
+    "server preview explains safety and billing impact",
+    "observe policy saved through UI"
+  ],
+  "error": "Error: missing field 合成测试文本\n    at <anonymous>:1:221\n    at <anonymous>:1:548",
+  "page": "人工审查模式 · 本地模型替身 · 审查数据会保留，重启后可继续\nSignal Atlas\n企业 AI 资源运营\n运营空间\n个人空间\n搜索\nCtrl K\n蓝灰\n信标\n左栏\n顶栏\n经典\n审\n审核运营\n企业工作空间\nSignal Atlas\n运营空间\n运营空间\n运营工作台\n为人员开通\n申请与审批\n项目\n应用\n配置与排查\n模型配置\n组织与成员\n密钥与接入\n运行监控\n安全围栏\n调用记录\n费用核对\n企业设置\n运营工作台\n安全围栏\n×\n运营空间\n2026.10.30 · 周五\nOPERATIONS\n安全围栏\n\n企业统一的输入规则、仅记录与拦截，以及不含正文的安全事件。\n\n保存输入安全策略已完成\n\n输入安全策略已保存，后续请求按新版本检查。\n\n输入安全策略\n调整策略\n\n关闭 · 策略版本 5 · 仅检查输入\n\n模型范围\n全部模型\n预置规则\n疑似手机号、疑似身份证号、疑似密钥\n自定义规则\n1 条\n最近修改\n2026/10/30 10:03:02\n\n规则型输入防护。历史消息、工具参数及结果同样检查；输出内容、语义攻击和自动脱敏不在当前范围。\n\n当前未启用输入防护。配置规则并选择仅记录或拦截后生效。\n\n规则试测\n安全事件\n正在读取…\n拦截事件\n6\n观察事件\n1\n\n计数按当前查询范围统计。仅统计实际请求命中事件，不包含规则试测、模型拒答和系统故障；默认不保存正文。\n\n处理结果\n全部结果\n拦截\n仅记录\n命中类别\n全部类别\n疑似手机号\n疑似身份证号\n疑似密钥\n自定义禁用词\n模型\n全部模型\n本地测试模型 · test-model\n请求编号\n更多筛选\n已设置 0 项条件\n清除筛选\n查询事件\n时间 / 请求编号\t主体 / 用途\t模型\t处理结果\t命中类别 / 规则编号\t策略版本\n2026/10/30 10:02:38\nguardrail-9ddcf450-9f25-49a7-9d04-62c394bff852\n\t审核新员工\n个人\n\t本地测试模型\t已拦截\t自定义禁用词\nword-1\n\t2\n2026/10/30 10:02:36\nguardrail-7defa7c0-8a83-43f4-b6da-3cbd8a94d7d1\n\t审核新员工\n个人\n\t本地测试模型\t已拦截\t疑似手机号\npreset-phone\n\t2\n2026/10/30 10:02:34\nguardrail-1c8b611c-5aff-46dd-936f-8c04d022b27f\n\t审核新员工\n个人\n\t本地测试模型\t已拦截\t自定义禁用词\nword-1\n\t2\n2026/10/30 10:02:33\nguardrail-a31ff8ea-0d3f-4523-adeb-eac8d5edb416\n\t浏览器验收应用\n应用\n\t本地测试模型\t已拦截\t疑似手机号\npreset-phone\n\t2\n2026/10/30 10:02:32\nguardrail-2bfdfa25-3ee7-4055-b2b0-3b3939929f5a\n\t审核新员工\n项目\n\t本地测试模型\t已拦截\t疑似手机号\npreset-phone\n\t2\n2026/10/30 10:02:30\nguardrail-9c4c1e80-6d64-456c-a597-295898f85979\n\t审核新员工\n个人\n\t本地测试模型\t已拦截\t疑似手机号\npreset-phone\n\t2\n2026/10/30 10:02:24\nguardrail-f249dcf8-a89f-4adc-9cc8-9fceed8c0e88\n\t审核新员工\n个人\n\t本地测试模型\t仅记录\t疑似手机号\npreset-phone\n\t1\n上一页\n下一页"
+}

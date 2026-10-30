@@ -255,6 +255,10 @@
 
 ![多选：已选标签、下拉选项、搜索与全选](screenshots/signal-desk-multi-select-1440.png)
 
+### 3.4.1 Field choice（单选组）
+
+`Field type="choice"` 用于不超过五项且需对比的单选。复用纵向 `.plan-choice` 行；每项为同名原生 radio + 可见文字，外层 `role="radiogroup"` 关联字段标题与帮助。原生方向键、Tab、必填校验和焦点行为保留，不新增专属 CSS。安全围栏模式与模型范围使用此组合。
+
 ### 3.5 Checkbox / Radio
 
 - 仅用于**单个布尔确认**和**表格行选择**。表单里的多值字段一律使用 3.4 `MultiSelect`，即使只有 2 个选项。

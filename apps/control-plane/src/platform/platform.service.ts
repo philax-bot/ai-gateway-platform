@@ -1,3 +1,4 @@
+import {guardrailPolicy,prepareGuardrailPolicy,checkGuardrail,type SafetyQuery} from '@ai-gateway/contracts';
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, Optional, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
 import { createHmac, randomBytes, randomUUID } from 'node:crypto';
 import type { ApplicationDetail, ApprovalDetail, AuthorizeRequest, CallQuery, ModelRange, PlatformCommand, ProjectDetail, PurposeView, ReasonCode, ReconciliationRequest, RequestLimitDiagnostic, UsageLimits, VerificationMappingResult, VerificationRun, WorkspaceState } from '@ai-gateway/contracts';
@@ -127,19 +128,25 @@ export class PlatformService {
   }
 
   async retentionReport(actorId:string){const state=await this.repository.read();operator(activeMember(state,actorId));return prepareRetention(state).report;}
+  async safetyReport(actorId:string,query:SafetyQuery={}){const state=await this.repository.read();operator(activeMember(state,actorId));return {policy:guardrailPolicy(state.guardrail),...await this.store.querySafety(query)};}
+  async safetyTrial(actorId:string,input:Record<string,unknown>){const state=await this.repository.read();operator(activeMember(state,actorId));if(typeof input.text!=='string'||input.text.length>16384||typeof input.modelId!=='string')throw new BadRequestException('invalid guardrail trial');const policy=guardrailPolicy(state.guardrail);return {result:checkGuardrail({...policy,mode:'observe'},input.modelId,{messages:[{role:'user',content:input.text}]}),inputOnly:true,modelCalled:false};}
+  private prepareSafety(state:WorkspaceState,payload:Record<string,unknown>,actorId:string){
+    try{const value=prepareGuardrailPolicy(guardrailPolicy(state.guardrail),payload,actorId);if(value.modelIds?.some(id=>!state.definitions.some(d=>d.modelId===id)))throw Error('unknown guardrail model');return value;}catch(error){throw new BadRequestException(error instanceof Error?error.message:'invalid guardrail policy');}
+  }
   async queryAudit(actorId:string,query:import('@ai-gateway/contracts').AuditQuery){const state=await this.repository.read();operator(activeMember(state,actorId));return queryAudit(state,query);}
 
   private checkCommand(c:PlatformCommand){
     if(!c||typeof c.type!=='string'||!c.payload||typeof c.payload!=='object'||Array.isArray(c.payload)||typeof c.idempotencyKey!=='string'||c.idempotencyKey.length<8||c.idempotencyKey.length>160)throw new BadRequestException('invalid command');
   }
   private needsPreview(c:PlatformCommand){
-    return ['save.pool','save.member','save.rule','import.members','project.fund','project.allocate','project.members','project.end','application.fund','distribution.execute','key.status','keys.status','settings.update','settings.retention','retention.run','entitlement.revoke','entitlements.migrate','auto.apply','usage.reconcile','approval.repair'].includes(c.type)
+    return ['guardrail.update','save.pool','save.member','save.rule','import.members','project.fund','project.allocate','project.members','project.end','application.fund','distribution.execute','key.status','keys.status','settings.update','settings.retention','retention.run','entitlement.revoke','entitlements.migrate','auto.apply','usage.reconcile','approval.repair'].includes(c.type)
       ||(['save.member','save.organization','save.project','save.application','save.service'].includes(c.type)&&!!c.payload.id);
   }
   async preview(actorId:string,c:PlatformCommand){
     this.checkCommand(c);const s=await this.repository.read();const actor=activeMember(s,actorId),p=c.payload;
     authorizeCommand(s,actor,c);
     let impact:Record<string,unknown>={title:c.type,objectId:p.id??p.projectId??p.applicationId??null,amount:p.amount??null,expiresAt:p.expiresAt??null,proposed:safeResult(p),preserves:['历史调用和审计','现有批次金额和到期时间']};
+    if(c.type==='guardrail.update'){const after=this.prepareSafety(s,p,actorId);impact={title:'调整输入安全围栏',before:guardrailPolicy(s.guardrail),after,reason:p.reason,preserves:['历史调用和结算','原有额度与有效期'],inputOnly:true};}
     if(c.type==='retention.run')impact.retention=requestedRetention(s,p).report;
     if(c.type==='settings.update'){
       const after=prepareSettings(s,p),changes:{label:string;before:string;after:string}[]=[];
@@ -237,7 +244,8 @@ export class PlatformService {
         if(this.needsPreview(c))this.verifyPreview(c,actorId,s.revision);
         const actorName=actor.name;
         let result:unknown;
-        if(c.type==='usage.reconcile'){operator(actor);
+        if(c.type==='guardrail.update'){result=s.guardrail=this.prepareSafety(s,c.payload,actorId);}
+        else if(c.type==='usage.reconcile'){operator(actor);
           // SAFETY: execute() has already verified the signed preview; reconcile revalidates the payload shape.
           result=await tx.reconcile({...c.payload,idempotencyKey:c.idempotencyKey,actorId} as unknown as ReconciliationRequest);}
         else result=c.type.startsWith('save.')||c.type==='import.members'?await resourceAction(tx,actor,c.type,c.payload):await workflowAction(tx,actor,c.type,c.payload);

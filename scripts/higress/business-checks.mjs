@@ -8,7 +8,7 @@ export async function captureDefaultState({root,db}){
   const hash=value=>createHash('sha256').update(value).digest('hex'),reviewBytes=await optional(resolve(root,'.runtime/review-postgres.json')),budget=await optional(resolve(root,'.runtime/higress-live-budget-2026-10-29.json'));
   const value={defaultWorkspacePresent:!!reviewBytes,liveBudgetHash:budget?hash(budget):null};if(!reviewBytes)return value;
   const review=JSON.parse(reviewBytes);assert.match(review.schema,/^agp_review_[a-f0-9]{32}$/);
-  const configuration=(await db.query(`select (select jsonb_object_agg(key,value) from jsonb_each(payload) where key=any($1::text[])) as configuration from "${review.schema}".platform_workspace where id='org-demo'`,[['settings','members','services','definitions','pools','plans','keys','entitlements','projects','applications']])).rows[0];
+  const configuration=(await db.query(`select (select jsonb_object_agg(key,value) from jsonb_each(payload) where key=any($1::text[])) as configuration from "${review.schema}".platform_workspace where id='org-demo'`,[['guardrail','settings','members','services','definitions','pools','plans','keys','entitlements','projects','applications']])).rows[0];
   const funds=(await db.query(`select id,total_amount,available_amount,closed_amount from "${review.schema}".quota_batches order by id`)).rows;
   return {...value,workspaceId:review.id,stateFileHash:hash(reviewBytes),businessConfigurationHash:hash(JSON.stringify(configuration)),fundsHash:hash(JSON.stringify(funds)),fundedBatches:funds.length};
 }

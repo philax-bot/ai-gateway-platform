@@ -16,7 +16,7 @@ import { KeyDetails } from './KeyManager';
 import { OrganizationImpact } from './OrganizationImpact';
 import {RetentionCountsView,retentionTotal} from './RetentionSettings';
 
-const labels:Record<string,string>={overview:'运营工作台',models:'模型配置',members:'组织与成员',onboarding:'为人员开通',projects:'项目',applications:'应用',keys:'密钥与接入',approvals:'申请与审批',calls:'调用记录',reviews:'费用核对',monitoring:'运行监控',settings:'企业设置',home:'开始使用',quota:'我的额度',online:'在线使用',notifications:'通知'};
+const labels:Record<string,string>={overview:'运营工作台',models:'模型配置',members:'组织与成员',onboarding:'为人员开通',projects:'项目',applications:'应用',keys:'密钥与接入',approvals:'申请与审批',calls:'调用记录',reviews:'费用核对',monitoring:'运行监控',safety:'安全围栏',settings:'企业设置',home:'开始使用',quota:'我的额度',online:'在线使用',notifications:'通知'};
 /* One line per page: what this page is for and what the numbers mean. Shown under
    the page title so an operator does not have to read the panel text to orient. */
 const ledes:Record<string,string>={
@@ -30,6 +30,7 @@ const ledes:Record<string,string>={
   approvals:'按你的审批职责显示申请。批准只表示同意，执行结果单独记录。',
   calls:'每次已结束调用的结果、用量与计费依据。默认不保存、不展示正文。',
   reviews:'上游未返回完整用量时保留预占，需要人工核对之后才结算。',
+  safety:'企业统一的输入规则、仅记录与拦截，以及不含正文的安全事件。',
   monitoring:'服务健康、上游连通与采集状态。没有流量不代表健康。',
   settings:'企业名称、默认模型池、默认使用保护与数据保留。变更只影响后续请求。',
   home:'你当前可用的模型与额度。在线使用不需要先创建密钥。',
@@ -37,7 +38,7 @@ const ledes:Record<string,string>={
   online:'直接发起一次调用，结果与费用可在调用记录中追溯到同一请求编号。',
   notifications:'审批结果、额度变化与运行告警的通知，可在原页面打开对应对象。',
 };
-const actions:Record<string,string>={'save.organization':'保存组织','save.definition':'保存模型定义','approval.repair':'修正执行参数','save.rule':'保存开通规则','auto.apply':'应用规则到现有成员','import.members':'导入成员','save.pool':'确认模型池范围','project.fund':'发放项目总额度','project.allocate':'分配项目成员额度','application.fund':'发放应用额度','distribution.execute':'批量开通','key.status':'调整密钥状态','key.issue':'签发用途密钥','save.member':'保存成员','save.service':'保存模型服务','save.project':'保存项目','save.application':'保存应用','save.plan':'保存个人方案','approval.decide':'处理审批','approval.execute':'执行已批准事项'};
+const actions:Record<string,string>={'guardrail.update':'保存输入安全策略','save.organization':'保存组织','save.definition':'保存模型定义','approval.repair':'修正执行参数','save.rule':'保存开通规则','auto.apply':'应用规则到现有成员','import.members':'导入成员','save.pool':'确认模型池范围','project.fund':'发放项目总额度','project.allocate':'分配项目成员额度','application.fund':'发放应用额度','distribution.execute':'批量开通','key.status':'调整密钥状态','key.issue':'签发用途密钥','save.member':'保存成员','save.service':'保存模型服务','save.project':'保存项目','save.application':'保存应用','save.plan':'保存个人方案','approval.decide':'处理审批','approval.execute':'执行已批准事项'};
 type Pending={command:PlatformCommand;preview:Preview;resolve:(value:unknown|null)=>void;reject:(error:unknown)=>void};
 
 export function EnterpriseApp(){
@@ -94,7 +95,7 @@ export function EnterpriseApp(){
     if(!data)return;
     const adminNow=data.actor.roles.includes('operator'),opsNow=operations&&adminNow;
     const valid=opsNow
-      ?['overview','onboarding','approvals','projects','applications','models','members','keys','monitoring','calls','reviews','settings','notifications']
+      ?['overview','onboarding','approvals','projects','applications','models','members','keys','monitoring','safety','calls','reviews','settings','notifications']
       :['home','online','quota','approvals','keys','calls','projects','applications','notifications'];
     setOpenTabs(tabs=>{
       const pinned=opsNow?'overview':'home';
@@ -108,9 +109,10 @@ export function EnterpriseApp(){
     setData(null);setEditor(null);setSecret(null);setDetail(null);setPurposeId('personal');setOperations(false);setPaletteOpen(false);setMenuOpen(false);setOpenTabs([]);setPage('home');setTargetId(null);setMessage('');
     setPending(previous=>{previous?.resolve(null);return null;});
   }
-  async function refresh(){
-    try{const snapshot=await loadWorkspace();setData(snapshot);if(!data&&snapshot.actor.roles.includes('operator')){setOperations(true);setPage('overview');}return true;}
+  async function refresh(isCurrent:()=>boolean=()=>true){
+    try{const snapshot=await loadWorkspace();if(!isCurrent())return false;setData(snapshot);if(!data&&snapshot.actor.roles.includes('operator')){setOperations(true);setPage('overview');}return true;}
     catch(error){
+      if(!isCurrent())return false;
       if(error instanceof ApiError&&(error.status===401||error.status===403)){
         const wasSignedIn=!!data;resetSession();
         if(wasSignedIn||error.status===403)setMessage(error.message);
@@ -119,7 +121,7 @@ export function EnterpriseApp(){
       setMessage(error instanceof Error?error.message:'读取失败');return false;
     }
   }
-  useEffect(()=>{void (async()=>{try{const status=await api<{required:boolean;tokenRequired:boolean}>('/api/v1/auth/bootstrap');setSetup(status.required);setSetupTokenRequired(status.tokenRequired);if(!status.required)await refresh();}catch(error){setMessage(error instanceof Error?error.message:'控制面未连接');}finally{setLoading(false);}})();},[]);
+  useEffect(()=>{let current=true;void (async()=>{try{const status=await api<{required:boolean;tokenRequired:boolean}>('/api/v1/auth/bootstrap');if(!current)return;setSetup(status.required);setSetupTokenRequired(status.tokenRequired);if(!status.required)await refresh(()=>current);}catch(error){if(current)setMessage(error instanceof Error?error.message:'控制面未连接');}finally{if(current)setLoading(false);}})();return()=>{current=false;};},[]);
   async function apply(command:PlatformCommand){
     try{const result=await executeCommand(command);await refresh();
       if(result.result&&typeof result.result==='object'&&'secret'in result.result){const issued=result.result as {secret:string;key?:{id?:string}};setSecret({value:String(issued.secret),keyId:issued.key?.id??null});}
@@ -151,7 +153,7 @@ export function EnterpriseApp(){
   if(!data)return <><ReviewBanner/><DesignSwitch mode={uiMode} onChange={setUiMode} className="login-design-switch"/><Login setup={setup} tokenRequired={setupTokenRequired} message={message} modern={desk} onInitialized={()=>{setSetup(false);setSetupTokenRequired(false);}} onDone={async()=>{setSetup(false);setMessage('');await refresh();}}/></>;
   const d=data,admin=d.actor.roles.includes('operator'),isOps=operations&&admin,edit=makeEditors(d,run,setEditor);
   const navigation=isOps?['overview','onboarding','approvals','projects','applications']:['home','online','quota','approvals'];
-  const secondary=isOps?['models','members','keys','monitoring','calls','reviews','settings']:['keys','calls','projects',...(d.applications.length?['applications']:[])];
+  const secondary=isOps?['models','members','keys','monitoring','safety','calls','reviews','settings']:['keys','calls','projects',...(d.applications.length?['applications']:[])];
   const navLabel=(item:string)=>!isOps&&!admin&&!d.projects.some(p=>p.managerId===d.actor.id)&&item==='approvals'?'我的申请':labels[item];
   const navItem=(item:string)=><button key={item} className={`nav-link ${page===item?'active':''}`} aria-current={page===item?'page':undefined} onClick={()=>navigate(item)}>{navLabel(item)}</button>;
   const secondaryLabel=isOps?'配置与排查':'工具与协作';
@@ -185,7 +187,7 @@ export function EnterpriseApp(){
   };
   const changeUiMode=(value:UiDesign)=>{setPaletteOpen(false);setMenuOpen(false);setUiMode(value);};
   const today=new Date(),dateLabel=`${today.getFullYear()}.${String(today.getMonth()+1).padStart(2,'0')}.${String(today.getDate()).padStart(2,'0')} · ${today.toLocaleDateString('zh-CN',{weekday:'short'})}`;
-  const selfRefreshing=['calls','reviews','monitoring'].includes(page);
+  const selfRefreshing=['calls','reviews','monitoring','safety'].includes(page);
   const mountedTabs=!desk?[{page,targetId}]:openTabs.some(tab=>tab.page===page)?openTabs:[...openTabs,{page,targetId}];
   const confirmationTitle=pending?.command.type==='retention.run'?'核对本次清理范围':pending?.command.type==='settings.retention'?'核对保留策略':pending?.command.type==='settings.update'?'核对企业设置':pending?.command.type==='distribution.execute'?String(pending.preview.impact.title):pending?.command.type==='keys.status'?`核对批量${pending.command.payload.status==='revoked'?'吊销':'停用'}名单`:pending?actions[pending.command.type]??'确认本次操作':'';
   const confirmationLabel=pending?.command.type==='retention.run'?`确认清理 ${retentionTotal((pending.preview.impact.retention as RetentionReport).eligible)} 条`:pending?.command.type==='settings.retention'?'确认保存策略':pending?.command.type==='settings.update'?'确认保存设置':pending?.command.type==='keys.status'?`确认${pending.command.payload.status==='revoked'?'吊销':'停用'} ${Number(pending.preview.impact.changedCount)} 把`:pending?.command.type==='save.organization'?Number(pending.preview.impact.totalAmount)>0?'确认调整并发放':'确认调整':'确认执行';
@@ -228,6 +230,10 @@ function ReviewBanner(){return import.meta.env.VITE_REVIEW_MODE==='true'?<div cl
 
 function Impact({pending,data}:{pending:Pending;data:PlatformSnapshot}){
   const p=pending.command.payload,impact=pending.preview.impact;
+  if(pending.command.type==='guardrail.update'){
+    const before=impact.before as import('@ai-gateway/contracts').GuardrailPolicy,after=impact.after as import('@ai-gateway/contracts').GuardrailPolicy,modes={off:'关闭',observe:'仅记录',block:'拦截'};const range=(p:typeof after)=>p.modelIds===null?'全部模型（含新增）':p.modelIds.map(id=>data.definitions.find(d=>d.modelId===id)?.name??id).join('、');
+    return <><dl className="detail-list"><div><dt>处理模式</dt><dd>{modes[before.mode]} → {modes[after.mode]}</dd></div><div><dt>模型范围</dt><dd>{range(before)} → {range(after)}</dd></div><div><dt>规则数量</dt><dd>{before.presets.length+before.words.length} → {after.presets.length+after.words.length}</dd></div><div><dt>策略版本</dt><dd>{before.version} → {after.version}</dd></div></dl><p className="notice warning">{after.mode==='off'?'保存后停止对新请求检查输入。':after.mode==='observe'?'命中只记录，内容仍会发送给模型。':'命中后拒绝发送，不创建预占、不扣费。'}仅影响后续准入，历史费用和已准入调用保留。</p><p className="request-reason">变更原因：{String(p.reason)}</p></>;
+  }
   if(pending.command.type==='settings.update'){
     const changes=pending.preview.impact.settingsChanges as {label:string;before:string;after:string}[];
     return <><dl className="detail-list">{changes.map(change=><div key={change.label}><dt>{change.label}</dt><dd>{change.before} → {change.after}</dd></div>)}</dl><p className="notice">{!!p.limits?'变更影响后续新请求；已预占的请求继续按原依据结算。':'personalDefaultPoolId'in p||'projectDefaultPoolId'in p?'默认池仅影响后续新建或审批时的预填，不迁移已有权益，不发放资金。':'本次仅修改工作区的展示名称。'}现有组织、账号和历史记录保留。</p><p className="secondary">以上为服务端核对的当前值。如有其他运营更新了配置，需要重新预览并核对后再保存。</p></>;

@@ -39,7 +39,7 @@ export function navIcon(id: string): IconName {
     overview: 'home', home: 'home', onboarding: 'userPlus', online: 'spark',
     quota: 'wallet', approvals: 'inbox', projects: 'folder', applications: 'grid',
     models: 'chip', members: 'users', keys: 'key', monitoring: 'activity',
-    calls: 'list', reviews: 'checklist', settings: 'sliders', notifications: 'bell',
+    safety:'checklist', calls: 'list', reviews: 'checklist', settings: 'sliders', notifications: 'bell',
   } as Record<string, IconName>)[id] ?? 'grid';
 }
 

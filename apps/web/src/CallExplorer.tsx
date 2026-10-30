@@ -44,11 +44,12 @@ export function CallExplorer({data:d,kind,reconcile,detail,initialQuery,active=t
   /* 下钻按“先结论、再接主体与路由、再用量与计价、最后时序”分组，长列表不再一次绗开。 */
   const show=(c:CallLog)=>detail('调用详情',<>
     <dl className="detail-lead">
-      <div><dt>请求结果</dt><dd>{outcomes[c.outcome]}</dd></div>
+      <div><dt>请求结果</dt><dd>{c.errorCode==='safety_policy_violation'?'被安全策略拦截':outcomes[c.outcome]}</dd></div>
       <div><dt>计费状态</dt><dd><Status value={c.billableState}/></dd></div>
       <div><dt>实际费用</dt><dd>{c.billableState==='pending_review'?'待核对':money(c.actualAmount)}</dd></div>
       <div><dt>完成时间</dt><dd>{date(c.completedAt)}</dd></div>
     </dl>
+    {c.safety&&<p className="notice">输入规则命中 · {c.safety.action==='block'?'已拦截，未发送给模型、未扣费':'仅记录，按正常调用结算'} · 策略版本 {c.safety.policyVersion} · {c.safety.matches.map(m=>m.ruleId).join('、')}</p>}
     <div className="detail-groups">
       <section className="detail-group"><h3>主体与路由</h3><dl className="detail-list">{[
         ['主体',name(c.subjectId)],['用途',({personal:'个人',project:'项目成员',application:'独立应用'})[c.purpose]],['模型',model(c.modelId)],['项目',d.projects.find(p=>p.id===c.projectId)?.name??c.projectId??'—'],
@@ -115,7 +116,7 @@ export function CallExplorer({data:d,kind,reconcile,detail,initialQuery,active=t
       <small className="secondary">读取于 {date(page!.collectedAt)}；按需刷新。无流量表示证据不足。</small>
     </>}
     {kind!=='overview'&&page&&<><Table headers={['请求 ID / 模型','主体 / 用途','结果 / 错误码','输入 / 输出 / 缓存','实际费用 / 预占','计费状态','完成时间',...(kind==='reviews'?['操作']:[])]} empty={emptyState} rows={page.items.map(c=>[
-      <><button className="link-button code-button" onClick={()=>show(c)}>{c.requestId.slice(0,24)}</button><small className="cell-help">{model(c.modelId)}</small></>,<>{name(c.subjectId)}<small className="cell-help">{purposeLabels[c.purpose]??c.purpose}</small></>,<><Status value={c.outcome}/><small className="cell-help">{c.errorCode??''}</small></>,c.usageFinal===true?`${c.inputTokens} / ${c.outputTokens} / ${c.cachedInputTokens}`:'未知 / 不完整',<>{c.billableState==='pending_review'?'待核对':money(c.actualAmount)}<small className="cell-help">预占 {c.admission?money(c.admission.reservedAmount):'未知'}</small></>,<Status value={c.billableState}/>,date(c.completedAt),...(kind==='reviews'?[<button className="link-button" onClick={()=>reconcile(c)}>核对并预览</button>]:[]),
+      <><button className="link-button code-button" onClick={()=>show(c)}>{c.requestId.slice(0,24)}</button><small className="cell-help">{model(c.modelId)}</small></>,<>{name(c.subjectId)}<small className="cell-help">{purposeLabels[c.purpose]??c.purpose}</small></>,<><Status value={c.errorCode==='safety_policy_violation'?'已拦截':c.outcome}/><small className="cell-help">{c.errorCode??''}</small></>,c.usageFinal===true?`${c.inputTokens} / ${c.outputTokens} / ${c.cachedInputTokens}`:'未知 / 不完整',<>{c.billableState==='pending_review'?'待核对':money(c.actualAmount)}<small className="cell-help">预占 {c.admission?money(c.admission.reservedAmount):'未知'}</small></>,<Status value={c.billableState}/>,date(c.completedAt),...(kind==='reviews'?[<button className="link-button" onClick={()=>reconcile(c)}>核对并预览</button>]:[]),
     ])}/><div className="actions"><button disabled={busy||!previous.length} onClick={()=>{setQuery({...query,cursor:previous.at(-1)});setPrevious(p=>p.slice(0,-1));}}>上一页</button><span>第 {previous.length+1} 页 · 每页最多 50 条</span><button disabled={busy||!page.nextCursor} onClick={()=>{setPrevious(p=>[...p,query.cursor]);setQuery({...query,cursor:page.nextCursor!});}}>下一页</button></div></>}
   </Panel>;
 }

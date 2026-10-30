@@ -3,6 +3,7 @@ import type { CallLog, CallPage, CallQuery, CallSummary } from '@ai-gateway/cont
 import { decodeCursor,encodeCursor,filterColumns,normalizeCallQuery,type CallScope } from './call-query';
 
 export interface CallRow {
+  safety?:CallLog['safety'];
   request_id:string; upstream_request_id?:string|null; retry_of_request_id?:string|null;
   started_at:Date; completed_at:Date; subject_type:CallLog['subjectType']; subject_id:string;
   credential_id:string; purpose:CallLog['purpose']; project_id:string|null; model_id:string;

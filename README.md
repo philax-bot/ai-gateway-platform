@@ -118,3 +118,5 @@ pnpm check:postgres
 - `GatewayProvider` 保持业务对象与 Higress 对象隔离；正式 `HigressProvider` 已接入认证管理 API，配置状态与操作保存在 PostgreSQL。首次 PostgreSQL/DeepSeek 验收及后续 75 项恢复检查通过，180 秒本地替身负载 1081/1081 成功。日常 `pnpm dev` 默认使用 Higress，原准入、价格快照、持久日记和结算继续生效。见 [接入记录](docs/architecture/higress-provider-2026-10-29.md)、[恢复与负载证据](docs/architecture/higress-stability-2026-10-29.md)；[第一阶段 PoC](docs/architecture/higress-poc-2026-10-29.md) 保留为历史记录。 实际 Pi 工具任务、31.863 秒完整长流及取消后关联重试见 [真实任务验收](docs/architecture/higress-pi-deepseek-2026-10-29.md)。 [业务 API 闭环与在线会话修复](docs/architecture/higress-business-2026-10-29.md)已通过 167 项检查。
 
 验证层级见 [开发边界](docs/DEVELOPMENT-BOUNDARIES.md)，最新证据见 [2026-10-19 验证记录](docs/VALIDATION-ONBOARDING-2026-10-19.md)。本地/Mock/开发数据库结果不等于生产验收。
+
+2026-10-30：规则型输入安全围栏 V0.1 已完成，运营空间“配置与排查 → 安全围栏”可配置、试测和查看事件；默认关闭，运营确认后启用。支持仅记录/拦截，覆盖个人、项目、应用，见 [实施与验收](docs/architecture/safety-guardrail-v0.1-2026-10-30.md)。隔离检查：`pnpm check:guardrail`，含页面回归加 `--browser`；本轮真实模型新增请求为 0。

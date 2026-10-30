@@ -2,6 +2,9 @@ import type { PlatformCommand, PlatformSnapshot } from '@ai-gateway/contracts';
 const base=(import.meta.env.VITE_CONTROL_PLANE_URL??'http://127.0.0.1:4001').replace(/\/+$/,'');
 export const gatewayBaseUrl=(import.meta.env.VITE_GATEWAY_URL??'http://127.0.0.1:4000').replace(/\/+$/,'');
 export const openAiBaseUrl=`${gatewayBaseUrl}/v1`;
+export function gatewayFailureMessage(raw:string):string{
+  try{const value=JSON.parse(raw),type=value.error?.type;if(['safety_policy_violation','guardrail_policy_stale','guardrail_unavailable'].includes(type))return (type==='safety_policy_violation'?'输入被企业安全策略拦截，未发送给模型，未扣费。请修改后重试。':type==='guardrail_policy_stale'?'安全策略已更新，请重试。':'安全检查暂不可用，请稍后重试。')+(value.requestId?' 请求编号：'+String(value.requestId):'');}catch{}return raw;
+}
 export class ApiError extends Error { constructor(message:string,readonly status:number){super(message);} }
 export function approvalFailureMessage(message:string):string{
   return message==='source budget is expired or insufficient'?'项目来源批次已到期或余额不足，请核对来源和批准金额后重试。':message;

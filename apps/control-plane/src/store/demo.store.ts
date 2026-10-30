@@ -1,3 +1,5 @@
+import {guardrailPolicy,type SafetyEvent,type SafetyQuery} from '@ai-gateway/contracts';
+import {admissionGuardrail,memorySafetyPage} from './guardrail';
 import { ConflictException, Injectable } from '@nestjs/common';
 import { createHash, randomUUID } from 'node:crypto';
 import type {
@@ -80,6 +82,9 @@ export class DemoStore implements ControlPlaneStore {
   readonly reservationsByIdempotency = new Map<string, ReservationRecord>();
   readonly authorizationResponsesByRequest = new Map<string, AuthorizeResponse>();
   readonly settlementResponsesByRequest = new Map<string, SettlementResponse>();
+  readonly safetyEvents:SafetyEvent[]=[];
+  async readGuardrailPolicy(){return guardrailPolicy((await this.businessState?.())?.guardrail);}
+  async querySafety(input:SafetyQuery={}){return memorySafetyPage(this.safetyEvents,input);}
   readonly callLogs: CallLog[] = [];
   readonly authorizationInputs = new Map<string, { requestId: string; fingerprint: string }>();
   readonly authorizationKeys = new Map<string, string>();
@@ -137,13 +142,14 @@ export class DemoStore implements ControlPlaneStore {
 
   async authorize(input: AuthorizeRequest): Promise<AuthorizeResponse> {
     return this.exclusive(async()=>{const response=await this.authorizeUnlocked(input);
+      if(!response.replayed&&response.guardrail)this.safetyEvents.push(response.guardrail);
       if(response.decision==='deny'&&!response.replayed&&!this.callLogs.some(c=>c.requestId===input.requestId))this.callLogs.push(this.deniedCall(input,response));
       return response;
     });
   }
 
   protected deniedCall(input:AuthorizeRequest,response:AuthorizeResponse):CallLog{
-    const at=new Date().toISOString();return {requestId:input.requestId,upstreamRequestId:null,retryOfRequestId:input.retryOfRequestId??null,startedAt:at,completedAt:at,subjectType:input.identity.subjectType,subjectId:input.identity.subjectId,credentialId:input.identity.credentialId,organizationId:input.identity.organizationId??null,purpose:input.purpose,projectId:input.identity.projectId??null,modelId:input.modelId,outcome:'rejected_before_upstream',forwarded:false,errorCode:response.reasonCode,inputTokens:0,outputTokens:0,cachedInputTokens:0,usageFinal:true,actualAmount:0,billableState:'not_billable',reservationId:null,latencyMs:0,admission:publicLogAdmission(response.admission?{...response.admission,reservedAmount:0}:null)};
+    const at=new Date().toISOString();return {safety:response.guardrail??null,requestId:input.requestId,upstreamRequestId:null,retryOfRequestId:input.retryOfRequestId??null,startedAt:at,completedAt:at,subjectType:input.identity.subjectType,subjectId:input.identity.subjectId,credentialId:input.identity.credentialId,organizationId:input.identity.organizationId??null,purpose:input.purpose,projectId:input.identity.projectId??null,modelId:input.modelId,outcome:'rejected_before_upstream',forwarded:false,errorCode:response.reasonCode,inputTokens:0,outputTokens:0,cachedInputTokens:0,usageFinal:true,actualAmount:0,billableState:'not_billable',reservationId:null,latencyMs:0,admission:publicLogAdmission(response.admission?{...response.admission,reservedAmount:0}:null)};
   }
 
   private async authorizeUnlocked(input: AuthorizeRequest): Promise<AuthorizeResponse> {
@@ -162,6 +168,8 @@ export class DemoStore implements ControlPlaneStore {
       // Missing and out-of-scope references share one error so retries cannot probe other calls.
       if (!retryLinkAllowed(input, this.retryTarget(input.retryOfRequestId))) throw new ConflictException('retry reference is not available');
     }
+    const validated=[...this.credentials.values()].find(c=>c.credentialId===input.identity.credentialId);
+    const safety=!reason&&validated?.active&&sameIdentity(validated.identity,input.identity)&&validated.purpose===input.purpose&&validated.modelIds.includes(input.modelId)?admissionGuardrail(workspace?.guardrail,input):null;
     this.authorizationInputs.set(input.idempotencyKey, { requestId: input.requestId, fingerprint });
     this.authorizationKeys.set(input.requestId, input.idempotencyKey);
 
@@ -196,6 +204,8 @@ export class DemoStore implements ControlPlaneStore {
       this.authorizationResponsesByRequest.set(input.requestId, response);
       return response;
     }
+    if(safety)response.guardrail=safety;
+    if(safety?.action==='block'){response.reasonCode='safety_policy_violation';response.reasonMessage='输入可能包含受限制的信息，已按企业安全策略阻止发送。请修改后重试。';this.authorizationResponsesByRequest.set(input.requestId,response);return response;}
     const batches = [...this.quotaBatches.values()].filter(
       (item) => item.purpose === input.purpose
         && item.sourceId === input.identity.subjectId
@@ -323,6 +333,7 @@ export class DemoStore implements ControlPlaneStore {
       retryOfRequestId: reservation.retryOfRequestId ?? null,
       admission:publicLogAdmission(reservation.admission),
       forwarded:input.forwarded??(input.outcome==='rejected_before_upstream'?false:null),
+      safety:this.authorizationResponsesByRequest.get(input.requestId)?.guardrail??null,
       ttftMs:input.ttftMs??null,errorCode:input.errorCode??null,
       organizationId:reservation.identity.organizationId??null,
       latencyMs:Math.max(0,Math.min(2147483647,Date.parse(input.completedAt)-Date.parse(reservation.createdAt))),

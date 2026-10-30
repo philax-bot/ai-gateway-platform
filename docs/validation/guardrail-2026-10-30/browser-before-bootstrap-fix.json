@@ -1,0 +1,20 @@
+{
+  "success": false,
+  "checks": [
+    "server preview explains safety and billing impact",
+    "initial policy explicitly off",
+    "server preview explains safety and billing impact",
+    "observe policy saved through UI",
+    "synthetic trial returns rule identifiers",
+    "server preview explains safety and billing impact",
+    "logout control present",
+    "employee has no safety administration navigation",
+    "employee sees safety rejection and zero fee",
+    "mobile blocked page no overflow",
+    "normal employee request completes through Higress",
+    "logout control present",
+    "operator sees event identifiers"
+  ],
+  "error": "browser condition timed out: document.body.innerText.includes('输入安全策略')",
+  "page": "人工审查模式 · 本地模型替身 · 审查数据会保留，重启后可继续\nSignal Atlas\n企业 AI 资源运营\n运营空间\n个人空间\n搜索\nCtrl K\n蓝灰\n信标\n左栏\n顶栏\n经典\n审\n审核运营\n企业工作空间\nSignal Atlas\n运营空间\n运营空间\n运营工作台\n为人员开通\n申请与审批\n项目\n应用\n配置与排查\n模型配置\n组织与成员\n密钥与接入\n运行监控\n安全围栏\n调用记录\n费用核对\n企业设置\n运营工作台\n安全围栏\n×\n运营空间\n2026.10.30 · 周五\nOPERATIONS\n运营工作台\n\n需要你处理的事项、下一步建议，以及当前运营口径下的关键数字。\n\n刷新数据\n需要你处理\n\n当前没有待处理的审批或费用核对。\n\n日常运营\n让同事开始使用 AI\n\n选择人员和现有方案，确认后开通。开通结果会告诉你接下来该做什么。\n\n为同事开通\n申请待审批\n0\n按你的审批职责\n费用待核对\n0\n需人工确认后结算\n可用开通方案\n1\n包含可用模型\n已开通人员\n1\n权益有效且未到期\n\n需要排查服务或查看调用记录时，可从导航中的“配置与排查”进入。"
+}

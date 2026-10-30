@@ -6,6 +6,42 @@ info:
 servers:
   - url: http://127.0.0.1:4001
 paths:
+  # guardrail.update is an operator-only previewed platform command:
+  # expectedVersion, mode(off|observe|block), modelIds(null for all or nonempty list),
+  # presets(phone|identity_card|api_key), words(<=200; 2..128 chars; <=16KiB), reason.
+  # Advances policy version once; initial missing policy is off/version 0.
+  /api/v1/platform/safety/query:
+    post:
+      summary: Read operator-only input guardrail policy and metadata events
+      security: [{sessionCookie: []}]
+      description: Accepts optional from/to timestamps with timezone, modelId, subjectId, requestId, category, action, limit (1-100) and before cursor. Returns policy, items, nextCursor and filtered block/observe counts. Never returns matched input.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {type: object}
+      responses:
+        '200': {description: Saved policy plus paginated metadata; initial mode is off}
+        '400': {description: Invalid filter or cursor}
+        '403': {description: Operator required}
+  /api/v1/platform/safety/trial:
+    post:
+      summary: Try saved rules on synthetic text without generation or persistence
+      security: [{sessionCookie: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [modelId, text]
+              properties:
+                modelId: {type: string}
+                text: {type: string, maxLength: 16384}
+      responses:
+        '200': {description: Rule identifiers, categories, version, optional scan-limit error; inputOnly true and modelCalled false. Off mode still permits trial; model scope still applies. No trial event or input is stored.}
+        '400': {description: Invalid trial input}
+        '403': {description: Operator required}
   /api/v1/auth/bootstrap:
     get:
       responses:

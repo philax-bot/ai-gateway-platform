@@ -438,11 +438,30 @@ components:
         credentialId: {type: string, minLength: 1}
         organizationId: {type: string}
         projectId: {type: [string, 'null']}
+    GuardrailAssessment:
+      type: object
+      additionalProperties: false
+      required: [version, matches]
+      description: Trusted gateway input-only assessment. Never includes request text, matched values or regular expressions. The control plane checks the current policy version before reserving funds.
+      properties:
+        version: {type: integer, minimum: 0}
+        error: {type: string, enum: [scan_limit]}
+        matches:
+          type: array
+          maxItems: 203
+          items:
+            type: object
+            additionalProperties: false
+            required: [ruleId, category]
+            properties:
+              ruleId: {type: string, maxLength: 80}
+              category: {type: string, enum: [custom_word, phone, identity_card, api_key]}
     AuthorizeRequest:
       type: object
       description: Identity and purpose must match the resolved credential, including organization and project. Project quota never falls back to personal quota.
       required: [requestId, idempotencyKey, identity, purpose, modelId, mode, policyVersion]
       properties:
+        guardrail: {$ref: '#/components/schemas/GuardrailAssessment'}
         requestId: {type: string, minLength: 1}
         idempotencyKey: {type: string, minLength: 8}
         admissionAttemptId:
@@ -491,7 +510,7 @@ components:
           type: string
           description: First committed physical attempt, preserved on every replay. Legacy records may omit it; an unknown owner must never be inferred from the retry.
         decision: {type: string, enum: [allow, deny]}
-        reasonCode: {type: string, enum: [none, credential_invalid, model_not_open, service_unavailable, no_quota, quota_insufficient, policy_stale, subject_disabled, dependency_unavailable, price_unconfigured, rate_limited, request_limit_exceeded]}
+        reasonCode: {type: string, enum: [safety_policy_violation, none, credential_invalid, model_not_open, service_unavailable, no_quota, quota_insufficient, policy_stale, subject_disabled, dependency_unavailable, price_unconfigured, rate_limited, request_limit_exceeded]}
         admission:
           type: object
           description: Internal-only frozen routing, pricing, reserved amount and applicable limit scopes. No plaintext credential is returned. Managed requests never fall back to the demonstration model URL.

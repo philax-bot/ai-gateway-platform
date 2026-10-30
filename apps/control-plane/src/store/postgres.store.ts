@@ -1,3 +1,5 @@
+import {guardrailPolicy,type SafetyQuery,type SafetyEvent} from '@ai-gateway/contracts';
+import {admissionGuardrail,safetyQuery,safetyCursor} from './guardrail';
 import { ConflictException, Injectable, OnModuleDestroy } from '@nestjs/common';
 import { Pool, type PoolClient } from 'pg';
 import { createHash, randomUUID } from 'node:crypto';
@@ -103,10 +105,12 @@ export class PostgresStore extends DemoStore implements OnModuleDestroy {
 
   private async saveAuthorization(client:PoolClient,input:AuthorizeRequest,response:AuthorizeResponse,fingerprint:string){
     await client.query('insert into authorization_records(request_id,response,idempotency_key,fingerprint) values($1,$2,$3,$4)',[input.requestId,response,input.idempotencyKey,fingerprint]);
+    if(response.guardrail){const e=response.guardrail;await client.query('insert into safety_events(id,request_id,subject_id,purpose,project_id,model_id,policy_version,action,matches,created_at) values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)',[e.id,e.requestId,e.subjectId,e.purpose,e.projectId,e.modelId,e.policyVersion,e.action,JSON.stringify(e.matches),e.createdAt]);}
     if(response.decision==='deny'){
       const c=this.deniedCall(input,response);
       await client.query(`insert into call_logs(request_id,started_at,completed_at,subject_type,subject_id,credential_id,purpose,model_id,outcome,input_tokens,output_tokens,cached_input_tokens,actual_amount,billable_state,project_id,admission,organization_id,latency_ms,usage_final,forwarded,error_code,retry_of_request_id)
         values($1,$2,$2,$3,$4,$5,$6,$7,'rejected_before_upstream',0,0,0,0,'not_billable',$8,$9,$10,0,true,false,$11,$12)`,[c.requestId,c.completedAt,c.subjectType,c.subjectId,c.credentialId,c.purpose,c.modelId,c.projectId,response.admission?{...response.admission,reservedAmount:0}:null,c.organizationId,c.errorCode,c.retryOfRequestId??null]);
+      if(response.guardrail)await client.query('update call_logs set safety=$2 where request_id=$1',[input.requestId,response.guardrail]);
     }
   }
 
@@ -141,6 +145,8 @@ export class PostgresStore extends DemoStore implements OnModuleDestroy {
         response.reasonCode = 'credential_invalid'; response.reasonMessage = 'credential identity or purpose does not match';
       } else if (!(Array.isArray(c.model_ids) ? c.model_ids : JSON.parse(c.model_ids)).includes(input.modelId)) {
         response.reasonCode = 'model_not_open'; response.reasonMessage = 'model is not open for this credential';
+      } else if((response.guardrail=admissionGuardrail(workspace.rows[0]?.payload?.guardrail,input)??undefined)?.action==='block'){
+        response.reasonCode='safety_policy_violation';response.reasonMessage='输入可能包含受限制的信息，已按企业安全策略阻止发送。请修改后重试。';
       } else {
         const values = [input.purpose,input.identity.subjectId,input.identity.organizationId ?? null,input.identity.projectId ?? null,JSON.stringify([input.modelId])];
         const scope = 'purpose=$1 and source_id=$2 and organization_id is not distinct from $3 and project_id is not distinct from $4 and model_ids @> $5::jsonb and expires_at > now() and closed_at is null';
@@ -234,6 +240,7 @@ export class PostgresStore extends DemoStore implements OnModuleDestroy {
       await client.query('insert into settlement_records(request_id,idempotency_key,response) values($1,$2,$3)', [input.requestId,input.idempotencyKey,response]);
       await client.query(`insert into call_logs(request_id,started_at,completed_at,subject_type,subject_id,credential_id,purpose,model_id,outcome,input_tokens,output_tokens,cached_input_tokens,actual_amount,billable_state,reservation_id,project_id,admission,organization_id,latency_ms,usage_final,forwarded,upstream_request_id,retry_of_request_id,ttft_ms,error_code)
         values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25)`, [input.requestId,r.created_at,input.completedAt,r.identity.subjectType,r.identity.subjectId,r.identity.credentialId,r.purpose,r.model_id,input.outcome,input.inputTokens??0,input.outputTokens??0,input.cachedInputTokens??0,amount,response.billableState,r.reservation_id,r.identity.projectId??null,r.admission,r.identity.organizationId??null,Math.max(0,Math.min(2147483647,Date.parse(input.completedAt)-r.created_at.getTime())),input.usageFinal!==false&&input.inputTokens!==undefined&&input.outputTokens!==undefined,input.forwarded??(input.outcome==='rejected_before_upstream'?false:null),input.upstreamRequestId??null,r.retry_of_request_id??null,input.ttftMs??null,input.errorCode??null]);
+      await client.query("update call_logs set safety=(select response->'guardrail' from authorization_records where request_id=$1) where request_id=$1",[input.requestId]);
       await client.query('commit'); return response;
     } catch (error) { failed=true;await client.query('rollback'); throw error; } finally { trace.finish(failed);raw.release(); }
   }
@@ -247,6 +254,22 @@ export class PostgresStore extends DemoStore implements OnModuleDestroy {
       const result=await client.query('select * from credentials where (api_key=$1 or api_key=$2) and active=true',[apiKey,`sha256:${createHash('sha256').update(apiKey).digest('hex')}`]);
       const r=result.rows[0];return r?{credentialId:r.credential_id,identity:r.identity,purpose:r.purpose,modelIds:parseModelIds(r.model_ids)}:null;
     }catch(error){failed=true;throw error;}finally{trace.finish(failed);raw.release();}
+  }
+  async readGuardrailPolicy(){const r=await this.pool.query("select payload->'guardrail' as policy from platform_workspace where id='org-demo'");return guardrailPolicy(r.rows[0]?.policy);}
+  async querySafety(input:SafetyQuery={}){
+    const {query:q,limit,cursor}=safetyQuery(input),values:unknown[]=[],conditions:string[]=[];
+    const condition=(sql:string,value:unknown)=>{values.push(value);conditions.push(sql.replace('?',`$${values.length}`));};
+    for(const [key,column]of [['modelId','model_id'],['subjectId','subject_id'],['requestId','request_id'],['action','action']]as const)if(q[key])condition(`${column}=?`,q[key]);
+    if(q.from)condition('created_at>=?',q.from);if(q.to)condition('created_at<=?',q.to);
+    if(q.category)condition('matches @> ?::jsonb',JSON.stringify([{category:q.category}]));
+    const base=conditions.length?' where '+conditions.join(' and '):'';
+    return this.withClient(async client=>{await client.query('begin isolation level repeatable read read only');try{
+      const counts=(await client.query(`select count(*) filter(where action='block')::int as block,count(*) filter(where action='observe')::int as observe from safety_events${base}`,values)).rows[0];
+      if(cursor){values.push(cursor.at,cursor.id);conditions.push(`(created_at,id)<($${values.length-1}::timestamptz,$${values.length})`);}
+      values.push(limit+1);const result=await client.query(`select * from safety_events${conditions.length?' where '+conditions.join(' and '):''} order by created_at desc,id desc limit $${values.length}`,values);
+      const events:SafetyEvent[]=result.rows.map(r=>({id:r.id,requestId:r.request_id,subjectId:r.subject_id,purpose:r.purpose,projectId:r.project_id,modelId:r.model_id,policyVersion:r.policy_version,action:r.action,matches:r.matches,createdAt:r.created_at.toISOString()})),items=events.slice(0,limit);
+      await client.query('commit');return {items,nextCursor:events.length>limit?safetyCursor(items.at(-1)!):null,counts};
+    }catch(error){await client.query('rollback');throw error;}});
   }
   async listCalls(): Promise<CallLog[]> {
     const result=await this.pool.query('select * from call_logs order by completed_at desc limit 200');
@@ -266,7 +289,7 @@ export class PostgresStore extends DemoStore implements OnModuleDestroy {
     await client.query('begin isolation level repeatable read read only');
     try{const result=await queryPostgresCalls(client,input,scope,r=>this.mapCall(r));await client.query('commit');return result;}catch(error){await client.query('rollback');throw error;}
   });}
-  private mapCall(r:CallRow):CallLog{return {requestId:r.request_id,upstreamRequestId:r.upstream_request_id??null,retryOfRequestId:r.retry_of_request_id??null,startedAt:r.started_at.toISOString(),completedAt:r.completed_at.toISOString(),subjectType:r.subject_type,subjectId:r.subject_id,credentialId:r.credential_id,purpose:r.purpose,projectId:r.project_id,modelId:r.model_id,outcome:r.outcome,inputTokens:r.input_tokens,outputTokens:r.output_tokens,cachedInputTokens:r.cached_input_tokens,actualAmount:Number(r.actual_amount),billableState:r.billable_state,reservationId:r.reservation_id,admission:publicLogAdmission(r.admission as AdmissionSnapshot|null),organizationId:r.organization_id,errorCode:r.error_code,latencyMs:r.latency_ms,usageFinal:r.usage_final??undefined,forwarded:r.forwarded??null,ttftMs:r.ttft_ms??null};}
+  private mapCall(r:CallRow):CallLog{return {safety:r.safety??null,requestId:r.request_id,upstreamRequestId:r.upstream_request_id??null,retryOfRequestId:r.retry_of_request_id??null,startedAt:r.started_at.toISOString(),completedAt:r.completed_at.toISOString(),subjectType:r.subject_type,subjectId:r.subject_id,credentialId:r.credential_id,purpose:r.purpose,projectId:r.project_id,modelId:r.model_id,outcome:r.outcome,inputTokens:r.input_tokens,outputTokens:r.output_tokens,cachedInputTokens:r.cached_input_tokens,actualAmount:Number(r.actual_amount),billableState:r.billable_state,reservationId:r.reservation_id,admission:publicLogAdmission(r.admission as AdmissionSnapshot|null),organizationId:r.organization_id,errorCode:r.error_code,latencyMs:r.latency_ms,usageFinal:r.usage_final??undefined,forwarded:r.forwarded??null,ttftMs:r.ttft_ms??null};}
   async inFlightCounts(client?:PoolClient):Promise<InFlightCount[]>{
     const read=async()=>{const result=await (client??this.pool).query(`select admission->'route'->>'serviceId' as service_id,model_id,count(*)::int as count from reservations where finalized=false and expires_at>clock_timestamp() group by 1,2`);return result.rows.map(r=>({serviceId:r.service_id,modelId:r.model_id,count:r.count}));};
     return client?this.statisticsWithin(client,read):read();

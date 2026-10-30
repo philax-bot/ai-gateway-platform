@@ -1,0 +1,629 @@
+{
+  "success": true,
+  "id": "29460be2-1b76-4f7c-8ca4-1a9868dd228e",
+  "createdAt": "2026-10-30T03:04:21.653Z",
+  "scope": {
+    "database": "isolated PostgreSQL",
+    "dataPlane": "real Higress",
+    "model": "local deterministic fixture",
+    "realModelRequests": 0
+  },
+  "checks": [
+    "personal json returns 200",
+    "allowed call retains trusted settlement",
+    "allowed request reaches Higress fixture once",
+    "initial off mode creates no safety events",
+    "personal json returns 200",
+    "allowed call retains trusted settlement",
+    "allowed request reaches Higress fixture once",
+    "observe records and allows generation",
+    "personal stream returns 403",
+    "input block is structured JSON, including stream requests",
+    "blocked input never reaches fixture",
+    "blocked input creates no reservation",
+    "blocked input creates no consumption",
+    "project json returns 403",
+    "input block is structured JSON, including stream requests",
+    "blocked input never reaches fixture",
+    "blocked input creates no reservation",
+    "blocked input creates no consumption",
+    "application json returns 403",
+    "input block is structured JSON, including stream requests",
+    "blocked input never reaches fixture",
+    "blocked input creates no reservation",
+    "blocked input creates no consumption",
+    "personal json returns 403",
+    "input block is structured JSON, including stream requests",
+    "blocked input never reaches fixture",
+    "blocked input creates no reservation",
+    "blocked input creates no consumption",
+    "personal json returns 403",
+    "input block is structured JSON, including stream requests",
+    "blocked input never reaches fixture",
+    "blocked input creates no reservation",
+    "blocked input creates no consumption",
+    "personal json returns 403",
+    "input block is structured JSON, including stream requests",
+    "blocked input never reaches fixture",
+    "blocked input creates no reservation",
+    "blocked input creates no consumption",
+    "personal json returns 200",
+    "allowed call retains trusted settlement",
+    "allowed request reaches Higress fixture once",
+    "project stream returns 200",
+    "allowed call retains trusted settlement",
+    "allowed request reaches Higress fixture once",
+    "application json returns 200",
+    "allowed call retains trusted settlement",
+    "allowed request reaches Higress fixture once",
+    "personal stream returns 403",
+    "input block is structured JSON, including stream requests",
+    "blocked input never reaches fixture",
+    "blocked input creates no reservation",
+    "blocked input creates no consumption",
+    "deny replay remains denied after policy change with no duplicate event",
+    "personal json returns 200",
+    "allowed call retains trusted settlement",
+    "allowed request reaches Higress fixture once",
+    "unselected model bypasses content check only, normal permission and billing remain",
+    "application json returns 403",
+    "input block is structured JSON, including stream requests",
+    "blocked input never reaches fixture",
+    "blocked input creates no reservation",
+    "blocked input creates no consumption",
+    "controlled direct mode also blocks before upstream",
+    "personal json returns 503",
+    "scan limit returns explicit dependency failure",
+    "known scan failure leaves no authorization recovery queue",
+    "stale or missing assessment is fail closed",
+    "assessment failure has no reservation",
+    "stale or missing assessment is fail closed",
+    "assessment failure has no reservation",
+    "stale or missing assessment is fail closed",
+    "assessment failure has no reservation",
+    "operator trial identifies synthetic input",
+    "trial never calls a model",
+    "safety events are paginated",
+    "cursor pages do not repeat events",
+    "employee cannot access /safety/query",
+    "employee cannot access /safety/trial",
+    "events contain metadata without matched text",
+    "application json returns 200",
+    "allowed call retains trusted settlement",
+    "allowed request reaches Higress fixture once",
+    "all blocked call logs show zero fee and no forwarding",
+    "no unfinished reservations",
+    "default workspace and live-model budget unchanged"
+  ],
+  "requests": [
+    {
+      "purpose": "personal",
+      "requestId": "guardrail-bf38e381-c6de-4f80-8683-161e32eed634",
+      "httpStatus": 200
+    },
+    {
+      "purpose": "personal",
+      "requestId": "guardrail-388f200a-4d79-4499-aa03-86c35eb68b5b",
+      "httpStatus": 200
+    },
+    {
+      "purpose": "personal",
+      "requestId": "guardrail-1c1f4aa5-6ec8-4371-8af4-700863ca4ee9",
+      "httpStatus": 403
+    },
+    {
+      "purpose": "project",
+      "requestId": "guardrail-1b5fd219-9e65-4447-91b9-25168e542a9e",
+      "httpStatus": 403
+    },
+    {
+      "purpose": "application",
+      "requestId": "guardrail-cdff49e4-dacd-4a7c-8ade-b4a12c0e3763",
+      "httpStatus": 403
+    },
+    {
+      "purpose": "personal",
+      "requestId": "guardrail-06536bd3-dd95-4922-9f24-effd2c9e3447",
+      "httpStatus": 403
+    },
+    {
+      "purpose": "personal",
+      "requestId": "guardrail-69a0d7a1-ce4b-4934-b3de-6e9eabfc93e7",
+      "httpStatus": 403
+    },
+    {
+      "purpose": "personal",
+      "requestId": "guardrail-f154fdaa-fda6-4ae7-aa08-d3a7d6f371d0",
+      "httpStatus": 403
+    },
+    {
+      "purpose": "personal",
+      "requestId": "guardrail-577d9de6-4fdf-4b68-9a04-8e56bdf4344d",
+      "httpStatus": 200
+    },
+    {
+      "purpose": "project",
+      "requestId": "guardrail-d1399a18-e959-45c7-be14-acf6b067f3e6",
+      "httpStatus": 200
+    },
+    {
+      "purpose": "application",
+      "requestId": "guardrail-3d6fa98e-2804-4223-bca0-b018dfad5648",
+      "httpStatus": 200
+    },
+    {
+      "purpose": "personal",
+      "requestId": "guardrail-1c1f4aa5-6ec8-4371-8af4-700863ca4ee9",
+      "httpStatus": 403
+    },
+    {
+      "purpose": "personal",
+      "requestId": "guardrail-e225e6e1-73a2-4232-86fa-c67534cc3433",
+      "httpStatus": 200
+    },
+    {
+      "purpose": "application",
+      "requestId": "guardrail-00a19b10-b6ac-4f9f-a3ff-7a45e532f5f9",
+      "httpStatus": 403
+    },
+    {
+      "purpose": "personal",
+      "requestId": "guardrail-80886c0b-3dae-401e-80b9-b4aab1ffe99b",
+      "httpStatus": 503
+    },
+    {
+      "purpose": "application",
+      "requestId": "guardrail-433f8164-92e2-4fab-8f01-cd64f66964a7",
+      "httpStatus": 200
+    }
+  ],
+  "events": [
+    {
+      "request_id": "guardrail-388f200a-4d79-4499-aa03-86c35eb68b5b",
+      "action": "observe",
+      "matches": [
+        {
+          "ruleId": "preset-phone",
+          "category": "phone"
+        }
+      ]
+    },
+    {
+      "request_id": "guardrail-1c1f4aa5-6ec8-4371-8af4-700863ca4ee9",
+      "action": "block",
+      "matches": [
+        {
+          "ruleId": "preset-phone",
+          "category": "phone"
+        }
+      ]
+    },
+    {
+      "request_id": "guardrail-1b5fd219-9e65-4447-91b9-25168e542a9e",
+      "action": "block",
+      "matches": [
+        {
+          "ruleId": "preset-phone",
+          "category": "phone"
+        }
+      ]
+    },
+    {
+      "request_id": "guardrail-cdff49e4-dacd-4a7c-8ade-b4a12c0e3763",
+      "action": "block",
+      "matches": [
+        {
+          "ruleId": "preset-phone",
+          "category": "phone"
+        }
+      ]
+    },
+    {
+      "request_id": "guardrail-06536bd3-dd95-4922-9f24-effd2c9e3447",
+      "action": "block",
+      "matches": [
+        {
+          "ruleId": "word-1",
+          "category": "custom_word"
+        }
+      ]
+    },
+    {
+      "request_id": "guardrail-69a0d7a1-ce4b-4934-b3de-6e9eabfc93e7",
+      "action": "block",
+      "matches": [
+        {
+          "ruleId": "preset-phone",
+          "category": "phone"
+        }
+      ]
+    },
+    {
+      "request_id": "guardrail-f154fdaa-fda6-4ae7-aa08-d3a7d6f371d0",
+      "action": "block",
+      "matches": [
+        {
+          "ruleId": "word-1",
+          "category": "custom_word"
+        }
+      ]
+    },
+    {
+      "request_id": "guardrail-00a19b10-b6ac-4f9f-a3ff-7a45e532f5f9",
+      "action": "block",
+      "matches": [
+        {
+          "ruleId": "preset-phone",
+          "category": "phone"
+        }
+      ]
+    }
+  ],
+  "calls": [
+    {
+      "request_id": "guardrail-bf38e381-c6de-4f80-8683-161e32eed634",
+      "purpose": "personal",
+      "billable_state": "confirmed",
+      "actual_amount": "0.000132",
+      "error_code": null,
+      "forwarded": true,
+      "safety": null
+    },
+    {
+      "request_id": "guardrail-388f200a-4d79-4499-aa03-86c35eb68b5b",
+      "purpose": "personal",
+      "billable_state": "confirmed",
+      "actual_amount": "0.000132",
+      "error_code": null,
+      "forwarded": true,
+      "safety": {
+        "id": "safety-7ff2cd21-04e3-417c-b8b2-4b11e7a3f576",
+        "action": "observe",
+        "matches": [
+          {
+            "ruleId": "preset-phone",
+            "category": "phone"
+          }
+        ],
+        "modelId": "test-model",
+        "purpose": "personal",
+        "createdAt": "2026-10-30T03:05:29.888Z",
+        "projectId": null,
+        "requestId": "guardrail-388f200a-4d79-4499-aa03-86c35eb68b5b",
+        "subjectId": "member-de65965d-0d8e-45ee-a448-6641a4a2bf17",
+        "policyVersion": 1
+      }
+    },
+    {
+      "request_id": "guardrail-1c1f4aa5-6ec8-4371-8af4-700863ca4ee9",
+      "purpose": "personal",
+      "billable_state": "not_billable",
+      "actual_amount": "0.000000",
+      "error_code": "safety_policy_violation",
+      "forwarded": false,
+      "safety": {
+        "id": "safety-40b3ada4-a92e-4082-91fa-8a68a31bec2b",
+        "action": "block",
+        "matches": [
+          {
+            "ruleId": "preset-phone",
+            "category": "phone"
+          }
+        ],
+        "modelId": "test-model",
+        "purpose": "personal",
+        "createdAt": "2026-10-30T03:05:35.584Z",
+        "projectId": null,
+        "requestId": "guardrail-1c1f4aa5-6ec8-4371-8af4-700863ca4ee9",
+        "subjectId": "member-de65965d-0d8e-45ee-a448-6641a4a2bf17",
+        "policyVersion": 2
+      }
+    },
+    {
+      "request_id": "guardrail-1b5fd219-9e65-4447-91b9-25168e542a9e",
+      "purpose": "project",
+      "billable_state": "not_billable",
+      "actual_amount": "0.000000",
+      "error_code": "safety_policy_violation",
+      "forwarded": false,
+      "safety": {
+        "id": "safety-431e14df-1385-43ce-bd1e-c26cd6995c01",
+        "action": "block",
+        "matches": [
+          {
+            "ruleId": "preset-phone",
+            "category": "phone"
+          }
+        ],
+        "modelId": "test-model",
+        "purpose": "project",
+        "createdAt": "2026-10-30T03:05:37.085Z",
+        "projectId": "project-a6b3680f-d480-4803-8432-0b8a5d45831d",
+        "requestId": "guardrail-1b5fd219-9e65-4447-91b9-25168e542a9e",
+        "subjectId": "member-de65965d-0d8e-45ee-a448-6641a4a2bf17",
+        "policyVersion": 2
+      }
+    },
+    {
+      "request_id": "guardrail-cdff49e4-dacd-4a7c-8ade-b4a12c0e3763",
+      "purpose": "application",
+      "billable_state": "not_billable",
+      "actual_amount": "0.000000",
+      "error_code": "safety_policy_violation",
+      "forwarded": false,
+      "safety": {
+        "id": "safety-491adcaa-bddf-4af8-a173-d74efd7a108b",
+        "action": "block",
+        "matches": [
+          {
+            "ruleId": "preset-phone",
+            "category": "phone"
+          }
+        ],
+        "modelId": "test-model",
+        "purpose": "application",
+        "createdAt": "2026-10-30T03:05:38.671Z",
+        "projectId": null,
+        "requestId": "guardrail-cdff49e4-dacd-4a7c-8ade-b4a12c0e3763",
+        "subjectId": "application-d68ba567-86da-4e91-9803-f0e2f424584e",
+        "policyVersion": 2
+      }
+    },
+    {
+      "request_id": "guardrail-06536bd3-dd95-4922-9f24-effd2c9e3447",
+      "purpose": "personal",
+      "billable_state": "not_billable",
+      "actual_amount": "0.000000",
+      "error_code": "safety_policy_violation",
+      "forwarded": false,
+      "safety": {
+        "id": "safety-dd520a65-e53d-441f-812a-c1ceee23b5d4",
+        "action": "block",
+        "matches": [
+          {
+            "ruleId": "word-1",
+            "category": "custom_word"
+          }
+        ],
+        "modelId": "test-model",
+        "purpose": "personal",
+        "createdAt": "2026-10-30T03:05:40.265Z",
+        "projectId": null,
+        "requestId": "guardrail-06536bd3-dd95-4922-9f24-effd2c9e3447",
+        "subjectId": "member-de65965d-0d8e-45ee-a448-6641a4a2bf17",
+        "policyVersion": 2
+      }
+    },
+    {
+      "request_id": "guardrail-69a0d7a1-ce4b-4934-b3de-6e9eabfc93e7",
+      "purpose": "personal",
+      "billable_state": "not_billable",
+      "actual_amount": "0.000000",
+      "error_code": "safety_policy_violation",
+      "forwarded": false,
+      "safety": {
+        "id": "safety-ccc42bef-82b5-4990-85c6-17b600ca86d2",
+        "action": "block",
+        "matches": [
+          {
+            "ruleId": "preset-phone",
+            "category": "phone"
+          }
+        ],
+        "modelId": "test-model",
+        "purpose": "personal",
+        "createdAt": "2026-10-30T03:05:41.665Z",
+        "projectId": null,
+        "requestId": "guardrail-69a0d7a1-ce4b-4934-b3de-6e9eabfc93e7",
+        "subjectId": "member-de65965d-0d8e-45ee-a448-6641a4a2bf17",
+        "policyVersion": 2
+      }
+    },
+    {
+      "request_id": "guardrail-f154fdaa-fda6-4ae7-aa08-d3a7d6f371d0",
+      "purpose": "personal",
+      "billable_state": "not_billable",
+      "actual_amount": "0.000000",
+      "error_code": "safety_policy_violation",
+      "forwarded": false,
+      "safety": {
+        "id": "safety-fff19e14-8def-412b-9e60-a42fee463add",
+        "action": "block",
+        "matches": [
+          {
+            "ruleId": "word-1",
+            "category": "custom_word"
+          }
+        ],
+        "modelId": "test-model",
+        "purpose": "personal",
+        "createdAt": "2026-10-30T03:05:43.649Z",
+        "projectId": null,
+        "requestId": "guardrail-f154fdaa-fda6-4ae7-aa08-d3a7d6f371d0",
+        "subjectId": "member-de65965d-0d8e-45ee-a448-6641a4a2bf17",
+        "policyVersion": 2
+      }
+    },
+    {
+      "request_id": "guardrail-577d9de6-4fdf-4b68-9a04-8e56bdf4344d",
+      "purpose": "personal",
+      "billable_state": "confirmed",
+      "actual_amount": "0.000132",
+      "error_code": null,
+      "forwarded": true,
+      "safety": null
+    },
+    {
+      "request_id": "guardrail-d1399a18-e959-45c7-be14-acf6b067f3e6",
+      "purpose": "project",
+      "billable_state": "confirmed",
+      "actual_amount": "0.000132",
+      "error_code": null,
+      "forwarded": true,
+      "safety": null
+    },
+    {
+      "request_id": "guardrail-3d6fa98e-2804-4223-bca0-b018dfad5648",
+      "purpose": "application",
+      "billable_state": "confirmed",
+      "actual_amount": "0.000132",
+      "error_code": null,
+      "forwarded": true,
+      "safety": null
+    },
+    {
+      "request_id": "guardrail-e225e6e1-73a2-4232-86fa-c67534cc3433",
+      "purpose": "personal",
+      "billable_state": "confirmed",
+      "actual_amount": "0.000132",
+      "error_code": null,
+      "forwarded": true,
+      "safety": null
+    },
+    {
+      "request_id": "guardrail-00a19b10-b6ac-4f9f-a3ff-7a45e532f5f9",
+      "purpose": "application",
+      "billable_state": "not_billable",
+      "actual_amount": "0.000000",
+      "error_code": "safety_policy_violation",
+      "forwarded": false,
+      "safety": {
+        "id": "safety-a72e78b1-7fe2-4de2-be9d-604b0e17c975",
+        "action": "block",
+        "matches": [
+          {
+            "ruleId": "preset-phone",
+            "category": "phone"
+          }
+        ],
+        "modelId": "test-model",
+        "purpose": "application",
+        "createdAt": "2026-10-30T03:06:15.273Z",
+        "projectId": null,
+        "requestId": "guardrail-00a19b10-b6ac-4f9f-a3ff-7a45e532f5f9",
+        "subjectId": "application-d68ba567-86da-4e91-9803-f0e2f424584e",
+        "policyVersion": 6
+      }
+    },
+    {
+      "request_id": "guardrail-433f8164-92e2-4fab-8f01-cd64f66964a7",
+      "purpose": "application",
+      "billable_state": "confirmed",
+      "actual_amount": "0.000132",
+      "error_code": null,
+      "forwarded": true,
+      "safety": null
+    }
+  ],
+  "defaultPreservation": {
+    "before": {
+      "defaultWorkspacePresent": true,
+      "liveBudgetHash": "64ec2a0fdd806efcef7a199bcc689baef5ddfd7df694e6b046b14c9d1c2bc063",
+      "workspaceId": "20bea9e2-970a-4e7d-98eb-12ca16e81692",
+      "stateFileHash": "e7b742a224289865187386d14dce3cc5cbcb98fa22844dcee1af4bc14194d5fe",
+      "businessConfigurationHash": "e7f267f7e4f24b7586b046da7d4e5d4ac894ee7bb03ca69d1e9e632563288e2c",
+      "fundsHash": "5626134a433f2ff7c8932f9aca6a874ef157ca45fa9b3732a3b3eb580bff118a",
+      "fundedBatches": 8
+    },
+    "after": {
+      "defaultWorkspacePresent": true,
+      "liveBudgetHash": "64ec2a0fdd806efcef7a199bcc689baef5ddfd7df694e6b046b14c9d1c2bc063",
+      "workspaceId": "20bea9e2-970a-4e7d-98eb-12ca16e81692",
+      "stateFileHash": "e7b742a224289865187386d14dce3cc5cbcb98fa22844dcee1af4bc14194d5fe",
+      "businessConfigurationHash": "e7f267f7e4f24b7586b046da7d4e5d4ac894ee7bb03ca69d1e9e632563288e2c",
+      "fundsHash": "5626134a433f2ff7c8932f9aca6a874ef157ca45fa9b3732a3b3eb580bff118a",
+      "fundedBatches": 8
+    }
+  },
+  "fixtureRequests": [
+    {
+      "requestId": "391e98f1-8e01-4e17-b119-3ead9e6571dd",
+      "model": "physical-model",
+      "stream": false,
+      "maxOutput": 1,
+      "includeUsage": false,
+      "tools": [],
+      "hasToolResult": false,
+      "hopCredentialPresent": false,
+      "closed": true
+    },
+    {
+      "requestId": "guardrail-bf38e381-c6de-4f80-8683-161e32eed634",
+      "model": "physical-model",
+      "stream": false,
+      "maxOutput": 32,
+      "includeUsage": false,
+      "tools": [],
+      "hasToolResult": false,
+      "hopCredentialPresent": false,
+      "closed": true
+    },
+    {
+      "requestId": "guardrail-388f200a-4d79-4499-aa03-86c35eb68b5b",
+      "model": "physical-model",
+      "stream": false,
+      "maxOutput": 32,
+      "includeUsage": false,
+      "tools": [],
+      "hasToolResult": false,
+      "hopCredentialPresent": false,
+      "closed": true
+    },
+    {
+      "requestId": "guardrail-577d9de6-4fdf-4b68-9a04-8e56bdf4344d",
+      "model": "physical-model",
+      "stream": false,
+      "maxOutput": 32,
+      "includeUsage": false,
+      "tools": [],
+      "hasToolResult": false,
+      "hopCredentialPresent": false,
+      "closed": true
+    },
+    {
+      "requestId": "guardrail-d1399a18-e959-45c7-be14-acf6b067f3e6",
+      "model": "physical-model",
+      "stream": true,
+      "maxOutput": 32,
+      "includeUsage": true,
+      "tools": [],
+      "hasToolResult": false,
+      "hopCredentialPresent": false,
+      "closed": true
+    },
+    {
+      "requestId": "guardrail-3d6fa98e-2804-4223-bca0-b018dfad5648",
+      "model": "physical-model",
+      "stream": false,
+      "maxOutput": 32,
+      "includeUsage": false,
+      "tools": [],
+      "hasToolResult": false,
+      "hopCredentialPresent": false,
+      "closed": true
+    },
+    {
+      "requestId": "guardrail-e225e6e1-73a2-4232-86fa-c67534cc3433",
+      "model": "physical-model",
+      "stream": false,
+      "maxOutput": 32,
+      "includeUsage": false,
+      "tools": [],
+      "hasToolResult": false,
+      "hopCredentialPresent": false,
+      "closed": true
+    },
+    {
+      "requestId": "guardrail-433f8164-92e2-4fab-8f01-cd64f66964a7",
+      "model": "physical-model",
+      "stream": false,
+      "maxOutput": 32,
+      "includeUsage": false,
+      "tools": [],
+      "hasToolResult": false,
+      "hopCredentialPresent": false,
+      "closed": true
+    }
+  ],
+  "completedAt": "2026-10-30T03:07:03.748Z"
+}

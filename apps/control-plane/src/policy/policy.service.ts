@@ -17,7 +17,8 @@ export class PolicyService {
     return response;
   }
 
-  getDemoCredential(apiKey: string) {
-    return this.store.getDemoCredential(apiKey);
+  async getDemoCredential(apiKey: string) {
+    const value=await this.store.getDemoCredential(apiKey);
+    return value?{...value,guardrailPolicy:await this.store.readGuardrailPolicy()}:null;
   }
 }

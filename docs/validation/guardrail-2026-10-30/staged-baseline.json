@@ -1,0 +1,12 @@
+{
+  "success": true,
+  "sourceTree": "7acb91d83974f745c66bfbdc4850a92e09d688bf",
+  "scope": "exported Git index without unrelated work; offline frozen dependencies",
+  "checks": {
+    "build": "all workspace packages passed",
+    "contractsTests": 35,
+    "controlPlaneTests": 147,
+    "gatewayTests": 41
+  },
+  "browser": "browser checks were performed on the mixed working tree; this baseline proves independent build and unit tests"
+}

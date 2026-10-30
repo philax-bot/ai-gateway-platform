@@ -1,3 +1,4 @@
+import {checkGuardrail,defaultGuardrailPolicy,type GuardrailPolicy} from '@ai-gateway/contracts';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { createHash, randomUUID, timingSafeEqual } from 'node:crypto';
 import { isAbsolute,resolve } from 'node:path';
@@ -44,7 +45,7 @@ async function controlPlane<T>(path: string, body: unknown): Promise<{ status: n
     headers:{ authorization:`Bearer ${serviceToken}`,'content-type':'application/json' },body:JSON.stringify(body) });
   return { status:response.status,value:await response.json() as T };
 }
-type ResolvedCredential = { credentialId:string; identity:AuthorizeRequest['identity']; purpose:AuthorizeRequest['purpose']; modelIds?:string[] };
+type ResolvedCredential = { guardrailPolicy?:GuardrailPolicy; credentialId:string; identity:AuthorizeRequest['identity']; purpose:AuthorizeRequest['purpose']; modelIds?:string[] };
 async function boundedText(response:Response,onBytes:()=>void):Promise<string>{
   if(!response.body)return '';
   const reader=response.body.getReader(),decoder=new TextDecoder();let result='',size=0;
@@ -117,7 +118,9 @@ async function handleCompletions(request: IncomingMessage, response: ServerRespo
     if(!credential) { sendJson(response,401,{error:{type:'authentication_error',message:'invalid API key'}},origin); return; }
   } catch { sendJson(response,503,{error:{type:'control_plane_unavailable',message:'authorization service is unavailable'},requestId},origin); return; }
   const admissionAttemptId=randomUUID();
+  const assessment=checkGuardrail(credential.guardrailPolicy??defaultGuardrailPolicy(),body.model,body);
   const authorization:AuthorizeRequest={
+      guardrail:assessment,
       requestId,idempotencyKey,admissionAttemptId,identity:credential.identity,purpose:credential.purpose,modelId:body.model,mode:'chat',
       estimatedInputTokens:estimateChatInput(body),expectedPriceVersion:typeof request.headers['x-price-version']==='string'?request.headers['x-price-version']:undefined,
       maxOutputTokens:requestedOutput as number|undefined,requestFingerprint:createHash('sha256').update(JSON.stringify(body)).digest('hex'),policyVersion:'policy-local-1',
@@ -133,6 +136,8 @@ async function handleCompletions(request: IncomingMessage, response: ServerRespo
     const auth=await controlPlane<AuthorizeResponse>('/internal/v1/policy/authorize',authorization);
     if(auth.status!==200) {
       if(auth.status===400||auth.status===409)await forget();else await defer();
+      const code=(auth.value as {message?:string})?.message;
+      if(code==='guardrail_policy_stale'||code==='guardrail_unavailable'){await forget();sendJson(response,code==='guardrail_policy_stale'?409:503,{error:{type:code,code,message:code==='guardrail_policy_stale'?'安全策略已更新，请重试。':'安全检查暂不可用，请稍后重试。'},requestId},origin);return;}
       sendJson(response,auth.status===409?409:auth.status===400?400:503,{error:{type:auth.status===400?'invalid_request_error':'authorization_error',message:auth.status===400?'retry reference is invalid':'authorization unavailable or conflicting'},requestId},origin); return;
     }
     decision=auth.value;
@@ -141,7 +146,7 @@ async function handleCompletions(request: IncomingMessage, response: ServerRespo
   if(decision.decision!=='allow'||!decision.reservation) {
     if(decision.decision==='allow'){await defer();sendJson(response,503,{error:{type:'authorization_error',message:'authorization response is incomplete'},requestId},origin);return;}
     await forget();
-    sendJson(response,decision.reasonCode==='rate_limited'?429:decision.reasonCode==='request_limit_exceeded'?400:decision.reasonCode==='price_unconfigured'?503:403,{error:{type:'policy_denied',code:decision.reasonCode,message:decision.reasonMessage,...(decision.requestLimits?{details:{requestLimits:decision.requestLimits}}:{})},requestId},origin); return;
+    sendJson(response,decision.reasonCode==='rate_limited'?429:decision.reasonCode==='request_limit_exceeded'?400:decision.reasonCode==='price_unconfigured'?503:403,{error:{type:decision.reasonCode==='safety_policy_violation'?'safety_policy_violation':'policy_denied',code:decision.reasonCode==='safety_policy_violation'?'sensitive_input':decision.reasonCode,message:decision.reasonMessage,...(decision.requestLimits?{details:{requestLimits:decision.requestLimits}}:{})},requestId},origin); return;
   }
   if(decision.replayed||decision.requestId!==requestId||(decision.admissionAttemptId&&decision.admissionAttemptId!==admissionAttemptId)) {
     if(decision.admissionAttemptId===admissionAttemptId)await defer();else await forget();

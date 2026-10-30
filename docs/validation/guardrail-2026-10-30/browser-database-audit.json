@@ -1,0 +1,933 @@
+{
+  "success": true,
+  "scope": "real Higress, isolated PostgreSQL and deterministic fixture; includes browser retries; zero vendor calls",
+  "checks": [
+    "guardrail-cb61ec22-16fb-4b8f-bbf6-6196f0199314 original fixture price",
+    "guardrail-cb61ec22-16fb-4b8f-bbf6-6196f0199314 unique settlement",
+    "guardrail-cb61ec22-16fb-4b8f-bbf6-6196f0199314 one real Higress fixture dispatch",
+    "guardrail-f249dcf8-a89f-4adc-9cc8-9fceed8c0e88 original fixture price",
+    "guardrail-f249dcf8-a89f-4adc-9cc8-9fceed8c0e88 unique settlement",
+    "guardrail-f249dcf8-a89f-4adc-9cc8-9fceed8c0e88 one real Higress fixture dispatch",
+    "guardrail-9c4c1e80-6d64-456c-a597-295898f85979 zero billable blocked input",
+    "guardrail-9c4c1e80-6d64-456c-a597-295898f85979 no ledger or fixture generation",
+    "guardrail-2bfdfa25-3ee7-4055-b2b0-3b3939929f5a zero billable blocked input",
+    "guardrail-2bfdfa25-3ee7-4055-b2b0-3b3939929f5a no ledger or fixture generation",
+    "guardrail-a31ff8ea-0d3f-4523-adeb-eac8d5edb416 zero billable blocked input",
+    "guardrail-a31ff8ea-0d3f-4523-adeb-eac8d5edb416 no ledger or fixture generation",
+    "guardrail-1c8b611c-5aff-46dd-936f-8c04d022b27f zero billable blocked input",
+    "guardrail-1c8b611c-5aff-46dd-936f-8c04d022b27f no ledger or fixture generation",
+    "guardrail-7defa7c0-8a83-43f4-b6da-3cbd8a94d7d1 zero billable blocked input",
+    "guardrail-7defa7c0-8a83-43f4-b6da-3cbd8a94d7d1 no ledger or fixture generation",
+    "guardrail-9ddcf450-9f25-49a7-9d04-62c394bff852 zero billable blocked input",
+    "guardrail-9ddcf450-9f25-49a7-9d04-62c394bff852 no ledger or fixture generation",
+    "guardrail-8270f835-1e3d-4057-b6f4-0989cda0c271 original fixture price",
+    "guardrail-8270f835-1e3d-4057-b6f4-0989cda0c271 unique settlement",
+    "guardrail-8270f835-1e3d-4057-b6f4-0989cda0c271 one real Higress fixture dispatch",
+    "guardrail-6f9738e1-db01-42e9-9673-8d3cfe5b4c1b original fixture price",
+    "guardrail-6f9738e1-db01-42e9-9673-8d3cfe5b4c1b unique settlement",
+    "guardrail-6f9738e1-db01-42e9-9673-8d3cfe5b4c1b one real Higress fixture dispatch",
+    "guardrail-60861923-19db-4f2e-bf87-1ddfcdcf2b4c original fixture price",
+    "guardrail-60861923-19db-4f2e-bf87-1ddfcdcf2b4c unique settlement",
+    "guardrail-60861923-19db-4f2e-bf87-1ddfcdcf2b4c one real Higress fixture dispatch",
+    "guardrail-95fb40e7-d6e1-477a-9ae6-d6ce343100f3 original fixture price",
+    "guardrail-95fb40e7-d6e1-477a-9ae6-d6ce343100f3 unique settlement",
+    "guardrail-95fb40e7-d6e1-477a-9ae6-d6ce343100f3 one real Higress fixture dispatch",
+    "request-6cf05234-0df7-4824-a9c8-f74b29be4f29 zero billable blocked input",
+    "request-6cf05234-0df7-4824-a9c8-f74b29be4f29 no ledger or fixture generation",
+    "request-b8e3e16b-ea75-42c9-86b2-f97d3f48fec4 original fixture price",
+    "request-b8e3e16b-ea75-42c9-86b2-f97d3f48fec4 unique settlement",
+    "request-b8e3e16b-ea75-42c9-86b2-f97d3f48fec4 one real Higress fixture dispatch",
+    "request-f6466132-f04e-4b9e-a443-6f9d4c9b0ff2 zero billable blocked input",
+    "request-f6466132-f04e-4b9e-a443-6f9d4c9b0ff2 no ledger or fixture generation",
+    "request-873d33f2-af97-48e6-8628-aa36070a71ac original fixture price",
+    "request-873d33f2-af97-48e6-8628-aa36070a71ac unique settlement",
+    "request-873d33f2-af97-48e6-8628-aa36070a71ac one real Higress fixture dispatch",
+    "request-33bd60e1-c68e-425a-9892-ecf59f148b41 zero billable blocked input",
+    "request-33bd60e1-c68e-425a-9892-ecf59f148b41 no ledger or fixture generation",
+    "request-a009b94d-c69c-469a-9596-59287f35d477 original fixture price",
+    "request-a009b94d-c69c-469a-9596-59287f35d477 unique settlement",
+    "request-a009b94d-c69c-469a-9596-59287f35d477 one real Higress fixture dispatch",
+    "request-aeed91c1-4d86-4053-b593-3fd43ae5b8ae zero billable blocked input",
+    "request-aeed91c1-4d86-4053-b593-3fd43ae5b8ae no ledger or fixture generation",
+    "request-6c31989c-6225-44a1-87c2-e4181a3d607d original fixture price",
+    "request-6c31989c-6225-44a1-87c2-e4181a3d607d unique settlement",
+    "request-6c31989c-6225-44a1-87c2-e4181a3d607d one real Higress fixture dispatch",
+    "request-789c0e34-810b-4073-b52c-18562f817f70 zero billable blocked input",
+    "request-789c0e34-810b-4073-b52c-18562f817f70 no ledger or fixture generation",
+    "request-6274085f-ff29-48db-af04-ce8d758a7277 original fixture price",
+    "request-6274085f-ff29-48db-af04-ce8d758a7277 unique settlement",
+    "request-6274085f-ff29-48db-af04-ce8d758a7277 one real Higress fixture dispatch",
+    "no unfinished reservations",
+    "one safety event per request",
+    "persisted call and safety metadata exclude matched text",
+    "scoped funds conserved across API and all browser attempts",
+    "default config funds state and real-model budget unchanged"
+  ],
+  "calls": [
+    {
+      "request_id": "guardrail-cb61ec22-16fb-4b8f-bbf6-6196f0199314",
+      "purpose": "personal",
+      "subject_id": "member-4162e404-8825-480f-9254-98064ce21a21",
+      "actual_amount": "0.000132",
+      "billable_state": "confirmed",
+      "forwarded": true,
+      "error_code": null,
+      "input_tokens": 13,
+      "output_tokens": 14,
+      "cached_input_tokens": 4,
+      "safety": null
+    },
+    {
+      "request_id": "guardrail-f249dcf8-a89f-4adc-9cc8-9fceed8c0e88",
+      "purpose": "personal",
+      "subject_id": "member-4162e404-8825-480f-9254-98064ce21a21",
+      "actual_amount": "0.000132",
+      "billable_state": "confirmed",
+      "forwarded": true,
+      "error_code": null,
+      "input_tokens": 13,
+      "output_tokens": 14,
+      "cached_input_tokens": 4,
+      "safety": {
+        "id": "safety-a90f77e4-e529-4381-b728-e8da4afc38d5",
+        "action": "observe",
+        "matches": [
+          {
+            "ruleId": "preset-phone",
+            "category": "phone"
+          }
+        ],
+        "modelId": "test-model",
+        "purpose": "personal",
+        "createdAt": "2026-10-30T02:02:24.413Z",
+        "projectId": null,
+        "requestId": "guardrail-f249dcf8-a89f-4adc-9cc8-9fceed8c0e88",
+        "subjectId": "member-4162e404-8825-480f-9254-98064ce21a21",
+        "policyVersion": 1
+      }
+    },
+    {
+      "request_id": "guardrail-9c4c1e80-6d64-456c-a597-295898f85979",
+      "purpose": "personal",
+      "subject_id": "member-4162e404-8825-480f-9254-98064ce21a21",
+      "actual_amount": "0.000000",
+      "billable_state": "not_billable",
+      "forwarded": false,
+      "error_code": "safety_policy_violation",
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cached_input_tokens": 0,
+      "safety": {
+        "id": "safety-f3ea019e-f61f-4517-bbd3-19cefbd92253",
+        "action": "block",
+        "matches": [
+          {
+            "ruleId": "preset-phone",
+            "category": "phone"
+          }
+        ],
+        "modelId": "test-model",
+        "purpose": "personal",
+        "createdAt": "2026-10-30T02:02:30.815Z",
+        "projectId": null,
+        "requestId": "guardrail-9c4c1e80-6d64-456c-a597-295898f85979",
+        "subjectId": "member-4162e404-8825-480f-9254-98064ce21a21",
+        "policyVersion": 2
+      }
+    },
+    {
+      "request_id": "guardrail-2bfdfa25-3ee7-4055-b2b0-3b3939929f5a",
+      "purpose": "project",
+      "subject_id": "member-4162e404-8825-480f-9254-98064ce21a21",
+      "actual_amount": "0.000000",
+      "billable_state": "not_billable",
+      "forwarded": false,
+      "error_code": "safety_policy_violation",
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cached_input_tokens": 0,
+      "safety": {
+        "id": "safety-7b663abe-cdfc-43af-b6aa-0982ed94e8df",
+        "action": "block",
+        "matches": [
+          {
+            "ruleId": "preset-phone",
+            "category": "phone"
+          }
+        ],
+        "modelId": "test-model",
+        "purpose": "project",
+        "createdAt": "2026-10-30T02:02:32.278Z",
+        "projectId": "project-5814bd78-b237-49d7-937e-001f89852f67",
+        "requestId": "guardrail-2bfdfa25-3ee7-4055-b2b0-3b3939929f5a",
+        "subjectId": "member-4162e404-8825-480f-9254-98064ce21a21",
+        "policyVersion": 2
+      }
+    },
+    {
+      "request_id": "guardrail-a31ff8ea-0d3f-4523-adeb-eac8d5edb416",
+      "purpose": "application",
+      "subject_id": "application-e1d6fe45-39de-48c8-9e59-3de5df15804e",
+      "actual_amount": "0.000000",
+      "billable_state": "not_billable",
+      "forwarded": false,
+      "error_code": "safety_policy_violation",
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cached_input_tokens": 0,
+      "safety": {
+        "id": "safety-e87f6b1c-6ad1-4890-abd8-bc7a8b540bda",
+        "action": "block",
+        "matches": [
+          {
+            "ruleId": "preset-phone",
+            "category": "phone"
+          }
+        ],
+        "modelId": "test-model",
+        "purpose": "application",
+        "createdAt": "2026-10-30T02:02:33.487Z",
+        "projectId": null,
+        "requestId": "guardrail-a31ff8ea-0d3f-4523-adeb-eac8d5edb416",
+        "subjectId": "application-e1d6fe45-39de-48c8-9e59-3de5df15804e",
+        "policyVersion": 2
+      }
+    },
+    {
+      "request_id": "guardrail-1c8b611c-5aff-46dd-936f-8c04d022b27f",
+      "purpose": "personal",
+      "subject_id": "member-4162e404-8825-480f-9254-98064ce21a21",
+      "actual_amount": "0.000000",
+      "billable_state": "not_billable",
+      "forwarded": false,
+      "error_code": "safety_policy_violation",
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cached_input_tokens": 0,
+      "safety": {
+        "id": "safety-f63555ba-d924-45d7-a46b-a6d90271bf4f",
+        "action": "block",
+        "matches": [
+          {
+            "ruleId": "word-1",
+            "category": "custom_word"
+          }
+        ],
+        "modelId": "test-model",
+        "purpose": "personal",
+        "createdAt": "2026-10-30T02:02:34.833Z",
+        "projectId": null,
+        "requestId": "guardrail-1c8b611c-5aff-46dd-936f-8c04d022b27f",
+        "subjectId": "member-4162e404-8825-480f-9254-98064ce21a21",
+        "policyVersion": 2
+      }
+    },
+    {
+      "request_id": "guardrail-7defa7c0-8a83-43f4-b6da-3cbd8a94d7d1",
+      "purpose": "personal",
+      "subject_id": "member-4162e404-8825-480f-9254-98064ce21a21",
+      "actual_amount": "0.000000",
+      "billable_state": "not_billable",
+      "forwarded": false,
+      "error_code": "safety_policy_violation",
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cached_input_tokens": 0,
+      "safety": {
+        "id": "safety-bbe484d5-5778-435e-972b-76a7fbaca0c0",
+        "action": "block",
+        "matches": [
+          {
+            "ruleId": "preset-phone",
+            "category": "phone"
+          }
+        ],
+        "modelId": "test-model",
+        "purpose": "personal",
+        "createdAt": "2026-10-30T02:02:36.127Z",
+        "projectId": null,
+        "requestId": "guardrail-7defa7c0-8a83-43f4-b6da-3cbd8a94d7d1",
+        "subjectId": "member-4162e404-8825-480f-9254-98064ce21a21",
+        "policyVersion": 2
+      }
+    },
+    {
+      "request_id": "guardrail-9ddcf450-9f25-49a7-9d04-62c394bff852",
+      "purpose": "personal",
+      "subject_id": "member-4162e404-8825-480f-9254-98064ce21a21",
+      "actual_amount": "0.000000",
+      "billable_state": "not_billable",
+      "forwarded": false,
+      "error_code": "safety_policy_violation",
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cached_input_tokens": 0,
+      "safety": {
+        "id": "safety-7933967c-438a-4214-b280-8fd387fcd95f",
+        "action": "block",
+        "matches": [
+          {
+            "ruleId": "word-1",
+            "category": "custom_word"
+          }
+        ],
+        "modelId": "test-model",
+        "purpose": "personal",
+        "createdAt": "2026-10-30T02:02:38.396Z",
+        "projectId": null,
+        "requestId": "guardrail-9ddcf450-9f25-49a7-9d04-62c394bff852",
+        "subjectId": "member-4162e404-8825-480f-9254-98064ce21a21",
+        "policyVersion": 2
+      }
+    },
+    {
+      "request_id": "guardrail-8270f835-1e3d-4057-b6f4-0989cda0c271",
+      "purpose": "personal",
+      "subject_id": "member-4162e404-8825-480f-9254-98064ce21a21",
+      "actual_amount": "0.000132",
+      "billable_state": "confirmed",
+      "forwarded": true,
+      "error_code": null,
+      "input_tokens": 13,
+      "output_tokens": 14,
+      "cached_input_tokens": 4,
+      "safety": null
+    },
+    {
+      "request_id": "guardrail-6f9738e1-db01-42e9-9673-8d3cfe5b4c1b",
+      "purpose": "project",
+      "subject_id": "member-4162e404-8825-480f-9254-98064ce21a21",
+      "actual_amount": "0.000132",
+      "billable_state": "confirmed",
+      "forwarded": true,
+      "error_code": null,
+      "input_tokens": 13,
+      "output_tokens": 14,
+      "cached_input_tokens": 4,
+      "safety": null
+    },
+    {
+      "request_id": "guardrail-60861923-19db-4f2e-bf87-1ddfcdcf2b4c",
+      "purpose": "application",
+      "subject_id": "application-e1d6fe45-39de-48c8-9e59-3de5df15804e",
+      "actual_amount": "0.000132",
+      "billable_state": "confirmed",
+      "forwarded": true,
+      "error_code": null,
+      "input_tokens": 13,
+      "output_tokens": 14,
+      "cached_input_tokens": 4,
+      "safety": null
+    },
+    {
+      "request_id": "guardrail-95fb40e7-d6e1-477a-9ae6-d6ce343100f3",
+      "purpose": "application",
+      "subject_id": "application-e1d6fe45-39de-48c8-9e59-3de5df15804e",
+      "actual_amount": "0.000132",
+      "billable_state": "confirmed",
+      "forwarded": true,
+      "error_code": null,
+      "input_tokens": 13,
+      "output_tokens": 14,
+      "cached_input_tokens": 4,
+      "safety": null
+    },
+    {
+      "request_id": "request-6cf05234-0df7-4824-a9c8-f74b29be4f29",
+      "purpose": "personal",
+      "subject_id": "member-4162e404-8825-480f-9254-98064ce21a21",
+      "actual_amount": "0.000000",
+      "billable_state": "not_billable",
+      "forwarded": false,
+      "error_code": "safety_policy_violation",
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cached_input_tokens": 0,
+      "safety": {
+        "id": "safety-e1af885a-318b-4022-9043-ab0e5d83213a",
+        "action": "block",
+        "matches": [
+          {
+            "ruleId": "preset-phone",
+            "category": "phone"
+          }
+        ],
+        "modelId": "test-model",
+        "purpose": "personal",
+        "createdAt": "2026-10-30T02:46:00.820Z",
+        "projectId": null,
+        "requestId": "request-6cf05234-0df7-4824-a9c8-f74b29be4f29",
+        "subjectId": "member-4162e404-8825-480f-9254-98064ce21a21",
+        "policyVersion": 9
+      }
+    },
+    {
+      "request_id": "request-b8e3e16b-ea75-42c9-86b2-f97d3f48fec4",
+      "purpose": "personal",
+      "subject_id": "member-4162e404-8825-480f-9254-98064ce21a21",
+      "actual_amount": "0.000132",
+      "billable_state": "confirmed",
+      "forwarded": true,
+      "error_code": null,
+      "input_tokens": 13,
+      "output_tokens": 14,
+      "cached_input_tokens": 4,
+      "safety": null
+    },
+    {
+      "request_id": "request-f6466132-f04e-4b9e-a443-6f9d4c9b0ff2",
+      "purpose": "personal",
+      "subject_id": "member-4162e404-8825-480f-9254-98064ce21a21",
+      "actual_amount": "0.000000",
+      "billable_state": "not_billable",
+      "forwarded": false,
+      "error_code": "safety_policy_violation",
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cached_input_tokens": 0,
+      "safety": {
+        "id": "safety-33531a17-f5b2-4b1c-a84d-7e0250033b05",
+        "action": "block",
+        "matches": [
+          {
+            "ruleId": "preset-phone",
+            "category": "phone"
+          }
+        ],
+        "modelId": "test-model",
+        "purpose": "personal",
+        "createdAt": "2026-10-30T02:48:51.366Z",
+        "projectId": null,
+        "requestId": "request-f6466132-f04e-4b9e-a443-6f9d4c9b0ff2",
+        "subjectId": "member-4162e404-8825-480f-9254-98064ce21a21",
+        "policyVersion": 12
+      }
+    },
+    {
+      "request_id": "request-873d33f2-af97-48e6-8628-aa36070a71ac",
+      "purpose": "personal",
+      "subject_id": "member-4162e404-8825-480f-9254-98064ce21a21",
+      "actual_amount": "0.000132",
+      "billable_state": "confirmed",
+      "forwarded": true,
+      "error_code": null,
+      "input_tokens": 13,
+      "output_tokens": 14,
+      "cached_input_tokens": 4,
+      "safety": null
+    },
+    {
+      "request_id": "request-33bd60e1-c68e-425a-9892-ecf59f148b41",
+      "purpose": "personal",
+      "subject_id": "member-4162e404-8825-480f-9254-98064ce21a21",
+      "actual_amount": "0.000000",
+      "billable_state": "not_billable",
+      "forwarded": false,
+      "error_code": "safety_policy_violation",
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cached_input_tokens": 0,
+      "safety": {
+        "id": "safety-64f3b4a7-da0b-4d07-ab2f-af7536c542d1",
+        "action": "block",
+        "matches": [
+          {
+            "ruleId": "preset-phone",
+            "category": "phone"
+          }
+        ],
+        "modelId": "test-model",
+        "purpose": "personal",
+        "createdAt": "2026-10-30T02:55:56.980Z",
+        "projectId": null,
+        "requestId": "request-33bd60e1-c68e-425a-9892-ecf59f148b41",
+        "subjectId": "member-4162e404-8825-480f-9254-98064ce21a21",
+        "policyVersion": 15
+      }
+    },
+    {
+      "request_id": "request-a009b94d-c69c-469a-9596-59287f35d477",
+      "purpose": "personal",
+      "subject_id": "member-4162e404-8825-480f-9254-98064ce21a21",
+      "actual_amount": "0.000132",
+      "billable_state": "confirmed",
+      "forwarded": true,
+      "error_code": null,
+      "input_tokens": 13,
+      "output_tokens": 14,
+      "cached_input_tokens": 4,
+      "safety": null
+    },
+    {
+      "request_id": "request-aeed91c1-4d86-4053-b593-3fd43ae5b8ae",
+      "purpose": "personal",
+      "subject_id": "member-4162e404-8825-480f-9254-98064ce21a21",
+      "actual_amount": "0.000000",
+      "billable_state": "not_billable",
+      "forwarded": false,
+      "error_code": "safety_policy_violation",
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cached_input_tokens": 0,
+      "safety": {
+        "id": "safety-1a22f2f3-c1be-43b5-9f1b-b780ef296de5",
+        "action": "block",
+        "matches": [
+          {
+            "ruleId": "preset-phone",
+            "category": "phone"
+          }
+        ],
+        "modelId": "test-model",
+        "purpose": "personal",
+        "createdAt": "2026-10-30T02:58:56.289Z",
+        "projectId": null,
+        "requestId": "request-aeed91c1-4d86-4053-b593-3fd43ae5b8ae",
+        "subjectId": "member-4162e404-8825-480f-9254-98064ce21a21",
+        "policyVersion": 18
+      }
+    },
+    {
+      "request_id": "request-6c31989c-6225-44a1-87c2-e4181a3d607d",
+      "purpose": "personal",
+      "subject_id": "member-4162e404-8825-480f-9254-98064ce21a21",
+      "actual_amount": "0.000132",
+      "billable_state": "confirmed",
+      "forwarded": true,
+      "error_code": null,
+      "input_tokens": 13,
+      "output_tokens": 14,
+      "cached_input_tokens": 4,
+      "safety": null
+    },
+    {
+      "request_id": "request-789c0e34-810b-4073-b52c-18562f817f70",
+      "purpose": "personal",
+      "subject_id": "member-4162e404-8825-480f-9254-98064ce21a21",
+      "actual_amount": "0.000000",
+      "billable_state": "not_billable",
+      "forwarded": false,
+      "error_code": "safety_policy_violation",
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cached_input_tokens": 0,
+      "safety": {
+        "id": "safety-e8c3c5a7-ea02-4a11-b2fe-7955e5b31907",
+        "action": "block",
+        "matches": [
+          {
+            "ruleId": "preset-phone",
+            "category": "phone"
+          }
+        ],
+        "modelId": "test-model",
+        "purpose": "personal",
+        "createdAt": "2026-10-30T03:02:07.586Z",
+        "projectId": null,
+        "requestId": "request-789c0e34-810b-4073-b52c-18562f817f70",
+        "subjectId": "member-4162e404-8825-480f-9254-98064ce21a21",
+        "policyVersion": 21
+      }
+    },
+    {
+      "request_id": "request-6274085f-ff29-48db-af04-ce8d758a7277",
+      "purpose": "personal",
+      "subject_id": "member-4162e404-8825-480f-9254-98064ce21a21",
+      "actual_amount": "0.000132",
+      "billable_state": "confirmed",
+      "forwarded": true,
+      "error_code": null,
+      "input_tokens": 13,
+      "output_tokens": 14,
+      "cached_input_tokens": 4,
+      "safety": null
+    }
+  ],
+  "ledger": [
+    {
+      "request_id": "guardrail-cb61ec22-16fb-4b8f-bbf6-6196f0199314",
+      "kind": "settlement",
+      "amount": "0.000132"
+    },
+    {
+      "request_id": "guardrail-f249dcf8-a89f-4adc-9cc8-9fceed8c0e88",
+      "kind": "settlement",
+      "amount": "0.000132"
+    },
+    {
+      "request_id": "guardrail-8270f835-1e3d-4057-b6f4-0989cda0c271",
+      "kind": "settlement",
+      "amount": "0.000132"
+    },
+    {
+      "request_id": "guardrail-6f9738e1-db01-42e9-9673-8d3cfe5b4c1b",
+      "kind": "settlement",
+      "amount": "0.000132"
+    },
+    {
+      "request_id": "guardrail-60861923-19db-4f2e-bf87-1ddfcdcf2b4c",
+      "kind": "settlement",
+      "amount": "0.000132"
+    },
+    {
+      "request_id": "guardrail-95fb40e7-d6e1-477a-9ae6-d6ce343100f3",
+      "kind": "settlement",
+      "amount": "0.000132"
+    },
+    {
+      "request_id": "request-b8e3e16b-ea75-42c9-86b2-f97d3f48fec4",
+      "kind": "settlement",
+      "amount": "0.000132"
+    },
+    {
+      "request_id": "request-873d33f2-af97-48e6-8628-aa36070a71ac",
+      "kind": "settlement",
+      "amount": "0.000132"
+    },
+    {
+      "request_id": "request-a009b94d-c69c-469a-9596-59287f35d477",
+      "kind": "settlement",
+      "amount": "0.000132"
+    },
+    {
+      "request_id": "request-6c31989c-6225-44a1-87c2-e4181a3d607d",
+      "kind": "settlement",
+      "amount": "0.000132"
+    },
+    {
+      "request_id": "request-6274085f-ff29-48db-af04-ce8d758a7277",
+      "kind": "settlement",
+      "amount": "0.000132"
+    }
+  ],
+  "events": [
+    {
+      "request_id": "guardrail-f249dcf8-a89f-4adc-9cc8-9fceed8c0e88",
+      "action": "observe",
+      "matches": [
+        {
+          "ruleId": "preset-phone",
+          "category": "phone"
+        }
+      ],
+      "policy_version": 1
+    },
+    {
+      "request_id": "guardrail-9c4c1e80-6d64-456c-a597-295898f85979",
+      "action": "block",
+      "matches": [
+        {
+          "ruleId": "preset-phone",
+          "category": "phone"
+        }
+      ],
+      "policy_version": 2
+    },
+    {
+      "request_id": "guardrail-2bfdfa25-3ee7-4055-b2b0-3b3939929f5a",
+      "action": "block",
+      "matches": [
+        {
+          "ruleId": "preset-phone",
+          "category": "phone"
+        }
+      ],
+      "policy_version": 2
+    },
+    {
+      "request_id": "guardrail-a31ff8ea-0d3f-4523-adeb-eac8d5edb416",
+      "action": "block",
+      "matches": [
+        {
+          "ruleId": "preset-phone",
+          "category": "phone"
+        }
+      ],
+      "policy_version": 2
+    },
+    {
+      "request_id": "guardrail-1c8b611c-5aff-46dd-936f-8c04d022b27f",
+      "action": "block",
+      "matches": [
+        {
+          "ruleId": "word-1",
+          "category": "custom_word"
+        }
+      ],
+      "policy_version": 2
+    },
+    {
+      "request_id": "guardrail-7defa7c0-8a83-43f4-b6da-3cbd8a94d7d1",
+      "action": "block",
+      "matches": [
+        {
+          "ruleId": "preset-phone",
+          "category": "phone"
+        }
+      ],
+      "policy_version": 2
+    },
+    {
+      "request_id": "guardrail-9ddcf450-9f25-49a7-9d04-62c394bff852",
+      "action": "block",
+      "matches": [
+        {
+          "ruleId": "word-1",
+          "category": "custom_word"
+        }
+      ],
+      "policy_version": 2
+    },
+    {
+      "request_id": "request-6cf05234-0df7-4824-a9c8-f74b29be4f29",
+      "action": "block",
+      "matches": [
+        {
+          "ruleId": "preset-phone",
+          "category": "phone"
+        }
+      ],
+      "policy_version": 9
+    },
+    {
+      "request_id": "request-f6466132-f04e-4b9e-a443-6f9d4c9b0ff2",
+      "action": "block",
+      "matches": [
+        {
+          "ruleId": "preset-phone",
+          "category": "phone"
+        }
+      ],
+      "policy_version": 12
+    },
+    {
+      "request_id": "request-33bd60e1-c68e-425a-9892-ecf59f148b41",
+      "action": "block",
+      "matches": [
+        {
+          "ruleId": "preset-phone",
+          "category": "phone"
+        }
+      ],
+      "policy_version": 15
+    },
+    {
+      "request_id": "request-aeed91c1-4d86-4053-b593-3fd43ae5b8ae",
+      "action": "block",
+      "matches": [
+        {
+          "ruleId": "preset-phone",
+          "category": "phone"
+        }
+      ],
+      "policy_version": 18
+    },
+    {
+      "request_id": "request-789c0e34-810b-4073-b52c-18562f817f70",
+      "action": "block",
+      "matches": [
+        {
+          "ruleId": "preset-phone",
+          "category": "phone"
+        }
+      ],
+      "policy_version": 21
+    }
+  ],
+  "batches": [
+    {
+      "id": "personal-batch-demo-001",
+      "purpose": "personal",
+      "source_id": "employee-demo-001",
+      "total_amount": "10.000000",
+      "available_amount": "10.000000"
+    },
+    {
+      "id": "project-member-batch-demo-001",
+      "purpose": "project",
+      "source_id": "employee-demo-001",
+      "total_amount": "20.000000",
+      "available_amount": "20.000000"
+    },
+    {
+      "id": "quota-78fc8a3c-05dd-4318-b1e5-a449a3ac2435",
+      "purpose": "application",
+      "source_id": "application-e1d6fe45-39de-48c8-9e59-3de5df15804e",
+      "total_amount": "0.250000",
+      "available_amount": "0.249736"
+    },
+    {
+      "id": "quota-85b35da2-a31a-4932-b62f-3c4bb36940ca",
+      "purpose": "project",
+      "source_id": "member-4162e404-8825-480f-9254-98064ce21a21",
+      "total_amount": "0.100000",
+      "available_amount": "0.099868"
+    },
+    {
+      "id": "quota-e4b2cb14-2622-455c-b172-556db3ad3cdd",
+      "purpose": "personal",
+      "source_id": "member-4162e404-8825-480f-9254-98064ce21a21",
+      "total_amount": "0.200000",
+      "available_amount": "0.198944"
+    }
+  ],
+  "fixtureRequests": [
+    {
+      "requestId": "d43d67d2-7994-4003-bd21-fdf0696cf6ba",
+      "model": "physical-model",
+      "stream": false,
+      "maxOutput": 1,
+      "includeUsage": false,
+      "tools": [],
+      "hasToolResult": false,
+      "hopCredentialPresent": false,
+      "closed": true
+    },
+    {
+      "requestId": "guardrail-cb61ec22-16fb-4b8f-bbf6-6196f0199314",
+      "model": "physical-model",
+      "stream": false,
+      "maxOutput": 32,
+      "includeUsage": false,
+      "tools": [],
+      "hasToolResult": false,
+      "hopCredentialPresent": false,
+      "closed": true
+    },
+    {
+      "requestId": "guardrail-f249dcf8-a89f-4adc-9cc8-9fceed8c0e88",
+      "model": "physical-model",
+      "stream": false,
+      "maxOutput": 32,
+      "includeUsage": false,
+      "tools": [],
+      "hasToolResult": false,
+      "hopCredentialPresent": false,
+      "closed": true
+    },
+    {
+      "requestId": "guardrail-8270f835-1e3d-4057-b6f4-0989cda0c271",
+      "model": "physical-model",
+      "stream": false,
+      "maxOutput": 32,
+      "includeUsage": false,
+      "tools": [],
+      "hasToolResult": false,
+      "hopCredentialPresent": false,
+      "closed": true
+    },
+    {
+      "requestId": "guardrail-6f9738e1-db01-42e9-9673-8d3cfe5b4c1b",
+      "model": "physical-model",
+      "stream": true,
+      "maxOutput": 32,
+      "includeUsage": true,
+      "tools": [],
+      "hasToolResult": false,
+      "hopCredentialPresent": false,
+      "closed": true
+    },
+    {
+      "requestId": "guardrail-60861923-19db-4f2e-bf87-1ddfcdcf2b4c",
+      "model": "physical-model",
+      "stream": false,
+      "maxOutput": 32,
+      "includeUsage": false,
+      "tools": [],
+      "hasToolResult": false,
+      "hopCredentialPresent": false,
+      "closed": true
+    },
+    {
+      "requestId": "guardrail-95fb40e7-d6e1-477a-9ae6-d6ce343100f3",
+      "model": "physical-model",
+      "stream": false,
+      "maxOutput": 32,
+      "includeUsage": false,
+      "tools": [],
+      "hasToolResult": false,
+      "hopCredentialPresent": false,
+      "closed": true
+    },
+    {
+      "requestId": "request-b8e3e16b-ea75-42c9-86b2-f97d3f48fec4",
+      "model": "physical-model",
+      "stream": true,
+      "maxOutput": 32,
+      "includeUsage": true,
+      "tools": [],
+      "hasToolResult": false,
+      "hopCredentialPresent": false,
+      "closed": true
+    },
+    {
+      "requestId": "request-873d33f2-af97-48e6-8628-aa36070a71ac",
+      "model": "physical-model",
+      "stream": true,
+      "maxOutput": 32,
+      "includeUsage": true,
+      "tools": [],
+      "hasToolResult": false,
+      "hopCredentialPresent": false,
+      "closed": true
+    },
+    {
+      "requestId": "request-a009b94d-c69c-469a-9596-59287f35d477",
+      "model": "physical-model",
+      "stream": true,
+      "maxOutput": 32,
+      "includeUsage": true,
+      "tools": [],
+      "hasToolResult": false,
+      "hopCredentialPresent": false,
+      "closed": true
+    },
+    {
+      "requestId": "request-6c31989c-6225-44a1-87c2-e4181a3d607d",
+      "model": "physical-model",
+      "stream": true,
+      "maxOutput": 32,
+      "includeUsage": true,
+      "tools": [],
+      "hasToolResult": false,
+      "hopCredentialPresent": false,
+      "closed": true
+    },
+    {
+      "requestId": "request-6274085f-ff29-48db-af04-ce8d758a7277",
+      "model": "physical-model",
+      "stream": true,
+      "maxOutput": 32,
+      "includeUsage": true,
+      "tools": [],
+      "hasToolResult": false,
+      "hopCredentialPresent": false,
+      "closed": true
+    }
+  ],
+  "totals": {
+    "confirmed": 11,
+    "blocked": 11,
+    "totalMicroCny": 1452
+  },
+  "defaultPreservation": {
+    "before": {
+      "defaultWorkspacePresent": true,
+      "liveBudgetHash": "64ec2a0fdd806efcef7a199bcc689baef5ddfd7df694e6b046b14c9d1c2bc063",
+      "workspaceId": "20bea9e2-970a-4e7d-98eb-12ca16e81692",
+      "stateFileHash": "e7b742a224289865187386d14dce3cc5cbcb98fa22844dcee1af4bc14194d5fe",
+      "businessConfigurationHash": "e7f267f7e4f24b7586b046da7d4e5d4ac894ee7bb03ca69d1e9e632563288e2c",
+      "fundsHash": "5626134a433f2ff7c8932f9aca6a874ef157ca45fa9b3732a3b3eb580bff118a",
+      "fundedBatches": 8
+    },
+    "after": {
+      "defaultWorkspacePresent": true,
+      "liveBudgetHash": "64ec2a0fdd806efcef7a199bcc689baef5ddfd7df694e6b046b14c9d1c2bc063",
+      "workspaceId": "20bea9e2-970a-4e7d-98eb-12ca16e81692",
+      "stateFileHash": "e7b742a224289865187386d14dce3cc5cbcb98fa22844dcee1af4bc14194d5fe",
+      "businessConfigurationHash": "e7f267f7e4f24b7586b046da7d4e5d4ac894ee7bb03ca69d1e9e632563288e2c",
+      "fundsHash": "5626134a433f2ff7c8932f9aca6a874ef157ca45fa9b3732a3b3eb580bff118a",
+      "fundedBatches": 8
+    }
+  }
+}

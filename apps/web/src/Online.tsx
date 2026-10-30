@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import type { PlatformSnapshot, PriceSnapshot } from '@ai-gateway/contracts';
-import { api,gatewayBaseUrl } from './client';
+import { api,gatewayBaseUrl,gatewayFailureMessage } from './client';
 import { money, Panel } from './components';
 import { fundingSourceSummary,fundingSources } from './quota-view';
 export const purposeLabels:Record<string,string>={not_open:'未开通模型',model_unavailable:'模型暂不可用',price_unconfigured:'价格未确认',no_quota:'无有效额度',quota_insufficient:'额度不足',ready:'可使用'};
@@ -27,7 +27,7 @@ export function Online({data,purposeId,onPurpose,refresh}:{data:PlatformSnapshot
     try{
       const credential=await api<{token:string}>('/api/v1/platform/online-credential',{purpose:purpose.purpose,projectId:purpose.projectId});
       const response=await fetch(`${gatewayBaseUrl}/v1/chat/completions`,{method:'POST',signal:controller.signal,headers:{'content-type':'application/json',authorization:`Bearer ${credential.token}`,'idempotency-key':crypto.randomUUID(),'x-price-version':quote.price.version},body:JSON.stringify({model,messages:[{role:'user',content:input}],max_tokens:Number(maxOutput),stream:true})});
-      if(!response.ok)throw new Error(await response.text());if(!response.body)throw new Error('响应流不可用');
+      if(!response.ok)throw new Error(gatewayFailureMessage(await response.text()));if(!response.body)throw new Error('响应流不可用');
       const reader=response.body.getReader(),decoder=new TextDecoder();let buffer='';
       while(true){
         const chunk=await reader.read();if(chunk.done)break;buffer+=decoder.decode(chunk.value,{stream:true});const lines=buffer.split(/\r?\n/);buffer=lines.pop()??'';

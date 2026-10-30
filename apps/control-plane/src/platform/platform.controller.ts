@@ -10,6 +10,10 @@ import { MonitoringService } from './monitoring.service';
 @UseGuards(SessionGuard)
 export class PlatformController {
   constructor(private readonly platform:PlatformService,private readonly maintenance:MaintenanceService,private readonly monitoring:MonitoringService){}
+  @Post('/safety/query') @HttpCode(200)
+  safety(@Req() request:UserRequest,@Body() body:import('@ai-gateway/contracts').SafetyQuery){return this.platform.safetyReport(request.actor.id,body);}
+  @Post('/safety/trial') @HttpCode(200)
+  safetyTrial(@Req() request:UserRequest,@Body() body:Record<string,unknown>){return this.platform.safetyTrial(request.actor.id,body);}
   @Get('/state') state(@Req() request:UserRequest){return this.platform.snapshot(request.actor.id);}
   @Get('/retention') retention(@Req() request:UserRequest){return this.platform.retentionReport(request.actor.id);}
   @Get('/approvals/:id') approval(@Req() request:UserRequest,@Param('id') id:string){return this.platform.approvalDetail(request.actor.id,id);}
