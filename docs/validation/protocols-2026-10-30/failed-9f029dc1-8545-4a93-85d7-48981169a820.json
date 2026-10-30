@@ -1,0 +1,424 @@
+{
+  "success": false,
+  "id": "9f029dc1-8545-4a93-85d7-48981169a820",
+  "createdAt": "2026-10-30T05:34:12.858Z",
+  "scope": {
+    "database": "isolated PostgreSQL",
+    "dataPlane": "real Higress",
+    "model": "local deterministic fixture",
+    "realModelRequests": 0
+  },
+  "checks": [
+    "configured service created",
+    "native chat basic probe passes through real Higress",
+    "native responses basic probe passes through real Higress",
+    "native messages basic probe passes through real Higress",
+    "responses personal json returns 200",
+    "responses uses native selected from saved probe",
+    "responses authoritative usage settles 0.000132 CNY",
+    "responses retains selected source and purpose",
+    "responses dispatches exactly one correct protocol",
+    "responses strips internal hop credential",
+    "responses JSON uses logical identity",
+    "responses retains provider extension",
+    "responses project json returns 200",
+    "responses uses native selected from saved probe",
+    "responses authoritative usage settles 0.000132 CNY",
+    "responses retains selected source and purpose",
+    "responses dispatches exactly one correct protocol",
+    "responses strips internal hop credential",
+    "responses JSON uses logical identity",
+    "responses retains provider extension",
+    "responses application json returns 200",
+    "responses uses native selected from saved probe",
+    "responses authoritative usage settles 0.000132 CNY",
+    "responses retains selected source and purpose",
+    "responses dispatches exactly one correct protocol",
+    "responses strips internal hop credential",
+    "responses JSON uses logical identity",
+    "responses retains provider extension",
+    "responses personal stream returns 200",
+    "responses uses native selected from saved probe",
+    "responses authoritative usage settles 0.000132 CNY",
+    "responses retains selected source and purpose",
+    "responses dispatches exactly one correct protocol",
+    "responses strips internal hop credential",
+    "responses has proper terminal event, not DONE",
+    "responses preserves logical identity",
+    "responses native streamed tool call present",
+    "responses personal stream returns 200",
+    "responses uses native selected from saved probe",
+    "responses authoritative usage settles 0.000132 CNY",
+    "responses retains selected source and purpose",
+    "responses dispatches exactly one correct protocol",
+    "responses strips internal hop credential",
+    "responses has proper terminal event, not DONE",
+    "responses preserves logical identity",
+    "responses cancellation preserves unknown usage and original hold",
+    "responses personal json returns 200",
+    "responses uses native selected from saved probe",
+    "responses authoritative usage settles 0.000132 CNY",
+    "responses retains selected source and purpose",
+    "responses dispatches exactly one correct protocol",
+    "responses strips internal hop credential",
+    "responses JSON uses logical identity",
+    "responses retains provider extension",
+    "messages personal json returns 200",
+    "messages uses native selected from saved probe",
+    "messages authoritative usage settles 0.000132 CNY",
+    "messages retains selected source and purpose",
+    "messages dispatches exactly one correct protocol",
+    "messages strips internal hop credential",
+    "messages JSON uses logical identity",
+    "messages retains provider extension",
+    "messages project json returns 200",
+    "messages uses native selected from saved probe",
+    "messages authoritative usage settles 0.000132 CNY",
+    "messages retains selected source and purpose",
+    "messages dispatches exactly one correct protocol",
+    "messages strips internal hop credential",
+    "messages JSON uses logical identity",
+    "messages retains provider extension",
+    "messages application json returns 200",
+    "messages uses native selected from saved probe",
+    "messages authoritative usage settles 0.000132 CNY",
+    "messages retains selected source and purpose",
+    "messages dispatches exactly one correct protocol",
+    "messages strips internal hop credential",
+    "messages JSON uses logical identity",
+    "messages retains provider extension",
+    "messages personal stream returns 200",
+    "messages uses native selected from saved probe",
+    "messages authoritative usage settles 0.000132 CNY",
+    "messages retains selected source and purpose",
+    "messages dispatches exactly one correct protocol",
+    "messages strips internal hop credential",
+    "messages has proper terminal event, not DONE",
+    "messages preserves logical identity",
+    "messages native streamed tool call present",
+    "messages personal stream returns 200",
+    "messages uses native selected from saved probe",
+    "messages authoritative usage settles 0.000132 CNY",
+    "messages retains selected source and purpose",
+    "messages dispatches exactly one correct protocol",
+    "messages strips internal hop credential",
+    "messages has proper terminal event, not DONE",
+    "messages preserves logical identity",
+    "messages cancellation preserves unknown usage and original hold",
+    "messages personal json returns 200",
+    "messages uses native selected from saved probe",
+    "messages authoritative usage settles 0.000132 CNY",
+    "messages retains selected source and purpose",
+    "messages dispatches exactly one correct protocol",
+    "messages strips internal hop credential",
+    "messages JSON uses logical identity",
+    "messages retains provider extension",
+    "responses personal stream returns 403",
+    "responses blocked personal never forwarded",
+    "responses blocked input is zero-fee",
+    "responses input denial uses protocol JSON envelope",
+    "responses project stream returns 403",
+    "responses blocked project never forwarded",
+    "responses blocked input is zero-fee",
+    "responses input denial uses protocol JSON envelope",
+    "responses application stream returns 403",
+    "responses blocked application never forwarded",
+    "responses blocked input is zero-fee",
+    "responses input denial uses protocol JSON envelope",
+    "messages personal stream returns 403",
+    "messages blocked personal never forwarded",
+    "messages blocked input is zero-fee",
+    "messages input denial uses protocol JSON envelope",
+    "messages project stream returns 403",
+    "messages blocked project never forwarded",
+    "messages blocked input is zero-fee",
+    "messages input denial uses protocol JSON envelope",
+    "messages application stream returns 403",
+    "messages blocked application never forwarded",
+    "messages blocked input is zero-fee",
+    "messages input denial uses protocol JSON envelope",
+    "connection change invalidates all saved protocol capabilities",
+    "Chat-only upstream remains openable",
+    "responses unsupported endpoint recorded independently",
+    "responses personal json returns 200",
+    "responses uses adapted selected from saved probe",
+    "responses authoritative usage settles 0.000132 CNY",
+    "responses retains selected source and purpose",
+    "responses dispatches exactly one correct protocol",
+    "responses strips internal hop credential",
+    "responses JSON uses logical identity",
+    "responses personal stream returns 200",
+    "responses uses adapted selected from saved probe",
+    "responses authoritative usage settles 0.000132 CNY",
+    "responses retains selected source and purpose",
+    "responses dispatches exactly one correct protocol",
+    "responses strips internal hop credential",
+    "responses has proper terminal event, not DONE",
+    "responses preserves logical identity",
+    "messages unsupported endpoint recorded independently",
+    "messages personal json returns 200",
+    "messages uses adapted selected from saved probe",
+    "messages authoritative usage settles 0.000132 CNY",
+    "messages retains selected source and purpose",
+    "messages dispatches exactly one correct protocol",
+    "messages strips internal hop credential",
+    "messages JSON uses logical identity",
+    "messages personal stream returns 200",
+    "messages uses adapted selected from saved probe",
+    "messages authoritative usage settles 0.000132 CNY",
+    "messages retains selected source and purpose",
+    "messages dispatches exactly one correct protocol",
+    "messages strips internal hop credential",
+    "messages has proper terminal event, not DONE",
+    "messages preserves logical identity"
+  ],
+  "nativeProbes": {
+    "mappings": {
+      "definition-test-model": {
+        "chat": {
+          "status": "supported",
+          "checkedAt": "2026-10-30T05:34:59.987Z",
+          "errorCode": null,
+          "httpStatus": 200
+        },
+        "messages": {
+          "status": "supported",
+          "checkedAt": "2026-10-30T05:35:00.485Z",
+          "errorCode": null,
+          "httpStatus": 200
+        },
+        "responses": {
+          "status": "supported",
+          "checkedAt": "2026-10-30T05:35:00.222Z",
+          "errorCode": null,
+          "httpStatus": 200
+        }
+      }
+    },
+    "configVersion": 2
+  },
+  "sdk": {
+    "native": {
+      "success": true,
+      "mode": "native",
+      "sdkVersions": {
+        "openai": "7.19.0",
+        "anthropic": "0.129.0"
+      },
+      "checks": [
+        "OpenAI SDK receives final response with logical model",
+        "OpenAI SDK assembles streamed function arguments",
+        "OpenAI SDK completes tool-result turn",
+        "OpenAI SDK exposes authoritative usage",
+        "Anthropic SDK receives native Message shape with logical model",
+        "Anthropic SDK assembles streamed tool input",
+        "Anthropic SDK completes tool-result turn",
+        "Anthropic SDK exposes authoritative usage"
+      ],
+      "calls": [
+        {
+          "requestId": "protocol-sdk-991937d8-dd1e-4808-a519-255587cd1d0b",
+          "httpStatus": 200,
+          "mode": "native"
+        },
+        {
+          "requestId": "protocol-sdk-62022de8-b6d5-4fe1-9d6b-d77b87df33e0",
+          "httpStatus": 200,
+          "mode": "native"
+        },
+        {
+          "requestId": "protocol-sdk-4d17be34-346a-4f0b-9fb0-9a28dcae6d4c",
+          "httpStatus": 200,
+          "mode": "native"
+        },
+        {
+          "requestId": "protocol-sdk-bf2d4ea3-a161-429c-a68c-3965a35a000f",
+          "httpStatus": 200,
+          "mode": "native"
+        }
+      ]
+    }
+  },
+  "requests": [
+    {
+      "requestId": "protocol-75fda3e3-87cd-4aa4-bcb0-b5770ee3952d",
+      "protocol": "responses",
+      "purpose": "personal",
+      "httpStatus": 200,
+      "mode": "native"
+    },
+    {
+      "requestId": "protocol-0e79d985-7e99-4970-867d-c1ad2e8f5fb1",
+      "protocol": "responses",
+      "purpose": "project",
+      "httpStatus": 200,
+      "mode": "native"
+    },
+    {
+      "requestId": "protocol-8c3e8b3e-93ef-4aac-8938-cb93955eabbf",
+      "protocol": "responses",
+      "purpose": "application",
+      "httpStatus": 200,
+      "mode": "native"
+    },
+    {
+      "requestId": "protocol-f1294a48-5b85-4f22-b23b-d2ee9169dff7",
+      "protocol": "responses",
+      "purpose": "personal",
+      "httpStatus": 200,
+      "mode": "native"
+    },
+    {
+      "requestId": "protocol-2d864ff1-d5d1-4174-836b-322216bb1a0d",
+      "protocol": "responses",
+      "purpose": "personal",
+      "httpStatus": 200,
+      "mode": "native"
+    },
+    {
+      "requestId": "protocol-66475e04-6687-468c-a761-2b20b825cc5c",
+      "protocol": "responses",
+      "purpose": "personal",
+      "httpStatus": 200,
+      "mode": "native"
+    },
+    {
+      "requestId": "protocol-4f1cbbff-c238-40d6-a82e-c9159d437259",
+      "protocol": "messages",
+      "purpose": "personal",
+      "httpStatus": 200,
+      "mode": "native"
+    },
+    {
+      "requestId": "protocol-57ecae29-e0d4-460b-af83-822f0b60a270",
+      "protocol": "messages",
+      "purpose": "project",
+      "httpStatus": 200,
+      "mode": "native"
+    },
+    {
+      "requestId": "protocol-6853b557-5f08-47a3-bd7b-5418c52c8e03",
+      "protocol": "messages",
+      "purpose": "application",
+      "httpStatus": 200,
+      "mode": "native"
+    },
+    {
+      "requestId": "protocol-cf04fa90-2ac3-4b5f-9856-c265e9fc8268",
+      "protocol": "messages",
+      "purpose": "personal",
+      "httpStatus": 200,
+      "mode": "native"
+    },
+    {
+      "requestId": "protocol-2a70e203-e794-4f04-99fa-131ba51e6a6d",
+      "protocol": "messages",
+      "purpose": "personal",
+      "httpStatus": 200,
+      "mode": "native"
+    },
+    {
+      "requestId": "protocol-b56ff17e-e0ea-4135-b0e3-88dc8ad7e17f",
+      "protocol": "messages",
+      "purpose": "personal",
+      "httpStatus": 200,
+      "mode": "native"
+    },
+    {
+      "requestId": "protocol-3ebec5bf-b1e5-4385-8f74-311278e1e40d",
+      "protocol": "responses",
+      "purpose": "personal",
+      "httpStatus": 403,
+      "mode": "native"
+    },
+    {
+      "requestId": "protocol-6f6b26d0-9652-47f4-96aa-187d06bc4cc9",
+      "protocol": "responses",
+      "purpose": "project",
+      "httpStatus": 403,
+      "mode": "native"
+    },
+    {
+      "requestId": "protocol-651c42c1-7c9b-4c6e-8d96-3dcd8f303194",
+      "protocol": "responses",
+      "purpose": "application",
+      "httpStatus": 403,
+      "mode": "native"
+    },
+    {
+      "requestId": "protocol-35790973-654d-400d-b07c-3c6fa23b08ab",
+      "protocol": "messages",
+      "purpose": "personal",
+      "httpStatus": 403,
+      "mode": "native"
+    },
+    {
+      "requestId": "protocol-7ff4fcdb-5955-4a4b-bab6-284f87cc1b6d",
+      "protocol": "messages",
+      "purpose": "project",
+      "httpStatus": 403,
+      "mode": "native"
+    },
+    {
+      "requestId": "protocol-a9475c13-87e7-4556-910d-a2ac0e2b91a6",
+      "protocol": "messages",
+      "purpose": "application",
+      "httpStatus": 403,
+      "mode": "native"
+    },
+    {
+      "requestId": "protocol-535ad2af-fb2b-4b74-9dec-43536c0a3d7e",
+      "protocol": "responses",
+      "purpose": "personal",
+      "httpStatus": 200,
+      "mode": "adapted"
+    },
+    {
+      "requestId": "protocol-10e5a948-22a5-4d6d-a830-840431102e2b",
+      "protocol": "responses",
+      "purpose": "personal",
+      "httpStatus": 200,
+      "mode": "adapted"
+    },
+    {
+      "requestId": "protocol-7ba28a31-439e-4fb7-baf2-82b1238f456e",
+      "protocol": "messages",
+      "purpose": "personal",
+      "httpStatus": 200,
+      "mode": "adapted"
+    },
+    {
+      "requestId": "protocol-25c6c2fc-7c43-4bd1-9fe0-69b017173455",
+      "protocol": "messages",
+      "purpose": "personal",
+      "httpStatus": 200,
+      "mode": "adapted"
+    }
+  ],
+  "fallbackProbes": {
+    "mappings": {
+      "definition-test-model": {
+        "chat": {
+          "status": "supported",
+          "checkedAt": "2026-10-30T05:37:02.661Z",
+          "errorCode": null,
+          "httpStatus": 200
+        },
+        "messages": {
+          "status": "unsupported",
+          "checkedAt": "2026-10-30T05:37:03.078Z",
+          "errorCode": "model_not_found",
+          "httpStatus": 404
+        },
+        "responses": {
+          "status": "unsupported",
+          "checkedAt": "2026-10-30T05:37:02.923Z",
+          "errorCode": "model_not_found",
+          "httpStatus": 404
+        }
+      }
+    },
+    "configVersion": 3
+  },
+  "error": "Error: Connection error.\n    at OpenAI.makeRequest (C:\\Users\\LiuJi\\AppData\\Roaming\\fnm\\node-versions\\v22.23.1\\installation\\node_modules\\@earendil-works\\pi-coding-agent\\node_modules\\openai\\client.js:840:19)\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at async runProtocolSdkChecks (file:///D:/Workspace/pri/ai-gateway-platform/scripts/lib/protocol-sdk.mjs:16:15)\n    at async file:///D:/Workspace/pri/ai-gateway-platform/scripts/check-protocols.mjs:89:33"
+}

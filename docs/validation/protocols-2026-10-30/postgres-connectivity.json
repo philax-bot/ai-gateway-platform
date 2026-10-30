@@ -1,0 +1,47 @@
+{
+  "scope": "six independent fresh read-only connections, two sequential batches",
+  "samples": [
+    {
+      "batch": 0,
+      "sample": 2,
+      "connectMs": 345,
+      "queryMs": 65,
+      "success": true
+    },
+    {
+      "batch": 0,
+      "sample": 1,
+      "connectMs": 346,
+      "queryMs": 65,
+      "success": true
+    },
+    {
+      "batch": 0,
+      "sample": 0,
+      "connectMs": 348,
+      "queryMs": 69,
+      "success": true
+    },
+    {
+      "batch": 1,
+      "sample": 1,
+      "connectMs": 333,
+      "queryMs": 54,
+      "success": true
+    },
+    {
+      "batch": 1,
+      "sample": 2,
+      "connectMs": 375,
+      "queryMs": 70,
+      "success": true
+    },
+    {
+      "batch": 1,
+      "sample": 0,
+      "connectMs": 375,
+      "queryMs": 71,
+      "success": true
+    }
+  ]
+}

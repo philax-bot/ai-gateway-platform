@@ -5,6 +5,7 @@ export interface CatalogSource {
   serviceId:string;serviceName:string;active:boolean;verification:ModelService['verification'];
   upstreamModel:string;prices:Pick<ServiceModel,'inputPrice'|'outputPrice'|'cachedInputPrice'>;
   priced:boolean;poolIds:string[];openPoolIds:string[];
+  protocols?:import('./protocol.js').ServiceProtocolCapabilities['mappings'][string];
 }
 export interface CatalogModel {definition:ModelDefinition;sources:CatalogSource[];verified:boolean;openPoolIds:string[];stage:CatalogStage}
 export interface CatalogFilter {query?:string;serviceId?:string;poolId?:string;stage?:CatalogStage|'';active?:'active'|'inactive'|'all'}
@@ -18,7 +19,7 @@ export function modelCatalog(data:{definitions:ModelDefinition[];services:ModelS
       const priced=Object.values(prices).every(p=>typeof p==='number'&&Number.isFinite(p)&&p>=0);
       const pools=data.pools.filter(p=>p.entries.some(e=>e.definitionId===definition.id&&e.serviceId===service.id));
       const openPoolIds=definition.active&&service.active&&service.verification==='passed'&&priced?pools.filter(p=>p.entries.some(e=>e.definitionId===definition.id&&e.serviceId===service.id&&e.open)).map(p=>p.id):[];
-      return [{serviceId:service.id,serviceName:service.name,active:service.active,verification:service.verification,upstreamModel:mapping.upstreamModel,prices,priced,poolIds:pools.map(p=>p.id),openPoolIds}];
+      return [{serviceId:service.id,serviceName:service.name,active:service.active,verification:service.verification,upstreamModel:mapping.upstreamModel,prices,priced,poolIds:pools.map(p=>p.id),openPoolIds,protocols:service.protocolCapabilities?.configVersion===service.configVersion?service.protocolCapabilities.mappings[definition.id]:undefined}];
     });
     const verified=sources.some(s=>s.active&&s.verification==='passed'),openPoolIds=[...new Set(sources.flatMap(s=>s.openPoolIds))];
     const stage:CatalogStage=!definition.active?'disabled':!sources.length?'unconfigured':!verified?'source_unavailable':!sources.some(s=>s.active&&s.verification==='passed'&&s.priced)?'price_unknown':!openPoolIds.length?'ready_unopened':'open';

@@ -5,6 +5,7 @@ export type VerificationOutcome = 'passed' | 'failed';
 export type VerificationCostState = 'priced' | 'price_unknown' | 'usage_unknown';
 
 export interface VerificationMappingSnapshot {
+  protocols?:import('./protocol.js').ModelProtocol[];
   definitionId: string;
   upstreamModel: string;
   inputPrice: number | null;
@@ -29,6 +30,8 @@ export interface VerificationCost {
 }
 
 export interface VerificationMappingResult {
+  protocol?:import('./protocol.js').ModelProtocol;
+  support?:'supported'|'unsupported'|'unknown';
   definitionId: string;
   upstreamModel: string;
   outcome: VerificationOutcome;
@@ -42,6 +45,7 @@ export interface VerificationMappingResult {
 }
 
 export interface VerificationSummary {
+  probes:number;
   mappings: number;
   attempted: number;
   passed: number;
@@ -86,11 +90,12 @@ export function summarizeVerification(run: VerificationRun): VerificationSummary
   for (const result of run.results) attempted.add(result.definitionId);
   const usageKnown = run.results.filter(result => result.usage.complete).length;
   const priced = run.results.filter(result => result.cost.state === 'priced' && result.cost.amount !== null);
-  const totalMappings = run.mappings.length;
+  const totalMappings = run.mappings.reduce((n,m)=>n+(m.protocols?.length??1),0);
   const completePricing = run.results.length === totalMappings
     && run.results.every(result => result.cost.state === 'priced' && result.cost.amount !== null);
   return {
-    mappings: totalMappings,
+    mappings: run.mappings.length,
+    probes:totalMappings,
     attempted: attempted.size,
     passed: run.results.filter(result => result.outcome === 'passed').length,
     failed: run.results.filter(result => result.outcome === 'failed').length,

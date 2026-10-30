@@ -1,0 +1,487 @@
+{
+  "success": true,
+  "createdAt": "2026-10-30T06:14:25.631Z",
+  "scope": {
+    "database": "isolated PostgreSQL",
+    "dataPlane": "real Higress",
+    "vendor": "DeepSeek official; existing controlled configuration",
+    "defaultWorkspaceTouched": false
+  },
+  "checks": [
+    "real Chat Completions baseline passes",
+    "real DeepSeek chat basic probe confirmed independently",
+    "real DeepSeek responses basic probe confirmed independently",
+    "real DeepSeek messages basic probe confirmed independently",
+    "official Anthropic SDK completes native streamed tool/result accounting recheck",
+    "real protocol-sdk-633e916c-93bc-4470-8499-552c87221dd9 retains original price snapshot",
+    "real protocol path retained in persisted admission",
+    "real protocol-sdk-68c5942d-bd63-47ce-8823-0f3af3615c84 retains original price snapshot",
+    "real protocol path retained in persisted admission",
+    "default configuration, balances and state file unchanged"
+  ],
+  "budgetAtStart": {
+    "authorization": "2026-10-30: 36 aggregate requests / CNY 1; T12 additional <=14 / CNY 0.15",
+    "authorizationExtension": {
+      "authorizedBy": "explicit user reply: allow 22 total requests, total CNY 1",
+      "previousAuthorization": "2026-10-29: 20 requests / CNY 1",
+      "previousMaxRequests": 20,
+      "attemptsAtApproval": 20,
+      "estimatedUpperBoundAtApproval": 0.37026800000000004,
+      "additionalRequests": 2,
+      "additionalEstimatedAmount": 0.02
+    },
+    "price": {
+      "inputPrice": 2,
+      "outputPrice": 8,
+      "cachedInputPrice": 0.04
+    },
+    "maxRequests": 36,
+    "maxEstimatedAmount": 1,
+    "attempts": 34,
+    "estimatedUpperBound": 0.420576,
+    "updatedAt": "2026-10-30T06:14:26.212Z",
+    "authorizationExtensions": [
+      {
+        "authorizedBy": "explicit user reply: allow 22 total requests, total CNY 1",
+        "previousAuthorization": "2026-10-29: 20 requests / CNY 1",
+        "previousMaxRequests": 20,
+        "attemptsAtApproval": 20,
+        "estimatedUpperBoundAtApproval": 0.37026800000000004,
+        "additionalRequests": 2,
+        "additionalEstimatedAmount": 0.02
+      },
+      {
+        "authorizedBy": "2026-10-30 explicit user reply: allow 12 additional requests, total 34 / CNY 1; additional estimate <= CNY 0.15",
+        "previousMaxRequests": 22,
+        "startAttempts": 22,
+        "startEstimate": 0.3799020000000001,
+        "additionalRequests": 12,
+        "additionalEstimatedAmount": 0.15
+      },
+      {
+        "authorizedBy": "2026-10-30 explicit user reply: allow 2 more native Messages accounting requests; total 36 / CNY 1; extra <= CNY 0.03 and T12 <= CNY 0.15",
+        "previousMaxRequests": 34,
+        "startAttempts": 34,
+        "startEstimate": 0.420576,
+        "additionalRequests": 2,
+        "additionalEstimatedAmount": 0.03
+      }
+    ]
+  },
+  "reusedProbeEvidence": {
+    "file": "D:\\Workspace\\pri\\ai-gateway-platform\\docs\\validation\\protocols-2026-10-30\\live-failed-bf5219cb-692a-4a52-92fd-5dc182fd7daa.json",
+    "sha256": "96f7d9b5b495454a01493e322e7a9aa8740b1eb0c866f0bae81d71d1dd1a5345",
+    "scope": "same task vendor/model/price probe evidence; disposable transport rebuilt without duplicate vendor probes"
+  },
+  "probeRun": {
+    "id": "verification-8038caf2-8437-499a-b43d-23803b496799",
+    "operatorId": "operator-demo-001",
+    "serviceId": "service-local-test",
+    "serviceName": "真实 DeepSeek 三协议",
+    "configVersion": 2,
+    "state": "completed",
+    "diagnostic": true,
+    "idempotencyKey": "verification-ca8a4d5f-7c53-4ff1-b743-3ce974027c9e",
+    "mappings": [
+      {
+        "protocols": [
+          "chat",
+          "responses",
+          "messages"
+        ],
+        "inputPrice": 2,
+        "attemptedAt": "2026-10-30T05:59:58.060Z",
+        "outputPrice": 8,
+        "definitionId": "definition-test-model",
+        "upstreamModel": "deepseek-flash",
+        "cachedInputPrice": 0.04
+      }
+    ],
+    "results": [
+      {
+        "cost": {
+          "price": {
+            "unit": "per_million_tokens",
+            "version": "946c7b311b8f4dfbc4303648",
+            "currency": "CNY",
+            "inputPrice": 2,
+            "outputPrice": 8,
+            "cachedInputPrice": 0.04
+          },
+          "state": "priced",
+          "amount": 0.000072
+        },
+        "usage": {
+          "complete": true,
+          "inputTokens": 32,
+          "outputTokens": 1,
+          "cachedInputTokens": 0
+        },
+        "message": "基础协议通过，已返回用量",
+        "outcome": "passed",
+        "support": "supported",
+        "protocol": "chat",
+        "errorCode": null,
+        "httpStatus": 200,
+        "completedAt": "2026-10-30T06:00:04.028Z",
+        "definitionId": "definition-test-model",
+        "upstreamModel": "deepseek-flash",
+        "upstreamRequestId": null
+      },
+      {
+        "cost": {
+          "price": {
+            "unit": "per_million_tokens",
+            "version": "946c7b311b8f4dfbc4303648",
+            "currency": "CNY",
+            "inputPrice": 2,
+            "outputPrice": 8,
+            "cachedInputPrice": 0.04
+          },
+          "state": "priced",
+          "amount": 0.000072
+        },
+        "usage": {
+          "complete": true,
+          "inputTokens": 32,
+          "outputTokens": 1,
+          "cachedInputTokens": 0
+        },
+        "message": "基础协议通过，已返回用量",
+        "outcome": "passed",
+        "support": "supported",
+        "protocol": "responses",
+        "errorCode": null,
+        "httpStatus": 200,
+        "completedAt": "2026-10-30T06:00:05.552Z",
+        "definitionId": "definition-test-model",
+        "upstreamModel": "deepseek-flash",
+        "upstreamRequestId": null
+      },
+      {
+        "cost": {
+          "price": {
+            "unit": "per_million_tokens",
+            "version": "946c7b311b8f4dfbc4303648",
+            "currency": "CNY",
+            "inputPrice": 2,
+            "outputPrice": 8,
+            "cachedInputPrice": 0.04
+          },
+          "state": "priced",
+          "amount": 0.000072
+        },
+        "usage": {
+          "complete": true,
+          "inputTokens": 32,
+          "outputTokens": 1,
+          "cachedInputTokens": 0
+        },
+        "message": "基础协议通过，已返回用量",
+        "outcome": "passed",
+        "support": "supported",
+        "protocol": "messages",
+        "errorCode": null,
+        "httpStatus": 200,
+        "completedAt": "2026-10-30T06:00:06.857Z",
+        "definitionId": "definition-test-model",
+        "upstreamModel": "deepseek-flash",
+        "upstreamRequestId": null
+      }
+    ],
+    "startedAt": "2026-10-30T05:59:57.893Z",
+    "completedAt": "2026-10-30T06:00:07.094Z",
+    "leaseExpiresAt": "2026-10-30T06:02:07.028Z",
+    "note": null
+  },
+  "sdk": {
+    "success": true,
+    "mode": "native",
+    "sdkVersions": {
+      "openai": "7.19.0",
+      "anthropic": "0.129.0"
+    },
+    "checks": [
+      "Anthropic SDK receives native Message shape with logical model",
+      "Anthropic SDK assembles streamed tool input",
+      "Anthropic SDK completes tool-result turn",
+      "Anthropic SDK exposes authoritative usage"
+    ],
+    "calls": [
+      {
+        "requestId": "protocol-sdk-633e916c-93bc-4470-8499-552c87221dd9",
+        "httpStatus": 200,
+        "mode": "native"
+      },
+      {
+        "requestId": "protocol-sdk-68c5942d-bd63-47ce-8823-0f3af3615c84",
+        "httpStatus": 200,
+        "mode": "native"
+      }
+    ]
+  },
+  "calls": [
+    {
+      "request_id": "protocol-sdk-633e916c-93bc-4470-8499-552c87221dd9",
+      "actual_amount": "0.000592",
+      "input_tokens": 289,
+      "output_tokens": 33,
+      "cached_input_tokens": 128,
+      "usage_final": true,
+      "billable_state": "confirmed",
+      "admission": {
+        "kind": "configured",
+        "price": {
+          "unit": "per_million_tokens",
+          "version": "b20eb8b7763fba609ba39cef",
+          "currency": "CNY",
+          "inputPrice": 2,
+          "outputPrice": 8,
+          "cachedInputPrice": 0.04
+        },
+        "route": {
+          "poolId": "pool-local-test",
+          "baseUrl": "http://127.0.0.1:52231/v1",
+          "protocols": {
+            "chat": {
+              "status": "supported",
+              "checkedAt": "2026-10-30T06:00:04.028Z",
+              "errorCode": null,
+              "httpStatus": 200
+            },
+            "messages": {
+              "status": "supported",
+              "checkedAt": "2026-10-30T06:00:06.857Z",
+              "errorCode": null,
+              "httpStatus": 200
+            },
+            "responses": {
+              "status": "supported",
+              "checkedAt": "2026-10-30T06:00:05.552Z",
+              "errorCode": null,
+              "httpStatus": 200
+            }
+          },
+          "serviceId": "service-local-test",
+          "definitionId": "definition-test-model",
+          "credentialRef": "UPSTREAM_PROTOCOL_REAL",
+          "protocolPaths": {
+            "messages": "/anthropic/v1/messages"
+          },
+          "upstreamModel": "deepseek-flash",
+          "maxOutputTokens": 512
+        },
+        "scopes": [
+          {
+            "id": "org-demo:subject:employee:member-fbf4da4a-3b75-41f0-a5ed-da2fe0859e76",
+            "rpm": 60,
+            "concurrency": 5
+          },
+          {
+            "id": "org-demo:entitlement:entitlement-fcd3d9c6-b25c-41ed-b5fb-1ee87592ac09",
+            "rpm": 60,
+            "concurrency": 5
+          },
+          {
+            "id": "org-demo:pool:pool-local-test",
+            "rpm": 60,
+            "concurrency": 5
+          },
+          {
+            "id": "org-demo:service:service-local-test",
+            "rpm": 1000,
+            "concurrency": 5
+          },
+          {
+            "id": "org-demo:service-model:service-local-test:definition-test-model",
+            "rpm": 60,
+            "concurrency": 5
+          }
+        ],
+        "protocol": {
+          "mode": "native",
+          "upstream": "messages",
+          "requested": "messages"
+        },
+        "reservedAmount": 0.0052,
+        "estimatedTokens": 1064
+      }
+    },
+    {
+      "request_id": "protocol-sdk-68c5942d-bd63-47ce-8823-0f3af3615c84",
+      "actual_amount": "0.000148",
+      "input_tokens": 70,
+      "output_tokens": 1,
+      "cached_input_tokens": 0,
+      "usage_final": true,
+      "billable_state": "confirmed",
+      "admission": {
+        "kind": "configured",
+        "price": {
+          "unit": "per_million_tokens",
+          "version": "b20eb8b7763fba609ba39cef",
+          "currency": "CNY",
+          "inputPrice": 2,
+          "outputPrice": 8,
+          "cachedInputPrice": 0.04
+        },
+        "route": {
+          "poolId": "pool-local-test",
+          "baseUrl": "http://127.0.0.1:52231/v1",
+          "protocols": {
+            "chat": {
+              "status": "supported",
+              "checkedAt": "2026-10-30T06:00:04.028Z",
+              "errorCode": null,
+              "httpStatus": 200
+            },
+            "messages": {
+              "status": "supported",
+              "checkedAt": "2026-10-30T06:00:06.857Z",
+              "errorCode": null,
+              "httpStatus": 200
+            },
+            "responses": {
+              "status": "supported",
+              "checkedAt": "2026-10-30T06:00:05.552Z",
+              "errorCode": null,
+              "httpStatus": 200
+            }
+          },
+          "serviceId": "service-local-test",
+          "definitionId": "definition-test-model",
+          "credentialRef": "UPSTREAM_PROTOCOL_REAL",
+          "protocolPaths": {
+            "messages": "/anthropic/v1/messages"
+          },
+          "upstreamModel": "deepseek-flash",
+          "maxOutputTokens": 512
+        },
+        "scopes": [
+          {
+            "id": "org-demo:subject:employee:member-fbf4da4a-3b75-41f0-a5ed-da2fe0859e76",
+            "rpm": 60,
+            "concurrency": 5
+          },
+          {
+            "id": "org-demo:entitlement:entitlement-fcd3d9c6-b25c-41ed-b5fb-1ee87592ac09",
+            "rpm": 60,
+            "concurrency": 5
+          },
+          {
+            "id": "org-demo:pool:pool-local-test",
+            "rpm": 60,
+            "concurrency": 5
+          },
+          {
+            "id": "org-demo:service:service-local-test",
+            "rpm": 1000,
+            "concurrency": 5
+          },
+          {
+            "id": "org-demo:service-model:service-local-test:definition-test-model",
+            "rpm": 60,
+            "concurrency": 5
+          }
+        ],
+        "protocol": {
+          "mode": "native",
+          "upstream": "messages",
+          "requested": "messages"
+        },
+        "reservedAmount": 0.005752,
+        "estimatedTokens": 1340
+      }
+    }
+  ],
+  "defaultPreservation": {
+    "before": {
+      "defaultWorkspacePresent": true,
+      "liveBudgetHash": "4d427f0a2b817000a107f1b5c6a9687d29822d59872255221468aa7d8aa42cf0",
+      "workspaceId": "20bea9e2-970a-4e7d-98eb-12ca16e81692",
+      "stateFileHash": "e7b742a224289865187386d14dce3cc5cbcb98fa22844dcee1af4bc14194d5fe",
+      "businessConfigurationHash": "e7f267f7e4f24b7586b046da7d4e5d4ac894ee7bb03ca69d1e9e632563288e2c",
+      "fundsHash": "5626134a433f2ff7c8932f9aca6a874ef157ca45fa9b3732a3b3eb580bff118a",
+      "fundedBatches": 8
+    },
+    "after": {
+      "defaultWorkspacePresent": true,
+      "liveBudgetHash": "71d2829ab80a772d451d70ac6c2a8f4eefa97a627a25e76d3362324143b6bcc5",
+      "workspaceId": "20bea9e2-970a-4e7d-98eb-12ca16e81692",
+      "stateFileHash": "e7b742a224289865187386d14dce3cc5cbcb98fa22844dcee1af4bc14194d5fe",
+      "businessConfigurationHash": "e7f267f7e4f24b7586b046da7d4e5d4ac894ee7bb03ca69d1e9e632563288e2c",
+      "fundsHash": "5626134a433f2ff7c8932f9aca6a874ef157ca45fa9b3732a3b3eb580bff118a",
+      "fundedBatches": 8
+    },
+    "liveBudgetChangedByAuthorizedRequests": true
+  },
+  "vendorCalls": [
+    {
+      "ordinal": 35,
+      "protocol": "messages",
+      "maxOutputTokens": 512,
+      "inputBytes": 445,
+      "estimatedUpperBound": 0.004986,
+      "httpStatus": 200,
+      "requestId": "protocol-sdk-633e916c-93bc-4470-8499-552c87221dd9"
+    },
+    {
+      "ordinal": 36,
+      "protocol": "messages",
+      "maxOutputTokens": 512,
+      "inputBytes": 683,
+      "estimatedUpperBound": 0.005462,
+      "httpStatus": 200,
+      "requestId": "protocol-sdk-68c5942d-bd63-47ce-8823-0f3af3615c84"
+    }
+  ],
+  "budget": {
+    "authorization": "2026-10-30: 36 aggregate requests / CNY 1; T12 additional <=14 / CNY 0.15",
+    "authorizationExtension": {
+      "authorizedBy": "explicit user reply: allow 22 total requests, total CNY 1",
+      "previousAuthorization": "2026-10-29: 20 requests / CNY 1",
+      "previousMaxRequests": 20,
+      "attemptsAtApproval": 20,
+      "estimatedUpperBoundAtApproval": 0.37026800000000004,
+      "additionalRequests": 2,
+      "additionalEstimatedAmount": 0.02
+    },
+    "price": {
+      "inputPrice": 2,
+      "outputPrice": 8,
+      "cachedInputPrice": 0.04
+    },
+    "maxRequests": 36,
+    "maxEstimatedAmount": 1,
+    "attempts": 36,
+    "estimatedUpperBound": 0.431024,
+    "updatedAt": "2026-10-30T06:15:48.142Z",
+    "authorizationExtensions": [
+      {
+        "authorizedBy": "explicit user reply: allow 22 total requests, total CNY 1",
+        "previousAuthorization": "2026-10-29: 20 requests / CNY 1",
+        "previousMaxRequests": 20,
+        "attemptsAtApproval": 20,
+        "estimatedUpperBoundAtApproval": 0.37026800000000004,
+        "additionalRequests": 2,
+        "additionalEstimatedAmount": 0.02
+      },
+      {
+        "authorizedBy": "2026-10-30 explicit user reply: allow 12 additional requests, total 34 / CNY 1; additional estimate <= CNY 0.15",
+        "previousMaxRequests": 22,
+        "startAttempts": 22,
+        "startEstimate": 0.3799020000000001,
+        "additionalRequests": 12,
+        "additionalEstimatedAmount": 0.15
+      },
+      {
+        "authorizedBy": "2026-10-30 explicit user reply: allow 2 more native Messages accounting requests; total 36 / CNY 1; extra <= CNY 0.03 and T12 <= CNY 0.15",
+        "previousMaxRequests": 34,
+        "startAttempts": 34,
+        "startEstimate": 0.420576,
+        "additionalRequests": 2,
+        "additionalEstimatedAmount": 0.03
+      }
+    ]
+  }
+}

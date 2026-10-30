@@ -1,0 +1,142 @@
+{
+  "baseCommit": "b73ea19a3c173f0457e5e579381dcc8a9b50d89a",
+  "scope": "narrow staged T12 source excluding unrelated Agent/Octop work",
+  "files": [
+    {
+      "path": "apps/control-plane/src/gateway/higress.provider.ts",
+      "sha256": "dadb9d12f607f9a8abb391aa261308eb309dd84560d4a552d16014d3260682fa"
+    },
+    {
+      "path": "apps/control-plane/src/gateway/higress.resources.ts",
+      "sha256": "011515d777bec3d4a2945dc008182ca838ceac7bbab3da8b307d2cf12bd0c3a1"
+    },
+    {
+      "path": "apps/control-plane/src/platform/platform.service.ts",
+      "sha256": "10a897c51fb93f051bdc94037968b80c9480aacf6cbe64acd3bf6d1fa01fccd6"
+    },
+    {
+      "path": "apps/control-plane/src/platform/resource-actions.ts",
+      "sha256": "a892ddc94429dc092d28a7b33a002f48e5f584ab4247b0a160f0ad3ba0015d0f"
+    },
+    {
+      "path": "apps/control-plane/src/platform/verification.spec.ts",
+      "sha256": "a780f0e7833a972552f4f1e72c4623b699ec9ae9896bf77da3d8c62420b3fc3f"
+    },
+    {
+      "path": "apps/control-plane/src/platform/verification.ts",
+      "sha256": "e516398378b762bfe399b33c97e1f61b1b5606f30c08f58d694c2009ff1dd0e8"
+    },
+    {
+      "path": "apps/control-plane/src/store/admission.spec.ts",
+      "sha256": "0742c66916c93dc17b3abf62a4883c34af08bc92fb3bdf5634a870cb7867c737"
+    },
+    {
+      "path": "apps/control-plane/src/store/admission.ts",
+      "sha256": "fdfe61a358b432ab032eb5413a2455516edfc893805c7c26b0484d4a6fb63aaf"
+    },
+    {
+      "path": "apps/web/src/CallExplorer.tsx",
+      "sha256": "56730e9a23dffaf930477dc1a15fca0870d56add3150deb48fe33a49ba707410"
+    },
+    {
+      "path": "apps/web/src/ModelCatalog.tsx",
+      "sha256": "acab0a6b04c498c889fb8dad4b9e814b09ae0534996294029ade6ace75bf4bc0"
+    },
+    {
+      "path": "apps/web/src/ModelSetup.tsx",
+      "sha256": "ee282ea0ad45c2a52c59d93ba04999007cbc462b9e2bf147cd6f1d4042b52943"
+    },
+    {
+      "path": "apps/web/src/editors.ts",
+      "sha256": "6c518bd67cfd2468aad3178276c0c8a4bb79a9df30c051e5cb45b21a7b967704"
+    },
+    {
+      "path": "package.json",
+      "sha256": "41fb2cf3d476f4ec781641601ada5a7c29be9a3fd1274ecd2c6e10c68f57ccce"
+    },
+    {
+      "path": "packages/contracts/src/catalog.ts",
+      "sha256": "42fb10cf807573430611f40b3eb1936ce25b7c2bcd02ed86ec66d09d950caecc"
+    },
+    {
+      "path": "packages/contracts/src/index.ts",
+      "sha256": "d78f78d2d8197de10d678e5bb3d45b715bd0f3c4a0e0083c2eae598bdbd5e28e"
+    },
+    {
+      "path": "packages/contracts/src/platform.ts",
+      "sha256": "d0781aef1c20e21563364a6827c6f016211e86de669fe9b2c32c93fa7a050520"
+    },
+    {
+      "path": "packages/contracts/src/protocol.spec.ts",
+      "sha256": "22cb71fd7d43744bc4838831368ae9e39d3f583dc49956ebeb537e140fa1bdf5"
+    },
+    {
+      "path": "packages/contracts/src/protocol.ts",
+      "sha256": "a8b921d70736821d30c51561be2d537bdaec100e1f954a064daa9d33d71cc79a"
+    },
+    {
+      "path": "packages/contracts/src/verification.ts",
+      "sha256": "3f024cfc3248a0bdd7df2c55d56da75d8a209e110519c28f2184f29227551c6b"
+    },
+    {
+      "path": "scripts/check-protocols-live.mjs",
+      "sha256": "5eb7e6ee10235b40eb8556110ed56f0f376ce1a762e18d3640823e3736efabb6"
+    },
+    {
+      "path": "scripts/check-protocols-web.mjs",
+      "sha256": "23bf43df508615134c0e382fef0bdf2c5296112f8ab3c60044128735812c089a"
+    },
+    {
+      "path": "scripts/check-protocols.mjs",
+      "sha256": "695b35945511343eab2b4e5fe8f2d9711dfc2bd238ca11c541481f1586873de3"
+    },
+    {
+      "path": "scripts/higress/model-fixture.cjs",
+      "sha256": "f106445f98d9ad942a260145400ee5df130981c18379b0db8c04c77333e09f94"
+    },
+    {
+      "path": "scripts/higress/runtime-readiness.cjs",
+      "sha256": "4908ac5382cd4bf800b541774ad4da2c3a16a41f2fbd08dfbbfec7bbcc731968"
+    },
+    {
+      "path": "scripts/higress/runtime-readiness.test.mjs",
+      "sha256": "ad6e47c5ae249fefac5dd9438a1dd9f584359b62effa6ed9db958d462ac2698f"
+    },
+    {
+      "path": "scripts/lib/protocol-live-relay.mjs",
+      "sha256": "7050163ffd0605573e3fbdf3203bb09ce006ccfa2925d28840987d2e7a7bfc41"
+    },
+    {
+      "path": "scripts/lib/protocol-sdk.mjs",
+      "sha256": "76e33785c701ea88e020a9da8f0aa4173df718580975b071ea22dfdb1ad62f89"
+    },
+    {
+      "path": "services/gateway-sim/src/protocol-input.ts",
+      "sha256": "ab841d943c276433ff12df22e768eb2a35de0c1ffa31f1e63ea394af7f97738d"
+    },
+    {
+      "path": "services/gateway-sim/src/protocol-native.ts",
+      "sha256": "953da618920e88d42dffc05a0353d99f233f6824559a8bb097eb1b540bf58cdd"
+    },
+    {
+      "path": "services/gateway-sim/src/protocol-output.ts",
+      "sha256": "9b1742376779a4603ccbe61a3b1c0458fbdfd93fca43702b00ad073ce30ed020"
+    },
+    {
+      "path": "services/gateway-sim/src/server.ts",
+      "sha256": "4dc2861fe4c1fb1905d28d4eb3f35c32a2aaad464ccd3696f6f0ad7f2402aa11"
+    },
+    {
+      "path": "services/gateway-sim/test/http-fixture.mjs",
+      "sha256": "54e36d3de4592c0ddaed84af9b1104e0887ad2858e53a015b7b33dd4645b0ae6"
+    },
+    {
+      "path": "services/gateway-sim/test/multi-protocol.test.mjs",
+      "sha256": "1bc471a0badb3ca1660f82d6407aceed2e1b8dcde025668e0cb3bc2a4660a884"
+    },
+    {
+      "path": "services/gateway-sim/test/protocol-adapters.test.mjs",
+      "sha256": "dd7d6343817306769bfea834c15eca3d80fbded7ca18f1586e40d3df7d1516b2"
+    }
+  ]
+}

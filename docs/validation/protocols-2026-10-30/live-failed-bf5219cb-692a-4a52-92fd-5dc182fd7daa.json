@@ -1,0 +1,259 @@
+{
+  "success": false,
+  "createdAt": "2026-10-30T05:59:18.584Z",
+  "scope": {
+    "database": "isolated PostgreSQL",
+    "dataPlane": "real Higress",
+    "vendor": "DeepSeek official; existing controlled configuration",
+    "defaultWorkspaceTouched": false
+  },
+  "checks": [
+    "real Chat Completions baseline passes",
+    "real DeepSeek chat basic probe confirmed independently",
+    "real DeepSeek responses basic probe confirmed independently",
+    "real DeepSeek messages basic probe confirmed independently"
+  ],
+  "budgetAtStart": {
+    "authorization": "2026-10-30: 34 aggregate requests / CNY 1; T12 additional <=12 / CNY 0.15",
+    "authorizationExtension": {
+      "authorizedBy": "explicit user reply: allow 22 total requests, total CNY 1",
+      "previousAuthorization": "2026-10-29: 20 requests / CNY 1",
+      "previousMaxRequests": 20,
+      "attemptsAtApproval": 20,
+      "estimatedUpperBoundAtApproval": 0.37026800000000004,
+      "additionalRequests": 2,
+      "additionalEstimatedAmount": 0.02
+    },
+    "price": {
+      "inputPrice": 2,
+      "outputPrice": 8,
+      "cachedInputPrice": 0.04
+    },
+    "maxRequests": 34,
+    "maxEstimatedAmount": 1,
+    "attempts": 22,
+    "estimatedUpperBound": 0.3799020000000001,
+    "updatedAt": "2026-10-29T12:54:14.741Z",
+    "authorizationExtensions": [
+      {
+        "authorizedBy": "explicit user reply: allow 22 total requests, total CNY 1",
+        "previousAuthorization": "2026-10-29: 20 requests / CNY 1",
+        "previousMaxRequests": 20,
+        "attemptsAtApproval": 20,
+        "estimatedUpperBoundAtApproval": 0.37026800000000004,
+        "additionalRequests": 2,
+        "additionalEstimatedAmount": 0.02
+      },
+      {
+        "authorizedBy": "2026-10-30 explicit user reply: allow 12 additional requests, total 34 / CNY 1; additional estimate <= CNY 0.15",
+        "previousMaxRequests": 22,
+        "startAttempts": 22,
+        "startEstimate": 0.3799020000000001,
+        "additionalRequests": 12,
+        "additionalEstimatedAmount": 0.15
+      }
+    ]
+  },
+  "probeRun": {
+    "id": "verification-8038caf2-8437-499a-b43d-23803b496799",
+    "operatorId": "operator-demo-001",
+    "serviceId": "service-local-test",
+    "serviceName": "真实 DeepSeek 三协议",
+    "configVersion": 2,
+    "state": "completed",
+    "diagnostic": true,
+    "idempotencyKey": "verification-ca8a4d5f-7c53-4ff1-b743-3ce974027c9e",
+    "mappings": [
+      {
+        "protocols": [
+          "chat",
+          "responses",
+          "messages"
+        ],
+        "inputPrice": 2,
+        "attemptedAt": "2026-10-30T05:59:58.060Z",
+        "outputPrice": 8,
+        "definitionId": "definition-test-model",
+        "upstreamModel": "deepseek-flash",
+        "cachedInputPrice": 0.04
+      }
+    ],
+    "results": [
+      {
+        "cost": {
+          "price": {
+            "unit": "per_million_tokens",
+            "version": "946c7b311b8f4dfbc4303648",
+            "currency": "CNY",
+            "inputPrice": 2,
+            "outputPrice": 8,
+            "cachedInputPrice": 0.04
+          },
+          "state": "priced",
+          "amount": 0.000072
+        },
+        "usage": {
+          "complete": true,
+          "inputTokens": 32,
+          "outputTokens": 1,
+          "cachedInputTokens": 0
+        },
+        "message": "基础协议通过，已返回用量",
+        "outcome": "passed",
+        "support": "supported",
+        "protocol": "chat",
+        "errorCode": null,
+        "httpStatus": 200,
+        "completedAt": "2026-10-30T06:00:04.028Z",
+        "definitionId": "definition-test-model",
+        "upstreamModel": "deepseek-flash",
+        "upstreamRequestId": null
+      },
+      {
+        "cost": {
+          "price": {
+            "unit": "per_million_tokens",
+            "version": "946c7b311b8f4dfbc4303648",
+            "currency": "CNY",
+            "inputPrice": 2,
+            "outputPrice": 8,
+            "cachedInputPrice": 0.04
+          },
+          "state": "priced",
+          "amount": 0.000072
+        },
+        "usage": {
+          "complete": true,
+          "inputTokens": 32,
+          "outputTokens": 1,
+          "cachedInputTokens": 0
+        },
+        "message": "基础协议通过，已返回用量",
+        "outcome": "passed",
+        "support": "supported",
+        "protocol": "responses",
+        "errorCode": null,
+        "httpStatus": 200,
+        "completedAt": "2026-10-30T06:00:05.552Z",
+        "definitionId": "definition-test-model",
+        "upstreamModel": "deepseek-flash",
+        "upstreamRequestId": null
+      },
+      {
+        "cost": {
+          "price": {
+            "unit": "per_million_tokens",
+            "version": "946c7b311b8f4dfbc4303648",
+            "currency": "CNY",
+            "inputPrice": 2,
+            "outputPrice": 8,
+            "cachedInputPrice": 0.04
+          },
+          "state": "priced",
+          "amount": 0.000072
+        },
+        "usage": {
+          "complete": true,
+          "inputTokens": 32,
+          "outputTokens": 1,
+          "cachedInputTokens": 0
+        },
+        "message": "基础协议通过，已返回用量",
+        "outcome": "passed",
+        "support": "supported",
+        "protocol": "messages",
+        "errorCode": null,
+        "httpStatus": 200,
+        "completedAt": "2026-10-30T06:00:06.857Z",
+        "definitionId": "definition-test-model",
+        "upstreamModel": "deepseek-flash",
+        "upstreamRequestId": null
+      }
+    ],
+    "startedAt": "2026-10-30T05:59:57.893Z",
+    "completedAt": "2026-10-30T06:00:07.094Z",
+    "leaseExpiresAt": "2026-10-30T06:02:07.028Z",
+    "note": null
+  },
+  "errorPhase": "native official SDK tool loops",
+  "error": "Error: 400 upstream model request failed\n    at APIError.generate (C:\\Users\\LiuJi\\AppData\\Roaming\\fnm\\node-versions\\v22.23.1\\installation\\node_modules\\@earendil-works\\pi-coding-agent\\node_modules\\openai\\core\\error.js:45:20)\n    at OpenAI.makeStatusError (C:\\Users\\LiuJi\\AppData\\Roaming\\fnm\\node-versions\\v22.23.1\\installation\\node_modules\\@earendil-works\\pi-coding-agent\\node_modules\\openai\\client.js:430:32)\n    at OpenAI.makeRequest (C:\\Users\\LiuJi\\AppData\\Roaming\\fnm\\node-versions\\v22.23.1\\installation\\node_modules\\@earendil-works\\pi-coding-agent\\node_modules\\openai\\client.js:922:30)\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at async runProtocolSdkChecks (file:///D:/Workspace/pri/ai-gateway-platform/scripts/lib/protocol-sdk.mjs:13:14)\n    at async file:///D:/Workspace/pri/ai-gateway-platform/scripts/check-protocols-live.mjs:26:52",
+  "vendorCalls": [
+    {
+      "ordinal": 23,
+      "protocol": "chat",
+      "maxOutputTokens": 1,
+      "inputBytes": 104,
+      "estimatedUpperBound": 0.000216,
+      "httpStatus": 200,
+      "requestId": "af997228-c743-4668-ada2-121fa7ee3536"
+    },
+    {
+      "ordinal": 24,
+      "protocol": "responses",
+      "maxOutputTokens": 1,
+      "inputBytes": 94,
+      "estimatedUpperBound": 0.000196,
+      "httpStatus": 200,
+      "requestId": "b53d4277-0de9-4176-81f4-482ae28289ff"
+    },
+    {
+      "ordinal": 25,
+      "protocol": "messages",
+      "maxOutputTokens": 1,
+      "inputBytes": 104,
+      "estimatedUpperBound": 0.000216,
+      "httpStatus": 200,
+      "requestId": "58b8dcc9-fdf4-4f3a-83a3-416f82daa875"
+    },
+    {
+      "ordinal": 26,
+      "protocol": "responses",
+      "maxOutputTokens": 512,
+      "inputBytes": 496,
+      "estimatedUpperBound": 0.005088,
+      "httpStatus": 400,
+      "requestId": "protocol-sdk-3e49b1e9-d012-4fef-b6f3-ab7af5338ed7"
+    }
+  ],
+  "budget": {
+    "authorization": "2026-10-30: 34 aggregate requests / CNY 1; T12 additional <=12 / CNY 0.15",
+    "authorizationExtension": {
+      "authorizedBy": "explicit user reply: allow 22 total requests, total CNY 1",
+      "previousAuthorization": "2026-10-29: 20 requests / CNY 1",
+      "previousMaxRequests": 20,
+      "attemptsAtApproval": 20,
+      "estimatedUpperBoundAtApproval": 0.37026800000000004,
+      "additionalRequests": 2,
+      "additionalEstimatedAmount": 0.02
+    },
+    "price": {
+      "inputPrice": 2,
+      "outputPrice": 8,
+      "cachedInputPrice": 0.04
+    },
+    "maxRequests": 34,
+    "maxEstimatedAmount": 1,
+    "attempts": 26,
+    "estimatedUpperBound": 0.385618,
+    "updatedAt": "2026-10-29T12:54:14.741Z",
+    "authorizationExtensions": [
+      {
+        "authorizedBy": "explicit user reply: allow 22 total requests, total CNY 1",
+        "previousAuthorization": "2026-10-29: 20 requests / CNY 1",
+        "previousMaxRequests": 20,
+        "attemptsAtApproval": 20,
+        "estimatedUpperBoundAtApproval": 0.37026800000000004,
+        "additionalRequests": 2,
+        "additionalEstimatedAmount": 0.02
+      },
+      {
+        "authorizedBy": "2026-10-30 explicit user reply: allow 12 additional requests, total 34 / CNY 1; additional estimate <= CNY 0.15",
+        "previousMaxRequests": 22,
+        "startAttempts": 22,
+        "startEstimate": 0.3799020000000001,
+        "additionalRequests": 12,
+        "additionalEstimatedAmount": 0.15
+      }
+    ]
+  }
+}

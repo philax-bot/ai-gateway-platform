@@ -1,0 +1,784 @@
+{
+  "success": true,
+  "id": "c096927f-ed34-42ec-b5a6-411238ea196a",
+  "createdAt": "2026-10-30T05:47:59.333Z",
+  "scope": {
+    "database": "isolated PostgreSQL",
+    "dataPlane": "real Higress",
+    "model": "local deterministic fixture",
+    "realModelRequests": 0
+  },
+  "checks": [
+    "configured service created",
+    "native chat basic probe passes through real Higress",
+    "native responses basic probe passes through real Higress",
+    "native messages basic probe passes through real Higress",
+    "responses personal json returns 200",
+    "responses uses native selected from saved probe",
+    "responses authoritative usage settles 0.000132 CNY",
+    "responses retains selected source and purpose",
+    "responses dispatches exactly one correct protocol",
+    "responses strips internal hop credential",
+    "responses JSON uses logical identity",
+    "responses retains provider extension",
+    "responses project json returns 200",
+    "responses uses native selected from saved probe",
+    "responses authoritative usage settles 0.000132 CNY",
+    "responses retains selected source and purpose",
+    "responses dispatches exactly one correct protocol",
+    "responses strips internal hop credential",
+    "responses JSON uses logical identity",
+    "responses retains provider extension",
+    "responses application json returns 200",
+    "responses uses native selected from saved probe",
+    "responses authoritative usage settles 0.000132 CNY",
+    "responses retains selected source and purpose",
+    "responses dispatches exactly one correct protocol",
+    "responses strips internal hop credential",
+    "responses JSON uses logical identity",
+    "responses retains provider extension",
+    "responses personal stream returns 200",
+    "responses uses native selected from saved probe",
+    "responses authoritative usage settles 0.000132 CNY",
+    "responses retains selected source and purpose",
+    "responses dispatches exactly one correct protocol",
+    "responses strips internal hop credential",
+    "responses has proper terminal event, not DONE",
+    "responses preserves logical identity",
+    "responses native streamed tool call present",
+    "responses personal stream returns 200",
+    "responses uses native selected from saved probe",
+    "responses authoritative usage settles 0.000132 CNY",
+    "responses retains selected source and purpose",
+    "responses dispatches exactly one correct protocol",
+    "responses strips internal hop credential",
+    "responses has proper terminal event, not DONE",
+    "responses preserves logical identity",
+    "responses cancellation preserves unknown usage and original hold",
+    "responses personal json returns 200",
+    "responses uses native selected from saved probe",
+    "responses authoritative usage settles 0.000132 CNY",
+    "responses retains selected source and purpose",
+    "responses dispatches exactly one correct protocol",
+    "responses strips internal hop credential",
+    "responses JSON uses logical identity",
+    "responses retains provider extension",
+    "messages personal json returns 200",
+    "messages uses native selected from saved probe",
+    "messages authoritative usage settles 0.000132 CNY",
+    "messages retains selected source and purpose",
+    "messages dispatches exactly one correct protocol",
+    "messages strips internal hop credential",
+    "messages JSON uses logical identity",
+    "messages retains provider extension",
+    "messages project json returns 200",
+    "messages uses native selected from saved probe",
+    "messages authoritative usage settles 0.000132 CNY",
+    "messages retains selected source and purpose",
+    "messages dispatches exactly one correct protocol",
+    "messages strips internal hop credential",
+    "messages JSON uses logical identity",
+    "messages retains provider extension",
+    "messages application json returns 200",
+    "messages uses native selected from saved probe",
+    "messages authoritative usage settles 0.000132 CNY",
+    "messages retains selected source and purpose",
+    "messages dispatches exactly one correct protocol",
+    "messages strips internal hop credential",
+    "messages JSON uses logical identity",
+    "messages retains provider extension",
+    "messages personal stream returns 200",
+    "messages uses native selected from saved probe",
+    "messages authoritative usage settles 0.000132 CNY",
+    "messages retains selected source and purpose",
+    "messages dispatches exactly one correct protocol",
+    "messages strips internal hop credential",
+    "messages has proper terminal event, not DONE",
+    "messages preserves logical identity",
+    "messages native streamed tool call present",
+    "messages personal stream returns 200",
+    "messages uses native selected from saved probe",
+    "messages authoritative usage settles 0.000132 CNY",
+    "messages retains selected source and purpose",
+    "messages dispatches exactly one correct protocol",
+    "messages strips internal hop credential",
+    "messages has proper terminal event, not DONE",
+    "messages preserves logical identity",
+    "messages cancellation preserves unknown usage and original hold",
+    "messages personal json returns 200",
+    "messages uses native selected from saved probe",
+    "messages authoritative usage settles 0.000132 CNY",
+    "messages retains selected source and purpose",
+    "messages dispatches exactly one correct protocol",
+    "messages strips internal hop credential",
+    "messages JSON uses logical identity",
+    "messages retains provider extension",
+    "responses personal stream returns 403",
+    "responses blocked personal never forwarded",
+    "responses blocked input is zero-fee",
+    "responses input denial uses protocol JSON envelope",
+    "responses project stream returns 403",
+    "responses blocked project never forwarded",
+    "responses blocked input is zero-fee",
+    "responses input denial uses protocol JSON envelope",
+    "responses application stream returns 403",
+    "responses blocked application never forwarded",
+    "responses blocked input is zero-fee",
+    "responses input denial uses protocol JSON envelope",
+    "messages personal stream returns 403",
+    "messages blocked personal never forwarded",
+    "messages blocked input is zero-fee",
+    "messages input denial uses protocol JSON envelope",
+    "messages project stream returns 403",
+    "messages blocked project never forwarded",
+    "messages blocked input is zero-fee",
+    "messages input denial uses protocol JSON envelope",
+    "messages application stream returns 403",
+    "messages blocked application never forwarded",
+    "messages blocked input is zero-fee",
+    "messages input denial uses protocol JSON envelope",
+    "connection change invalidates all saved protocol capabilities",
+    "Chat-only upstream remains openable",
+    "responses unsupported endpoint recorded independently",
+    "responses personal json returns 200",
+    "responses uses adapted selected from saved probe",
+    "responses authoritative usage settles 0.000132 CNY",
+    "responses retains selected source and purpose",
+    "responses dispatches exactly one correct protocol",
+    "responses strips internal hop credential",
+    "responses JSON uses logical identity",
+    "responses personal stream returns 200",
+    "responses uses adapted selected from saved probe",
+    "responses authoritative usage settles 0.000132 CNY",
+    "responses retains selected source and purpose",
+    "responses dispatches exactly one correct protocol",
+    "responses strips internal hop credential",
+    "responses has proper terminal event, not DONE",
+    "responses preserves logical identity",
+    "messages unsupported endpoint recorded independently",
+    "messages personal json returns 200",
+    "messages uses adapted selected from saved probe",
+    "messages authoritative usage settles 0.000132 CNY",
+    "messages retains selected source and purpose",
+    "messages dispatches exactly one correct protocol",
+    "messages strips internal hop credential",
+    "messages JSON uses logical identity",
+    "messages personal stream returns 200",
+    "messages uses adapted selected from saved probe",
+    "messages authoritative usage settles 0.000132 CNY",
+    "messages retains selected source and purpose",
+    "messages dispatches exactly one correct protocol",
+    "messages strips internal hop credential",
+    "messages has proper terminal event, not DONE",
+    "messages preserves logical identity",
+    "default workspace, funds, state file and live budget unchanged"
+  ],
+  "nativeProbes": {
+    "mappings": {
+      "definition-test-model": {
+        "chat": {
+          "status": "supported",
+          "checkedAt": "2026-10-30T05:48:39.678Z",
+          "errorCode": null,
+          "httpStatus": 200
+        },
+        "messages": {
+          "status": "supported",
+          "checkedAt": "2026-10-30T05:48:40.089Z",
+          "errorCode": null,
+          "httpStatus": 200
+        },
+        "responses": {
+          "status": "supported",
+          "checkedAt": "2026-10-30T05:48:39.887Z",
+          "errorCode": null,
+          "httpStatus": 200
+        }
+      }
+    },
+    "configVersion": 2
+  },
+  "sdk": {
+    "native": {
+      "success": true,
+      "mode": "native",
+      "sdkVersions": {
+        "openai": "7.19.0",
+        "anthropic": "0.129.0"
+      },
+      "checks": [
+        "OpenAI SDK receives final response with logical model",
+        "OpenAI SDK assembles streamed function arguments",
+        "OpenAI SDK completes tool-result turn",
+        "OpenAI SDK exposes authoritative usage",
+        "Anthropic SDK receives native Message shape with logical model",
+        "Anthropic SDK assembles streamed tool input",
+        "Anthropic SDK completes tool-result turn",
+        "Anthropic SDK exposes authoritative usage"
+      ],
+      "calls": [
+        {
+          "requestId": "protocol-sdk-bb47b0db-743c-4e1e-8b95-4c5553ca7a81",
+          "httpStatus": 200,
+          "mode": "native"
+        },
+        {
+          "requestId": "protocol-sdk-745debef-93bf-488f-abba-f0acb903d897",
+          "httpStatus": 200,
+          "mode": "native"
+        },
+        {
+          "requestId": "protocol-sdk-9aaf2c9f-90fa-4e06-87cd-ca7168f6578a",
+          "httpStatus": 200,
+          "mode": "native"
+        },
+        {
+          "requestId": "protocol-sdk-a59257a5-9a58-403a-93dc-886867f7d32e",
+          "httpStatus": 200,
+          "mode": "native"
+        }
+      ]
+    },
+    "adapted": {
+      "success": true,
+      "mode": "adapted",
+      "sdkVersions": {
+        "openai": "7.19.0",
+        "anthropic": "0.129.0"
+      },
+      "checks": [
+        "OpenAI SDK receives final response with logical model",
+        "OpenAI SDK assembles streamed function arguments",
+        "OpenAI SDK completes tool-result turn",
+        "OpenAI SDK exposes authoritative usage",
+        "Anthropic SDK receives native Message shape with logical model",
+        "Anthropic SDK assembles streamed tool input",
+        "Anthropic SDK completes tool-result turn",
+        "Anthropic SDK exposes authoritative usage"
+      ],
+      "calls": [
+        {
+          "requestId": "protocol-sdk-453bec79-2696-413d-a53f-97b0f89cc4ee",
+          "httpStatus": 200,
+          "mode": "adapted"
+        },
+        {
+          "requestId": "protocol-sdk-cd2c586c-6514-4a06-9639-8093d27e608e",
+          "httpStatus": 200,
+          "mode": "adapted"
+        },
+        {
+          "requestId": "protocol-sdk-2f9f1de4-892b-46ae-b823-cbe40d0df0f3",
+          "httpStatus": 200,
+          "mode": "adapted"
+        },
+        {
+          "requestId": "protocol-sdk-e1481092-1b7c-4a6a-a34b-87f366bed547",
+          "httpStatus": 200,
+          "mode": "adapted"
+        }
+      ]
+    }
+  },
+  "requests": [
+    {
+      "requestId": "protocol-52ffaf4c-8099-4853-8e67-638ec3b44e35",
+      "protocol": "responses",
+      "purpose": "personal",
+      "httpStatus": 200,
+      "mode": "native"
+    },
+    {
+      "requestId": "protocol-0e453ddc-47b6-4be2-bbba-a1e3204ed373",
+      "protocol": "responses",
+      "purpose": "project",
+      "httpStatus": 200,
+      "mode": "native"
+    },
+    {
+      "requestId": "protocol-6eab6935-78c1-4e7c-99ad-8e3d42df0a88",
+      "protocol": "responses",
+      "purpose": "application",
+      "httpStatus": 200,
+      "mode": "native"
+    },
+    {
+      "requestId": "protocol-58ae1e7e-349a-4d7d-8c4f-de72079cfe76",
+      "protocol": "responses",
+      "purpose": "personal",
+      "httpStatus": 200,
+      "mode": "native"
+    },
+    {
+      "requestId": "protocol-07218efa-249a-4be7-9d7c-706b1925ccb2",
+      "protocol": "responses",
+      "purpose": "personal",
+      "httpStatus": 200,
+      "mode": "native"
+    },
+    {
+      "requestId": "protocol-a90b4d89-037a-4d53-ae35-24afa94c3d1c",
+      "protocol": "responses",
+      "purpose": "personal",
+      "httpStatus": 200,
+      "mode": "native"
+    },
+    {
+      "requestId": "protocol-d481d8fa-4e1e-4d88-a86b-88d5c015a95b",
+      "protocol": "messages",
+      "purpose": "personal",
+      "httpStatus": 200,
+      "mode": "native"
+    },
+    {
+      "requestId": "protocol-a22fcbdc-9bd9-468c-b282-4216c4d4c4b5",
+      "protocol": "messages",
+      "purpose": "project",
+      "httpStatus": 200,
+      "mode": "native"
+    },
+    {
+      "requestId": "protocol-033e49ca-ddb4-4aac-8b1f-e45b30ab6673",
+      "protocol": "messages",
+      "purpose": "application",
+      "httpStatus": 200,
+      "mode": "native"
+    },
+    {
+      "requestId": "protocol-3fa40efa-97f4-4922-a24c-aa5b837e17e3",
+      "protocol": "messages",
+      "purpose": "personal",
+      "httpStatus": 200,
+      "mode": "native"
+    },
+    {
+      "requestId": "protocol-74bd91de-2c85-48b9-b3e9-fc6de2ede517",
+      "protocol": "messages",
+      "purpose": "personal",
+      "httpStatus": 200,
+      "mode": "native"
+    },
+    {
+      "requestId": "protocol-ef6bd34e-4b66-4fc5-85a5-a7b7c6b39398",
+      "protocol": "messages",
+      "purpose": "personal",
+      "httpStatus": 200,
+      "mode": "native"
+    },
+    {
+      "requestId": "protocol-23ee930d-79ae-4390-8a46-19c09b93a349",
+      "protocol": "responses",
+      "purpose": "personal",
+      "httpStatus": 403,
+      "mode": "native"
+    },
+    {
+      "requestId": "protocol-8658cbee-5f64-4899-acf4-4aa88720d37c",
+      "protocol": "responses",
+      "purpose": "project",
+      "httpStatus": 403,
+      "mode": "native"
+    },
+    {
+      "requestId": "protocol-c7bca72b-d220-42e1-abcc-e9f8219fccbe",
+      "protocol": "responses",
+      "purpose": "application",
+      "httpStatus": 403,
+      "mode": "native"
+    },
+    {
+      "requestId": "protocol-8511ad96-8e20-460f-9af5-9b67c9ac1324",
+      "protocol": "messages",
+      "purpose": "personal",
+      "httpStatus": 403,
+      "mode": "native"
+    },
+    {
+      "requestId": "protocol-882bfb31-249e-4492-8b5c-4803a7e6dc75",
+      "protocol": "messages",
+      "purpose": "project",
+      "httpStatus": 403,
+      "mode": "native"
+    },
+    {
+      "requestId": "protocol-18a5428a-eab0-46f8-bd29-3d4fcf03db14",
+      "protocol": "messages",
+      "purpose": "application",
+      "httpStatus": 403,
+      "mode": "native"
+    },
+    {
+      "requestId": "protocol-34ba12ec-b6a1-4e3d-a9af-df392c451de7",
+      "protocol": "responses",
+      "purpose": "personal",
+      "httpStatus": 200,
+      "mode": "adapted"
+    },
+    {
+      "requestId": "protocol-18b1deb0-7a3b-4f77-a0b4-43e5b9cb79ca",
+      "protocol": "responses",
+      "purpose": "personal",
+      "httpStatus": 200,
+      "mode": "adapted"
+    },
+    {
+      "requestId": "protocol-f4c84a6b-5224-4801-adb1-c37151f66269",
+      "protocol": "messages",
+      "purpose": "personal",
+      "httpStatus": 200,
+      "mode": "adapted"
+    },
+    {
+      "requestId": "protocol-b15271ce-5405-44c6-8de9-4a0708188d1e",
+      "protocol": "messages",
+      "purpose": "personal",
+      "httpStatus": 200,
+      "mode": "adapted"
+    }
+  ],
+  "fallbackProbes": {
+    "mappings": {
+      "definition-test-model": {
+        "chat": {
+          "status": "supported",
+          "checkedAt": "2026-10-30T05:51:44.483Z",
+          "errorCode": null,
+          "httpStatus": 200
+        },
+        "messages": {
+          "status": "unsupported",
+          "checkedAt": "2026-10-30T05:51:44.947Z",
+          "errorCode": "model_not_found",
+          "httpStatus": 404
+        },
+        "responses": {
+          "status": "unsupported",
+          "checkedAt": "2026-10-30T05:51:44.776Z",
+          "errorCode": "model_not_found",
+          "httpStatus": 404
+        }
+      }
+    },
+    "configVersion": 3
+  },
+  "defaultPreservation": {
+    "before": {
+      "defaultWorkspacePresent": true,
+      "liveBudgetHash": "64ec2a0fdd806efcef7a199bcc689baef5ddfd7df694e6b046b14c9d1c2bc063",
+      "workspaceId": "20bea9e2-970a-4e7d-98eb-12ca16e81692",
+      "stateFileHash": "e7b742a224289865187386d14dce3cc5cbcb98fa22844dcee1af4bc14194d5fe",
+      "businessConfigurationHash": "e7f267f7e4f24b7586b046da7d4e5d4ac894ee7bb03ca69d1e9e632563288e2c",
+      "fundsHash": "5626134a433f2ff7c8932f9aca6a874ef157ca45fa9b3732a3b3eb580bff118a",
+      "fundedBatches": 8
+    },
+    "after": {
+      "defaultWorkspacePresent": true,
+      "liveBudgetHash": "64ec2a0fdd806efcef7a199bcc689baef5ddfd7df694e6b046b14c9d1c2bc063",
+      "workspaceId": "20bea9e2-970a-4e7d-98eb-12ca16e81692",
+      "stateFileHash": "e7b742a224289865187386d14dce3cc5cbcb98fa22844dcee1af4bc14194d5fe",
+      "businessConfigurationHash": "e7f267f7e4f24b7586b046da7d4e5d4ac894ee7bb03ca69d1e9e632563288e2c",
+      "fundsHash": "5626134a433f2ff7c8932f9aca6a874ef157ca45fa9b3732a3b3eb580bff118a",
+      "fundedBatches": 8
+    }
+  },
+  "calls": [
+    {
+      "request_id": "protocol-sdk-bb47b0db-743c-4e1e-8b95-4c5553ca7a81",
+      "purpose": "personal",
+      "billable_state": "confirmed",
+      "actual_amount": "0.000132",
+      "error_code": null,
+      "usage_final": true
+    },
+    {
+      "request_id": "protocol-sdk-745debef-93bf-488f-abba-f0acb903d897",
+      "purpose": "personal",
+      "billable_state": "confirmed",
+      "actual_amount": "0.000132",
+      "error_code": null,
+      "usage_final": true
+    },
+    {
+      "request_id": "protocol-sdk-9aaf2c9f-90fa-4e06-87cd-ca7168f6578a",
+      "purpose": "personal",
+      "billable_state": "confirmed",
+      "actual_amount": "0.000132",
+      "error_code": null,
+      "usage_final": true
+    },
+    {
+      "request_id": "protocol-sdk-a59257a5-9a58-403a-93dc-886867f7d32e",
+      "purpose": "personal",
+      "billable_state": "confirmed",
+      "actual_amount": "0.000132",
+      "error_code": null,
+      "usage_final": true
+    },
+    {
+      "request_id": "protocol-52ffaf4c-8099-4853-8e67-638ec3b44e35",
+      "purpose": "personal",
+      "billable_state": "confirmed",
+      "actual_amount": "0.000132",
+      "error_code": null,
+      "usage_final": true
+    },
+    {
+      "request_id": "protocol-0e453ddc-47b6-4be2-bbba-a1e3204ed373",
+      "purpose": "project",
+      "billable_state": "confirmed",
+      "actual_amount": "0.000132",
+      "error_code": null,
+      "usage_final": true
+    },
+    {
+      "request_id": "protocol-6eab6935-78c1-4e7c-99ad-8e3d42df0a88",
+      "purpose": "application",
+      "billable_state": "confirmed",
+      "actual_amount": "0.000132",
+      "error_code": null,
+      "usage_final": true
+    },
+    {
+      "request_id": "protocol-58ae1e7e-349a-4d7d-8c4f-de72079cfe76",
+      "purpose": "personal",
+      "billable_state": "confirmed",
+      "actual_amount": "0.000132",
+      "error_code": null,
+      "usage_final": true
+    },
+    {
+      "request_id": "protocol-07218efa-249a-4be7-9d7c-706b1925ccb2",
+      "purpose": "personal",
+      "billable_state": "confirmed",
+      "actual_amount": "0.000132",
+      "error_code": null,
+      "usage_final": true
+    },
+    {
+      "request_id": "protocol-cancel-cf1dae3e-95de-4e0a-be97-049123d53059",
+      "purpose": "personal",
+      "billable_state": "pending_review",
+      "actual_amount": "0.000000",
+      "error_code": "client_cancelled",
+      "usage_final": false
+    },
+    {
+      "request_id": "protocol-a90b4d89-037a-4d53-ae35-24afa94c3d1c",
+      "purpose": "personal",
+      "billable_state": "confirmed",
+      "actual_amount": "0.000132",
+      "error_code": null,
+      "usage_final": true
+    },
+    {
+      "request_id": "protocol-d481d8fa-4e1e-4d88-a86b-88d5c015a95b",
+      "purpose": "personal",
+      "billable_state": "confirmed",
+      "actual_amount": "0.000132",
+      "error_code": null,
+      "usage_final": true
+    },
+    {
+      "request_id": "protocol-a22fcbdc-9bd9-468c-b282-4216c4d4c4b5",
+      "purpose": "project",
+      "billable_state": "confirmed",
+      "actual_amount": "0.000132",
+      "error_code": null,
+      "usage_final": true
+    },
+    {
+      "request_id": "protocol-033e49ca-ddb4-4aac-8b1f-e45b30ab6673",
+      "purpose": "application",
+      "billable_state": "confirmed",
+      "actual_amount": "0.000132",
+      "error_code": null,
+      "usage_final": true
+    },
+    {
+      "request_id": "protocol-3fa40efa-97f4-4922-a24c-aa5b837e17e3",
+      "purpose": "personal",
+      "billable_state": "confirmed",
+      "actual_amount": "0.000132",
+      "error_code": null,
+      "usage_final": true
+    },
+    {
+      "request_id": "protocol-74bd91de-2c85-48b9-b3e9-fc6de2ede517",
+      "purpose": "personal",
+      "billable_state": "confirmed",
+      "actual_amount": "0.000132",
+      "error_code": null,
+      "usage_final": true
+    },
+    {
+      "request_id": "protocol-cancel-541a4878-6237-4572-abdf-a2536fe82bdc",
+      "purpose": "personal",
+      "billable_state": "pending_review",
+      "actual_amount": "0.000000",
+      "error_code": "client_cancelled",
+      "usage_final": false
+    },
+    {
+      "request_id": "protocol-ef6bd34e-4b66-4fc5-85a5-a7b7c6b39398",
+      "purpose": "personal",
+      "billable_state": "confirmed",
+      "actual_amount": "0.000132",
+      "error_code": null,
+      "usage_final": true
+    },
+    {
+      "request_id": "protocol-23ee930d-79ae-4390-8a46-19c09b93a349",
+      "purpose": "personal",
+      "billable_state": "not_billable",
+      "actual_amount": "0.000000",
+      "error_code": "safety_policy_violation",
+      "usage_final": true
+    },
+    {
+      "request_id": "protocol-8658cbee-5f64-4899-acf4-4aa88720d37c",
+      "purpose": "project",
+      "billable_state": "not_billable",
+      "actual_amount": "0.000000",
+      "error_code": "safety_policy_violation",
+      "usage_final": true
+    },
+    {
+      "request_id": "protocol-c7bca72b-d220-42e1-abcc-e9f8219fccbe",
+      "purpose": "application",
+      "billable_state": "not_billable",
+      "actual_amount": "0.000000",
+      "error_code": "safety_policy_violation",
+      "usage_final": true
+    },
+    {
+      "request_id": "protocol-8511ad96-8e20-460f-9af5-9b67c9ac1324",
+      "purpose": "personal",
+      "billable_state": "not_billable",
+      "actual_amount": "0.000000",
+      "error_code": "safety_policy_violation",
+      "usage_final": true
+    },
+    {
+      "request_id": "protocol-882bfb31-249e-4492-8b5c-4803a7e6dc75",
+      "purpose": "project",
+      "billable_state": "not_billable",
+      "actual_amount": "0.000000",
+      "error_code": "safety_policy_violation",
+      "usage_final": true
+    },
+    {
+      "request_id": "protocol-18a5428a-eab0-46f8-bd29-3d4fcf03db14",
+      "purpose": "application",
+      "billable_state": "not_billable",
+      "actual_amount": "0.000000",
+      "error_code": "safety_policy_violation",
+      "usage_final": true
+    },
+    {
+      "request_id": "protocol-34ba12ec-b6a1-4e3d-a9af-df392c451de7",
+      "purpose": "personal",
+      "billable_state": "confirmed",
+      "actual_amount": "0.000132",
+      "error_code": null,
+      "usage_final": true
+    },
+    {
+      "request_id": "protocol-18b1deb0-7a3b-4f77-a0b4-43e5b9cb79ca",
+      "purpose": "personal",
+      "billable_state": "confirmed",
+      "actual_amount": "0.000132",
+      "error_code": null,
+      "usage_final": true
+    },
+    {
+      "request_id": "protocol-f4c84a6b-5224-4801-adb1-c37151f66269",
+      "purpose": "personal",
+      "billable_state": "confirmed",
+      "actual_amount": "0.000132",
+      "error_code": null,
+      "usage_final": true
+    },
+    {
+      "request_id": "protocol-b15271ce-5405-44c6-8de9-4a0708188d1e",
+      "purpose": "personal",
+      "billable_state": "confirmed",
+      "actual_amount": "0.000132",
+      "error_code": null,
+      "usage_final": true
+    },
+    {
+      "request_id": "protocol-sdk-453bec79-2696-413d-a53f-97b0f89cc4ee",
+      "purpose": "personal",
+      "billable_state": "confirmed",
+      "actual_amount": "0.000132",
+      "error_code": null,
+      "usage_final": true
+    },
+    {
+      "request_id": "protocol-sdk-cd2c586c-6514-4a06-9639-8093d27e608e",
+      "purpose": "personal",
+      "billable_state": "confirmed",
+      "actual_amount": "0.000132",
+      "error_code": null,
+      "usage_final": true
+    },
+    {
+      "request_id": "protocol-sdk-2f9f1de4-892b-46ae-b823-cbe40d0df0f3",
+      "purpose": "personal",
+      "billable_state": "confirmed",
+      "actual_amount": "0.000132",
+      "error_code": null,
+      "usage_final": true
+    },
+    {
+      "request_id": "protocol-sdk-e1481092-1b7c-4a6a-a34b-87f366bed547",
+      "purpose": "personal",
+      "billable_state": "confirmed",
+      "actual_amount": "0.000132",
+      "error_code": null,
+      "usage_final": true
+    }
+  ],
+  "failedBrowserAttempts": [
+    {
+      "success": false,
+      "checks": [
+        "catalog distinguishes unsupported native endpoint from Chat adaptation",
+        "catalog lists all three implemented protocol entries"
+      ],
+      "error": "service displays current per-model native probe counts",
+      "page": "人工审查模式 · 本地模型替身 · 审查数据会保留，重启后可继续\nSignal Atlas\n企业 AI 资源运营\n运营空间\n个人空间\n搜索\nCtrl K\n蓝灰\n信标\n左栏\n顶栏\n经典\n审\n审核运营\n企业工作空间\nSignal Atlas\n运营空间\n运营空间\n运营工作台\n为人员开通\n申请与审批\n项目\n应用\n配置与排查\n模型目录\n模型配置\n组织与成员\n密钥与接入\n运行监控\n安全围栏\n调用记录\n费用核对\n2\n企业设置\n运营工作台\n模型目录\n×\n模型配置\n×\n运营空间\n2026.10.30 · 周五\nOPERATIONS\n模型配置\n\n模型服务、模型池与开放范围。只有连接验证通过且价格已确认的服务才能开放给同事。\n\n刷新数据\n模型准备\n已有 1 个模型接通并开放\n\n可以继续创建或选择人员开通方案。还可以按需要新增模型，已有配置在下方管理。\n\n✓ 登记模型\n✓ 连接与价格\n✓ 开放使用范围\n下一步：为人员开通\n接入另一个模型服务\n管理已有配置 · 1 个模型 / 1 个服务 / 1 个池"
+    }
+  ],
+  "browser": {
+    "success": true,
+    "checks": [
+      "catalog distinguishes unsupported native endpoint from Chat adaptation",
+      "catalog lists all three implemented protocol entries",
+      "service displays current per-model native probe counts",
+      "diagnostic detail includes each protocol and support state",
+      "diagnostic Tab remains inside dialog",
+      "clicking verification tests and displays exactly three protocols per mapping",
+      "service editor exposes same-authority protocol path overrides",
+      "azure catalog has no page overflow",
+      "azure detail keyboard focus contained",
+      "azure Escape returns to opener",
+      "sidebar catalog has no page overflow",
+      "sidebar detail keyboard focus contained",
+      "sidebar Escape returns to opener",
+      "next catalog has no page overflow",
+      "next detail keyboard focus contained",
+      "next Escape returns to opener",
+      "classic catalog has no page overflow",
+      "classic detail keyboard focus contained",
+      "classic Escape returns to opener",
+      "beacon catalog has no page overflow",
+      "beacon detail keyboard focus contained",
+      "beacon Escape returns to opener",
+      "390 catalog has no page overflow",
+      "390 protocol detail has no page overflow",
+      "390 service configuration has no page overflow",
+      "no browser runtime errors"
+    ]
+  }
+}

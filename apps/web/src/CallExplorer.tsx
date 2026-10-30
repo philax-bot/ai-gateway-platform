@@ -52,7 +52,7 @@ export function CallExplorer({data:d,kind,reconcile,detail,initialQuery,active=t
     {c.safety&&<p className="notice">输入规则命中 · {c.safety.action==='block'?'已拦截，未发送给模型、未扣费':'仅记录，按正常调用结算'} · 策略版本 {c.safety.policyVersion} · {c.safety.matches.map(m=>m.ruleId).join('、')}</p>}
     <div className="detail-groups">
       <section className="detail-group"><h3>主体与路由</h3><dl className="detail-list">{[
-        ['主体',name(c.subjectId)],['用途',({personal:'个人',project:'项目成员',application:'独立应用'})[c.purpose]],['模型',model(c.modelId)],['项目',d.projects.find(p=>p.id===c.projectId)?.name??c.projectId??'—'],
+        ['主体',name(c.subjectId)],['用途',({personal:'个人',project:'项目成员',application:'独立应用'})[c.purpose]],['模型 / 协议',model(c.modelId)+(c.admission?.protocol?` · ${c.admission.protocol.requested} → ${c.admission.protocol.upstream}（${c.admission.protocol.mode==='native'?'原生透传':'Chat 适配'}）`:' · 协议历史未知')],['项目',d.projects.find(p=>p.id===c.projectId)?.name??c.projectId??'—'],
         ['密钥',d.keys.find(k=>k.credentialId===c.credentialId)?.masked??'历史或在线临时身份'],
         ['服务',d.services.find(s=>s.id===c.admission?.route?.serviceId)?.name??c.admission?.route?.serviceId??'未选定 / 历史未知'],
         ['模型池',d.pools.find(p=>p.id===c.admission?.route?.poolId)?.name??c.admission?.route?.poolId??'未选定 / 历史未知'],

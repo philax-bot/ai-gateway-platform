@@ -72,9 +72,13 @@ export async function resourceAction(tx:WorkspaceTransaction,actor:Member,type:s
       });
       if(new Set(mappings.map(m=>m.definitionId)).size!==mappings.length)throw new BadRequestException('duplicate model mapping');
       const baseUrl=url.toString().replace(/\/$/,'');
+      const protocolPaths:NonNullable<ModelService['protocolPaths']>={};
+      const suppliedPaths=p.protocolPaths===undefined?existing?.protocolPaths??{}:p.protocolPaths;
+      if(!suppliedPaths||typeof suppliedPaths!=='object'||Array.isArray(suppliedPaths)||Object.keys(suppliedPaths).some(k=>!['responses','messages'].includes(k)))throw new BadRequestException('invalid protocol paths');
+      for(const protocol of ['responses','messages']as const){const path=(suppliedPaths as Record<string,unknown>)[protocol];if(path!==undefined&&path!==''){if(typeof path!=='string'||path.length>500||!/^\/(?!\/)[A-Za-z0-9_./~-]+$/.test(path)||path.includes('..'))throw new BadRequestException('protocol paths must be relative absolute paths on the same service');protocolPaths[protocol]=path;}}
       const connectionShape=(items:ModelService['mappings'])=>items.map(m=>[m.definitionId,m.upstreamModel]).sort((a,b)=>a[0].localeCompare(b[0]));
-      const changed=!existing||existing.baseUrl!==baseUrl||existing.credentialRef!==credentialRef||JSON.stringify(connectionShape(existing.mappings))!==JSON.stringify(connectionShape(mappings));
-      const service:ModelService={id:existing?.id??newId('service'),name:text(p.name,'name',100),baseUrl,credentialRef,mappings,active:p.active!==false,
+      const changed=!existing||existing.baseUrl!==baseUrl||existing.credentialRef!==credentialRef||JSON.stringify(existing.protocolPaths??{})!==JSON.stringify(protocolPaths)||JSON.stringify(connectionShape(existing.mappings))!==JSON.stringify(connectionShape(mappings));
+      const service:ModelService={id:existing?.id??newId('service'),name:text(p.name,'name',100),baseUrl,credentialRef,mappings,active:p.active!==false,protocolPaths,protocolCapabilities:changed?undefined:existing?.protocolCapabilities,
         verification:changed?'unverified':existing!.verification,verificationMessage:changed?'连接配置已变更，需要重新验证':existing!.verificationMessage,verifiedAt:changed?null:existing!.verifiedAt,configVersion:(existing?.configVersion??0)+(changed?1:0),limits:limits(p.limits),sharedCapacityId:p.sharedCapacityId?String(p.sharedCapacityId):null};
       if(existing)Object.assign(existing,service);else s.services.push(service);return service;
     }

@@ -28,6 +28,8 @@
     "check:higress:web": "pnpm --filter @ai-gateway/control-plane... --filter @ai-gateway/gateway-sim... build && node scripts/check-higress-web.mjs",
     "check:higress:business": "pnpm --filter @ai-gateway/control-plane... --filter @ai-gateway/gateway-sim... build && node scripts/check-higress-provider.mjs --business",
     "check:catalog": "pnpm build && node scripts/check-model-catalog.mjs",
-    "check:guardrail": "pnpm --filter @ai-gateway/control-plane... --filter @ai-gateway/gateway-sim... build && node scripts/check-guardrail.mjs"
+    "check:guardrail": "pnpm --filter @ai-gateway/control-plane... --filter @ai-gateway/gateway-sim... build && node scripts/check-guardrail.mjs",
+    "check:protocols": "pnpm build && node scripts/check-protocols.mjs",
+    "check:protocols:live": "pnpm build && node scripts/check-protocols-live.mjs"
   }
 }

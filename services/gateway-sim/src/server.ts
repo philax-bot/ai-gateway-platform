@@ -8,6 +8,10 @@ import { SettlementJournal } from './journal.js';
 import { definitelyNotSent, shouldRetryConnect } from './connection-failure.js';
 import { adaptUpstreamChatRequest } from './upstream-compat.js';
 import { gatewayTimeouts, UpstreamDeadline } from './upstream-timeout.js';
+import {normalizeProtocolRequest,protocolError,ProtocolInputError,type PublicProtocol} from './protocol-input.js';
+import {ProtocolOutput} from './protocol-output.js';
+import {NativeProtocolOutput} from './protocol-native.js';
+import {protocolUrl,extractProtocolUsage} from '@ai-gateway/contracts';
 
 const runtimeMode=validateRuntimeConfig(process.env,'gateway');
 if(runtimeMode==='production'&&!isAbsolute(process.env.GATEWAY_JOURNAL_DIR!))throw new Error('GATEWAY_JOURNAL_DIR must be absolute in production');
@@ -16,6 +20,8 @@ const controlPlaneUrl = process.env.CONTROL_PLANE_URL ?? 'http://127.0.0.1:4001'
 const modelUrl = process.env.MODEL_URL ?? 'http://127.0.0.1:4010';
 const serviceToken = process.env.SERVICE_TOKEN ?? 'local-service-token';
 const timeouts = gatewayTimeouts(process.env);
+const controlPlaneTimeoutMs=Number(process.env.CONTROL_PLANE_RPC_TIMEOUT_MS??5000);
+if(!Number.isSafeInteger(controlPlaneTimeoutMs)||controlPlaneTimeoutMs<1000||controlPlaneTimeoutMs>60000)throw Error('CONTROL_PLANE_RPC_TIMEOUT_MS must be 1000–60000');
 const webOrigin = process.env.WEB_ORIGIN ?? 'http://127.0.0.1:5173';
 const localWebOrigins = new Set(runtimeMode==='production'?[webOrigin]:[webOrigin, 'http://127.0.0.1:5173', 'http://localhost:5173']);
 const journal=new SettlementJournal(process.env.GATEWAY_JOURNAL_DIR??resolve(process.cwd(),`.runtime/gateway-${port}`));
@@ -24,8 +30,8 @@ let closing=false,draining=false;
 
 function corsHeaders(origin?: string): Record<string, string> {
   return { 'access-control-allow-origin': origin && localWebOrigins.has(origin) ? origin : webOrigin,
-    'access-control-allow-headers': 'authorization, content-type, idempotency-key, x-request-id, x-price-version, x-retry-of-request-id',
-    'access-control-allow-methods': 'POST, OPTIONS', 'access-control-expose-headers': 'x-request-id', vary: 'Origin' };
+    'access-control-allow-headers': 'authorization, x-api-key, anthropic-version, anthropic-beta, content-type, idempotency-key, x-request-id, x-price-version, x-retry-of-request-id',
+    'access-control-allow-methods': 'POST, OPTIONS', 'access-control-expose-headers': 'x-request-id, x-atlas-protocol-mode', vary: 'Origin' };
 }
 function sendJson(response: ServerResponse, status: number, value: unknown, origin?: string): void {
   if (response.destroyed || response.writableEnded) return;
@@ -41,7 +47,7 @@ async function readJson(request: IncomingMessage): Promise<Record<string, unknow
   return value as Record<string, unknown>;
 }
 async function controlPlane<T>(path: string, body: unknown): Promise<{ status: number; value: T }> {
-  const response=await fetch(`${controlPlaneUrl}${path}`, { method:'POST',signal:AbortSignal.timeout(5000),
+  const response=await fetch(`${controlPlaneUrl}${path}`, { method:'POST',signal:AbortSignal.timeout(controlPlaneTimeoutMs),
     headers:{ authorization:`Bearer ${serviceToken}`,'content-type':'application/json' },body:JSON.stringify(body) });
   return { status:response.status,value:await response.json() as T };
 }
@@ -86,48 +92,60 @@ async function handleModels(request: IncomingMessage, response: ServerResponse):
   sendJson(response,200,{object:'list',data},origin);
 }
 
-async function handleCompletions(request: IncomingMessage, response: ServerResponse): Promise<void> {
+async function handleCompletions(request: IncomingMessage, response: ServerResponse, protocol:PublicProtocol='chat'): Promise<void> {
   const startedAt=Date.now();let ttftMs:number|undefined;
+  const reply=(status:number,value:unknown)=>sendJson(response,status,protocolError(protocol,value),request.headers.origin);
   let body: Record<string,unknown>;
-  try { body=await readJson(request); } catch(error) {
-    sendJson(response,400,{error:{type:'invalid_request_error',message:error instanceof Error?error.message:'invalid JSON'}},request.headers.origin); return;
+  let originalBody:Record<string,unknown>,apiKey=(request.headers.authorization??'').replace(/^Bearer\s+/i,'');
+  try {
+    originalBody=await readJson(request);
+    if(protocol==='messages'){
+      if(request.headers['anthropic-version']!=='2023-06-01')throw new ProtocolInputError('anthropic-version must be 2023-06-01; newer native versions are not implemented','unsupported_version');
+      const key=request.headers['x-api-key'];if(key!==undefined){if(typeof key!=='string'||(apiKey&&apiKey!==key))throw new ProtocolInputError('conflicting or invalid API key headers');apiKey=key;}
+    }
+    body=normalizeProtocolRequest(protocol,originalBody,true);
+  } catch(error) {
+    reply(400,{error:{type:error instanceof ProtocolInputError?error.code:'invalid_request_error',message:error instanceof Error?error.message:'invalid JSON'}}); return;
   }
   const origin=request.headers.origin;
   if(typeof body.model!=='string'||!body.model.trim()||!Array.isArray(body.messages)){
-    sendJson(response,400,{error:{type:'invalid_request_error',message:'model and messages are required'}},origin);return;
+    reply(400,{error:{type:'invalid_request_error',message:'model and messages are required'}});return;
   }
+  const output=protocol==='chat'?null:new ProtocolOutput(protocol,body.model);
   if(body.messages.some(message=>!message||typeof message!=='object'||Array.isArray(message)||('content'in message&&message.content!==null&&typeof message.content!=='string'&&!(Array.isArray(message.content)&&message.content.every((part:unknown)=>part&&typeof part==='object'&&!Array.isArray(part)&&'type'in part&&part.type==='text'&&'text'in part&&typeof part.text==='string'))))){
-    sendJson(response,400,{error:{type:'unsupported_content',message:'this release accepts text messages and tool calls; image/audio content requires a separate adapter'}},origin);return;
+    reply(400,{error:{type:'unsupported_content',message:'this release accepts text messages and tool calls; image/audio content requires a separate adapter'}});return;
   }
   const requestedOutput=body.max_completion_tokens??body.max_tokens;
   if(requestedOutput!==undefined&&(typeof requestedOutput!=='number'||!Number.isSafeInteger(requestedOutput)||requestedOutput<1)){
-    sendJson(response,400,{error:{type:'invalid_request_error',message:'output token limit must be a positive integer'}},origin);return;
+    reply(400,{error:{type:'invalid_request_error',message:'output token limit must be a positive integer'}});return;
   }
   const requestId=String(request.headers['x-request-id']??`request-${randomUUID()}`);
   const retryHeader=request.headers['x-retry-of-request-id'];
   if(retryHeader!==undefined&&(typeof retryHeader!=='string'||!isRequestReference(retryHeader))){
-    sendJson(response,400,{error:{type:'invalid_request_error',message:'x-retry-of-request-id must be an opaque reference of at most 160 characters'}},origin);return;
+    reply(400,{error:{type:'invalid_request_error',message:'x-retry-of-request-id must be an opaque reference of at most 160 characters'}});return;
   }
   const retryOfRequestId=typeof retryHeader==='string'?retryHeader:null;
   const idempotencyKey=String(request.headers['idempotency-key']??requestId);
   let credential: ResolvedCredential|null;
   try {
-    const resolved=await controlPlane<ResolvedCredential|null>('/internal/v1/policy/credentials/resolve', { apiKey:(request.headers.authorization??'').replace(/^Bearer\s+/i,'') });
+    const resolved=await controlPlane<ResolvedCredential|null>('/internal/v1/policy/credentials/resolve', { apiKey });
     if(resolved.status!==200) throw new Error('credential lookup failed');
     credential=resolved.value;
-    if(!credential) { sendJson(response,401,{error:{type:'authentication_error',message:'invalid API key'}},origin); return; }
-  } catch { sendJson(response,503,{error:{type:'control_plane_unavailable',message:'authorization service is unavailable'},requestId},origin); return; }
+    if(!credential) { reply(401,{error:{type:'authentication_error',message:'invalid API key'}}); return; }
+  } catch { reply(503,{error:{type:'control_plane_unavailable',message:'authorization service is unavailable'},requestId}); return; }
   const admissionAttemptId=randomUUID();
-  const assessment=checkGuardrail(credential.guardrailPolicy??defaultGuardrailPolicy(),body.model,body);
+  const {model:_ignoredModel,...normalizedInput}=body;
+  const assessment=checkGuardrail(credential.guardrailPolicy??defaultGuardrailPolicy(),body.model,protocol==='chat'?body:{...originalBody,normalizedInput});
   const authorization:AuthorizeRequest={
       guardrail:assessment,
+      ...(protocol==='chat'?{}:{modelProtocol:protocol}),
       requestId,idempotencyKey,admissionAttemptId,identity:credential.identity,purpose:credential.purpose,modelId:body.model,mode:'chat',
-      estimatedInputTokens:estimateChatInput(body),expectedPriceVersion:typeof request.headers['x-price-version']==='string'?request.headers['x-price-version']:undefined,
-      maxOutputTokens:requestedOutput as number|undefined,requestFingerprint:createHash('sha256').update(JSON.stringify(body)).digest('hex'),policyVersion:'policy-local-1',
+      estimatedInputTokens:protocol==='chat'?estimateChatInput(body):Math.max(estimateChatInput(body),Buffer.byteLength(JSON.stringify(originalBody))),expectedPriceVersion:typeof request.headers['x-price-version']==='string'?request.headers['x-price-version']:undefined,
+      maxOutputTokens:requestedOutput as number|undefined,requestFingerprint:createHash('sha256').update(protocol==='chat'?JSON.stringify(body):protocol+':'+JSON.stringify(originalBody)).digest('hex'),policyVersion:'policy-local-1',
       retryOfRequestId,
   };
   try{await journal.beginAuthorization(authorization);}catch{
-    sendJson(response,503,{error:{type:'journal_unavailable',message:'authorization journal is unavailable; authorization was not requested'},requestId},origin);return;
+    reply(503,{error:{type:'journal_unavailable',message:'authorization journal is unavailable; authorization was not requested'},requestId});return;
   }
   const defer=()=>journal.deferAuthorization(admissionAttemptId).catch(()=>undefined);
   const forget=()=>journal.forgetAuthorization(admissionAttemptId).catch(()=>defer());
@@ -137,20 +155,20 @@ async function handleCompletions(request: IncomingMessage, response: ServerRespo
     if(auth.status!==200) {
       if(auth.status===400||auth.status===409)await forget();else await defer();
       const code=(auth.value as {message?:string})?.message;
-      if(code==='guardrail_policy_stale'||code==='guardrail_unavailable'){await forget();sendJson(response,code==='guardrail_policy_stale'?409:503,{error:{type:code,code,message:code==='guardrail_policy_stale'?'安全策略已更新，请重试。':'安全检查暂不可用，请稍后重试。'},requestId},origin);return;}
-      sendJson(response,auth.status===409?409:auth.status===400?400:503,{error:{type:auth.status===400?'invalid_request_error':'authorization_error',message:auth.status===400?'retry reference is invalid':'authorization unavailable or conflicting'},requestId},origin); return;
+      if(code==='guardrail_policy_stale'||code==='guardrail_unavailable'){await forget();reply(code==='guardrail_policy_stale'?409:503,{error:{type:code,code,message:code==='guardrail_policy_stale'?'安全策略已更新，请重试。':'安全检查暂不可用，请稍后重试。'},requestId});return;}
+      reply(auth.status===409?409:auth.status===400?400:503,{error:{type:auth.status===400?'invalid_request_error':'authorization_error',message:auth.status===400?'retry reference is invalid':'authorization unavailable or conflicting'},requestId}); return;
     }
     decision=auth.value;
     if(!decision||!['allow','deny'].includes(decision.decision))throw new Error('invalid authorization response');
-  } catch {await defer();sendJson(response,503,{error:{type:'control_plane_unavailable',message:'authorization service is unavailable; unresolved authorization will be recovered'},requestId},origin); return; }
+  } catch {await defer();reply(503,{error:{type:'control_plane_unavailable',message:'authorization service is unavailable; unresolved authorization will be recovered'},requestId}); return; }
   if(decision.decision!=='allow'||!decision.reservation) {
-    if(decision.decision==='allow'){await defer();sendJson(response,503,{error:{type:'authorization_error',message:'authorization response is incomplete'},requestId},origin);return;}
+    if(decision.decision==='allow'){await defer();reply(503,{error:{type:'authorization_error',message:'authorization response is incomplete'},requestId});return;}
     await forget();
-    sendJson(response,decision.reasonCode==='rate_limited'?429:decision.reasonCode==='request_limit_exceeded'?400:decision.reasonCode==='price_unconfigured'?503:403,{error:{type:decision.reasonCode==='safety_policy_violation'?'safety_policy_violation':'policy_denied',code:decision.reasonCode==='safety_policy_violation'?'sensitive_input':decision.reasonCode,message:decision.reasonMessage,...(decision.requestLimits?{details:{requestLimits:decision.requestLimits}}:{})},requestId},origin); return;
+    reply(decision.reasonCode==='rate_limited'?429:decision.reasonCode==='request_limit_exceeded'?400:decision.reasonCode==='price_unconfigured'?503:403,{error:{type:decision.reasonCode==='safety_policy_violation'?'safety_policy_violation':'policy_denied',code:decision.reasonCode==='safety_policy_violation'?'sensitive_input':decision.reasonCode,message:decision.reasonMessage,...(decision.requestLimits?{details:{requestLimits:decision.requestLimits}}:{})},requestId}); return;
   }
   if(decision.replayed||decision.requestId!==requestId||(decision.admissionAttemptId&&decision.admissionAttemptId!==admissionAttemptId)) {
     if(decision.admissionAttemptId===admissionAttemptId)await defer();else await forget();
-    sendJson(response,409,{error:{type:'request_already_authorized',message:'request already authorized; repeat forwarding is disabled'},requestId:decision.requestId},origin); return;
+    reply(409,{error:{type:'request_already_authorized',message:'request already authorized; repeat forwarding is disabled'},requestId:decision.requestId}); return;
   }
   const logicalModel=body.model;
   const admission=decision.admission;
@@ -161,7 +179,7 @@ async function handleCompletions(request: IncomingMessage, response: ServerRespo
   try{await journal.admitted(baseSettlement);await journal.forgetAuthorization(admissionAttemptId);}catch{
     await defer();
     try{await controlPlane('/internal/v1/usage/settlements',baseSettlement);}catch{/* control plane retains the reservation for reconciliation */}
-    sendJson(response,503,{error:{type:'journal_unavailable',message:'usage journal is unavailable; upstream was not called'},requestId},origin);return;
+    reply(503,{error:{type:'journal_unavailable',message:'usage journal is unavailable; upstream was not called'},requestId});return;
   }
   const controller=new AbortController();
   activeUpstreams.add(controller);
@@ -180,8 +198,18 @@ async function handleCompletions(request: IncomingMessage, response: ServerRespo
   let dispatched=false;
   let done=false;
   let upstream: Response|undefined;
+  let native:NativeProtocolOutput|null=null,protocolValidation:ProtocolInputError|null=null;
+  let nativeMeter='';
+  const writeFrames=async(frames:string)=>{
+    if(frames&&!response.destroyed&&!response.write(frames))await new Promise<void>(resolve=>{
+      const finish=()=>{response.off('drain',finish);response.off('close',finish);resolve();};response.once('drain',finish);response.once('close',finish);
+    });
+  };
   try {
     const route=admission?.route;
+    if(protocol!=='chat'&&route?.protocols?.[protocol]?.status==='supported')native=new NativeProtocolOutput(protocol,logicalModel);
+    if(protocol!=='chat'&&!native){normalizeProtocolRequest(protocol,originalBody);if(request.headers['anthropic-beta'])throw new ProtocolInputError('anthropic-beta extensions require native protocol support','unsupported_parameter');}
+    response.setHeader('x-atlas-protocol-mode',protocol==='chat'?'native':native?'native':'adapted');
     if(runtimeMode==='production'&&!configured)throw new Error('production requires a configured admission route');
     if(configured&&!route)throw new Error('configured authorization has no route');
     const target=new URL(configured?route!.baseUrl:modelUrl);
@@ -195,23 +223,39 @@ async function handleCompletions(request: IncomingMessage, response: ServerRespo
     const upstreamCredential=transport?process.env.UPSTREAM_HIGRESS_INTERNAL:route?.credentialRef?process.env[route.credentialRef]:null;
     if(transport&&!upstreamCredential)throw new Error('Higress credential is not configured');
     if(!transport&&route?.credentialRef&&(!/^UPSTREAM_[A-Z0-9_]+$/.test(route.credentialRef)||!upstreamCredential))throw new Error('upstream credential reference is not configured');
-    const forwarded:Record<string,unknown>={...body,model:transport?.model??route?.upstreamModel??logicalModel};
-    if(configured){if(body.max_completion_tokens!==undefined){forwarded.max_completion_tokens=route!.maxOutputTokens;delete forwarded.max_tokens;}else forwarded.max_tokens=route!.maxOutputTokens;}
-    if(body.stream===true)forwarded.stream_options={...(body.stream_options as Record<string,unknown>|undefined),include_usage:true};
+    const forwarded:Record<string,unknown>={...(native?originalBody:body),model:native?route!.upstreamModel:transport?.model??route?.upstreamModel??logicalModel};
+    if(native&&protocol==='responses')forwarded.store=false;
+    if(configured){if(native&&protocol==='responses')forwarded.max_output_tokens=route!.maxOutputTokens;else if(body.max_completion_tokens!==undefined){forwarded.max_completion_tokens=route!.maxOutputTokens;delete forwarded.max_tokens;}else forwarded.max_tokens=route!.maxOutputTokens;}
+    if(body.stream===true&&!native)forwarded.stream_options={...(body.stream_options as Record<string,unknown>|undefined),include_usage:true};
     await journal.dispatched(requestId);dispatched=true;
     deadline=new UpstreamDeadline(controller,timeouts);
-    upstream=await dispatchUpstream(chatCompletionsUrl(dispatchTarget.toString()), { method:'POST',redirect:'error', signal:controller.signal,
-      headers:{'content-type':'application/json','x-request-id':requestId,...(upstreamCredential?{[transport?'x-atlas-hop-token':'authorization']:`Bearer ${upstreamCredential}`}:{})},body:JSON.stringify(adaptUpstreamChatRequest(target,forwarded)) });
+    const dispatchUrl=native?(transport?transport.baseUrl+'/v1/'+protocol:protocolUrl(target.toString(),protocol,route?.protocolPaths)):chatCompletionsUrl(dispatchTarget.toString());
+    upstream=await dispatchUpstream(dispatchUrl, { method:'POST',redirect:'error', signal:controller.signal,
+      headers:{'content-type':'application/json','x-request-id':requestId,...(native&&protocol==='messages'?{'anthropic-version':String(request.headers['anthropic-version']),...(request.headers['anthropic-beta']?{'anthropic-beta':String(request.headers['anthropic-beta'])}:{})}:{}),...(upstreamCredential?{[transport?'x-atlas-hop-token':'authorization']:`Bearer ${upstreamCredential}`,...(native&&protocol==='messages'&&!transport?{'x-api-key':upstreamCredential}:{})}:{})},body:JSON.stringify(native?forwarded:adaptUpstreamChatRequest(target,forwarded)) });
     upstreamStatus=upstream.status;
     upstreamRequestId=readUpstreamRequestId(upstream.headers);
     if(!upstream.ok) { raw=await boundedText(upstream,()=>deadline!.receivedBytes()); outcome='upstream_error';usageFinal=extractUpstreamUsage(raw)!==null||!configured||upstream.status<500; }
     else if(body.stream===true && upstream.body) {
       response.writeHead(200,{'content-type':'text/event-stream; charset=utf-8','cache-control':'no-cache','x-request-id':requestId,...corsHeaders(origin)});
       streamStarted=true;
+      if(output&&!native)await writeFrames(output.start());
       const reader=upstream.body.getReader(); const decoder=new TextDecoder();let eventBuffer='';
       const forwardEvent=async(event:string)=>{
         const data=event.split(/\r?\n/).filter(line=>line.startsWith('data:')).map(line=>line.slice(5).trimStart()).join('\n');
+        if(native){
+          if(!data.trim())return;
+          const value=JSON.parse(data),eventName=event.split(/\r?\n/).find(line=>line.startsWith('event:'))?.slice(6).trim();
+          if(ttftMs===undefined&&(['response.output_text.delta','response.function_call_arguments.delta','content_block_delta'].includes(value.type)))ttftMs=Math.min(2147483647,Date.now()-startedAt);
+          await writeFrames(native.push(value,eventName));done=native.done;return;
+        }
         if(data.trim()==='[DONE]'){done=true;return;}
+        if(output){
+          if(!data.trim())return; // SSE comments/heartbeats carry no completion data.
+          if(done)throw new Error('upstream data after terminal marker');
+          const value=JSON.parse(data);
+          if(ttftMs===undefined&&value?.choices?.some((c:{delta?:{content?:string;tool_calls?:unknown[]}})=>c.delta?.content||c.delta?.tool_calls?.length))ttftMs=Math.min(2147483647,Date.now()-startedAt);
+          await writeFrames(output.push(value));return;
+        }
         let forwardedEvent=event;
         try{const value=JSON.parse(data);if(ttftMs===undefined&&value?.choices?.some((choice:{delta?:{content?:string;tool_calls?:unknown[]}})=>choice.delta?.content||choice.delta?.tool_calls?.length))ttftMs=Math.min(2147483647,Date.now()-startedAt);if(value&&typeof value==='object'&&'model'in value){value.model=logicalModel;forwardedEvent=event.split(/\r?\n/).filter(line=>!line.startsWith('data:')).concat(`data: ${JSON.stringify(value)}`).join('\n');}}catch{/* pass through non-JSON SSE events */}
         if(!response.destroyed&&!response.write(`${forwardedEvent}\n\n`))await new Promise<void>(resolve=>{
@@ -229,41 +273,51 @@ async function handleCompletions(request: IncomingMessage, response: ServerRespo
         }
         const tail=decoder.decode();raw+=tail;eventBuffer+=tail;if(eventBuffer.trim())await forwardEvent(eventBuffer);
       } finally { reader.releaseLock(); }
-      outcome=done?'completed':'partial'; usageFinal=extractUpstreamUsage(raw)!==null;
+      if(native)raw=native.done?native.usageRaw:'';
+      outcome=done&&(!native||native.successful)?'completed':'partial'; usageFinal=extractUpstreamUsage(raw)!==null;
+      if(output){if(done&&!native)output.validate();if(!usageFinal)outcome='partial';}
     } else {
       raw=await boundedText(upstream,()=>deadline!.receivedBytes());
       const value=JSON.parse(raw) as Record<string,unknown>;
-      if(!Array.isArray(value.choices))throw new Error('upstream returned an invalid completion');
-      value.model=logicalModel;raw=JSON.stringify(value);outcome='completed';usageFinal=extractUpstreamUsage(raw)!==null;
+      if(!native&&!Array.isArray(value.choices))throw new Error('upstream returned an invalid completion');
+      value.model=logicalModel;
+      if(native){const usage=extractProtocolUsage(protocol,value);if(!usage)throw new Error('upstream response has no authoritative usage');const meter={prompt_tokens:usage.inputTokens,completion_tokens:usage.outputTokens,prompt_tokens_details:{cached_tokens:usage.cachedInputTokens}};nativeMeter=JSON.stringify({usage:meter});raw=JSON.stringify({adapted:native.json(value),usage:meter});}
+      else if(output){const usage=extractUpstreamUsage(raw);if(!usage)throw new Error('upstream response has no authoritative usage');raw=JSON.stringify({chat:value,adapted:output.json(value,usage),usage:value.usage});}
+      else raw=JSON.stringify(value);
+      outcome='completed';usageFinal=extractUpstreamUsage(raw)!==null;
     }
   } catch (error) {
     controller.abort();
+    if(native)raw=streamStarted?(native.done?native.usageRaw:''):nativeMeter;
+    if(error instanceof ProtocolInputError)protocolValidation=error;
     // Redacted diagnostic: error class and cause code only, never URLs, headers or credentials.
     console.error(JSON.stringify({event:'upstream_failure',requestId,dispatched,errorName:error instanceof Error?error.name:'unknown',causeCode:(error as {cause?:{code?:string}}).cause?.code??null}));
     outcome=!dispatched?'rejected_before_upstream':clientCancelled?'client_cancelled':deadline?.phase?'timeout':draining?'partial':streamStarted?'partial':'upstream_error';
     // Interrupted generation may have incurred usage, even without its final usage event.
     usageFinal=!dispatched||definitelyNotSent(error);
     if(extractUpstreamUsage(raw)) { outcome='partial'; usageFinal=true; }
-    upstreamStatus=!dispatched?503:deadline?.phase?504:draining?503:502; failureMessage=!dispatched?'controlled upstream configuration is unavailable':deadline?.phase?`upstream ${deadline.phase} timeout`:draining?'gateway shutdown interrupted the upstream':'upstream model connection interrupted';
+    upstreamStatus=protocolValidation?400:!dispatched?503:deadline?.phase?504:draining?503:502; failureMessage=protocolValidation?protocolValidation.message:!dispatched?'controlled upstream configuration is unavailable':deadline?.phase?`upstream ${deadline.phase} timeout`:draining?'gateway shutdown interrupted the upstream':'upstream model connection interrupted';
   } finally { deadline?.stop();activeUpstreams.delete(controller);clearInterval(heartbeat); response.off('close',onClose); }
 
   const usage=extractUpstreamUsage(raw)??{inputTokens:0,outputTokens:0,cachedInputTokens:0};
-  const errorCode=outcome==='completed'?undefined:deadline?.phase?`upstream_${deadline.phase}_timeout`:draining&&outcome==='partial'?'gateway_stopping':outcome==='upstream_error'?`upstream_http_${upstream?.status??'connection'}`:outcome==='rejected_before_upstream'?'controlled_configuration_unavailable':outcome;
+  const errorCode=protocolValidation?.code??(outcome==='completed'?undefined:deadline?.phase?`upstream_${deadline.phase}_timeout`:draining&&outcome==='partial'?'gateway_stopping':outcome==='upstream_error'?`upstream_http_${upstream?.status??'connection'}`:outcome==='rejected_before_upstream'?'controlled_configuration_unavailable':outcome);
   const settlement: SettlementRequest={...baseSettlement,outcome,forwarded:dispatched,ttftMs,errorCode,...usage,usageFinal,upstreamRequestId,actualAmount:configured?undefined:outcome==='completed'||outcome==='partial'?0.02:0,completedAt:new Date().toISOString()};
   let settled=false;
   try{settled=await journal.finalize(settlement);}catch(error){console.error(JSON.stringify({event:'settlement_journal_failed',requestId,reservationId:settlement.reservationId,errorName:error instanceof Error?error.name:'unknown',causeCode:(error as NodeJS.ErrnoException).code??null}));}
-  if(!settled) { sendJson(response,503,{error:{type:'settlement_pending',message:'usage settlement is pending durable replay or reconciliation'},requestId},origin); return; }
+  if(!settled) {if(output&&streamStarted){await writeFrames(output.fail('settlement_pending','usage settlement is pending durable replay or reconciliation'));response.end();}else reply(503,{error:{type:'settlement_pending',message:'usage settlement is pending durable replay or reconciliation'},requestId}); return; }
   if(clientCancelled||response.destroyed) return;
   if(streamStarted) {
+    if(output){await writeFrames(native&&native.done&&usageFinal?native.complete():outcome==='completed'&&done?output.complete(usage):output.fail(errorCode??'upstream_interrupted'));response.end();return;}
     if(outcome==='completed'&&done)response.write('data: [DONE]\n\n');
     if(outcome!=='completed') response.write(`event: error\ndata: ${JSON.stringify({error:{type:'upstream_interrupted',code:errorCode},requestId})}\n\n`);
     response.end(); return;
   }
   if(outcome==='completed') {
-    response.writeHead(200,{'content-type':'application/json; charset=utf-8','x-request-id':requestId,...corsHeaders(origin)}); response.end(raw);
+    response.writeHead(200,{'content-type':'application/json; charset=utf-8','x-request-id':requestId,...corsHeaders(origin)}); response.end(output?JSON.stringify(JSON.parse(raw).adapted):raw);
   } else if(upstream && !upstream.ok && raw) {
+    if(output){reply(upstream.status,{error:{type:upstream.status===429?'rate_limit_error':'api_error',code:errorCode,message:'upstream model request failed'},requestId});return;}
     response.writeHead(upstream.status,{'content-type':upstream.headers.get('content-type')??'application/json',...corsHeaders(origin)}); response.end(raw);
-  } else sendJson(response,upstreamStatus,{error:{type:outcome,code:errorCode,message:failureMessage},requestId},origin);
+  } else reply(upstreamStatus,{error:{type:protocolValidation?.code??outcome,code:errorCode,message:failureMessage},requestId});
 }
 const pendingRequests=new Set<Promise<void>>();
 async function handleOutbox(request:IncomingMessage,response:ServerResponse){
@@ -289,9 +343,11 @@ async function serveRequest(request:IncomingMessage,response:ServerResponse){
     if(closing){sendJson(response,503,{error:{type:'gateway_stopping',message:'gateway is draining active requests'}},request.headers.origin);return;}
     if(request.method==='GET'&&request.url==='/health') {const outbox=await journal.status();sendJson(response,200,{status:outbox.blocked||outbox.queued?'degraded':'ok',dataPlane:process.env.GATEWAY_DATA_PLANE==='higress'?'higress':runtimeMode==='production'?'controlled-proxy':'local-simulation',outbox},request.headers.origin);return;}
     if(request.url?.startsWith('/internal/v1/outbox')){await handleOutbox(request,response);return;}
-    if(request.method==='OPTIONS'&&(request.url==='/v1/chat/completions'||request.url==='/v1/models')) {response.writeHead(204,corsHeaders(request.headers.origin));response.end();return;}
+    if(request.method==='OPTIONS'&&['/v1/chat/completions','/v1/models','/v1/responses','/v1/messages'].includes(request.url??'')) {response.writeHead(204,corsHeaders(request.headers.origin));response.end();return;}
     if(request.method==='GET'&&request.url==='/v1/models') {await handleModels(request,response);return;}
     if(request.method==='POST'&&request.url==='/v1/chat/completions') {await handleCompletions(request,response);return;}
+    if(request.method==='POST'&&request.url==='/v1/responses') {await handleCompletions(request,response,'responses');return;}
+    if(request.method==='POST'&&request.url==='/v1/messages') {await handleCompletions(request,response,'messages');return;}
     sendJson(response,404,{error:{type:'not_found',message:'route not found'}},request.headers.origin);
   } catch {sendJson(response,500,{error:{type:'gateway_error',message:'gateway request failed'}},request.headers.origin);}
 }

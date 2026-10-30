@@ -1,0 +1,9 @@
+{
+  "success": false,
+  "checks": [
+    "catalog distinguishes unsupported native endpoint from Chat adaptation",
+    "catalog lists all three implemented protocol entries"
+  ],
+  "error": "service displays current per-model native probe counts",
+  "page": "人工审查模式 · 本地模型替身 · 审查数据会保留，重启后可继续\nSignal Atlas\n企业 AI 资源运营\n运营空间\n个人空间\n搜索\nCtrl K\n蓝灰\n信标\n左栏\n顶栏\n经典\n审\n审核运营\n企业工作空间\nSignal Atlas\n运营空间\n运营空间\n运营工作台\n为人员开通\n申请与审批\n项目\n应用\n配置与排查\n模型目录\n模型配置\n组织与成员\n密钥与接入\n运行监控\n安全围栏\n调用记录\n费用核对\n2\n企业设置\n运营工作台\n模型目录\n×\n模型配置\n×\n运营空间\n2026.10.30 · 周五\nOPERATIONS\n模型配置\n\n模型服务、模型池与开放范围。只有连接验证通过且价格已确认的服务才能开放给同事。\n\n刷新数据\n模型准备\n已有 1 个模型接通并开放\n\n可以继续创建或选择人员开通方案。还可以按需要新增模型，已有配置在下方管理。\n\n✓ 登记模型\n✓ 连接与价格\n✓ 开放使用范围\n下一步：为人员开通\n接入另一个模型服务\n管理已有配置 · 1 个模型 / 1 个服务 / 1 个池"
+}

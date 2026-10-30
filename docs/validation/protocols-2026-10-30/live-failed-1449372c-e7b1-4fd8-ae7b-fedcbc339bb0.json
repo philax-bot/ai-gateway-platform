@@ -1,0 +1,830 @@
+{
+  "success": false,
+  "createdAt": "2026-10-30T06:05:40.047Z",
+  "scope": {
+    "database": "isolated PostgreSQL",
+    "dataPlane": "real Higress",
+    "vendor": "DeepSeek official; existing controlled configuration",
+    "defaultWorkspaceTouched": false
+  },
+  "checks": [
+    "real Chat Completions baseline passes",
+    "real DeepSeek chat basic probe confirmed independently",
+    "real DeepSeek responses basic probe confirmed independently",
+    "real DeepSeek messages basic probe confirmed independently",
+    "both official SDKs complete real native streamed tool/result loops",
+    "real native cancellation retains unknown usage and original reservation",
+    "real Chat baseline and locally withheld optional endpoints select safe fallback",
+    "responses real fallback uses Chat adapter",
+    "responses real fallback returns correct protocol shape",
+    "cross-protocol retry preserves cancellation correlation",
+    "responses fallback authoritative usage persisted",
+    "messages real fallback uses Chat adapter",
+    "messages real fallback returns correct protocol shape",
+    "messages fallback authoritative usage persisted",
+    "real protocol-sdk-a3f34b5d-9d3a-4271-b9d3-45352ab78ba6 retains original price snapshot",
+    "real protocol path retained in persisted admission",
+    "real protocol-sdk-129b0f46-390a-46ab-9305-00b1a668ea50 retains original price snapshot",
+    "real protocol path retained in persisted admission"
+  ],
+  "budgetAtStart": {
+    "authorization": "2026-10-30: 34 aggregate requests / CNY 1; T12 additional <=12 / CNY 0.15",
+    "authorizationExtension": {
+      "authorizedBy": "explicit user reply: allow 22 total requests, total CNY 1",
+      "previousAuthorization": "2026-10-29: 20 requests / CNY 1",
+      "previousMaxRequests": 20,
+      "attemptsAtApproval": 20,
+      "estimatedUpperBoundAtApproval": 0.37026800000000004,
+      "additionalRequests": 2,
+      "additionalEstimatedAmount": 0.02
+    },
+    "price": {
+      "inputPrice": 2,
+      "outputPrice": 8,
+      "cachedInputPrice": 0.04
+    },
+    "maxRequests": 34,
+    "maxEstimatedAmount": 1,
+    "attempts": 26,
+    "estimatedUpperBound": 0.385618,
+    "updatedAt": "2026-10-30T06:00:15.036Z",
+    "authorizationExtensions": [
+      {
+        "authorizedBy": "explicit user reply: allow 22 total requests, total CNY 1",
+        "previousAuthorization": "2026-10-29: 20 requests / CNY 1",
+        "previousMaxRequests": 20,
+        "attemptsAtApproval": 20,
+        "estimatedUpperBoundAtApproval": 0.37026800000000004,
+        "additionalRequests": 2,
+        "additionalEstimatedAmount": 0.02
+      },
+      {
+        "authorizedBy": "2026-10-30 explicit user reply: allow 12 additional requests, total 34 / CNY 1; additional estimate <= CNY 0.15",
+        "previousMaxRequests": 22,
+        "startAttempts": 22,
+        "startEstimate": 0.3799020000000001,
+        "additionalRequests": 12,
+        "additionalEstimatedAmount": 0.15
+      }
+    ]
+  },
+  "reusedProbeEvidence": {
+    "file": "D:\\Workspace\\pri\\ai-gateway-platform\\docs\\validation\\protocols-2026-10-30\\live-failed-bf5219cb-692a-4a52-92fd-5dc182fd7daa.json",
+    "sha256": "96f7d9b5b495454a01493e322e7a9aa8740b1eb0c866f0bae81d71d1dd1a5345",
+    "scope": "same task vendor/model/price probe evidence; disposable transport rebuilt without duplicate vendor probes"
+  },
+  "probeRun": {
+    "id": "verification-8038caf2-8437-499a-b43d-23803b496799",
+    "operatorId": "operator-demo-001",
+    "serviceId": "service-local-test",
+    "serviceName": "真实 DeepSeek 三协议",
+    "configVersion": 2,
+    "state": "completed",
+    "diagnostic": true,
+    "idempotencyKey": "verification-ca8a4d5f-7c53-4ff1-b743-3ce974027c9e",
+    "mappings": [
+      {
+        "protocols": [
+          "chat",
+          "responses",
+          "messages"
+        ],
+        "inputPrice": 2,
+        "attemptedAt": "2026-10-30T05:59:58.060Z",
+        "outputPrice": 8,
+        "definitionId": "definition-test-model",
+        "upstreamModel": "deepseek-flash",
+        "cachedInputPrice": 0.04
+      }
+    ],
+    "results": [
+      {
+        "cost": {
+          "price": {
+            "unit": "per_million_tokens",
+            "version": "946c7b311b8f4dfbc4303648",
+            "currency": "CNY",
+            "inputPrice": 2,
+            "outputPrice": 8,
+            "cachedInputPrice": 0.04
+          },
+          "state": "priced",
+          "amount": 0.000072
+        },
+        "usage": {
+          "complete": true,
+          "inputTokens": 32,
+          "outputTokens": 1,
+          "cachedInputTokens": 0
+        },
+        "message": "基础协议通过，已返回用量",
+        "outcome": "passed",
+        "support": "supported",
+        "protocol": "chat",
+        "errorCode": null,
+        "httpStatus": 200,
+        "completedAt": "2026-10-30T06:00:04.028Z",
+        "definitionId": "definition-test-model",
+        "upstreamModel": "deepseek-flash",
+        "upstreamRequestId": null
+      },
+      {
+        "cost": {
+          "price": {
+            "unit": "per_million_tokens",
+            "version": "946c7b311b8f4dfbc4303648",
+            "currency": "CNY",
+            "inputPrice": 2,
+            "outputPrice": 8,
+            "cachedInputPrice": 0.04
+          },
+          "state": "priced",
+          "amount": 0.000072
+        },
+        "usage": {
+          "complete": true,
+          "inputTokens": 32,
+          "outputTokens": 1,
+          "cachedInputTokens": 0
+        },
+        "message": "基础协议通过，已返回用量",
+        "outcome": "passed",
+        "support": "supported",
+        "protocol": "responses",
+        "errorCode": null,
+        "httpStatus": 200,
+        "completedAt": "2026-10-30T06:00:05.552Z",
+        "definitionId": "definition-test-model",
+        "upstreamModel": "deepseek-flash",
+        "upstreamRequestId": null
+      },
+      {
+        "cost": {
+          "price": {
+            "unit": "per_million_tokens",
+            "version": "946c7b311b8f4dfbc4303648",
+            "currency": "CNY",
+            "inputPrice": 2,
+            "outputPrice": 8,
+            "cachedInputPrice": 0.04
+          },
+          "state": "priced",
+          "amount": 0.000072
+        },
+        "usage": {
+          "complete": true,
+          "inputTokens": 32,
+          "outputTokens": 1,
+          "cachedInputTokens": 0
+        },
+        "message": "基础协议通过，已返回用量",
+        "outcome": "passed",
+        "support": "supported",
+        "protocol": "messages",
+        "errorCode": null,
+        "httpStatus": 200,
+        "completedAt": "2026-10-30T06:00:06.857Z",
+        "definitionId": "definition-test-model",
+        "upstreamModel": "deepseek-flash",
+        "upstreamRequestId": null
+      }
+    ],
+    "startedAt": "2026-10-30T05:59:57.893Z",
+    "completedAt": "2026-10-30T06:00:07.094Z",
+    "leaseExpiresAt": "2026-10-30T06:02:07.028Z",
+    "note": null
+  },
+  "sdk": {
+    "success": true,
+    "mode": "native",
+    "sdkVersions": {
+      "openai": "7.19.0",
+      "anthropic": "0.129.0"
+    },
+    "checks": [
+      "OpenAI SDK receives final response with logical model",
+      "OpenAI SDK assembles streamed function arguments",
+      "OpenAI SDK completes tool-result turn",
+      "OpenAI SDK exposes authoritative usage",
+      "Anthropic SDK receives native Message shape with logical model",
+      "Anthropic SDK assembles streamed tool input",
+      "Anthropic SDK completes tool-result turn",
+      "Anthropic SDK exposes authoritative usage"
+    ],
+    "calls": [
+      {
+        "requestId": "protocol-sdk-a3f34b5d-9d3a-4271-b9d3-45352ab78ba6",
+        "httpStatus": 200,
+        "mode": "native"
+      },
+      {
+        "requestId": "protocol-sdk-129b0f46-390a-46ab-9305-00b1a668ea50",
+        "httpStatus": 200,
+        "mode": "native"
+      },
+      {
+        "requestId": "protocol-sdk-603e9cfd-b017-4e4f-af6f-523aa7338ea5",
+        "httpStatus": 200,
+        "mode": "native"
+      },
+      {
+        "requestId": "protocol-sdk-e56691c4-dd30-46a8-84e6-cb02ba667643",
+        "httpStatus": 200,
+        "mode": "native"
+      }
+    ]
+  },
+  "cancel": {
+    "request_id": "protocol-live-cancel-02d88d0d-ef65-48a6-b36d-d5cbc18933ef",
+    "outcome": "client_cancelled",
+    "billable_state": "pending_review",
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cached_input_tokens": 0,
+    "usage_final": false,
+    "actual_amount": "0.000000",
+    "retry_of_request_id": null,
+    "admission": {
+      "kind": "configured",
+      "price": {
+        "unit": "per_million_tokens",
+        "version": "b20eb8b7763fba609ba39cef",
+        "currency": "CNY",
+        "inputPrice": 2,
+        "outputPrice": 8,
+        "cachedInputPrice": 0.04
+      },
+      "route": {
+        "poolId": "pool-local-test",
+        "baseUrl": "http://127.0.0.1:56776/v1",
+        "protocols": {
+          "chat": {
+            "status": "supported",
+            "checkedAt": "2026-10-30T06:00:04.028Z",
+            "errorCode": null,
+            "httpStatus": 200
+          },
+          "messages": {
+            "status": "supported",
+            "checkedAt": "2026-10-30T06:00:06.857Z",
+            "errorCode": null,
+            "httpStatus": 200
+          },
+          "responses": {
+            "status": "supported",
+            "checkedAt": "2026-10-30T06:00:05.552Z",
+            "errorCode": null,
+            "httpStatus": 200
+          }
+        },
+        "serviceId": "service-local-test",
+        "definitionId": "definition-test-model",
+        "credentialRef": "UPSTREAM_PROTOCOL_REAL",
+        "protocolPaths": {
+          "messages": "/anthropic/v1/messages"
+        },
+        "upstreamModel": "deepseek-flash",
+        "maxOutputTokens": 512
+      },
+      "scopes": [
+        {
+          "id": "org-demo:subject:employee:member-29f146e7-08b5-4045-9de3-92a66c407a9c",
+          "rpm": 60,
+          "concurrency": 5
+        },
+        {
+          "id": "org-demo:entitlement:entitlement-5b917838-7f0b-42db-81f0-c0bafb90da98",
+          "rpm": 60,
+          "concurrency": 5
+        },
+        {
+          "id": "org-demo:pool:pool-local-test",
+          "rpm": 60,
+          "concurrency": 5
+        },
+        {
+          "id": "org-demo:service:service-local-test",
+          "rpm": 1000,
+          "concurrency": 5
+        },
+        {
+          "id": "org-demo:service-model:service-local-test:definition-test-model",
+          "rpm": 60,
+          "concurrency": 5
+        }
+      ],
+      "protocol": {
+        "mode": "native",
+        "upstream": "responses",
+        "requested": "responses"
+      },
+      "reservedAmount": 0.004648,
+      "estimatedTokens": 788
+    }
+  },
+  "fallbackProbeRun": {
+    "id": "verification-49e52afd-1c5d-4a6f-97cb-1811544ec187",
+    "operatorId": "operator-demo-001",
+    "serviceId": "service-local-test",
+    "serviceName": "真实 DeepSeek 三协议",
+    "configVersion": 2,
+    "state": "completed",
+    "diagnostic": true,
+    "idempotencyKey": "verification-f6ed1226-0962-4e37-aa54-7c303fe318c8",
+    "mappings": [
+      {
+        "protocols": [
+          "chat",
+          "responses",
+          "messages"
+        ],
+        "inputPrice": 2,
+        "attemptedAt": "2026-10-30T06:07:29.954Z",
+        "outputPrice": 8,
+        "definitionId": "definition-test-model",
+        "upstreamModel": "deepseek-flash",
+        "cachedInputPrice": 0.04
+      }
+    ],
+    "results": [
+      {
+        "cost": {
+          "price": {
+            "unit": "per_million_tokens",
+            "version": "946c7b311b8f4dfbc4303648",
+            "currency": "CNY",
+            "inputPrice": 2,
+            "outputPrice": 8,
+            "cachedInputPrice": 0.04
+          },
+          "state": "priced",
+          "amount": 0.000072
+        },
+        "usage": {
+          "complete": true,
+          "inputTokens": 32,
+          "outputTokens": 1,
+          "cachedInputTokens": 0
+        },
+        "message": "基础协议通过，已返回用量",
+        "outcome": "passed",
+        "support": "supported",
+        "protocol": "chat",
+        "errorCode": null,
+        "httpStatus": 200,
+        "completedAt": "2026-10-30T06:07:31.425Z",
+        "definitionId": "definition-test-model",
+        "upstreamModel": "deepseek-flash",
+        "upstreamRequestId": null
+      },
+      {
+        "cost": {
+          "price": {
+            "unit": "per_million_tokens",
+            "version": "946c7b311b8f4dfbc4303648",
+            "currency": "CNY",
+            "inputPrice": 2,
+            "outputPrice": 8,
+            "cachedInputPrice": 0.04
+          },
+          "state": "usage_unknown",
+          "amount": null
+        },
+        "usage": {
+          "complete": false,
+          "inputTokens": null,
+          "outputTokens": null,
+          "cachedInputTokens": null
+        },
+        "message": "模型或接口不存在",
+        "outcome": "failed",
+        "support": "unsupported",
+        "protocol": "responses",
+        "errorCode": "model_not_found",
+        "httpStatus": 404,
+        "completedAt": "2026-10-30T06:07:31.660Z",
+        "definitionId": "definition-test-model",
+        "upstreamModel": "deepseek-flash",
+        "upstreamRequestId": null
+      },
+      {
+        "cost": {
+          "price": {
+            "unit": "per_million_tokens",
+            "version": "946c7b311b8f4dfbc4303648",
+            "currency": "CNY",
+            "inputPrice": 2,
+            "outputPrice": 8,
+            "cachedInputPrice": 0.04
+          },
+          "state": "usage_unknown",
+          "amount": null
+        },
+        "usage": {
+          "complete": false,
+          "inputTokens": null,
+          "outputTokens": null,
+          "cachedInputTokens": null
+        },
+        "message": "模型或接口不存在",
+        "outcome": "failed",
+        "support": "unsupported",
+        "protocol": "messages",
+        "errorCode": "model_not_found",
+        "httpStatus": 404,
+        "completedAt": "2026-10-30T06:07:31.894Z",
+        "definitionId": "definition-test-model",
+        "upstreamModel": "deepseek-flash",
+        "upstreamRequestId": null
+      }
+    ],
+    "startedAt": "2026-10-30T06:07:29.778Z",
+    "completedAt": "2026-10-30T06:07:32.094Z",
+    "leaseExpiresAt": "2026-10-30T06:09:32.034Z",
+    "note": null
+  },
+  "fallback": [
+    {
+      "request_id": "protocol-live-fallback-4f8df0dc-9307-4627-8ccf-3a12b57030c1",
+      "outcome": "completed",
+      "billable_state": "confirmed",
+      "input_tokens": 59,
+      "output_tokens": 100,
+      "cached_input_tokens": 0,
+      "usage_final": true,
+      "actual_amount": "0.000918",
+      "retry_of_request_id": "protocol-live-cancel-02d88d0d-ef65-48a6-b36d-d5cbc18933ef",
+      "admission": {
+        "kind": "configured",
+        "price": {
+          "unit": "per_million_tokens",
+          "version": "b20eb8b7763fba609ba39cef",
+          "currency": "CNY",
+          "inputPrice": 2,
+          "outputPrice": 8,
+          "cachedInputPrice": 0.04
+        },
+        "route": {
+          "poolId": "pool-local-test",
+          "baseUrl": "http://127.0.0.1:56776/v1",
+          "protocols": {
+            "chat": {
+              "status": "supported",
+              "checkedAt": "2026-10-30T06:07:31.425Z",
+              "errorCode": null,
+              "httpStatus": 200
+            },
+            "messages": {
+              "status": "unsupported",
+              "checkedAt": "2026-10-30T06:07:31.894Z",
+              "errorCode": "model_not_found",
+              "httpStatus": 404
+            },
+            "responses": {
+              "status": "unsupported",
+              "checkedAt": "2026-10-30T06:07:31.660Z",
+              "errorCode": "model_not_found",
+              "httpStatus": 404
+            }
+          },
+          "serviceId": "service-local-test",
+          "definitionId": "definition-test-model",
+          "credentialRef": "UPSTREAM_PROTOCOL_REAL",
+          "protocolPaths": {
+            "messages": "/anthropic/v1/messages"
+          },
+          "upstreamModel": "deepseek-flash",
+          "maxOutputTokens": 512
+        },
+        "scopes": [
+          {
+            "id": "org-demo:subject:employee:member-29f146e7-08b5-4045-9de3-92a66c407a9c",
+            "rpm": 60,
+            "concurrency": 5
+          },
+          {
+            "id": "org-demo:entitlement:entitlement-5b917838-7f0b-42db-81f0-c0bafb90da98",
+            "rpm": 60,
+            "concurrency": 5
+          },
+          {
+            "id": "org-demo:pool:pool-local-test",
+            "rpm": 60,
+            "concurrency": 5
+          },
+          {
+            "id": "org-demo:service:service-local-test",
+            "rpm": 1000,
+            "concurrency": 5
+          },
+          {
+            "id": "org-demo:service-model:service-local-test:definition-test-model",
+            "rpm": 60,
+            "concurrency": 5
+          }
+        ],
+        "protocol": {
+          "mode": "adapted",
+          "upstream": "chat",
+          "requested": "responses"
+        },
+        "reservedAmount": 0.004406,
+        "estimatedTokens": 667
+      }
+    },
+    {
+      "request_id": "protocol-live-fallback-eaffb993-00d8-46ac-882d-6add1c1ade07",
+      "outcome": "completed",
+      "billable_state": "confirmed",
+      "input_tokens": 58,
+      "output_tokens": 12,
+      "cached_input_tokens": 0,
+      "usage_final": true,
+      "actual_amount": "0.000212",
+      "retry_of_request_id": null,
+      "admission": {
+        "kind": "configured",
+        "price": {
+          "unit": "per_million_tokens",
+          "version": "b20eb8b7763fba609ba39cef",
+          "currency": "CNY",
+          "inputPrice": 2,
+          "outputPrice": 8,
+          "cachedInputPrice": 0.04
+        },
+        "route": {
+          "poolId": "pool-local-test",
+          "baseUrl": "http://127.0.0.1:56776/v1",
+          "protocols": {
+            "chat": {
+              "status": "supported",
+              "checkedAt": "2026-10-30T06:07:31.425Z",
+              "errorCode": null,
+              "httpStatus": 200
+            },
+            "messages": {
+              "status": "unsupported",
+              "checkedAt": "2026-10-30T06:07:31.894Z",
+              "errorCode": "model_not_found",
+              "httpStatus": 404
+            },
+            "responses": {
+              "status": "unsupported",
+              "checkedAt": "2026-10-30T06:07:31.660Z",
+              "errorCode": "model_not_found",
+              "httpStatus": 404
+            }
+          },
+          "serviceId": "service-local-test",
+          "definitionId": "definition-test-model",
+          "credentialRef": "UPSTREAM_PROTOCOL_REAL",
+          "protocolPaths": {
+            "messages": "/anthropic/v1/messages"
+          },
+          "upstreamModel": "deepseek-flash",
+          "maxOutputTokens": 512
+        },
+        "scopes": [
+          {
+            "id": "org-demo:subject:employee:member-29f146e7-08b5-4045-9de3-92a66c407a9c",
+            "rpm": 60,
+            "concurrency": 5
+          },
+          {
+            "id": "org-demo:entitlement:entitlement-5b917838-7f0b-42db-81f0-c0bafb90da98",
+            "rpm": 60,
+            "concurrency": 5
+          },
+          {
+            "id": "org-demo:pool:pool-local-test",
+            "rpm": 60,
+            "concurrency": 5
+          },
+          {
+            "id": "org-demo:service:service-local-test",
+            "rpm": 1000,
+            "concurrency": 5
+          },
+          {
+            "id": "org-demo:service-model:service-local-test:definition-test-model",
+            "rpm": 60,
+            "concurrency": 5
+          }
+        ],
+        "protocol": {
+          "mode": "adapted",
+          "upstream": "chat",
+          "requested": "messages"
+        },
+        "reservedAmount": 0.004402,
+        "estimatedTokens": 665
+      }
+    }
+  ],
+  "retry": {
+    "request_id": "protocol-live-fallback-4f8df0dc-9307-4627-8ccf-3a12b57030c1",
+    "outcome": "completed",
+    "billable_state": "confirmed",
+    "input_tokens": 59,
+    "output_tokens": 100,
+    "cached_input_tokens": 0,
+    "usage_final": true,
+    "actual_amount": "0.000918",
+    "retry_of_request_id": "protocol-live-cancel-02d88d0d-ef65-48a6-b36d-d5cbc18933ef",
+    "admission": {
+      "kind": "configured",
+      "price": {
+        "unit": "per_million_tokens",
+        "version": "b20eb8b7763fba609ba39cef",
+        "currency": "CNY",
+        "inputPrice": 2,
+        "outputPrice": 8,
+        "cachedInputPrice": 0.04
+      },
+      "route": {
+        "poolId": "pool-local-test",
+        "baseUrl": "http://127.0.0.1:56776/v1",
+        "protocols": {
+          "chat": {
+            "status": "supported",
+            "checkedAt": "2026-10-30T06:07:31.425Z",
+            "errorCode": null,
+            "httpStatus": 200
+          },
+          "messages": {
+            "status": "unsupported",
+            "checkedAt": "2026-10-30T06:07:31.894Z",
+            "errorCode": "model_not_found",
+            "httpStatus": 404
+          },
+          "responses": {
+            "status": "unsupported",
+            "checkedAt": "2026-10-30T06:07:31.660Z",
+            "errorCode": "model_not_found",
+            "httpStatus": 404
+          }
+        },
+        "serviceId": "service-local-test",
+        "definitionId": "definition-test-model",
+        "credentialRef": "UPSTREAM_PROTOCOL_REAL",
+        "protocolPaths": {
+          "messages": "/anthropic/v1/messages"
+        },
+        "upstreamModel": "deepseek-flash",
+        "maxOutputTokens": 512
+      },
+      "scopes": [
+        {
+          "id": "org-demo:subject:employee:member-29f146e7-08b5-4045-9de3-92a66c407a9c",
+          "rpm": 60,
+          "concurrency": 5
+        },
+        {
+          "id": "org-demo:entitlement:entitlement-5b917838-7f0b-42db-81f0-c0bafb90da98",
+          "rpm": 60,
+          "concurrency": 5
+        },
+        {
+          "id": "org-demo:pool:pool-local-test",
+          "rpm": 60,
+          "concurrency": 5
+        },
+        {
+          "id": "org-demo:service:service-local-test",
+          "rpm": 1000,
+          "concurrency": 5
+        },
+        {
+          "id": "org-demo:service-model:service-local-test:definition-test-model",
+          "rpm": 60,
+          "concurrency": 5
+        }
+      ],
+      "protocol": {
+        "mode": "adapted",
+        "upstream": "chat",
+        "requested": "responses"
+      },
+      "reservedAmount": 0.004406,
+      "estimatedTokens": 667
+    }
+  },
+  "errorPhase": "accounting audit",
+  "error": "AssertionError [ERR_ASSERTION]: real protocol-sdk-603e9cfd-b017-4e4f-af6f-523aa7338ea5 retains original price snapshot\n    at check (file:///D:/Workspace/pri/ai-gateway-platform/scripts/check-protocols-live.mjs:7:258)\n    at file:///D:/Workspace/pri/ai-gateway-platform/scripts/check-protocols-live.mjs:39:473\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)",
+  "vendorCalls": [
+    {
+      "ordinal": 27,
+      "protocol": "responses",
+      "maxOutputTokens": 512,
+      "inputBytes": 497,
+      "estimatedUpperBound": 0.00509,
+      "httpStatus": 200,
+      "requestId": "protocol-sdk-a3f34b5d-9d3a-4271-b9d3-45352ab78ba6"
+    },
+    {
+      "ordinal": 28,
+      "protocol": "responses",
+      "maxOutputTokens": 512,
+      "inputBytes": 751,
+      "estimatedUpperBound": 0.005598,
+      "httpStatus": 200,
+      "requestId": "protocol-sdk-129b0f46-390a-46ab-9305-00b1a668ea50"
+    },
+    {
+      "ordinal": 29,
+      "protocol": "messages",
+      "maxOutputTokens": 512,
+      "inputBytes": 445,
+      "estimatedUpperBound": 0.004986,
+      "httpStatus": 200,
+      "requestId": "protocol-sdk-603e9cfd-b017-4e4f-af6f-523aa7338ea5"
+    },
+    {
+      "ordinal": 30,
+      "protocol": "messages",
+      "maxOutputTokens": 512,
+      "inputBytes": 683,
+      "estimatedUpperBound": 0.005462,
+      "httpStatus": 200,
+      "requestId": "protocol-sdk-e56691c4-dd30-46a8-84e6-cb02ba667643"
+    },
+    {
+      "ordinal": 31,
+      "protocol": "responses",
+      "maxOutputTokens": 512,
+      "inputBytes": 213,
+      "estimatedUpperBound": 0.004522,
+      "httpStatus": 200,
+      "requestId": "protocol-live-cancel-02d88d0d-ef65-48a6-b36d-d5cbc18933ef",
+      "interrupted": true
+    },
+    {
+      "ordinal": 32,
+      "protocol": "chat",
+      "maxOutputTokens": 1,
+      "inputBytes": 104,
+      "estimatedUpperBound": 0.000216,
+      "httpStatus": 200,
+      "requestId": "ca612227-8104-49cb-9fef-b2748ae934d5"
+    },
+    {
+      "ordinal": 33,
+      "protocol": "chat",
+      "maxOutputTokens": 512,
+      "inputBytes": 251,
+      "estimatedUpperBound": 0.004598,
+      "httpStatus": 200,
+      "requestId": "protocol-live-fallback-4f8df0dc-9307-4627-8ccf-3a12b57030c1"
+    },
+    {
+      "ordinal": 34,
+      "protocol": "chat",
+      "maxOutputTokens": 512,
+      "inputBytes": 195,
+      "estimatedUpperBound": 0.004486,
+      "httpStatus": 200,
+      "requestId": "protocol-live-fallback-eaffb993-00d8-46ac-882d-6add1c1ade07"
+    }
+  ],
+  "budget": {
+    "authorization": "2026-10-30: 34 aggregate requests / CNY 1; T12 additional <=12 / CNY 0.15",
+    "authorizationExtension": {
+      "authorizedBy": "explicit user reply: allow 22 total requests, total CNY 1",
+      "previousAuthorization": "2026-10-29: 20 requests / CNY 1",
+      "previousMaxRequests": 20,
+      "attemptsAtApproval": 20,
+      "estimatedUpperBoundAtApproval": 0.37026800000000004,
+      "additionalRequests": 2,
+      "additionalEstimatedAmount": 0.02
+    },
+    "price": {
+      "inputPrice": 2,
+      "outputPrice": 8,
+      "cachedInputPrice": 0.04
+    },
+    "maxRequests": 34,
+    "maxEstimatedAmount": 1,
+    "attempts": 34,
+    "estimatedUpperBound": 0.420576,
+    "updatedAt": "2026-10-30T06:00:15.036Z",
+    "authorizationExtensions": [
+      {
+        "authorizedBy": "explicit user reply: allow 22 total requests, total CNY 1",
+        "previousAuthorization": "2026-10-29: 20 requests / CNY 1",
+        "previousMaxRequests": 20,
+        "attemptsAtApproval": 20,
+        "estimatedUpperBoundAtApproval": 0.37026800000000004,
+        "additionalRequests": 2,
+        "additionalEstimatedAmount": 0.02
+      },
+      {
+        "authorizedBy": "2026-10-30 explicit user reply: allow 12 additional requests, total 34 / CNY 1; additional estimate <= CNY 0.15",
+        "previousMaxRequests": 22,
+        "startAttempts": 22,
+        "startEstimate": 0.3799020000000001,
+        "additionalRequests": 12,
+        "additionalEstimatedAmount": 0.15
+      }
+    ]
+  }
+}

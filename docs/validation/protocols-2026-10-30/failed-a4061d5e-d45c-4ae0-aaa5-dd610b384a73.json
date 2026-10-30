@@ -1,0 +1,43 @@
+{
+  "success": false,
+  "id": "a4061d5e-d45c-4ae0-aaa5-dd610b384a73",
+  "createdAt": "2026-10-30T05:40:27.071Z",
+  "scope": {
+    "database": "isolated PostgreSQL",
+    "dataPlane": "real Higress",
+    "model": "local deterministic fixture",
+    "realModelRequests": 0
+  },
+  "checks": [
+    "configured service created",
+    "native chat basic probe passes through real Higress",
+    "native responses basic probe passes through real Higress",
+    "native messages basic probe passes through real Higress"
+  ],
+  "nativeProbes": {
+    "mappings": {
+      "definition-test-model": {
+        "chat": {
+          "status": "supported",
+          "checkedAt": "2026-10-30T05:41:35.711Z",
+          "errorCode": null,
+          "httpStatus": 200
+        },
+        "messages": {
+          "status": "supported",
+          "checkedAt": "2026-10-30T05:41:36.054Z",
+          "errorCode": null,
+          "httpStatus": 200
+        },
+        "responses": {
+          "status": "supported",
+          "checkedAt": "2026-10-30T05:41:35.894Z",
+          "errorCode": null,
+          "httpStatus": 200
+        }
+      }
+    },
+    "configVersion": 2
+  },
+  "error": "Error: 503 authorization service is unavailable; unresolved authorization will be recovered\n    at APIError.generate (C:\\Users\\LiuJi\\AppData\\Roaming\\fnm\\node-versions\\v22.23.1\\installation\\node_modules\\@earendil-works\\pi-coding-agent\\node_modules\\openai\\core\\error.js:66:20)\n    at OpenAI.makeStatusError (C:\\Users\\LiuJi\\AppData\\Roaming\\fnm\\node-versions\\v22.23.1\\installation\\node_modules\\@earendil-works\\pi-coding-agent\\node_modules\\openai\\client.js:430:32)\n    at OpenAI.makeRequest (C:\\Users\\LiuJi\\AppData\\Roaming\\fnm\\node-versions\\v22.23.1\\installation\\node_modules\\@earendil-works\\pi-coding-agent\\node_modules\\openai\\client.js:922:30)\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at async runProtocolSdkChecks (file:///D:/Workspace/pri/ai-gateway-platform/scripts/lib/protocol-sdk.mjs:13:14)\n    at async file:///D:/Workspace/pri/ai-gateway-platform/scripts/check-protocols.mjs:57:34"
+}

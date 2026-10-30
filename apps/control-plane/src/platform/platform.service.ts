@@ -1,8 +1,8 @@
 import {guardrailPolicy,prepareGuardrailPolicy,checkGuardrail,type SafetyQuery} from '@ai-gateway/contracts';
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, Optional, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
 import { createHmac, randomBytes, randomUUID } from 'node:crypto';
-import type { ApplicationDetail, ApprovalDetail, AuthorizeRequest, CallQuery, ModelRange, PlatformCommand, ProjectDetail, PurposeView, ReasonCode, ReconciliationRequest, RequestLimitDiagnostic, UsageLimits, VerificationMappingResult, VerificationRun, WorkspaceState } from '@ai-gateway/contracts';
-import { chatCompletionsUrl,estimateChatInput,extractUpstreamUsage,isRequestReference,readUpstreamRequestId,summarizeVerification } from '@ai-gateway/contracts';
+import type { ApplicationDetail, ApprovalDetail, AuthorizeRequest, CallQuery, ModelRange, PlatformCommand, ProjectDetail, PurposeView, ReasonCode, ReconciliationRequest, RequestLimitDiagnostic, UsageLimits, VerificationRun, WorkspaceState } from '@ai-gateway/contracts';
+import { modelProtocols,protocolUrl,estimateChatInput,isRequestReference,summarizeVerification } from '@ai-gateway/contracts';
 import { admissionForBatch, admissionDenialMessage } from '../store/admission';
 import { reconciliationCalculation } from '../store/accounting';
 import { DemoStore } from '../store/demo.store';
@@ -19,7 +19,7 @@ import {prepareKeyStatus} from './key-status';
 import {prepareRetention,requestedRetention,retentionPolicy} from './retention';
 import {auditObjectId,describeAudit,queryAudit} from './audit-query';
 import { prepareEntitlementMigration } from './entitlement-migration';
-import { fetchVerifiedUpstream, verificationCost, verificationFailure, verificationMappingSnapshots, verificationPrice, verificationTimeoutMs } from './verification';
+import { probeProtocol, verificationMappingSnapshots, verificationPrice } from './verification';
 import {HigressProvider} from '../gateway/higress.provider';
 
 type SafeJson=string|number|boolean|null|SafeJson[]|{[key:string]:SafeJson};
@@ -283,7 +283,7 @@ export class PlatformService {
     if(run.state==='interrupted')return '验证进程中断；已发出的请求用量待确认，未标记为通过';
     if(summary.failed>0){
       const detail=run.results.filter(result=>result.outcome==='failed'&&result.message).map(result=>result.message);
-      return `${summary.mappings} 个映射中 ${summary.passed} 个通过，${summary.failed} 个未通过${detail.length?`（${detail.join('；')}）`:''}；失败模型不会标记为验证通过`;
+      return `${summary.mappings} 个映射、${summary.probes} 次协议探测中 ${summary.passed} 次通过，${summary.failed} 次未通过${detail.length?`（${detail.join('；')}）`:''}；Chat 基线失败的服务不会标记为验证通过`;
     }
     if(summary.usageUnknown>0)return '连接已通过；上游未返回完整用量，内部成本无法估算';
     if(summary.costUnknown>0||summary.internalCost===null)return '连接已通过，成本未知（价格未配置）';
@@ -312,29 +312,16 @@ export class PlatformService {
           // Persist the attempt before calling out so an interrupted run still has evidence.
           await this.store.markVerificationAttempt(run.id,mapping.definitionId);
           const price=verificationPrice(service.id,service.configVersion,mapping);
-          let result:VerificationMappingResult;
-          try{
-            // One bounded connect-phase retry inside the helper; never retried after a partial response.
-            const transport=this.higress?.enabled?await this.higress.transport({serviceId:service.id,definitionId:mapping.definitionId,poolId:'',baseUrl:service.baseUrl,credentialRef:service.credentialRef,upstreamModel:mapping.upstreamModel,maxOutputTokens:1}):null;
+          for(const protocol of modelProtocols){
+            // Every diagnostic is metered independently. Optional protocol failure does not invalidate Chat.
+            const transport=this.higress?.enabled?await this.higress.transport({serviceId:service.id,definitionId:mapping.definitionId,poolId:'',baseUrl:service.baseUrl,protocolPaths:service.protocolPaths,credentialRef:service.credentialRef,upstreamModel:mapping.upstreamModel,maxOutputTokens:1}):null;
             if(transport?.kind==='unavailable')throw new Error('Higress route is not applied');
-            const hop=transport?.kind==='higress'?transport:null,dispatchCredential=hop?process.env.UPSTREAM_HIGRESS_INTERNAL:credential;
-            const response=await fetchVerifiedUpstream(chatCompletionsUrl(hop?.baseUrl??service.baseUrl),{method:'POST',redirect:'error',signal:AbortSignal.timeout(verificationTimeoutMs()),headers:{'content-type':'application/json',...(dispatchCredential?{[hop?'x-atlas-hop-token':'authorization']:`Bearer ${dispatchCredential}`}:{})},body:JSON.stringify({model:hop?.model??mapping.upstreamModel,messages:[{role:'user',content:'Connection validation'}],max_tokens:1})});
-            const upstreamRequestId=readUpstreamRequestId(response.headers);
-            const raw=await response.text();
-            if(!response.ok){
-              const failure=verificationFailure(response.status,null);
-              result={definitionId:mapping.definitionId,upstreamModel:mapping.upstreamModel,outcome:'failed',httpStatus:response.status,errorCode:failure.errorCode,message:failure.message,upstreamRequestId,usage:{inputTokens:null,outputTokens:null,cachedInputTokens:null,complete:false},cost:verificationCost(price,null),completedAt:now()};
-            }else{
-              let value:unknown;try{value=JSON.parse(raw);}catch{value=null;}
-              if(!value||typeof value!=='object'||Array.isArray(value)||!Array.isArray((value as {choices?:unknown}).choices))throw new Error('响应不符合文本对话格式');
-              const usage=extractUpstreamUsage(raw);
-              result={definitionId:mapping.definitionId,upstreamModel:mapping.upstreamModel,outcome:'passed',httpStatus:response.status,errorCode:null,message:usage?'连接通过，已返回用量':'连接通过，上游未返回用量',upstreamRequestId,usage:usage?{inputTokens:usage.inputTokens,outputTokens:usage.outputTokens,cachedInputTokens:usage.cachedInputTokens,complete:true}:{inputTokens:null,outputTokens:null,cachedInputTokens:null,complete:false},cost:verificationCost(price,usage),completedAt:now()};
-            }
-          }catch(error){
-            const failure=verificationFailure(null,error);
-            result={definitionId:mapping.definitionId,upstreamModel:mapping.upstreamModel,outcome:'failed',httpStatus:null,errorCode:failure.errorCode,message:failure.message,upstreamRequestId:null,usage:{inputTokens:null,outputTokens:null,cachedInputTokens:null,complete:false},cost:verificationCost(price,null),completedAt:now()};
+            const hop=transport?.kind==='higress'?transport:null;
+            const url=hop?hop.baseUrl+(protocol==='chat'?'/v1/chat/completions':'/v1/'+protocol):protocolUrl(service.baseUrl,protocol,service.protocolPaths);
+            const result=await probeProtocol(protocol,url,protocol==='chat'&&hop?hop.model:mapping.upstreamModel,hop?process.env.UPSTREAM_HIGRESS_INTERNAL:credential,!!hop,mapping,price);
+            await this.store.appendVerificationResult(run.id,result);
           }
-          await this.store.appendVerificationResult(run.id,result);
+
         }
       }catch{state='interrupted';}
       try{finished=await this.store.finishVerification(run.id,state);}catch{throw new ServiceUnavailableException('验证已执行，但计量记录未能保存；请先检查运行记录，再决定是否重试');}
@@ -345,8 +332,10 @@ export class PlatformService {
       // but never writes the old result as the current configuration passing.
       if(finished.state!=='completed'||current.configVersion!==run.configVersion)return false;
       const summary=summarizeVerification(finished);
-      const passed=finished.state==='completed'&&summary.failed===0&&finished.results.length===finished.mappings.length;
-      current.verification=passed?'passed':'failed';current.verificationMessage=this.verificationMessage(finished);current.verifiedAt=now();await syncResources(tx);
+      const baseline=finished.results.filter(r=>!r.protocol||r.protocol==='chat');
+      const passed=baseline.length===finished.mappings.length&&baseline.every(r=>r.outcome==='passed');
+      current.protocolCapabilities={configVersion:run.configVersion,mappings:Object.fromEntries(finished.mappings.map(m=>[m.definitionId,Object.fromEntries(finished.results.filter(r=>r.definitionId===m.definitionId).map(r=>[r.protocol??'chat',{status:r.support??(r.outcome==='passed'?'supported':'unknown'),checkedAt:r.completedAt,httpStatus:r.httpStatus,errorCode:r.errorCode}]))]))};
+      current.verification=passed?'passed':'failed';current.verificationMessage=passed?'Chat Completions 基线通过；'+(summary.internalCost===null?'诊断成本未知（用量或价格缺失）':`内部诊断成本 ${summary.internalCost} 元已记录`)+'；逐协议基础探测见明细，不代表流式、工具或全部功能已验证':this.verificationMessage(finished);current.verifiedAt=now();await syncResources(tx);
       tx.state.audit.push({id:newId('audit'),actorId,action:'service.verify',objectId:serviceId,reason:current.verificationMessage,createdAt:now(),detail:{passed,runId:finished.id,configVersion:service.configVersion,costState:summary.internalCost===null?'unknown':'priced',internalCost:summary.internalCost}});
       return true;
     },{diagnosticContext:'service_verification'});

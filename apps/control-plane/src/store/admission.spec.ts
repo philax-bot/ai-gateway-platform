@@ -20,6 +20,13 @@ function configured(){
   return {store,state,batch,request};
 }
 describe('trusted admission and immutable billing',()=>{
+  it('freezes native versus adapted protocol selection from current per-model capability evidence',async()=>{
+    const {store,state,request}=configured(),service=state.services[0],definitionId=service.mappings[0].definitionId;
+    const first=await store.authorize(request({modelProtocol:'responses'}));expect(first.admission?.protocol).toEqual({requested:'responses',upstream:'chat',mode:'adapted'});
+    service.protocolCapabilities={configVersion:service.configVersion,mappings:{[definitionId]:{responses:{status:'supported',checkedAt:new Date().toISOString(),httpStatus:200,errorCode:null}}}};
+    const second=await store.authorize(request({modelProtocol:'responses'}));expect(second.admission?.protocol).toEqual({requested:'responses',upstream:'responses',mode:'native'});
+    service.configVersion++;const third=await store.authorize(request({modelProtocol:'responses'}));expect(third.admission?.protocol?.mode).toBe('adapted');expect(second.admission?.protocol?.mode).toBe('native');
+  });
   it('quotes the same refusal as admission when an unfunded eligible source precedes a more restrictive source',async()=>{
     const {store,state,batch,request}=configured();batch.availableAmount=0;
     const original=state.entitlements[0],second={...structuredClone(original),id:'second-entitlement'};

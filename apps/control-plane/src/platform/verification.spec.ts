@@ -39,12 +39,18 @@ async function harness(handler: (request: IncomingMessage, response: ServerRespo
 const completion = (usage: unknown) => JSON.stringify({ choices: [{ message: { role: 'assistant', content: 'ok' } }], usage });
 
 describe('platform connection verification metering', () => {
+  it('keeps Chat-only services usable and distinguishes unsupported from transient probe failures',async()=>{
+    let mode='unsupported';
+    const h=await harness((request,response)=>{if(request.url?.endsWith('/chat/completions')){response.writeHead(200,{'content-type':'application/json'});response.end(completion({prompt_tokens:5,completion_tokens:1}));}else{response.writeHead(mode==='unsupported'?404:429,{'content-type':'application/json'});response.end('{}');}});
+    const first=await h.platform.verifyService(operator,h.serviceId,{idempotencyKey:'protocol-probe-unsupported'});expect(first.verification).toBe('passed');const mapping=first.mappings[0].definitionId;expect(first.protocolCapabilities?.mappings[mapping].responses?.status).toBe('unsupported');expect(first.protocolCapabilities?.mappings[mapping].messages?.status).toBe('unsupported');
+    mode='transient';const second=await h.platform.verifyService(operator,h.serviceId,{idempotencyKey:'protocol-probe-transient'});expect(second.verification).toBe('passed');expect(second.protocolCapabilities?.mappings[mapping].responses?.status).toBe('unknown');expect(second.verificationRun.results).toHaveLength(3);expect(h.ledger.callLogs).toHaveLength(0);
+  });
   it('records per-mapping evidence and internal cost without touching business quota or call statistics', async () => {
     let requests = 0;
     const h = await harness((_request, response) => {
       requests++;
       response.writeHead(200, { 'content-type': 'application/json', 'x-request-id': `upstream-${requests}` });
-      response.end(completion({ prompt_tokens: 100, completion_tokens: 10, prompt_tokens_details: { cached_tokens: 20 } }));
+      response.end(_request.url?.endsWith('/responses')?JSON.stringify({object:'response',output:[],usage:{input_tokens:100,output_tokens:10,input_tokens_details:{cached_tokens:20}}}):_request.url?.endsWith('/messages')?JSON.stringify({type:'message',content:[],usage:{input_tokens:80,output_tokens:10,cache_read_input_tokens:20}}):completion({ prompt_tokens: 100, completion_tokens: 10, prompt_tokens_details: { cached_tokens: 20 } }));
     });
     const balances = structuredClone([...h.ledger.quotaBatches.values()]);
     const result = await h.platform.verifyService(operator, h.serviceId, { idempotencyKey: 'verify-key-1' });
@@ -57,13 +63,15 @@ describe('platform connection verification metering', () => {
     expect(run.results[0].usage).toEqual({ inputTokens: 100, outputTokens: 10, cachedInputTokens: 20, complete: true });
     // (80 * 2 + 10 * 3 + 20 * 0.5) micro-CNY per million tokens
     expect(run.results[0].cost.amount).toBe(0.0002);
-    expect(summarizeVerification(run).internalCost).toBe(0.0002);
+    expect(summarizeVerification(run).internalCost).toBe(0.0006);
+    expect(run.results.map(r=>r.protocol)).toEqual(['chat','responses','messages']);
+    expect(result.protocolCapabilities?.mappings[run.mappings[0].definitionId].responses?.status).toBe('supported');
     expect(h.ledger.callLogs).toHaveLength(0);
     expect([...h.ledger.quotaBatches.values()]).toEqual(balances);
 
     const replay = await h.platform.verifyService(operator, h.serviceId, { idempotencyKey: 'verify-key-1' });
     expect(replay.replayed).toBe(true);
-    expect(requests).toBe(1);
+    expect(requests).toBe(3);
   });
 
   it('distinguishes unknown usage, unknown price and authentication failures', async () => {

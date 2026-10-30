@@ -1,0 +1,121 @@
+openapi: 3.1.0
+info:
+  title: AI Gateway three-protocol text and client-tool entrypoints
+  version: 0.1.0
+  description: >-
+    Requests share platform identity, purpose, guardrail, admission, Higress routing,
+    immutable price and settlement. A service must pass Chat Completions verification.
+    Responses and Messages prefer current per-model native probe evidence; otherwise
+    they use the Chat adapter. Native HTTP/generation failures are never automatically
+    retried via another protocol. Only stateless full-history text and client tools
+    are enabled. Platform conversation storage, server tools and multimodal input are
+    excluded. Native Responses always sets store=false. A basic probe does not prove
+    streaming, tools, capacity or full vendor feature compatibility.
+servers:
+  - url: http://localhost:4300
+paths:
+  /v1/chat/completions:
+    post:
+      summary: Existing Chat Completions baseline
+      security: [{bearerKey: []}]
+      responses:
+        '200': {description: Existing Chat JSON or SSE with final DONE after durable settlement}
+        '403': {description: Scope or input safety denial, no model forwarding or business charge}
+  /v1/responses:
+    post:
+      summary: Native-first Responses with Chat text/function-tool fallback
+      security: [{bearerKey: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [model]
+              properties:
+                model: {type: string}
+                input: {oneOf: [{type: string}, {type: array, items: {type: object}}]}
+                instructions: {type: string}
+                max_output_tokens: {type: integer, minimum: 1}
+                stream: {type: boolean}
+                store: {type: boolean, const: false}
+              description: >-
+                input or instructions is required. Full message, function_call and
+                function_call_output history is supported by the adapter. Native
+                requests preserve client custom tools and reasoning items; adapter
+                requests reject unsupported semantics before any model forwarding.
+      responses:
+        '200': {description: Response JSON or named Responses SSE events; no DONE marker}
+        '400': {description: Invalid input, unsupported stateful feature or adapter parameter}
+        '401': {description: Invalid platform key}
+        '403': {description: Purpose denial or safety_policy_violation, structured JSON even when stream=true}
+        '409': {description: Duplicate authorization or stale policy; no repeated model dispatch}
+        '429': {description: Platform or upstream rate limit}
+        '503': {description: Controlled dependency or settlement unavailable; interrupted usage remains pending review when unknown}
+  /v1/messages:
+    post:
+      summary: Native-first Messages with Chat text/tool-use fallback
+      security: [{anthropicKey: []}, {bearerKey: []}]
+      parameters:
+        - in: header
+          name: anthropic-version
+          required: true
+          schema: {type: string, const: '2023-06-01'}
+        - in: header
+          name: anthropic-beta
+          schema: {type: string}
+          description: Native only; unsupported by the Chat adapter
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [model, messages, max_tokens]
+              properties:
+                model: {type: string}
+                messages: {type: array, items: {type: object}}
+                max_tokens: {type: integer, minimum: 1}
+                stream: {type: boolean}
+              description: >-
+                Text/tool_use/tool_result full history. Native mode preserves provider
+                thinking and other supported native fields; the Chat adapter rejects
+                signed thinking and stop_sequences it cannot faithfully represent.
+      responses:
+        '200': {description: Message JSON or message_start/content_block/message_delta/message_stop SSE}
+        '400': {description: Invalid request, version or unsupported adapter parameter; conflicting key headers rejected}
+        '401': {description: Invalid platform key, Messages error envelope}
+        '403': {description: Purpose or input safety denial, Messages JSON error envelope}
+        '503': {description: Controlled dependency or settlement unavailable; no false terminal success}
+components:
+  securitySchemes:
+    bearerKey: {type: http, scheme: bearer}
+    anthropicKey: {type: apiKey, in: header, name: x-api-key}
+x-operational-contract:
+  serviceVerification: >-
+    POST /api/v1/platform/services/{id}/verify tests three protocols per mapping.
+    Each VerificationMappingResult records protocol, support, HTTP status, usage and
+    diagnostic cost. Only successful Chat baseline results decide service verification.
+    Support states are supported, unsupported (404/405/501 at the tested model/path),
+    and unknown (auth/rate limit/transport/invalid response). Results bind configVersion;
+    connection, path or model mapping edits invalidate them. Old records remain readable.
+  paths: >-
+    protocolPaths.responses/messages optionally override relative absolute paths on
+    the same controlled service authority. DeepSeek Messages defaults to
+    /anthropic/v1/messages. Absolute URLs, credentials, query and traversal are refused.
+  nativeHop: >-
+    Higress uses dedicated authenticated native ingress paths without the Chat AI plugin.
+    The gateway maps logical/physical models and output limits, substitutes controlled
+    credentials, scans original input, observes usage and withholds terminal success
+    until settlement is durably journaled. It preserves native fields and named events.
+  usage: >-
+    Responses cached_tokens is an input subset. Messages input total equals input_tokens
+    plus cache_read_input_tokens plus cache_creation_input_tokens; cache reads are the
+    cached subset. Missing or invalid final usage remains unknown; it is not free.
+  tracing: >-
+    x-request-id, idempotency-key, x-retry-of-request-id and x-price-version are shared.
+    x-atlas-protocol-mode is native or adapted; admission.protocol persists requested,
+    upstream and mode without storing prompts or credentials in the journal.
+  timeout: >-
+    CONTROL_PLANE_RPC_TIMEOUT_MS accepts 1000..60000, default 5000. Isolated acceptance
+    uses 15000 after observed database/RPC tails; daily defaults remain unchanged.

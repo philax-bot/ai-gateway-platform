@@ -1,0 +1,94 @@
+{
+  "success": true,
+  "scope": "aggregate of this task actual vendor probe, SDK, cancel, fallback and corrected Messages accounting evidence; no new vendor requests in this audit",
+  "sources": [
+    {
+      "file": "live-failed-bf5219cb-692a-4a52-92fd-5dc182fd7daa.json",
+      "sha256": "96f7d9b5b495454a01493e322e7a9aa8740b1eb0c866f0bae81d71d1dd1a5345"
+    },
+    {
+      "file": "live-failed-1449372c-e7b1-4fd8-ae7b-fedcbc339bb0.json",
+      "sha256": "5309202b39d024b19a631b380ac946424acfe3856ec797d2df599b801026eaca"
+    },
+    {
+      "file": "live.json",
+      "sha256": "3fe6cf9044fe96a48c8c847e98099937f34f366ab21bd6ad3a3c6bb8a2ce7d94"
+    }
+  ],
+  "vendorRequests": 14,
+  "aggregateRequests": 36,
+  "configuredPriceEstimatedUpperBound": 0.431024,
+  "taskConfiguredPriceEstimatedUpperBound": 0.051122,
+  "checks": {
+    "basicNativeProbes": [
+      {
+        "protocol": "chat",
+        "support": "supported"
+      },
+      {
+        "protocol": "responses",
+        "support": "supported"
+      },
+      {
+        "protocol": "messages",
+        "support": "supported"
+      }
+    ],
+    "nativeSdkChecks": 8,
+    "messagesAccountingRecheck": true,
+    "nativeResponsesAccountingChecksAlreadyPassed": 2,
+    "nativeCancellationPreservesHold": true,
+    "retryCorrelation": true,
+    "realChatFallbackProtocols": [
+      "responses",
+      "messages"
+    ]
+  },
+  "savedRowAccountingChecks": [
+    {
+      "requestId": "protocol-live-fallback-4f8df0dc-9307-4627-8ccf-3a12b57030c1",
+      "protocol": {
+        "mode": "adapted",
+        "upstream": "chat",
+        "requested": "responses"
+      },
+      "expected": 0.000918,
+      "actualAmount": 0.000918
+    },
+    {
+      "requestId": "protocol-live-fallback-eaffb993-00d8-46ac-882d-6add1c1ade07",
+      "protocol": {
+        "mode": "adapted",
+        "upstream": "chat",
+        "requested": "messages"
+      },
+      "expected": 0.000212,
+      "actualAmount": 0.000212
+    },
+    {
+      "requestId": "protocol-sdk-633e916c-93bc-4470-8499-552c87221dd9",
+      "protocol": {
+        "mode": "native",
+        "upstream": "messages",
+        "requested": "messages"
+      },
+      "expected": 0.000592,
+      "actualAmount": 0.000592
+    },
+    {
+      "requestId": "protocol-sdk-68c5942d-bd63-47ce-8823-0f3af3615c84",
+      "protocol": {
+        "mode": "native",
+        "upstream": "messages",
+        "requested": "messages"
+      },
+      "expected": 0.000148,
+      "actualAmount": 0.000148
+    }
+  ],
+  "limitations": [
+    "Initial native tool request with thinking low and forced tool choice returned HTTP 400; no automatic Chat retry; subsequent native tool scenario used documented thinking none.",
+    "Initial audit used round instead of the established request-level upward rounding and stopped; original failed record retained. Two native Messages calls were rerun under explicit extension and their full PostgreSQL snapshots retained. Earlier missing snapshots were not reconstructed.",
+    "Native SDK tool loops and representative rows were checked, not every vendor feature or production capacity."
+  ]
+}

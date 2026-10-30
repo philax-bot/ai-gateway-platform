@@ -1,0 +1,31 @@
+{
+  "success": true,
+  "checks": [
+    "catalog distinguishes unsupported native endpoint from Chat adaptation",
+    "catalog lists all three implemented protocol entries",
+    "service displays current per-model native probe counts",
+    "diagnostic detail includes each protocol and support state",
+    "diagnostic Tab remains inside dialog",
+    "clicking verification tests and displays exactly three protocols per mapping",
+    "service editor exposes same-authority protocol path overrides",
+    "azure catalog has no page overflow",
+    "azure detail keyboard focus contained",
+    "azure Escape returns to opener",
+    "sidebar catalog has no page overflow",
+    "sidebar detail keyboard focus contained",
+    "sidebar Escape returns to opener",
+    "next catalog has no page overflow",
+    "next detail keyboard focus contained",
+    "next Escape returns to opener",
+    "classic catalog has no page overflow",
+    "classic detail keyboard focus contained",
+    "classic Escape returns to opener",
+    "beacon catalog has no page overflow",
+    "beacon detail keyboard focus contained",
+    "beacon Escape returns to opener",
+    "390 catalog has no page overflow",
+    "390 protocol detail has no page overflow",
+    "390 service configuration has no page overflow",
+    "no browser runtime errors"
+  ]
+}

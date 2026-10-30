@@ -1,0 +1,35 @@
+{
+  "success": true,
+  "before": {
+    "defaultWorkspacePresent": true,
+    "liveBudgetHash": "71d2829ab80a772d451d70ac6c2a8f4eefa97a627a25e76d3362324143b6bcc5",
+    "workspaceId": "20bea9e2-970a-4e7d-98eb-12ca16e81692",
+    "stateFileHash": "e7b742a224289865187386d14dce3cc5cbcb98fa22844dcee1af4bc14194d5fe",
+    "businessConfigurationHash": "e7f267f7e4f24b7586b046da7d4e5d4ac894ee7bb03ca69d1e9e632563288e2c",
+    "fundsHash": "5626134a433f2ff7c8932f9aca6a874ef157ca45fa9b3732a3b3eb580bff118a",
+    "fundedBatches": 8
+  },
+  "after": {
+    "defaultWorkspacePresent": true,
+    "liveBudgetHash": "71d2829ab80a772d451d70ac6c2a8f4eefa97a627a25e76d3362324143b6bcc5",
+    "workspaceId": "20bea9e2-970a-4e7d-98eb-12ca16e81692",
+    "stateFileHash": "e7b742a224289865187386d14dce3cc5cbcb98fa22844dcee1af4bc14194d5fe",
+    "businessConfigurationHash": "e7f267f7e4f24b7586b046da7d4e5d4ac894ee7bb03ca69d1e9e632563288e2c",
+    "fundsHash": "5626134a433f2ff7c8932f9aca6a874ef157ca45fa9b3732a3b3eb580bff118a",
+    "fundedBatches": 8
+  },
+  "webStatus": 200,
+  "controlStatus": 200,
+  "dataPlane": "higress",
+  "guardrailMode": "off",
+  "checks": [
+    "same original PostgreSQL workspace",
+    "business configuration unchanged",
+    "funds unchanged",
+    "state file unchanged",
+    "authorized live budget unchanged by restart",
+    "Web and control healthy",
+    "Higress retained",
+    "guardrail remains off"
+  ]
+}

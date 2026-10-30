@@ -9,7 +9,7 @@ export const legacyAdmission=():AdmissionSnapshot=>({kind:'legacy_simulation',ro
 export function publicLogAdmission(admission:AdmissionSnapshot|null|undefined){
   if(!admission)return null;
   const route=admission.route;
-  return {kind:admission.kind,price:admission.price,reservedAmount:admission.reservedAmount,route:route?{serviceId:route.serviceId,poolId:route.poolId,definitionId:route.definitionId,upstreamModel:route.upstreamModel}:null};
+  return {...(admission.protocol?{protocol:admission.protocol}:{}),kind:admission.kind,price:admission.price,reservedAmount:admission.reservedAmount,route:route?{serviceId:route.serviceId,poolId:route.poolId,definitionId:route.definitionId,upstreamModel:route.upstreamModel}:null};
 }
 export interface BatchScope {entitlementId?:string|null;projectId:string|null;purpose:string;sourceId:string}
 type AdmissionResult={admission:AdmissionSnapshot;reason?:never;requestLimits?:never}|{admission?:never;reason:ReasonCode;requestLimits?:RequestLimitDiagnostic};
@@ -100,5 +100,7 @@ export function admissionForBatch(state:AdmissionWorkspace|undefined,input:Autho
   if(!Number.isSafeInteger(estimatedInputTokens)||estimatedInputTokens<0||!Number.isSafeInteger(maxOutputTokens)||maxOutputTokens<1||maxOutputTokens>outputLimit)return {reason:'request_limit_exceeded',requestLimits:{estimatedInputTokens,requestedOutputTokens:input.maxOutputTokens??null,allowedOutputTokens:Math.max(0,outputLimit),modelContextTokens:definition.contextTokens,limitSources}};
   const reservePrice={...price,inputPrice:Math.max(price.inputPrice,price.cachedInputPrice)};
   const reservedAmount=costForUsage(reservePrice,estimatedInputTokens,maxOutputTokens,0);
-  return {admission:{kind:'configured',route:{serviceId:service.id,poolId:pool.id,definitionId:definition.id,baseUrl:service.baseUrl,upstreamModel:mapping.upstreamModel,credentialRef:service.credentialRef,maxOutputTokens},price,reservedAmount,estimatedTokens:estimatedInputTokens+maxOutputTokens,scopes}};
+  const requested=input.modelProtocol??'chat';if(!['chat','responses','messages'].includes(requested))throw new BadRequestException('unsupported model protocol');
+  const native=requested==='chat'||service.protocolCapabilities?.configVersion===service.configVersion&&service.protocolCapabilities.mappings[definition.id]?.[requested]?.status==='supported';
+  return {admission:{...(input.modelProtocol?{protocol:{requested,upstream:native?requested:'chat',mode:native?'native' as const:'adapted' as const}}:{}),kind:'configured',route:{serviceId:service.id,poolId:pool.id,definitionId:definition.id,baseUrl:service.baseUrl,protocolPaths:service.protocolPaths,protocols:service.protocolCapabilities?.configVersion===service.configVersion?service.protocolCapabilities.mappings[definition.id]:undefined,upstreamModel:mapping.upstreamModel,credentialRef:service.credentialRef,maxOutputTokens},price,reservedAmount,estimatedTokens:estimatedInputTokens+maxOutputTokens,scopes}};
 }

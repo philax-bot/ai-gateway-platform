@@ -1,0 +1,14 @@
+{
+  "success": true,
+  "sourceTree": "337a2f6e0c08fea5bc10015395f9fcc4621868b5",
+  "scope": "independent exported Git index, offline frozen dependencies; later metadata additions do not alter source",
+  "checks": {
+    "workspaceBuild": "passed",
+    "webTypecheck": "passed",
+    "contractsTests": 43,
+    "controlPlaneTests": 149,
+    "gatewayTests": 65,
+    "higressReadinessTests": 6
+  },
+  "browser": "isolated main workspace checks include unrelated existing work; source export independently builds and passes unit/HTTP protocol tests"
+}

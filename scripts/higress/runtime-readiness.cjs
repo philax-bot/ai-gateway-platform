@@ -12,8 +12,10 @@ async function inspectRuntime(name,{fetchAdmin=admin,connect=tcp}={}){
  if(!/^atlas-[a-f0-9]{32}$/.test(name))return {ready:false,code:'invalid_route'};
  try{
   const [routes,clusters]=await Promise.all([fetchAdmin('/config_dump?resource=dynamic_route_configs'),fetchAdmin('/clusters?format=json')]);
-  const route=(routes.configs??[]).flatMap(c=>c.route_config?.virtual_hosts??[]).flatMap(v=>v.routes??[]).find(r=>r.name===name&&r.match?.path===`/atlas/${name}/v1/chat/completions`);
+  const observed=(routes.configs??[]).flatMap(c=>c.route_config?.virtual_hosts??[]).flatMap(v=>v.routes??[]);
+  const route=observed.find(r=>r.name===name&&r.match?.path===`/atlas/${name}/v1/chat/completions`);
   if(!route?.route?.cluster)return {ready:false,code:'route_missing'};
+  if(!['responses','messages'].every(protocol=>observed.some(r=>r.name===name+'-'+protocol&&r.match?.path===`/atlas/${name}/v1/${protocol}`&&r.route?.cluster===route.route.cluster)))return {ready:false,code:'protocol_routes_missing'};
   const cluster=(clusters.cluster_statuses??[]).find(c=>c.name===route.route.cluster);
   if(!cluster)return {ready:false,code:'cluster_missing'};
   const endpoints=(cluster.host_statuses??[]).filter(h=>!h.health_status?.failed_active_health_check&&!h.health_status?.pending_dynamic_removal&&!['UNHEALTHY','DRAINING','TIMEOUT'].includes(h.health_status?.eds_health_status)).map(h=>h.address?.socket_address).filter(Boolean).slice(0,4);

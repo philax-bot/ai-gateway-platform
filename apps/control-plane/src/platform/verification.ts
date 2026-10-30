@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
-import type { PriceSnapshot, VerificationCost, VerificationMappingSnapshot } from '@ai-gateway/contracts';
-import { extractUpstreamUsage, shouldRetryConnect } from '@ai-gateway/contracts';
+import type { PriceSnapshot, VerificationCost, VerificationMappingSnapshot, VerificationMappingResult,ModelProtocol } from '@ai-gateway/contracts';
+import { extractUpstreamUsage,extractProtocolUsage,readUpstreamRequestId, shouldRetryConnect } from '@ai-gateway/contracts';
 import { costForUsage } from '../store/admission';
 
 /** Verification waits for a real model answer; the 5s default was below a normal connect+reasoning latency. */
@@ -38,6 +38,7 @@ export interface VerificationMappingInput {
 
 export function verificationMappingSnapshots(mappings: VerificationMappingInput[]): VerificationMappingSnapshot[] {
   return mappings.map(mapping => ({
+    protocols:['chat','responses','messages'],
     definitionId: mapping.definitionId,
     upstreamModel: mapping.upstreamModel,
     inputPrice: mapping.inputPrice,
@@ -45,6 +46,23 @@ export function verificationMappingSnapshots(mappings: VerificationMappingInput[
     cachedInputPrice: mapping.cachedInputPrice,
     attemptedAt: null,
   }));
+}
+
+export async function probeProtocol(protocol:ModelProtocol,url:string,model:string,credential:string|null|undefined,hop:boolean,mapping:VerificationMappingInput,price:PriceSnapshot|null):Promise<VerificationMappingResult>{
+  const completed=()=>new Date().toISOString();
+  const base={definitionId:mapping.definitionId,upstreamModel:mapping.upstreamModel,protocol};
+  try{
+    const body=protocol==='responses'?{model,input:'Connection validation',max_output_tokens:1,store:false}:protocol==='messages'?{model,messages:[{role:'user',content:'Connection validation'}],max_tokens:1}:{model,messages:[{role:'user',content:'Connection validation'}],max_tokens:1};
+    const response=await fetchVerifiedUpstream(url,{method:'POST',redirect:'error',signal:AbortSignal.timeout(verificationTimeoutMs()),headers:{'content-type':'application/json',...(protocol==='messages'?{'anthropic-version':'2023-06-01'}:{}),...(credential?hop?{'x-atlas-hop-token':`Bearer ${credential}`}:{authorization:`Bearer ${credential}`,...(protocol==='messages'?{'x-api-key':credential}:{})}:{})},body:JSON.stringify(body)});
+    const upstreamRequestId=readUpstreamRequestId(response.headers);let raw='',size=0;const reader=response.body?.getReader();try{if(reader){const decoder=new TextDecoder();for(;;){const chunk=await reader.read();if(chunk.done){raw+=decoder.decode();break;}size+=chunk.value.byteLength;if(size>1048576){await reader.cancel();throw Error('响应不符合支持的大小');}raw+=decoder.decode(chunk.value,{stream:true});}}}finally{reader?.releaseLock();}
+    let value:unknown;try{value=JSON.parse(raw);}catch{value=null;}
+    const usage=extractProtocolUsage(protocol,value),meter={usage:usage?{...usage,complete:true}:{inputTokens:null,outputTokens:null,cachedInputTokens:null,complete:false},cost:verificationCost(price,usage),upstreamRequestId,httpStatus:response.status,completedAt:completed()};
+    if(!response.ok){const failure=verificationFailure(response.status,null);return {...base,...meter,outcome:'failed',support:[404,405,501].includes(response.status)?'unsupported':'unknown',errorCode:failure.errorCode,message:failure.message};}
+    const v=value as Record<string,unknown>|null;
+    const valid=!!v&&!Array.isArray(v)&&!v.error&&(protocol==='chat'?Array.isArray(v.choices)&&v.choices.length>0:protocol==='responses'?v.object==='response'&&v.status!=='failed'&&Array.isArray(v.output):v.type==='message'&&Array.isArray(v.content));
+    if(!valid)return {...base,...meter,outcome:'failed',support:'unknown',errorCode:'invalid_response',message:'HTTP 成功但响应不符合该协议，不能确认支持'};
+    return {...base,...meter,outcome:'passed',support:'supported',errorCode:null,message:usage?'基础协议通过，已返回用量':'基础协议通过，上游未返回完整用量'};
+  }catch(error){const failure=verificationFailure(null,error);return {...base,outcome:'failed',support:'unknown',httpStatus:null,errorCode:failure.errorCode,message:failure.message,upstreamRequestId:null,usage:{inputTokens:null,outputTokens:null,cachedInputTokens:null,complete:false},cost:verificationCost(price,null),completedAt:completed()};}
 }
 
 /** Diagnostic pricing reuses the admission price shape, with its own version marker. */

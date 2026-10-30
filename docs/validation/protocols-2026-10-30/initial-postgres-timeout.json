@@ -1,0 +1,13 @@
+{
+  "success": false,
+  "id": "5347bc55-8e10-4b0c-b77c-1e62ed1aae0c",
+  "createdAt": "2026-10-30T05:31:11.320Z",
+  "scope": {
+    "database": "isolated PostgreSQL",
+    "dataPlane": "real Higress",
+    "model": "local deterministic fixture",
+    "realModelRequests": 0
+  },
+  "checks": [],
+  "error": "Error: Connection terminated due to connection timeout\n    at D:\\Workspace\\pri\\ai-gateway-platform\\node_modules\\.pnpm\\pg-pool@3.14.0_pg@8.23.1\\node_modules\\pg-pool\\index.js:45:11\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at async captureDefaultState (file:///D:/Workspace/pri/ai-gateway-platform/scripts/higress/business-checks.mjs:11:24)\n    at async file:///D:/Workspace/pri/ai-gateway-platform/scripts/check-protocols.mjs:30:143"
+}

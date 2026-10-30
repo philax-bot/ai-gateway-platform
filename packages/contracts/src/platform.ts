@@ -21,6 +21,8 @@ export interface ServiceModel {
   cachedInputPrice: number | null; limits: UsageLimits;
 }
 export interface ModelService {
+  protocolPaths?:import('./protocol.js').ProtocolPaths;
+  protocolCapabilities?:import('./protocol.js').ServiceProtocolCapabilities;
   id: string; name: string; baseUrl: string; credentialRef: string | null; active: boolean; mappings: ServiceModel[];
   verification: 'unverified' | 'passed' | 'failed'; verificationMessage: string; verifiedAt: string | null; configVersion: number;
   limits: UsageLimits; sharedCapacityId: string | null;

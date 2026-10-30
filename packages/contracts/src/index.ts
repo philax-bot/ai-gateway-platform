@@ -1,4 +1,5 @@
 export * from './catalog.js';
+export * from './protocol.js';
 export * from './guardrail.js';
 export type SubjectType = 'employee' | 'application';
 export * from './platform.js';
@@ -38,6 +39,7 @@ export interface RequestIdentity {
 }
 
 export interface AuthorizeRequest {
+  modelProtocol?:import('./protocol.js').ModelProtocol;
   guardrail?: import('./guardrail.js').GuardrailAssessment;
   requestId: string;
   idempotencyKey: string;
@@ -74,6 +76,8 @@ export interface PriceSnapshot {
   cachedInputPrice: number;
 }
 export interface RouteSnapshot {
+  protocolPaths?:import('./protocol.js').ProtocolPaths;
+  protocols?:Partial<Record<import('./protocol.js').ModelProtocol,import('./protocol.js').ProtocolCapability>>;
   serviceId: string;
   poolId: string;
   definitionId: string;
@@ -91,6 +95,7 @@ export interface AdmissionScope {
   concurrency?: number;
 }
 export interface AdmissionSnapshot {
+  protocol?:{requested:import('./protocol.js').ModelProtocol;upstream:import('./protocol.js').ModelProtocol;mode:'native'|'adapted'};
   kind: 'configured' | 'legacy_simulation';
   route: RouteSnapshot | null;
   price: PriceSnapshot | null;
@@ -195,7 +200,7 @@ export interface CallLog {
   forwarded?:boolean|null;
   ttftMs?:number|null;
   usageFinal?:boolean;
-  admission?: {kind:AdmissionSnapshot['kind'];price:PriceSnapshot|null;reservedAmount:number;route:Pick<RouteSnapshot,'serviceId'|'poolId'|'definitionId'|'upstreamModel'>|null} | null;
+  admission?: {protocol?:AdmissionSnapshot['protocol'];kind:AdmissionSnapshot['kind'];price:PriceSnapshot|null;reservedAmount:number;route:Pick<RouteSnapshot,'serviceId'|'poolId'|'definitionId'|'upstreamModel'>|null} | null;
   organizationId?: string | null;
   errorCode?: string | null;
   latencyMs?: number | null;

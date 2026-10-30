@@ -30,7 +30,7 @@ export class HigressProvider implements GatewayProvider {
     const state=await this.workspace.readGatewayConfiguration();
     const service=state.services.find(s=>s.id===input.spec.serviceId),mapping=service?.mappings.find(m=>m.definitionId===input.spec.definitionId);
     if(!service||!mapping||!service.active)throw new Error('route_unavailable');
-    return {serviceId:service.id,definitionId:mapping.definitionId,poolId:'',baseUrl:service.baseUrl,credentialRef:service.credentialRef,upstreamModel:mapping.upstreamModel,maxOutputTokens:1};
+    return {serviceId:service.id,definitionId:mapping.definitionId,poolId:'',baseUrl:service.baseUrl,protocolPaths:service.protocolPaths,credentialRef:service.credentialRef,upstreamModel:mapping.upstreamModel,maxOutputTokens:1};
   }
   async publishRoute(input:GatewaySyncRequest):Promise<GatewaySyncResponse>{
     if(!this.configured())return this.rejected(input,'provider_unconfigured');
@@ -151,7 +151,7 @@ export class HigressProvider implements GatewayProvider {
     if(!this.enabled)return {enabled:false,routes:[]};
     const state=await this.workspace.readGatewayConfiguration(),routes=[];
     for(const service of state.services.filter(s=>s.active))for(const mapping of service.mappings){
-      const transport=await this.transport({serviceId:service.id,definitionId:mapping.definitionId,poolId:'',baseUrl:service.baseUrl,credentialRef:service.credentialRef,upstreamModel:mapping.upstreamModel,maxOutputTokens:1},true);
+      const transport=await this.transport({serviceId:service.id,definitionId:mapping.definitionId,poolId:'',baseUrl:service.baseUrl,protocolPaths:service.protocolPaths,credentialRef:service.credentialRef,upstreamModel:mapping.upstreamModel,maxOutputTokens:1},true);
       routes.push({resourceId:resourceId({serviceId:service.id,definitionId:mapping.definitionId}),status:transport.kind==='higress'?'applied':'unavailable'});
     }
     return {enabled:true,routes};

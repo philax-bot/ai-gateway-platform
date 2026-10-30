@@ -122,3 +122,5 @@ pnpm check:postgres
 2026-10-30：规则型输入安全围栏 V0.1 已完成，运营空间“配置与排查 → 安全围栏”可配置、试测和查看事件；默认关闭，运营确认后启用。支持仅记录/拦截，覆盖个人、项目、应用，见 [实施与验收](docs/architecture/safety-guardrail-v0.1-2026-10-30.md)。隔离检查：`pnpm check:guardrail`，含页面回归加 `--browser`；本轮真实模型新增请求为 0。
 
 2026-10-30：T11 模型目录已完成，运营空间“配置与排查 → 模型目录”可检索既有模型、核对逐来源配置价格和模型池开放范围，并进入原模型配置流程。37 项隔离页面、25 项默认环境只读页面及 8 项环境保留核对通过；没有新增真实模型请求。隔离复测 `pnpm check:catalog`，见 [实施与验收](docs/architecture/model-catalog-v0.1-2026-10-30.md)。T12 第二协议仍排队。
+
+2026-10-30 三协议后续：T12 已接入 Chat Completions、Responses、Messages。模型服务“验证连接”逐模型测试三协议；Chat 是开放基线，其他协议已确认支持时原生透传，否则经 Chat 适配。共用鉴权、围栏、Higress 和原价格账务，原生失败不自动重发生成。见 [实施与验收](docs/architecture/model-protocols-v0.1-2026-10-30.md)与[接口契约](contracts/model-protocols-v0.1.yaml)。隔离复测 `pnpm check:protocols`；真实复测必须受既有请求/费用预算约束。
