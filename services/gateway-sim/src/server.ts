@@ -208,7 +208,7 @@ async function handleCompletions(request: IncomingMessage, response: ServerRespo
   try {
     const route=admission?.route;
     if(protocol!=='chat'&&route?.protocols?.[protocol]?.status==='supported')native=new NativeProtocolOutput(protocol,logicalModel);
-    if(protocol!=='chat'&&!native){normalizeProtocolRequest(protocol,originalBody);if(request.headers['anthropic-beta'])throw new ProtocolInputError('anthropic-beta extensions require native protocol support','unsupported_parameter');}
+    if(protocol!=='chat'&&!native){body=normalizeProtocolRequest(protocol,originalBody);if(request.headers['anthropic-beta'])throw new ProtocolInputError('anthropic-beta extensions require native protocol support','unsupported_parameter');}
     response.setHeader('x-atlas-protocol-mode',protocol==='chat'?'native':native?'native':'adapted');
     if(runtimeMode==='production'&&!configured)throw new Error('production requires a configured admission route');
     if(configured&&!route)throw new Error('configured authorization has no route');
@@ -341,13 +341,15 @@ async function handleOutbox(request:IncomingMessage,response:ServerResponse){
 async function serveRequest(request:IncomingMessage,response:ServerResponse){
   try {
     if(closing){sendJson(response,503,{error:{type:'gateway_stopping',message:'gateway is draining active requests'}},request.headers.origin);return;}
-    if(request.method==='GET'&&request.url==='/health') {const outbox=await journal.status();sendJson(response,200,{status:outbox.blocked||outbox.queued?'degraded':'ok',dataPlane:process.env.GATEWAY_DATA_PLANE==='higress'?'higress':runtimeMode==='production'?'controlled-proxy':'local-simulation',outbox},request.headers.origin);return;}
-    if(request.url?.startsWith('/internal/v1/outbox')){await handleOutbox(request,response);return;}
-    if(request.method==='OPTIONS'&&['/v1/chat/completions','/v1/models','/v1/responses','/v1/messages'].includes(request.url??'')) {response.writeHead(204,corsHeaders(request.headers.origin));response.end();return;}
-    if(request.method==='GET'&&request.url==='/v1/models') {await handleModels(request,response);return;}
-    if(request.method==='POST'&&request.url==='/v1/chat/completions') {await handleCompletions(request,response);return;}
-    if(request.method==='POST'&&request.url==='/v1/responses') {await handleCompletions(request,response,'responses');return;}
-    if(request.method==='POST'&&request.url==='/v1/messages') {await handleCompletions(request,response,'messages');return;}
+    // SDKs such as Claude Code append ?beta=true; query parameters do not change the public route.
+    const {pathname}=new URL(request.url??'/','http://gateway.local');
+    if(request.method==='GET'&&pathname==='/health') {const outbox=await journal.status();sendJson(response,200,{status:outbox.blocked||outbox.queued?'degraded':'ok',dataPlane:process.env.GATEWAY_DATA_PLANE==='higress'?'higress':runtimeMode==='production'?'controlled-proxy':'local-simulation',outbox},request.headers.origin);return;}
+    if(pathname==='/internal/v1/outbox'||pathname.startsWith('/internal/v1/outbox/')){await handleOutbox(request,response);return;}
+    if(request.method==='OPTIONS'&&['/v1/chat/completions','/v1/models','/v1/responses','/v1/messages'].includes(pathname)) {response.writeHead(204,corsHeaders(request.headers.origin));response.end();return;}
+    if(request.method==='GET'&&pathname==='/v1/models') {await handleModels(request,response);return;}
+    if(request.method==='POST'&&pathname==='/v1/chat/completions') {await handleCompletions(request,response);return;}
+    if(request.method==='POST'&&pathname==='/v1/responses') {await handleCompletions(request,response,'responses');return;}
+    if(request.method==='POST'&&pathname==='/v1/messages') {await handleCompletions(request,response,'messages');return;}
     sendJson(response,404,{error:{type:'not_found',message:'route not found'}},request.headers.origin);
   } catch {sendJson(response,500,{error:{type:'gateway_error',message:'gateway request failed'}},request.headers.origin);}
 }

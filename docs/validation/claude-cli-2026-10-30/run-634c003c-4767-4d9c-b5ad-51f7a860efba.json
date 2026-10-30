@@ -1,0 +1,30 @@
+{
+  "version": "2.1.312",
+  "exitCode": 0,
+  "calls": [
+    {
+      "requestId": "claude-cli-0cded7a1-fd04-406e-857b-51da5889bb9c",
+      "path": "/v1/messages?beta=true",
+      "model": "deepseek-flash",
+      "maxTokens": 512,
+      "inputBytes": 1815,
+      "outputConfig": {
+        "effort": "high"
+      },
+      "tools": [],
+      "beta": "claude-code-20250219,interleaved-thinking-2025-05-14,context-management-2025-06-27,mid-conversation-tool-changes-2026-07-01,thinking-token-count-2026-05-13,effort-2025-11-24",
+      "estimatedUpperBound": 0.007726,
+      "status": 200,
+      "protocolMode": "native"
+    }
+  ],
+  "stdout": "{\"duration_api_ms\":1622,\"stop_reason\":\"end_turn\",\"session_id\":\"d38ed870-78a5-481d-b238-c835638bf1b0\",\"total_cost_usd\":0.0015999999999999999,\"usage\":{\"input_tokens\":305,\"cache_creation_input_tokens\":0,\"cache_read_input_tokens\":0,\"output_tokens\":3,\"output_tokens_details\":{\"thinking_tokens\":0},\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":0,\"ephemeral_5m_input_tokens\":0},\"inference_geo\":\"\",\"iterations\":[],\"speed\":\"standard\",\"fallback_credit\":null},\"modelUsage\":{\"deepseek-flash\":{\"inputTokens\":305,\"outputTokens\":3,\"cacheReadInputTokens\":0,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.0015999999999999999,\"contextWindow\":200000,\"maxOutputTokens\":32000,\"thinkingTokens\":0,\"cacheCreationEphemeral5mInputTokens\":0,\"cacheCreationEphemeral1hInputTokens\":0,\"canonicalModel\":\"deepseek-flash\",\"provider\":\"firstParty\",\"costBasis\":\"unknown\"}},\"permission_denials\":[],\"terminal_reason\":\"completed\",\"fast_mode_state\":\"off\",\"fast_mode_disabled_reason\":\"sdk_opt_in_required\",\"subagent_stats\":{\"spawned\":0,\"requested\":{\"background\":0,\"foreground\":0,\"unset\":0},\"started_in_background\":0,\"max_depth\":0,\"spawned_by_subagents\":0,\"completed\":0,\"failed\":0,\"killed\":{\"parent\":0,\"user\":0,\"system\":0},\"refused\":{\"depth_limit\":0,\"concurrency_limit\":0,\"budget\":0},\"by_type\":{}},\"safety_stops\":0,\"is_error\":false,\"num_turns\":1,\"subtype\":\"success\",\"api_error_status\":null,\"result\":\"连接成功\",\"ttft_ms\":1355,\"type\":\"result\",\"duration_ms\":1663,\"uuid\":\"7fe0f54b-61a2-426f-a15a-8f4f615e98bb\",\"ttft_stream_ms\":728,\"time_to_request_ms\":50,\"first_content_frame_ms\":728,\"queued_turn_count\":0,\"result_index\":0}\n",
+  "stderr": "[claude-code:unrecognized_model] {\"model\":\"deepseek-flash\",\"query_source\":\"sdk\"}\n",
+  "budget": {
+    "attempts": 40,
+    "maxRequests": 42,
+    "estimatedUpperBound": 0.463326,
+    "additionalEstimatedUpperBound": 0.032302
+  },
+  "privateDirectory": "D:\\Workspace\\pri\\ai-gateway-platform\\.runtime\\claude-cli-634c003c-4767-4d9c-b5ad-51f7a860efba"
+}

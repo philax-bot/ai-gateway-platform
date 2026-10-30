@@ -1,0 +1,38 @@
+{
+  "version": "2.1.312",
+  "exitCode": null,
+  "calls": [
+    {
+      "requestId": "claude-cli-39e6f8f5-0c14-46a1-9703-f91b45b4e1f2",
+      "path": "/v1/messages?beta=true",
+      "model": "deepseek-flash",
+      "maxTokens": 512,
+      "inputBytes": 14749,
+      "outputConfig": {
+        "effort": "high"
+      },
+      "tools": [
+        {
+          "name": "DeferredToolPlaceholder"
+        },
+        {
+          "name": "Bash"
+        }
+      ],
+      "beta": "claude-code-20250219,interleaved-thinking-2025-05-14,context-management-2025-06-27,mid-conversation-tool-changes-2026-07-01,thinking-token-count-2026-05-13,effort-2025-11-24",
+      "estimatedUpperBound": 0.033594,
+      "status": 200,
+      "protocolMode": "native"
+    }
+  ],
+  "stdout": "",
+  "stderr": "[claude-code:unrecognized_model] {\"model\":\"deepseek-flash\",\"query_source\":\"sdk\"}\n",
+  "budget": {
+    "attempts": 42,
+    "maxRequests": 42,
+    "estimatedUpperBound": 0.530514,
+    "additionalEstimatedUpperBound": 0.09949000000000002
+  },
+  "privateDirectory": "D:\\Workspace\\pri\\ai-gateway-platform\\.runtime\\claude-cli-fa31bac1-cd6d-402e-9fe4-f6a94f0e3882",
+  "note": "headless run: gateway returned a complete native stream (content_block_stop / message_delta(tool_use) / message_stop); raw SSE capture was discarded because the byte-level capture was lossy."
+}

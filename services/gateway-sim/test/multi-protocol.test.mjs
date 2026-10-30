@@ -5,6 +5,11 @@ const events=raw=>raw.split(/\r?\n\r?\n/).flatMap(e=>{const data=e.split(/\r?\n/
 const body=p=>p==='responses'?{model:'logical-model',input:'local test',max_output_tokens:32,store:false}:{model:'logical-model',messages:[{role:'user',content:'local test'}],max_tokens:32};
 function call(base,p,extra={},headers={},signal){return fetch(base+'/v1/'+p,{method:'POST',headers:{'content-type':'application/json',...(p==='responses'?{authorization:'Bearer http-test-key'}:{'x-api-key':'http-test-key','anthropic-version':'2023-06-01'}),...headers},body:JSON.stringify({...body(p),...extra}),signal});}
 const nativeConfig=JSON.stringify({responses:{status:'supported'},messages:{status:'supported'}});
+for(const p of ['responses','messages'])test(p+' Chat fallback forwards the converted conversation and tools rather than the admission estimate',()=>gatewayFixture(async({base,requests})=>{
+ const tool=p==='messages'?{name:'echo',input_schema:{type:'object',properties:{text:{type:'string'}}}}:{type:'function',name:'echo',parameters:{type:'object',properties:{text:{type:'string'}}}};
+ const r=await call(base,p,{tools:[tool],...(p==='messages'?{system:'Be brief.'}:{instructions:'Be brief.'})});assert.equal(r.status,200);
+ assert.deepEqual(requests[0].messages,[{role:'system',content:'Be brief.'},{role:'user',content:'local test'}]);assert.equal(requests[0].tools[0].function.name,'echo');assert.equal(requests[0].max_tokens,32);
+},async(b,r)=>send(r,{model:b.model,choices:[{message:{role:'assistant',content:'OK'},finish_reason:'stop'}],usage})));
 const nativeValue=(p,model)=>p==='responses'?{id:'resp_native',object:'response',model,status:'completed',output:[{id:'msg_native',type:'message',role:'assistant',content:[{type:'output_text',text:'上海',annotations:[]}]}],usage:{input_tokens:13,output_tokens:14,input_tokens_details:{cached_tokens:4}},vendor_marker:{preserved:true}}:{id:'msg_native',type:'message',role:'assistant',model,content:[{type:'text',text:'上海'}],stop_reason:'end_turn',stop_sequence:null,usage:{input_tokens:9,output_tokens:14,cache_read_input_tokens:4},vendor_marker:{preserved:true}};
 for(const p of ['responses','messages']){
  test(p+' falls back to Chat with one generation and trusted cached usage',()=>gatewayFixture(async({base,requests,settlements})=>{

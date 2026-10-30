@@ -1,0 +1,155 @@
+{
+  "verification": "passed",
+  "protocolCapabilities": {
+    "mappings": {
+      "model-a9a85339-b8be-4fe9-9d25-f9e41ae87567": {
+        "chat": {
+          "status": "supported",
+          "checkedAt": "2026-10-30T08:11:44.843Z",
+          "errorCode": null,
+          "httpStatus": 200
+        },
+        "messages": {
+          "status": "supported",
+          "checkedAt": "2026-10-30T08:11:46.755Z",
+          "errorCode": null,
+          "httpStatus": 200
+        },
+        "responses": {
+          "status": "supported",
+          "checkedAt": "2026-10-30T08:11:45.852Z",
+          "errorCode": null,
+          "httpStatus": 200
+        }
+      }
+    },
+    "configVersion": 2
+  },
+  "run": {
+    "id": "verification-8f7bc3dd-0cc0-4594-8be0-9b16b4e99e66",
+    "operatorId": "operator-demo-001",
+    "serviceId": "service-7deb0748-af17-4ac4-8a2c-e9bf6f2d44ff",
+    "serviceName": "deepseek官方",
+    "configVersion": 2,
+    "state": "completed",
+    "diagnostic": true,
+    "idempotencyKey": "claude-connect-0cd53b41-891e-49f8-ae44-222036001f3e",
+    "mappings": [
+      {
+        "protocols": [
+          "chat",
+          "responses",
+          "messages"
+        ],
+        "inputPrice": 2,
+        "attemptedAt": "2026-10-30T08:11:43.732Z",
+        "outputPrice": 8,
+        "definitionId": "model-a9a85339-b8be-4fe9-9d25-f9e41ae87567",
+        "upstreamModel": "deepseek-flash",
+        "cachedInputPrice": 0.04
+      }
+    ],
+    "results": [
+      {
+        "cost": {
+          "price": {
+            "unit": "per_million_tokens",
+            "version": "3412f64ef642b209f20004f6",
+            "currency": "CNY",
+            "inputPrice": 2,
+            "outputPrice": 8,
+            "cachedInputPrice": 0.04
+          },
+          "state": "priced",
+          "amount": 0.000072
+        },
+        "usage": {
+          "complete": true,
+          "inputTokens": 32,
+          "outputTokens": 1,
+          "cachedInputTokens": 0
+        },
+        "message": "基础协议通过，已返回用量",
+        "outcome": "passed",
+        "support": "supported",
+        "protocol": "chat",
+        "errorCode": null,
+        "httpStatus": 200,
+        "completedAt": "2026-10-30T08:11:44.843Z",
+        "definitionId": "model-a9a85339-b8be-4fe9-9d25-f9e41ae87567",
+        "upstreamModel": "deepseek-flash",
+        "upstreamRequestId": null
+      },
+      {
+        "cost": {
+          "price": {
+            "unit": "per_million_tokens",
+            "version": "3412f64ef642b209f20004f6",
+            "currency": "CNY",
+            "inputPrice": 2,
+            "outputPrice": 8,
+            "cachedInputPrice": 0.04
+          },
+          "state": "priced",
+          "amount": 0.000072
+        },
+        "usage": {
+          "complete": true,
+          "inputTokens": 32,
+          "outputTokens": 1,
+          "cachedInputTokens": 0
+        },
+        "message": "基础协议通过，已返回用量",
+        "outcome": "passed",
+        "support": "supported",
+        "protocol": "responses",
+        "errorCode": null,
+        "httpStatus": 200,
+        "completedAt": "2026-10-30T08:11:45.852Z",
+        "definitionId": "model-a9a85339-b8be-4fe9-9d25-f9e41ae87567",
+        "upstreamModel": "deepseek-flash",
+        "upstreamRequestId": null
+      },
+      {
+        "cost": {
+          "price": {
+            "unit": "per_million_tokens",
+            "version": "3412f64ef642b209f20004f6",
+            "currency": "CNY",
+            "inputPrice": 2,
+            "outputPrice": 8,
+            "cachedInputPrice": 0.04
+          },
+          "state": "priced",
+          "amount": 0.000072
+        },
+        "usage": {
+          "complete": true,
+          "inputTokens": 32,
+          "outputTokens": 1,
+          "cachedInputTokens": 0
+        },
+        "message": "基础协议通过，已返回用量",
+        "outcome": "passed",
+        "support": "supported",
+        "protocol": "messages",
+        "errorCode": null,
+        "httpStatus": 200,
+        "completedAt": "2026-10-30T08:11:46.755Z",
+        "definitionId": "model-a9a85339-b8be-4fe9-9d25-f9e41ae87567",
+        "upstreamModel": "deepseek-flash",
+        "upstreamRequestId": null
+      }
+    ],
+    "startedAt": "2026-10-30T08:11:43.602Z",
+    "completedAt": "2026-10-30T08:11:47.042Z",
+    "leaseExpiresAt": "2026-10-30T08:13:46.947Z",
+    "note": null
+  },
+  "budget": {
+    "attempts": 39,
+    "maxRequests": 42,
+    "estimatedUpperBound": 0.4556,
+    "additionalEstimatedUpperBound": 0.024575999999999987
+  }
+}
