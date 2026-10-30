@@ -9,7 +9,7 @@ const connectionString=process.env.DATABASE_URL||parse(readFileSync('apps/contro
 assert.ok(connectionString,'development database configuration is required');
 const schema=`agp_check_${randomUUID().replaceAll('-','')}`;
 const admin=new Pool({connectionString,connectionTimeoutMillis:5000});
-let store,occupied,created=false,checks=0;
+let store,occupied,created=false,checks=0,stage='schema';
 const check=(value,message)=>{assert.ok(value,message);checks++;};
 try{
   await admin.query(`create schema "${schema}"`);created=true;
@@ -18,23 +18,28 @@ try{
   const {WorkspaceRepository}=require(resolve('apps/control-plane/dist/platform/workspace.repository.js'));
   const {MonitoringService}=require(resolve('apps/control-plane/dist/platform/monitoring.service.js'));
   store=new PostgresStore();
+  stage='initialization';
   // Constrain only this fixture's private pool. One occupied slot leaves exactly
   // one usable connection: a healthy monitor must not require a nested checkout.
   store.pool.options.max=2;store.pool.options.connectionTimeoutMillis=300;
   await store.initialize();const repo=new WorkspaceRepository(store);await repo.initialize();
+  stage='initial_view';
   const monitor=new MonitoringService(repo,store),before=await repo.view();
   occupied=await store.pool.connect();
+  stage='occupied_pool_collection';
   await monitor.evaluate(true);
   const collected=await repo.read();
   check(collected.monitoring.collection.quality==='collected','monitoring must collect with one available connection, without marking healthy storage unavailable');
   console.log('PASS monitoring under occupied pool: no nested checkout required');
   await occupied.query(`alter table "${schema}".call_logs rename to call_logs_pool_check`);
+  stage='collection_failure';
   try{
     await monitor.evaluate(true);
     const failed=await repo.read();
     check(failed.monitoring.collection.quality==='collection_failed','query failure must persist collection failure without aborting workspace transaction');
     check(failed.monitoring.collection.failedStages.includes('call_totals'),'query failure stage is retained');
   }finally{await occupied.query(`alter table "${schema}".call_logs_pool_check rename to call_logs`);}
+  stage='collection_recovery';
   await monitor.evaluate(true);
   const after=await repo.view();
   check(after.state.monitoring.collection.quality==='collected','same connection remains usable after failed statistics query');
@@ -45,6 +50,7 @@ try{
   // The earlier 300 ms value only makes the deterministic nested-checkout
   // regression fail quickly; it is not a request latency requirement.
   store.pool.options.connectionTimeoutMillis=5000;
+  stage='concurrent_admission';
   const credential=await store.getDemoCredential('local-employee-key');
   let entered,continueCollection;
   const inside=new Promise(resolve=>{entered=resolve;}),proceed=new Promise(resolve=>{continueCollection=resolve;});
@@ -63,7 +69,11 @@ try{
   const idle=await admin.query("select count(*)::int as n from pg_stat_activity where application_name=$1 and state='idle in transaction'",[schema]);
   check(idle.rows[0].n===0,'no open transaction after successful or failed collection');
   console.log(`PASS ${checks} monitoring-pool assertions (isolated PostgreSQL)`);
-}catch(error){console.error(error instanceof assert.AssertionError?error.message:'Monitoring pool check failed; private connection details are not logged.');process.exitCode=1;}
+}catch(error){
+  if(error instanceof assert.AssertionError)console.error(error.message);
+  else console.error(JSON.stringify({check:'monitoring_pool',stage,category:/timeout/i.test(error?.message??'')?'timeout':'dependency_or_script_error',code:typeof error?.code==='string'&&/^[A-Z0-9_]{1,20}$/.test(error.code)?error.code:null,pool:store?{total:store.pool.totalCount,idle:store.pool.idleCount,waiting:store.pool.waitingCount}:null}));
+  process.exitCode=1;
+}
 finally{
   occupied?.release();await store?.onModuleDestroy();
   if(created&&/^agp_check_[a-f0-9]{32}$/.test(schema)){await admin.query(`drop schema "${schema}" cascade`);console.log('CLEANUP own monitoring test schema removed');}

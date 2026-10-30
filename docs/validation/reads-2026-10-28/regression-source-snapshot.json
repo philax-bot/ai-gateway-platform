@@ -1,0 +1,72 @@
+{
+  "createdAt": "2026-10-28T09:13:03.233Z",
+  "baseRevision": "72a36e7d7c42881ff3cc8ec9add2c2b2e3f3bdea",
+  "workingTreeDirty": true,
+  "note": "Runtime sources match source-snapshot.json. Adds deterministic closed-minute alert coverage and safe diagnostics to the monitoring-pool verification script; no additional runtime or database-schema changes.",
+  "files": [
+    {
+      "path": "apps/control-plane/src/platform/auth.service.ts",
+      "sha256": "8be666c0e06e4e9b84cb186192e4794ada85e896259dc8d25c4ebfdeb777b77b"
+    },
+    {
+      "path": "apps/control-plane/src/platform/collection-monitoring.spec.ts",
+      "sha256": "d4c4e2cae62056ef67465d386301c746f2d6d0fd20ea2694979eba236eff78da"
+    },
+    {
+      "path": "apps/control-plane/src/platform/domain.ts",
+      "sha256": "4a2bb32be6967aff68121bdcb02c774934b40b232b7b2a939e00da28815d2d44"
+    },
+    {
+      "path": "apps/control-plane/src/platform/maintenance.service.ts",
+      "sha256": "c6000aca78b05f59d187df55d1133ca79166bf7f39395b3a6d972ec7e40cca89"
+    },
+    {
+      "path": "apps/control-plane/src/platform/monitoring.domain.ts",
+      "sha256": "684235a57ab0dd3841c9947291560b01939a152cac4f0268952742f50ecf57bc"
+    },
+    {
+      "path": "apps/control-plane/src/platform/monitoring.service.ts",
+      "sha256": "3a310c2f9e9e823b6d482de817be96e271ab3b056ba60899c35712d1f5b94f66"
+    },
+    {
+      "path": "apps/control-plane/src/platform/retention.ts",
+      "sha256": "3a2564ce858e47571993f9cd2722b66202d6f2c522f44f44e5d33c3dbf3b7f7b"
+    },
+    {
+      "path": "apps/control-plane/src/platform/workspace-read.spec.ts",
+      "sha256": "c25a5ed34c3d190d685996d0e545122b16b53af55383a3f8ad53576daef3800e"
+    },
+    {
+      "path": "apps/control-plane/src/platform/workspace.repository.ts",
+      "sha256": "990a359cd8c9263c9e063ff5d02448f7084d1f62e2ca30515bcabec03635b820"
+    },
+    {
+      "path": "apps/control-plane/src/store/hot-path-diagnostics.ts",
+      "sha256": "760c9c0350c24bbde814ca5eecce6bc2c3eb1d243fd305c115daf357e61b1345"
+    },
+    {
+      "path": "apps/control-plane/src/store/postgres.store.ts",
+      "sha256": "78b0a9c202bd074c7056eebb68a6308aaa7f0d513ca7492ccd1d14cd260a966d"
+    },
+    {
+      "path": "contracts/gateway-control-plane-v0.1.yaml",
+      "sha256": "740b2752052c986ee9e80e48ccb49b8f3d783ee2f3299f7377c23102f8824632"
+    },
+    {
+      "path": "scripts/check-load.mjs",
+      "sha256": "3be660e43224700d6cfcbb7d9293f4c7be33b42d248f5d8fafcad2b592f42682"
+    },
+    {
+      "path": "scripts/check-metered.mjs",
+      "sha256": "86f794b6f441b13122da22fdf7fc2f36a2b24a71c73bd557196f8c89c64108a7"
+    },
+    {
+      "path": "scripts/check-monitoring-pool.mjs",
+      "sha256": "d5f4264b6d03e27f3f3246a16880d238c75b1935c3deefd5810df5a634e1dade"
+    },
+    {
+      "path": "scripts/check-policy-lock.mjs",
+      "sha256": "63ed52f0dd0b4fd0092887bbc44ffd89a0384912e76ee886695b0d8cbe45688e"
+    }
+  ]
+}

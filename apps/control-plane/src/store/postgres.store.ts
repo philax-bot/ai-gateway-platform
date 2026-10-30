@@ -285,10 +285,14 @@ export class PostgresStore extends DemoStore implements OnModuleDestroy {
   }
   async queryCalls(input:CallQuery,scope:CallScope=null,existingClient?:PoolClient){
     if(existingClient)return this.statisticsWithin(existingClient,()=>queryPostgresCalls(existingClient,input,scope,r=>this.mapCall(r)));
-    return this.withClient(async client=>{
-    await client.query('begin isolation level repeatable read read only');
-    try{const result=await queryPostgresCalls(client,input,scope,r=>this.mapCall(r));await client.query('commit');return result;}catch(error){await client.query('rollback');throw error;}
-  });}
+    const trace=hotPathDiagnostics.start('query_calls');
+    return this.withClient(async raw=>{
+      const client=trace.acquired(raw);let failed=false;
+      await client.query('begin isolation level repeatable read read only');
+      try{const result=await queryPostgresCalls(client,input,scope,r=>this.mapCall(r));await client.query('commit');return result;}
+      catch(error){failed=true;await client.query('rollback');throw error;}finally{trace.finish(failed);}
+    }).catch(error=>{trace.finish(true);throw error;});
+  }
   private mapCall(r:CallRow):CallLog{return {safety:r.safety??null,requestId:r.request_id,upstreamRequestId:r.upstream_request_id??null,retryOfRequestId:r.retry_of_request_id??null,startedAt:r.started_at.toISOString(),completedAt:r.completed_at.toISOString(),subjectType:r.subject_type,subjectId:r.subject_id,credentialId:r.credential_id,purpose:r.purpose,projectId:r.project_id,modelId:r.model_id,outcome:r.outcome,inputTokens:r.input_tokens,outputTokens:r.output_tokens,cachedInputTokens:r.cached_input_tokens,actualAmount:Number(r.actual_amount),billableState:r.billable_state,reservationId:r.reservation_id,admission:publicLogAdmission(r.admission as AdmissionSnapshot|null),organizationId:r.organization_id,errorCode:r.error_code,latencyMs:r.latency_ms,usageFinal:r.usage_final??undefined,forwarded:r.forwarded??null,ttftMs:r.ttft_ms??null};}
   async inFlightCounts(client?:PoolClient):Promise<InFlightCount[]>{
     const read=async()=>{const result=await (client??this.pool).query(`select admission->'route'->>'serviceId' as service_id,model_id,count(*)::int as count from reservations where finalized=false and expires_at>clock_timestamp() group by 1,2`);return result.rows.map(r=>({serviceId:r.service_id,modelId:r.model_id,count:r.count}));};

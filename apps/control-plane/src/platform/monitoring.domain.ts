@@ -3,7 +3,7 @@ import type { AlertMetric,AlertRule,CallSummary,CollectionHealth,CollectionAlert
 import { activeMember,pick,text } from './validation';
 import { newId,notify } from './domain';
 
-export function monitoringState(s:WorkspaceState):MonitoringState&{collection:CollectionHealth;collectionEvents:CollectionAlertEvent[]}{
+export function monitoringState(s:Pick<WorkspaceState,'monitoring'>):MonitoringState&{collection:CollectionHealth;collectionEvents:CollectionAlertEvent[]}{
   const m=s.monitoring??={rules:[],evaluations:{},events:[]};
   m.collection??={bucket:null,quality:'unknown',lastAttemptAt:null,lastSuccessAt:null,lastFailureAt:null,failedStages:[],recoveries:0};m.collectionEvents??=[];
   return m as MonitoringState&{collection:CollectionHealth;collectionEvents:CollectionAlertEvent[]};

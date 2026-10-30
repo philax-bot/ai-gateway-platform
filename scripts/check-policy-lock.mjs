@@ -29,6 +29,9 @@ try{
     const hold=gate();let entered=false;const revision=(await repo.read()).revision;
     const writer=track(repo.transact(async tx=>{entered=true;await hold.promise;tx.state.audit.push({id:randomUUID(),actorId:'system:fixture',action:'runtime.fixture',objectId:'fixture',reason:'metadata concurrency check',createdAt:new Date().toISOString(),detail:{}});},{runtimeOnly:true,diagnosticContext:'monitoring_commit'}));
     await waitFor(()=>entered,'runtime row lock must be held');const request=input(),authorization=await deadline(track(store.authorize(request)),'metadata writer blocked admission');
+    const authentication=await deadline(track(repo.readAuthentication()),'metadata writer blocked session projection'),maintenance=await deadline(track(repo.readMaintenance()),'metadata writer blocked maintenance projection');
+    check(authentication.members.some(member=>member.id===identity.subjectId&&member.active)&&!('audit' in authentication)&&!('operations' in authentication),'session projection retains current identity without unrelated history while a runtime writer holds the row');
+    check(!('retention' in maintenance)&&maintenance.organizations.some(organization=>organization.parentId===null),'PostgreSQL projection preserves absent optional fields and nested explicit nulls');
     check(authorization.decision==='allow','admission reads policy while a runtime writer holds the JSON row');hold.release();await writer;
     check((await repo.read()).revision===revision,'runtime updates preserve the business revision');await release(request,authorization);
     const policy=(await admin.query(`select ${ADMISSION_POLICY_SQL} as value from "${schema}".platform_workspace where id='org-demo'`)).rows[0].value;
@@ -41,6 +44,8 @@ try{
     await waitFor(()=>entered,'policy writer must hold its fence');const authorization=track(store.authorize(input()).then(value=>{finished=true;return value;}));
     await waitFor(()=>waiting('pg_advisory_xact_lock_shared'),'admission must wait on the active policy writer');check(!finished,'policy change cannot be bypassed by an MVCC read');hold.release();await writer;
     check((await authorization).reasonCode==='subject_disabled','admission observes the committed subject revocation');
+    check((await repo.readAuthentication()).members.find(member=>member.id===identity.subjectId).active===false,'new session reads observe committed revocation without a policy cache');
+    check((await repo.readMaintenance()).members.find(member=>member.id===identity.subjectId).active===false,'maintenance reads observe the same committed subject policy');
     await repo.transact(async tx=>{tx.state.members.find(m=>m.id===identity.subjectId).active=true;});
   }
   {

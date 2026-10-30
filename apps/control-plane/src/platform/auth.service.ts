@@ -52,7 +52,7 @@ export class AuthService {
 
   async authenticate(token:string):Promise<Member> {
     if(!token)throw new UnauthorizedException('login required');
-    const state=await this.repository.read();
+    const state=await this.repository.readAuthentication();
     const session=state.sessions.find(s=>s.tokenHash===hash(token)&&Date.parse(s.expiresAt)>Date.now());
     if(!session)throw new UnauthorizedException('session expired');
     return activeMember(state,session.memberId);

@@ -8,7 +8,7 @@ import { applyAlertReading,applyCollectionReading,metricReading,monitoringState 
 @Injectable()
 export class MonitoringService {
   constructor(private readonly repository:WorkspaceRepository,private readonly store:DemoStore){}
-  private async collectRows(s:WorkspaceState,from:string,to:string,reader:Pick<DemoStore,'inFlightCounts'|'queryCalls'>=this.store){
+  private async collectRows(s:Pick<WorkspaceState,'services'|'definitions'>,from:string,to:string,reader:Pick<DemoStore,'inFlightCounts'|'queryCalls'>=this.store){
     const rows:MonitorSnapshot['rows']=[];let stage:CollectionStage='in_flight';
     try{
       const active=await reader.inFlightCounts(),objects=s.services.flatMap(service=>service.mappings.map(mapping=>({serviceId:service.id,modelId:s.definitions.find(d=>d.id===mapping.definitionId)?.modelId}))).filter((v):v is {serviceId:string;modelId:string}=>!!v.modelId);
@@ -18,7 +18,7 @@ export class MonitoringService {
     }catch{return {rows:[],failedStage:stage};}
   }
   async snapshot(actorId:string):Promise<MonitorSnapshot>{
-    const s=await this.repository.read();operator(activeMember(s,actorId));
+    const s=await this.repository.readMaintenance();operator(activeMember(s,actorId));
     const to=new Date().toISOString(),from=new Date(Date.now()-5*60000).toISOString(),m=monitoringState(s),sample=await this.collectRows(s,from,to);
     return {from,to,collectedAt:new Date().toISOString(),quality:sample.failedStage?'collection_failed':'collected',rows:sample.rows,...m,failedStages:sample.failedStage?[sample.failedStage]:[]};
   }
@@ -26,8 +26,8 @@ export class MonitoringService {
     // A minute is evaluated at most once, including manual maintenance runs and process restarts.
     const bucket=Math.floor(Date.now()/60000),to=new Date(bucket*60000).toISOString();
     // Statistics may be slow or unavailable. Never hold the workspace write lock
-    // while collecting them: every request admission shares that workspace row.
-    const captured=await this.repository.read(),snapshot=monitoringState(captured);
+    // while collecting them; only the commit needs the operational row lock.
+    const captured=await this.repository.readMaintenance(),snapshot=monitoringState(captured);
     const collect=forceCollection||snapshot.collection.bucket!==bucket,failedStages:CollectionStage[]=[];
     const readings:{rule:AlertRule;reading:MonitorReading}[]=[];
     if(collect){const probe=await this.collectRows(captured,new Date((bucket-5)*60000).toISOString(),to);if(probe.failedStage)failedStages.push(probe.failedStage);}

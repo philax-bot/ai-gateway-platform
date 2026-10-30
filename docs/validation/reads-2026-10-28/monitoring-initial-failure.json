@@ -1,0 +1,15 @@
+{
+  "success": false,
+  "observedAt": "2026-10-28T09:08:26.216Z",
+  "baseRevision": "72a36e7d7c42881ff3cc8ec9add2c2b2e3f3bdea",
+  "runtimeSourceSnapshot": "source-snapshot.json",
+  "passedBeforeFailure": {
+    "policyLockAssertions": 23,
+    "postgresHttpAssertions": 427
+  },
+  "failedStep": "scripts/check-monitoring-pool.mjs",
+  "retainedMessage": "Monitoring pool check failed; private connection details are not logged.",
+  "cause": "Original probe did not retain phase, exception category or pool state. Root cause is unconfirmed; do not infer a product defect or a network cause.",
+  "localEvidence": ".runtime/reads-postgres-de43dc019c1f4dbd943b5c14d3671fd0.log",
+  "followUp": "Added bounded redacted phase/category/code/pool-state diagnostics. Repeat results are recorded separately."
+}

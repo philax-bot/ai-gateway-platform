@@ -51,7 +51,7 @@ export function applyRetention(state:WorkspaceState,prepared:ReturnType<typeof p
   const run:RetentionRun={id:newId('retention'),executedAt:new Date().toISOString(),checkedAt:prepared.report.checkedAt,cutoff:prepared.report.cutoff,days:prepared.report.days,source,actorId,removed:prepared.report.eligible};
   state.retention={lastRun:run};return run;
 }
-export function retentionDue(state:WorkspaceState){
+export function retentionDue(state:Pick<WorkspaceState,'settings'|'retention'>){
   if(state.settings.retentionAutomatic!==true)return false;
   const today=(at:string)=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(at));
   const last=state.retention?.lastRun;

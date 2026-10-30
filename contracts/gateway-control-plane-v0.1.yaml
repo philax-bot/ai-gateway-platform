@@ -20,7 +20,7 @@ paths:
       security: [{serviceToken: []}]
       description: >-
         CONTROL_PLANE_DIAGNOSTICS=true enables up to 2048 completed authorize, settle and
-        credential-resolution, workspace-write and workspace-view samples. Returns retained/dropped counts and aggregate p50/p95/max
+        credential-resolution, workspace-write, workspace-view, workspace-read and call-query samples. Returns retained/dropped counts and aggregate p50/p95/max
         elapsed, pool wait, SQL round-trip count, SQL wall time by fixed stage labels and local time outside SQL.
         SQL time includes database/network/lock wait, not only server execution.
         Includes up to 128 active operations, the last 24 fixed-label statement steps per operation,

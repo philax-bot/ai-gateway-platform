@@ -145,7 +145,10 @@ export async function checkMetered({cp,gw,model,admin,employeeCookie,managerCook
   }finally{await stop();proxy.closeAllConnections();await new Promise(resolve=>proxy.close(resolve));}
   const archiveId=`archive-review-${randomUUID()}`,archive=await internal('/internal/v1/policy/authorize',{requestId:archiveId,idempotencyKey:archiveId,identity,purpose:'personal',modelId:'test-model',mode:'chat',estimatedInputTokens:100,maxOutputTokens:32,policyVersion:'metered-check'});
   check(archive.body.decision==='allow','historical pending-review fixture is authorized');
-  await internal('/internal/v1/usage/settlements',{requestId:archiveId,idempotencyKey:`${archiveId}:settlement`,reservationId:archive.body.reservation.reservationId,outcome:'partial',forwarded:true,usageFinal:false,completedAt:new Date().toISOString()});
+  // A synthetic historical event must be inside a closed minute even when the
+  // in-memory check finishes in the current minute. No clock wait or inference.
+  const historicalCompletedAt=new Date((Math.floor(Date.now()/60000)-2)*60000).toISOString();
+  await internal('/internal/v1/usage/settlements',{requestId:archiveId,idempotencyKey:`${archiveId}:settlement`,reservationId:archive.body.reservation.reservationId,outcome:'partial',forwarded:true,usageFinal:false,completedAt:historicalCompletedAt});
   const deniedModel=`query-denied-${randomUUID()}`;
   const deniedInput=n=>({requestId:`query-${deniedModel}-${n}`,idempotencyKey:`query-${deniedModel}-${n}`,identity,purpose:'personal',modelId:deniedModel,mode:'chat',policyVersion:'metered-check'});
   for(let offset=0;offset<210;offset+=10){
@@ -179,11 +182,10 @@ export async function checkMetered({cp,gw,model,admin,employeeCookie,managerCook
   const evaluated=await request('/api/v1/platform/monitoring',undefined,admin);check(evaluated.body.evaluations[rule.id]?.reading.to.endsWith(':00.000Z'),'maintenance evaluates a closed minute window');
   const denyRule=await request('/api/v1/platform/commands',{type:'save.alert-rule',idempotencyKey:randomUUID(),payload:{...rule,name:'forbidden'}},employeeCookie);check(denyRule.status===403,'employees cannot change alert thresholds');
   const event=evaluated.body.events.find(e=>e.ruleId===rule.id&&e.status==='active');
-  if(event){
-    await command(admin,'alert.ack',{id:event.id});const acknowledged=await request('/api/v1/platform/monitoring',undefined,admin);
-    check(acknowledged.body.events.find(e=>e.id===event.id).acknowledgedBy===initial.actor.id&&acknowledged.body.events.find(e=>e.id===event.id).status==='active','acknowledgement records the operator without recovering the fault');
-    check((await state(admin)).notifications.some(n=>n.objectType==='alert'&&n.objectId===event.id),'active event produces a linked site notification');
-  }
+  check(event,'closed-minute historical failure must produce an active alert instead of skipping acknowledgement checks');
+  await command(admin,'alert.ack',{id:event.id});const acknowledged=await request('/api/v1/platform/monitoring',undefined,admin);
+  check(acknowledged.body.events.find(e=>e.id===event.id).acknowledgedBy===initial.actor.id&&acknowledged.body.events.find(e=>e.id===event.id).status==='active','acknowledgement records the operator without recovering the fault');
+  check((await state(admin)).notifications.some(n=>n.objectType==='alert'&&n.objectId===event.id),'active event produces a linked site notification');
   console.log(`PASS ${assertions} routing, price, limits, queries, monitoring and recovery assertions`);
   return assertions;
 }

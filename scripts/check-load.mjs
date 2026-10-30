@@ -77,7 +77,9 @@ try{
     const policyExpression=createRequire(resolve(root,'apps/control-plane/package.json'))(resolve(root,'apps/control-plane/dist/store/admission-policy-lock.js')).ADMISSION_POLICY_SQL;
     report.database.workspaceSize=(await db.query(`select octet_length(payload::text) as full_bytes,
       octet_length((payload-array['monitoring','notifications','sessions','audit','operations','retention']::text[])::text) as policy_bytes,
-      octet_length((${policyExpression})::text) as admission_bytes
+      octet_length((${policyExpression})::text) as admission_bytes,
+      octet_length((select jsonb_object_agg(key,value) from jsonb_each(payload) where key=any(array['members','organizations','sessions']))::text) as authentication_bytes,
+      octet_length((select jsonb_object_agg(key,value) from jsonb_each(payload) where key=any(array['members','organizations','entitlements','rules','services','definitions','monitoring','settings','retention']))::text) as maintenance_bytes
       from "${schema}".platform_workspace where id='org-demo'`)).rows[0];
     const sample=()=>{if(sampling)return;sampling=true;lastSample=(async()=>{try{
       const rows=(await db.query(`select a.pid,a.state,a.query,a.backend_xid::text as xid,pg_blocking_pids(a.pid) as blockers,extract(epoch from clock_timestamp()-a.xact_start)*1000 as age_ms,extract(epoch from clock_timestamp()-a.query_start)*1000 as query_age_ms,a.wait_event_type,a.wait_event,
@@ -95,11 +97,11 @@ try{
       for(const row of rows){const key=row.wait_event_type?`${row.wait_event_type}:${row.wait_event}`:'running';report.database.waitEvents[key]=(report.database.waitEvents[key]??0)+1;}
     }catch{report.database.sampleFailures++;}})().finally(()=>{sampling=false;});};sample();sampleTimer=setInterval(sample,250);
   }
-  const latencies=[],streamLatencies=[],plainLatencies=[],ttft=[],adminLatencies=[],errors={},ids=[];let next=0,successes=0;
+  const latencies=[],streamLatencies=[],plainLatencies=[],ttft=[],adminLatencies=[],stateLatencies=[],maintenanceLatencies=[],stateBytes=[],errors={},ids=[];let next=0,successes=0;
   const began=performance.now();
   await Promise.all(Array.from({length:concurrency},async()=>{for(;;){const index=next++;if(index>=requests||(durationSeconds&&performance.now()-began>=durationSeconds*1000))return;const id=`load-${runId}-${index}`,actor=actors[index%actors.length];ids.push(id);
     try{
-      if(index%8===0){const beganAdmin=performance.now();await request('/api/v1/platform/state',null,admin);await request('/api/v1/platform/maintenance/run',{},admin);adminLatencies.push(performance.now()-beganAdmin);}
+      if(index%8===0){const beganAdmin=performance.now(),snapshot=await request('/api/v1/platform/state',null,admin),stateEnded=performance.now();stateLatencies.push(stateEnded-beganAdmin);stateBytes.push(Buffer.byteLength(JSON.stringify(snapshot.body)));await request('/api/v1/platform/maintenance/run',{},admin);const ended=performance.now();maintenanceLatencies.push(ended-stateEnded);adminLatencies.push(ended-beganAdmin);}
       const stream=index%3===0,beganCall=performance.now();
       const response=await fetch(`${gw}/v1/chat/completions`,{method:'POST',headers:{authorization:`Bearer ${actor.key}`,'content-type':'application/json','x-request-id':id,'idempotency-key':id},body:JSON.stringify({model:'test-model',messages:[{role:'user',content:'isolated capacity fixture'}],max_tokens:32,stream,test_scenario:'cached'}),signal:AbortSignal.timeout(30000)});
       const raw=await response.text();const duration=performance.now()-beganCall;latencies.push(duration);(stream?streamLatencies:plainLatencies).push(duration);
@@ -126,6 +128,7 @@ try{
   });
   report.results={durationMs:Math.round(durationMs),drainMs:Math.round(performance.now()-drainBegan),stopReason:actualRequests===requests?'request_limit':'duration',requests:actualRequests,successfulRequests:successes,errors,errorRate:(actualRequests-successes)/actualRequests,requestsPerSecond:Math.round(actualRequests*1000/durationMs*100)/100,latencyMs:distribution(latencies),streamLatencyMs:distribution(streamLatencies),nonStreamLatencyMs:distribution(plainLatencies),ttftMs:distribution(ttft),adminLatencyMs:distribution(adminLatencies),confirmedCalls:logs.filter(log=>log.billableState==='confirmed').length,pendingReview:logs.filter(log=>log.billableState==='pending_review').length,confirmedAmount:logs.filter(log=>log.billableState==='confirmed').reduce((sum,log)=>sum+Math.round(log.actualAmount*1e6),0)/1e6,quotaBefore:before/1e6,quotaAfter:after/1e6,chargedMicros:before-after,expectedChargedMicros:actualRequests*39,actorBalances,outbox};
   report.results.outboxItems=inspected.items;
+  report.results.adminOperations={stateLatencyMs:distribution(stateLatencies),maintenanceLatencyMs:distribution(maintenanceLatencies),stateResponseBytes:distribution(stateBytes),combined:'adminLatencyMs retains state + manual maintenance for comparison with earlier reports'};
   report.gatewayEvents=children.flatMap(child=>child.diagnostic().split(/\r?\n/).flatMap(line=>{try{const event=JSON.parse(line);return event.event==='settlement_journal_failed'?[{event:event.event,requestId:event.requestId,causeCode:event.causeCode??null,errorName:event.errorName??null}]:[];}catch{return [];}}));
   const categories=/deadlock detected|timeout exceeded when trying to connect|Connection terminated due to connection timeout|too many clients|could not serialize access/gi;
   report.serviceFailureCategories=[...new Set(children.flatMap(child=>child.diagnostic().match(categories)??[]))];

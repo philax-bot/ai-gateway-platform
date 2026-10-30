@@ -38,16 +38,28 @@ export class WorkspaceRepository {
   }
 
   async read(): Promise<WorkspaceState> {
-    if (!(this.store instanceof PostgresStore)) return structuredClone(this.memory);
-    return this.store.withClient(async client => {
-      const result = await client.query('select payload from platform_workspace where id=$1', ['org-demo']);
-      return result.rows[0].payload as WorkspaceState;
-    });
+    return this.readSelected();
   }
-
   async readGatewayConfiguration():Promise<Pick<WorkspaceState,'services'|'definitions'>>{
     if(!(this.store instanceof PostgresStore))return structuredClone({services:this.memory.services,definitions:this.memory.definitions});
     return this.store.withClient(async client=>(await client.query("select jsonb_build_object('services',payload->'services','definitions',payload->'definitions') as payload from platform_workspace where id=$1",['org-demo'])).rows[0].payload);
+  }
+  readAuthentication(){return this.readSelected(['members','organizations','sessions'] as const,'auth_session');}
+  readMaintenance(){return this.readSelected(['members','organizations','entitlements','rules','services','definitions','monitoring','settings','retention'] as const,'maintenance_read');}
+
+  // Field sets come only from the internal methods above. Filter the JSON object
+  // on the server, preserving explicit nulls and absent optional top-level fields.
+  private async readSelected<K extends keyof WorkspaceState=keyof WorkspaceState>(fields?:readonly K[],context:DiagnosticContext|null=null):Promise<Pick<WorkspaceState,K>> {
+    if (!(this.store instanceof PostgresStore)) {
+      const state=fields?Object.fromEntries(Object.entries(this.memory).filter(([key])=>fields.includes(key as K))):this.memory;
+      return structuredClone(state) as Pick<WorkspaceState,K>;
+    }
+    const trace=hotPathDiagnostics.start('workspace_read',context);
+    return this.store.withClient(async raw => {
+      const client=trace.acquired(raw);let failed=false;
+      try{const result=await client.query(fields?"select (select jsonb_object_agg(key,value) from jsonb_each(payload) where key=any($2::text[])) as payload from platform_workspace where id=$1":'select payload from platform_workspace where id=$1',fields?['org-demo',fields]:['org-demo']);return result.rows[0].payload as Pick<WorkspaceState,K>;}
+      catch(error){failed=true;throw error;}finally{trace.finish(failed);}
+    }).catch(error=>{trace.finish(true);throw error;});
   }
 
   async view(projectId?:string) {

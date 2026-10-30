@@ -55,7 +55,7 @@ export function businessDenial(s:AdmissionWorkspace,input:AuthorizeRequest):Reas
   const models=key.subjectType==='employee'?memberModels(s,key.subjectId,key.projectId):availableModels(s,pick(s.applications,key.subjectId,'application').range);
   return models.includes(input.modelId)?null:'model_not_open';
 }
-export function matches(s:WorkspaceState,member:Member,rule:AutoRule){
+export function matches(s:Pick<WorkspaceState,'organizations'>,member:Member,rule:AutoRule){
   if(!rule.active||!member.active||!valid(member.validUntil)||(rule.category&&rule.category!==member.category)||rule.tags.some(tag=>!member.tags.includes(tag)))return false;
   if(!rule.organizationId)return true;if(member.organizationId===rule.organizationId)return true;if(!rule.includeChildren)return false;
   let org=s.organizations.find(o=>o.id===member.organizationId);const visited=new Set<string>();
@@ -78,11 +78,11 @@ export function planWindow(plan:Plan,member:Member){
   const quotaExpiresAt=new Date(Math.min(plan.cadence==='monthly'?currentMonth().end:Date.parse(days(plan.quotaDays)),Date.parse(entitlementExpiresAt))).toISOString();
   return {entitlementExpiresAt,quotaExpiresAt};
 }
-export function alreadyFunded(s:WorkspaceState,memberId:string,plan:Plan){
+export function alreadyFunded(s:Pick<WorkspaceState,'entitlements'>,memberId:string,plan:Plan){
   const cycle=plan.cadence==='monthly'?currentMonth().key:'once';
   return s.entitlements.some(e=>e.memberId===memberId&&e.planId===plan.id&&e.periods.includes(cycle));
 }
-export function futureGrantStatus(s:WorkspaceState,e:Entitlement):'scheduled'|'manually_stopped'|'rule_not_matching'|'inactive'{
+export function futureGrantStatus(s:Pick<WorkspaceState,'members'|'organizations'|'rules'>,e:Entitlement):'scheduled'|'manually_stopped'|'rule_not_matching'|'inactive'{
   if(e.status!=='active'||!valid(e.expiresAt))return 'inactive';try{activeMember(s,e.memberId);}catch{return 'inactive';}
   if(!e.futureGrants)return 'manually_stopped';
   if(e.source==='automatic'&&!e.ruleIds.some(id=>{const r=s.rules.find(r=>r.id===id);return r&&r.planId===e.planId&&matches(s,pick(s.members,e.memberId,'member'),r);}))return 'rule_not_matching';
@@ -135,7 +135,7 @@ export async function syncResources(tx:WorkspaceTransaction){
   }
   for(const member of s.members){try{activeMember(s,member.id);}catch{await tx.disableCredentials(member.id);}}
 }
-export function hasPeriodicWork(s:WorkspaceState){
+export function hasPeriodicWork(s:Pick<WorkspaceState,'members'|'organizations'|'rules'|'entitlements'>){
   return s.entitlements.some(e=>e.planSnapshot.cadence==='monthly'&&futureGrantStatus(s,e)==='scheduled'&&!alreadyFunded(s,e.memberId,e.planSnapshot));
 }
 export async function runPeriodic(tx:WorkspaceTransaction){

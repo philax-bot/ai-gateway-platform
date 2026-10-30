@@ -1,0 +1,22 @@
+{
+  "baseRevision": "72a36e7",
+  "note": "Baseline adds only fixed-label read/query diagnostics and split administrative timings; business SQL and behavior remain as in baseRevision.",
+  "files": [
+    {
+      "path": "apps/control-plane/src/store/hot-path-diagnostics.ts",
+      "sha256": "22cde85ccc7b95b8200f4fe6f79c5c41775635c9561a91ff6657a0ff6a64c05c"
+    },
+    {
+      "path": "apps/control-plane/src/store/postgres.store.ts",
+      "sha256": "a2ae8c7d57510afdb0ea93f04e903d3d23d33b28c51af4394a5f311975d38c35"
+    },
+    {
+      "path": "apps/control-plane/src/platform/workspace.repository.ts",
+      "sha256": "e09a95281a9cd7b1fd2965c5d7bbe7bb9fe14b4f1366646b4ea02266b6fe09e3"
+    },
+    {
+      "path": "scripts/check-load.mjs",
+      "sha256": "617e34fa8317f7fb47c46a75ea8016ff1ac3feb5f18d117f14babd72fc6de40d"
+    }
+  ]
+}
