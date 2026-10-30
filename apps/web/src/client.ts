@@ -3,8 +3,12 @@ const base=(import.meta.env.VITE_CONTROL_PLANE_URL??'http://127.0.0.1:4001').rep
 export const gatewayBaseUrl=(import.meta.env.VITE_GATEWAY_URL??'http://127.0.0.1:4000').replace(/\/+$/,'');
 export const openAiBaseUrl=`${gatewayBaseUrl}/v1`;
 export class ApiError extends Error { constructor(message:string,readonly status:number){super(message);} }
+export function approvalFailureMessage(message:string):string{
+  return message==='source budget is expired or insufficient'?'项目来源批次已到期或余额不足，请核对来源和批准金额后重试。':message;
+}
 function readableError(status:number,message:unknown,path:string):string{
   const value=Array.isArray(message)?message.join('；'):typeof message==='string'?message:'';
+  if(value==='source budget is expired or insufficient')return approvalFailureMessage(value);
   if(status===401)return path.endsWith('/auth/login')?'账号或密码不正确，请核对后重试。':value==='login required'?'请先登录企业账号后继续。':'登录已过期，请重新登录后继续。';
   if(status===403){
     if(path.endsWith('/auth/setup'))return '安装口令无效，请向安装负责人核对后重试。';

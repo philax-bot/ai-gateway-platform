@@ -1,4 +1,4 @@
-import { Children, useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react';
+import { Children, useEffect, useLayoutEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react';
 import type { PlatformSnapshot } from '@ai-gateway/contracts';
 import {ApiError} from './client';
 import {DateField} from './date-field';
@@ -18,8 +18,19 @@ export type FormValues=Record<string,string|string[]>;
 export interface Editor {title:string;description?:string;fields:FieldSpec[];initial:FormValues;submit:(values:FormValues)=>Promise<boolean>;commandType?:string;getResult?:()=>unknown;rebuild?:(data:PlatformSnapshot)=>Editor;submitLabel?:string}
 export function Modal({title,onClose,children,footer}:{title:string;onClose:()=>void;children:ReactNode;footer?:ReactNode}){
   const ref=useRef<HTMLDialogElement>(null),titleId=useId();
-  useEffect(()=>{const dialog=ref.current!;dialog.showModal();return()=>dialog.close();},[]);
-  return <dialog className="modal" ref={ref} aria-labelledby={titleId} onCancel={event=>{event.preventDefault();onClose();}}>
+  useLayoutEffect(()=>{
+    const dialog=ref.current!,opener=document.activeElement instanceof HTMLElement?document.activeElement:null;
+    dialog.showModal();
+    return()=>{dialog.close();if(opener?.isConnected)opener.focus({preventScroll:true});};
+  },[]);
+  function keepFocus(event:ReactKeyboardEvent<HTMLDialogElement>){
+    if(event.key!=='Tab'||event.defaultPrevented)return;
+    const dialog=event.currentTarget,items=[...dialog.querySelectorAll<HTMLElement>('button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),a[href],[tabindex]:not([tabindex="-1"])')].filter(item=>item.tabIndex>=0&&item.getClientRects().length>0);
+    const first=items[0],last=items.at(-1),active=document.activeElement;
+    if(event.shiftKey&&(active===first||active===dialog||!dialog.contains(active))){event.preventDefault();last?.focus();}
+    else if(!event.shiftKey&&(active===last||active===dialog||!dialog.contains(active))){event.preventDefault();first?.focus();}
+  }
+  return <dialog className="modal" ref={ref} aria-labelledby={titleId} onKeyDown={keepFocus} onCancel={event=>{event.preventDefault();onClose();}}>
     <div className="modal-head"><h2 id={titleId}>{title}</h2><button type="button" className="icon-button" onClick={onClose} aria-label="关闭">×</button></div>
     <div className="modal-body">{children}</div>{footer&&<div className="modal-footer">{footer}</div>}
   </dialog>;

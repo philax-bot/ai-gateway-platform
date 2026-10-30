@@ -1,0 +1,182 @@
+{
+  "success": true,
+  "checks": [
+    {
+      "label": "application desktop no page overflow",
+      "client": 1425,
+      "scroll": 1425,
+      "pass": true
+    },
+    {
+      "label": "application mobile no page overflow",
+      "client": 375,
+      "scroll": 375,
+      "pass": true
+    },
+    {
+      "label": "modal Tab remains inside",
+      "pass": true
+    },
+    {
+      "label": "application modal Escape restores opener",
+      "pass": true
+    },
+    {
+      "label": "beacon desktop modal Shift+Tab trap",
+      "pass": true
+    },
+    {
+      "label": "beacon desktop modal Tab trap",
+      "pass": true
+    },
+    {
+      "label": "beacon desktop modal Escape focus return",
+      "pass": true
+    },
+    {
+      "label": "azure desktop shell and bounds",
+      "client": 1425,
+      "scroll": 1425,
+      "ui": "azure",
+      "pass": true
+    },
+    {
+      "label": "azure modal Shift+Tab trap",
+      "pass": true
+    },
+    {
+      "label": "azure modal Tab trap",
+      "pass": true
+    },
+    {
+      "label": "azure modal Escape focus return",
+      "pass": true
+    },
+    {
+      "label": "sidebar modal Shift+Tab trap",
+      "pass": true
+    },
+    {
+      "label": "sidebar modal Tab trap",
+      "pass": true
+    },
+    {
+      "label": "sidebar modal Escape focus return",
+      "pass": true
+    },
+    {
+      "label": "next desktop shell and bounds",
+      "client": 1425,
+      "scroll": 1425,
+      "ui": "next",
+      "pass": true
+    },
+    {
+      "label": "next modal Shift+Tab trap",
+      "pass": true
+    },
+    {
+      "label": "next modal Tab trap",
+      "pass": true
+    },
+    {
+      "label": "next modal Escape focus return",
+      "pass": true
+    },
+    {
+      "label": "classic desktop shell and bounds",
+      "client": 1425,
+      "scroll": 1425,
+      "ui": "classic",
+      "pass": true
+    },
+    {
+      "label": "classic modal Shift+Tab trap",
+      "pass": true
+    },
+    {
+      "label": "classic modal Tab trap",
+      "pass": true
+    },
+    {
+      "label": "classic modal Escape focus return",
+      "pass": true
+    },
+    {
+      "label": "beacon desktop shell and bounds",
+      "client": 1425,
+      "scroll": 1425,
+      "ui": "beacon",
+      "pass": true
+    },
+    {
+      "label": "beacon modal Shift+Tab trap",
+      "pass": true
+    },
+    {
+      "label": "beacon modal Tab trap",
+      "pass": true
+    },
+    {
+      "label": "beacon modal Escape focus return",
+      "pass": true
+    },
+    {
+      "label": "sidebar uses next theme and sidebar layout",
+      "client": 1425,
+      "layout": "sidebar",
+      "scroll": 1425,
+      "ui": "next",
+      "pass": true
+    },
+    {
+      "label": "beacon mobile modal Shift+Tab trap",
+      "pass": true
+    },
+    {
+      "label": "beacon mobile modal Tab trap",
+      "pass": true
+    },
+    {
+      "label": "beacon mobile modal Escape focus return",
+      "pass": true
+    },
+    {
+      "label": "mobile drawer Tab trap",
+      "pass": true
+    },
+    {
+      "label": "date Escape closes only calendar",
+      "pass": true
+    },
+    {
+      "label": "browser console errors absent",
+      "pass": true
+    },
+    {
+      "label": "mobile drawer Escape restores menu after focus timer",
+      "pass": true
+    }
+  ],
+  "failuresBeforeFix": [
+    {
+      "label": "modal Shift+Tab remains inside",
+      "pass": false
+    }
+  ],
+  "harnessObservations": [
+    {
+      "label": "sidebar desktop shell and bounds",
+      "client": 1425,
+      "scroll": 1425,
+      "ui": "next",
+      "pass": false
+    },
+    {
+      "label": "mobile drawer Escape restores menu",
+      "pass": false,
+      "note": "focus sampled before existing 20ms drawer return timer"
+    }
+  ],
+  "console": []
+}

@@ -24,7 +24,7 @@ export function ProjectMemberPicker({projectId,run}:{projectId:string;run:RunCom
 export function ProjectDetails({projectId,edit,data,run,onAdd}:{projectId:string;edit:Editors;data:PlatformSnapshot;run:RunCommand;onAdd:()=>void}){
   const [value,setValue]=useState<ProjectDetail|null>(null),[error,setError]=useState(''),[collectedAt,setCollectedAt]=useState('');
   async function load(){try{const next=await api<ProjectDetail>(`/api/v1/platform/projects/${encodeURIComponent(projectId)}`);setValue(next);setCollectedAt(new Date().toISOString());setError('');}catch(e){setError(e instanceof Error?e.message:'读取失败');}}
-  useEffect(()=>{void load();},[projectId,data.revision]);
+  useEffect(()=>{void load();},[projectId,data]);
   if(!value)return <p role="status">{error||'正在读取项目资金与成员…'}</p>;
   const {project:p,members,budgets,consumedByBatch:spent}=value,batches=members.flatMap(m=>m.batches),sum=(values:number[])=>Number(values.reduce((n,v)=>n+v,0).toFixed(6));
   const consumed=(rows:BusinessQuotaBatch[])=>sum(rows.map(b=>spent[b.id]??0)),pending=(rows:BusinessQuotaBatch[])=>sum(rows.map(b=>Math.max(0,Number((b.totalAmount-b.availableAmount-(b.closedAmount??0)-(spent[b.id]??0)).toFixed(6)))));

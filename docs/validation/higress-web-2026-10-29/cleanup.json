@@ -1,0 +1,16 @@
+{
+  "runtimeId": "6e8acf09-4c6c-487e-b970-e9757af7075c",
+  "schema": "agp_hg_133c713dfc3648b0b381c88bc10146d6",
+  "containers": [
+    "atlas-hg-6e8acf09-4c6c-487e-b970-e9757af7075c-model",
+    "atlas-hg-6e8acf09-4c6c-487e-b970-e9757af7075c-management",
+    "atlas-hg-6e8acf09-4c6c-487e-b970-e9757af7075c-gateway"
+  ],
+  "networkRemoved": true,
+  "schemaRemoved": true,
+  "privateDirectories": [
+    "133c713d-fc36-48b0-b381-c88bc10146d6",
+    "98021dd1-709e-4d93-9e10-99f32f7de98b"
+  ],
+  "defaultUnchanged": true
+}

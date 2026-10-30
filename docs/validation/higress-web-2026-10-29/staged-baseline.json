@@ -1,0 +1,15 @@
+{
+  "success": true,
+  "scope": "Git index export without unrelated uncommitted changes; isolated offline dependency install",
+  "sourceTree": "e24e5a31368767be5c2a987907f7d2543f3a5e01",
+  "checks": [
+    "pnpm install --offline --frozen-lockfile --ignore-scripts",
+    "pnpm --filter @ai-gateway/contracts build",
+    "pnpm --filter @ai-gateway/web typecheck",
+    "pnpm --filter @ai-gateway/web build",
+    "node --check scripts/check-higress-web.mjs",
+    "node --check scripts/higress/web-evidence.mjs",
+    "node --check scripts/higress/web-fixture-call.mjs"
+  ],
+  "browser": "34 browser checks were performed on the mixed working tree; this export verifies standalone compilation, not another browser run"
+}

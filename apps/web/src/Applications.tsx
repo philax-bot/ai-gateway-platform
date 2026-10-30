@@ -17,7 +17,7 @@ export function Applications(props:Props){
 
 function ApplicationTask({id,data:d,edit,setPage,detail,isOps}:Props&{id:string}){
   const [value,setValue]=useState<ApplicationDetail|null>(null),[error,setError]=useState(''),[loading,setLoading]=useState(true),[retry,setRetry]=useState(0),[guide,setGuide]=useState(false);
-  useEffect(()=>{let disposed=false;setLoading(true);setError('');void api<ApplicationDetail>(`/api/v1/platform/applications/${encodeURIComponent(id)}`).then(r=>{if(!disposed)setValue(r);}).catch(e=>{if(!disposed){setValue(null);setError(e instanceof Error?e.message:'读取应用失败');}}).finally(()=>{if(!disposed)setLoading(false);});return()=>{disposed=true;};},[id,d.revision,retry]);
+  useEffect(()=>{let disposed=false;setLoading(true);setError('');void api<ApplicationDetail>(`/api/v1/platform/applications/${encodeURIComponent(id)}`).then(r=>{if(!disposed)setValue(r);}).catch(e=>{if(!disposed){setValue(null);setError(e instanceof Error?e.message:'读取应用失败');}}).finally(()=>{if(!disposed)setLoading(false);});return()=>{disposed=true;};},[id,d,retry]);
   if(!value)return <Panel title="应用接入"><p role="status">{error||'正在读取应用模型、额度和接入进度…'}</p>{error&&<button className="ghost" onClick={()=>setRetry(n=>n+1)}>重新读取</button>}</Panel>;
   const {application:a,status}=value,ready=status==='ready',modelBlocked=['model_unavailable','price_unconfigured'].includes(status),quotaBlocked=['no_quota','quota_insufficient'].includes(status);
   const keys=value.keys.filter(k=>k.status==='active'&&Date.parse(k.expiresAt)>Date.now()),key=keys[0];

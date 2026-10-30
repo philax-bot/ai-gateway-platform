@@ -1,6 +1,6 @@
 import { useEffect,useState } from 'react';
 import type { Approval,ApprovalDetail,PlatformSnapshot } from '@ai-gateway/contracts';
-import { api } from './client';
+import { api,approvalFailureMessage } from './client';
 import { date,money,Panel,Status,Table } from './components';
 import type { makeEditors,RunCommand } from './editors';
 export const approvalLabels:Record<string,string>={project_create:'项目创建',project_budget:'项目总额度',project_member_quota:'个人项目额度',personal_open:'个人开通',personal_topup:'个人追加额度',application_quota:'应用额度'};
@@ -41,9 +41,9 @@ function ApprovalTask({id,data:d,edit,run,setPage,onNext,onSubmitted}:{id:string
     {a.decisionReason&&<div className="notice"><strong>处理意见</strong><p>{a.decisionReason}</p></div>}
     <h3>{a.scenario}</h3><p className="request-reason">{a.reason}</p>{objectName(d,a)&&<p className="secondary">关联：{objectName(d,a)}</p>}
     <dl className="approval-amounts"><div><dt>申请内容</dt><dd>{a.kind==='project_create'?a.proposedName:money(a.amount)}<small>有效至 {date(a.requestedExpiresAt)}</small></dd></div>{a.approvedExpiresAt&&<div><dt>批准内容</dt><dd>{a.kind==='project_create'?'项目创建':money(a.approvedAmount??0)}<small>有效至 {date(a.approvedExpiresAt)}</small></dd></div>}</dl>
-    {a.failure&&<details className="disclosure"><summary>执行失败详情</summary><p role="status" className="request-reason">{a.failure}</p></details>}
+    {a.failure&&<details className="disclosure"><summary>执行失败详情</summary><p role="status" className="request-reason">{approvalFailureMessage(a.failure)}</p></details>}
     <details className="disclosure"><summary>原申请、执行配置与完整记录</summary><dl className="detail-list"><div><dt>申请编号</dt><dd>{a.id}</dd></div><div><dt>提交时间</dt><dd>{date(a.createdAt)}</dd></div>{a.decidedAt&&<div><dt>审批时间</dt><dd>{date(a.decidedAt)}</dd></div>}{a.effectiveAt&&<div><dt>生效时间</dt><dd>{date(a.effectiveAt)}</dd></div>}{execution.planId!=null&&<div><dt>开通方案</dt><dd>{plan?.name??String(execution.planId)}</dd></div>}{execution.managerId!=null&&<div><dt>项目经理</dt><dd>{name(String(execution.managerId))}</dd></div>}{execution.range!=null&&<div><dt>模型池</dt><dd>{pool?.name??String((execution.range as {poolId?:string}).poolId)}</dd></div>}{execution.sourceBatchId!=null&&<div><dt>项目来源批次</dt><dd>{String(execution.sourceBatchId)}</dd></div>}</dl>
-      <Table headers={['时间','操作人','动作','意见 / 变化']} rows={report.history.map(h=>[date(h.createdAt),name(h.actorId),({'approval.submit':'提交申请','approval.decide':'审批决定','approval.execute':'执行生效','approval.execution_failed':'执行失败','approval.execution_repaired':'执行内容修正','approval.repair':'修正已保存','approval.withdraw':'申请撤回'} as Record<string,string>)[h.action]??h.action,<>{h.reason||'—'}{h.action==='approval.execution_repaired'&&<small className="cell-help">原批准 {money(Number((h.detail.before as Approval)?.approvedAmount??0))} → {money(Number((h.detail.after as Approval)?.approvedAmount??0))}；期限 {date((h.detail.before as Approval)?.approvedExpiresAt)} → {date((h.detail.after as Approval)?.approvedExpiresAt)}</small>}</>])}/>
+      <Table headers={['时间','操作人','动作','意见 / 变化']} rows={report.history.map(h=>[date(h.createdAt),name(h.actorId),({'approval.submit':'提交申请','approval.decide':'审批决定','approval.execute':'执行生效','approval.execution_failed':'执行失败','approval.execution_repaired':'执行内容修正','approval.repair':'修正已保存','approval.withdraw':'申请撤回'} as Record<string,string>)[h.action]??h.action,<>{(h.action==='approval.execution_failed'?approvalFailureMessage(h.reason):h.reason)||'—'}{h.action==='approval.execution_repaired'&&<small className="cell-help">原批准 {money(Number((h.detail.before as Approval)?.approvedAmount??0))} → {money(Number((h.detail.after as Approval)?.approvedAmount??0))}；期限 {date((h.detail.before as Approval)?.approvedExpiresAt)} → {date((h.detail.after as Approval)?.approvedExpiresAt)}</small>}</>])}/>
     </details>
   </Panel>;
 }

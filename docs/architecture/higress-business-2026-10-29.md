@@ -38,3 +38,5 @@
 已重启同一个 `pnpm dev`，默认 `http://localhost:5176/` 正常，Higress 准备 2/2 条路由。账号、配置、资金、原状态文件及真实模型预算的前后指纹一致；真实模型累计仍为 22 次，配置价格估算上界仍为 ¥0.379902。本轮新增真实模型请求为 0。
 
 证据：[汇总](../validation/higress-business-2026-10-29/summary.json)、[167 项完整结果](../validation/higress-business-2026-10-29/result.json)、[修复前实际缺口](../validation/higress-business-2026-10-29/before-session-fix.json)、[初次合同断言失败](../validation/higress-business-2026-10-29/initial-contract-check-failure.json)、[默认环境重启与数据核对](../validation/higress-business-2026-10-29/default-restart.json)。
+
+后续已按新员工、项目经理、应用负责人的顺序完成 [页面任务验收](higress-web-2026-10-29.md)，其中单独记录了界面缺口、修复、浏览器证据和关闭审计边界。

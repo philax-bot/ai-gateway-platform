@@ -1,0 +1,1280 @@
+{
+  "success": true,
+  "id": "133c713d-fc36-48b0-b381-c88bc10146d6",
+  "completedAt": "2026-10-30T01:22:49.229Z",
+  "scope": {
+    "database": "isolated PostgreSQL",
+    "dataPlane": "real Higress",
+    "model": "local deterministic fixture",
+    "realModelRequests": 0
+  },
+  "checks": [
+    "all model services use only the owned fixture",
+    "browser checks passed",
+    "personal_open has one effective approval",
+    "personal_open executes once despite duplicate clicks",
+    "project_member_quota has one effective approval",
+    "project_member_quota executes once despite duplicate clicks",
+    "application_quota has one effective approval",
+    "application_quota executes once despite duplicate clicks",
+    "two failed project attempts retained",
+    "project repair preserves original request and failed approval",
+    "manager and application owner have no personal entitlement",
+    "both employee online identities revoked after browser logout",
+    "personal has one correctly settled quota batch",
+    "project has one correctly settled quota batch",
+    "application has one correctly settled quota batch",
+    "project funded once and allocates exactly 0.10",
+    "project quota retains its budget source",
+    "five calls have the expected personal/project/application attribution",
+    "all call subject IDs and project IDs match the approved purposes",
+    "request-e9d3689f-9e29-44bb-9bff-1f104aad5d9c confirms fixture usage and price",
+    "request-e9d3689f-9e29-44bb-9bff-1f104aad5d9c settles exactly once",
+    "request-e9d3689f-9e29-44bb-9bff-1f104aad5d9c reservation finalized",
+    "request-694f7b10-5ba3-4ed3-8983-4efa689f1b99 confirms fixture usage and price",
+    "request-694f7b10-5ba3-4ed3-8983-4efa689f1b99 settles exactly once",
+    "request-694f7b10-5ba3-4ed3-8983-4efa689f1b99 reservation finalized",
+    "browser-app-2e5b74ef-54c0-4c36-80ff-ecae49e9be97 confirms fixture usage and price",
+    "browser-app-2e5b74ef-54c0-4c36-80ff-ecae49e9be97 settles exactly once",
+    "browser-app-2e5b74ef-54c0-4c36-80ff-ecae49e9be97 reservation finalized",
+    "browser-app-f7ddc7ba-cd9d-443d-a5ae-2b0f59c07e06 confirms fixture usage and price",
+    "browser-app-f7ddc7ba-cd9d-443d-a5ae-2b0f59c07e06 settles exactly once",
+    "browser-app-f7ddc7ba-cd9d-443d-a5ae-2b0f59c07e06 reservation finalized",
+    "browser-app-a62d2dab-6c5e-46d2-8d5b-ecd02e436671 confirms fixture usage and price",
+    "browser-app-a62d2dab-6c5e-46d2-8d5b-ecd02e436671 settles exactly once",
+    "browser-app-a62d2dab-6c5e-46d2-8d5b-ecd02e436671 reservation finalized",
+    "no extra ledger entries or open reservations",
+    "application Key lifecycle and refresh were exercised in order",
+    "disabled Key returns 401 with no balance change, call or reservation",
+    "default configuration, funds, workspace state and live-model budget unchanged"
+  ],
+  "browser": {
+    "success": true,
+    "checks": [
+      {
+        "label": "application desktop no page overflow",
+        "client": 1425,
+        "scroll": 1425,
+        "pass": true
+      },
+      {
+        "label": "application mobile no page overflow",
+        "client": 375,
+        "scroll": 375,
+        "pass": true
+      },
+      {
+        "label": "modal Tab remains inside",
+        "pass": true
+      },
+      {
+        "label": "application modal Escape restores opener",
+        "pass": true
+      },
+      {
+        "label": "beacon desktop modal Shift+Tab trap",
+        "pass": true
+      },
+      {
+        "label": "beacon desktop modal Tab trap",
+        "pass": true
+      },
+      {
+        "label": "beacon desktop modal Escape focus return",
+        "pass": true
+      },
+      {
+        "label": "azure desktop shell and bounds",
+        "client": 1425,
+        "scroll": 1425,
+        "ui": "azure",
+        "pass": true
+      },
+      {
+        "label": "azure modal Shift+Tab trap",
+        "pass": true
+      },
+      {
+        "label": "azure modal Tab trap",
+        "pass": true
+      },
+      {
+        "label": "azure modal Escape focus return",
+        "pass": true
+      },
+      {
+        "label": "sidebar modal Shift+Tab trap",
+        "pass": true
+      },
+      {
+        "label": "sidebar modal Tab trap",
+        "pass": true
+      },
+      {
+        "label": "sidebar modal Escape focus return",
+        "pass": true
+      },
+      {
+        "label": "next desktop shell and bounds",
+        "client": 1425,
+        "scroll": 1425,
+        "ui": "next",
+        "pass": true
+      },
+      {
+        "label": "next modal Shift+Tab trap",
+        "pass": true
+      },
+      {
+        "label": "next modal Tab trap",
+        "pass": true
+      },
+      {
+        "label": "next modal Escape focus return",
+        "pass": true
+      },
+      {
+        "label": "classic desktop shell and bounds",
+        "client": 1425,
+        "scroll": 1425,
+        "ui": "classic",
+        "pass": true
+      },
+      {
+        "label": "classic modal Shift+Tab trap",
+        "pass": true
+      },
+      {
+        "label": "classic modal Tab trap",
+        "pass": true
+      },
+      {
+        "label": "classic modal Escape focus return",
+        "pass": true
+      },
+      {
+        "label": "beacon desktop shell and bounds",
+        "client": 1425,
+        "scroll": 1425,
+        "ui": "beacon",
+        "pass": true
+      },
+      {
+        "label": "beacon modal Shift+Tab trap",
+        "pass": true
+      },
+      {
+        "label": "beacon modal Tab trap",
+        "pass": true
+      },
+      {
+        "label": "beacon modal Escape focus return",
+        "pass": true
+      },
+      {
+        "label": "sidebar uses next theme and sidebar layout",
+        "client": 1425,
+        "layout": "sidebar",
+        "scroll": 1425,
+        "ui": "next",
+        "pass": true
+      },
+      {
+        "label": "beacon mobile modal Shift+Tab trap",
+        "pass": true
+      },
+      {
+        "label": "beacon mobile modal Tab trap",
+        "pass": true
+      },
+      {
+        "label": "beacon mobile modal Escape focus return",
+        "pass": true
+      },
+      {
+        "label": "mobile drawer Tab trap",
+        "pass": true
+      },
+      {
+        "label": "date Escape closes only calendar",
+        "pass": true
+      },
+      {
+        "label": "browser console errors absent",
+        "pass": true
+      },
+      {
+        "label": "mobile drawer Escape restores menu after focus timer",
+        "pass": true
+      }
+    ],
+    "failuresBeforeFix": [
+      {
+        "label": "modal Shift+Tab remains inside",
+        "pass": false
+      }
+    ],
+    "harnessObservations": [
+      {
+        "label": "sidebar desktop shell and bounds",
+        "client": 1425,
+        "scroll": 1425,
+        "ui": "next",
+        "pass": false
+      },
+      {
+        "label": "mobile drawer Escape restores menu",
+        "pass": false,
+        "note": "focus sampled before existing 20ms drawer return timer"
+      }
+    ],
+    "console": []
+  },
+  "approvals": [
+    {
+      "id": "approval-b7d0b061-254f-4d76-ad1c-37845af16c47",
+      "kind": "personal_open",
+      "amount": 0.3,
+      "reason": "隔离验收：首次开通模型与个人额度",
+      "status": "effective",
+      "failure": null,
+      "objectId": null,
+      "scenario": "浏览器首次办公",
+      "createdAt": "2026-10-29T15:50:02.717Z",
+      "decidedAt": "2026-10-29T15:50:53.722Z",
+      "execution": {
+        "planId": "plan-ca58a992-3313-4c7c-bae0-c039e3fdd706"
+      },
+      "approverId": "operator-demo-001",
+      "applicantId": "member-fedfead9-c608-46d8-9dec-ef82858f82a1",
+      "effectiveAt": "2026-10-29T15:50:53.960Z",
+      "proposedName": "",
+      "approvedAmount": 0.2,
+      "decisionReason": "批准办公额度，按独立个人方案生效",
+      "approvedExpiresAt": "2026-11-28T15:59:59.999Z",
+      "proposedManagerId": null,
+      "requestedExpiresAt": "2026-11-28T15:59:59.999Z"
+    },
+    {
+      "id": "approval-ef7b99d5-e33f-42c7-8b4f-aa4da90810f1",
+      "kind": "project_member_quota",
+      "amount": 0.2,
+      "reason": "从项目原预算分配给本人",
+      "status": "effective",
+      "failure": null,
+      "objectId": "project-5911ed22-83a3-4b06-8855-808ac5a6419e",
+      "scenario": "浏览器项目任务",
+      "createdAt": "2026-10-29T15:55:10.055Z",
+      "decidedAt": "2026-10-29T15:55:52.425Z",
+      "execution": {
+        "sourceBatchId": "project-budget-3f1a0aae-c6ff-4149-af57-a58c7d8e1899"
+      },
+      "approverId": "member-0a0bb77f-baf6-4332-b3af-d31c5fb722d8",
+      "applicantId": "member-fedfead9-c608-46d8-9dec-ef82858f82a1",
+      "effectiveAt": "2026-10-29T15:57:39.777Z",
+      "proposedName": "",
+      "approvedAmount": 0.1,
+      "decisionReason": "核对原预算后批准0.10元，保留原申请与失败记录",
+      "approvedExpiresAt": "2026-11-28T15:59:59.999Z",
+      "proposedManagerId": null,
+      "requestedExpiresAt": "2026-11-28T15:59:59.999Z"
+    },
+    {
+      "id": "approval-994b62f3-cbe9-4e2b-b45f-91b8137efb3d",
+      "kind": "application_quota",
+      "amount": 0.3,
+      "reason": "应用独立预算验收，不使用负责人个人额度",
+      "status": "effective",
+      "failure": null,
+      "objectId": "application-65c4c8ed-66b8-40fa-9e70-87742b40d35d",
+      "scenario": "浏览器应用接入",
+      "createdAt": "2026-10-29T16:00:30.397Z",
+      "decidedAt": "2026-10-29T16:00:45.025Z",
+      "execution": {},
+      "approverId": "operator-demo-001",
+      "applicantId": "member-a9f73628-647b-4d39-9fc5-fab83010a96f",
+      "effectiveAt": "2026-10-29T16:00:45.333Z",
+      "proposedName": "",
+      "approvedAmount": 0.25,
+      "decisionReason": "批准应用独立预算0.25元",
+      "approvedExpiresAt": "2026-11-28T15:59:59.999Z",
+      "proposedManagerId": null,
+      "requestedExpiresAt": "2026-11-28T15:59:59.999Z"
+    }
+  ],
+  "approvalHistory": [
+    {
+      "id": "audit-4db3c6d4-b8d3-4762-9ef2-58a8402b3f55",
+      "action": "approval.submit",
+      "detail": {
+        "id": "approval-b7d0b061-254f-4d76-ad1c-37845af16c47",
+        "kind": "personal_open",
+        "amount": 0.3,
+        "reason": "隔离验收：首次开通模型与个人额度",
+        "status": "pending",
+        "failure": null,
+        "objectId": null,
+        "scenario": "浏览器首次办公",
+        "createdAt": "2026-10-29T15:50:02.717Z",
+        "decidedAt": null,
+        "execution": null,
+        "approverId": null,
+        "applicantId": "member-fedfead9-c608-46d8-9dec-ef82858f82a1",
+        "effectiveAt": null,
+        "proposedName": "",
+        "approvedAmount": null,
+        "decisionReason": "",
+        "approvedExpiresAt": null,
+        "proposedManagerId": null,
+        "requestedExpiresAt": "2026-11-28T15:59:59.999Z"
+      },
+      "reason": "隔离验收：首次开通模型与个人额度",
+      "actorId": "member-fedfead9-c608-46d8-9dec-ef82858f82a1",
+      "objectId": "approval-b7d0b061-254f-4d76-ad1c-37845af16c47",
+      "actorName": "审核新员工",
+      "createdAt": "2026-10-29T15:50:02.725Z",
+      "objectName": "个人开通申请 · 审核新员工"
+    },
+    {
+      "id": "audit-179f4de5-4a3a-492e-92f4-3f34cdfacfbb",
+      "action": "approval.decide",
+      "detail": {
+        "id": "approval-b7d0b061-254f-4d76-ad1c-37845af16c47",
+        "kind": "personal_open",
+        "amount": 0.3,
+        "reason": "隔离验收：首次开通模型与个人额度",
+        "status": "approved",
+        "failure": null,
+        "objectId": null,
+        "scenario": "浏览器首次办公",
+        "createdAt": "2026-10-29T15:50:02.717Z",
+        "decidedAt": "2026-10-29T15:50:53.722Z",
+        "execution": {
+          "range": null,
+          "planId": "plan-ca58a992-3313-4c7c-bae0-c039e3fdd706",
+          "managerId": null,
+          "sourceBatchId": null
+        },
+        "approverId": "operator-demo-001",
+        "applicantId": "member-fedfead9-c608-46d8-9dec-ef82858f82a1",
+        "effectiveAt": null,
+        "proposedName": "",
+        "approvedAmount": 0.2,
+        "decisionReason": "批准办公额度，按独立个人方案生效",
+        "approvedExpiresAt": "2026-11-28T15:59:59.999Z",
+        "proposedManagerId": null,
+        "requestedExpiresAt": "2026-11-28T15:59:59.999Z"
+      },
+      "reason": "批准办公额度，按独立个人方案生效",
+      "actorId": "operator-demo-001",
+      "objectId": "approval-b7d0b061-254f-4d76-ad1c-37845af16c47",
+      "actorName": "审核运营",
+      "createdAt": "2026-10-29T15:50:53.732Z",
+      "objectName": "个人开通申请 · 审核新员工"
+    },
+    {
+      "id": "audit-61c152f1-9f1f-434a-b5d9-c959b0c3498e",
+      "action": "approval.execute",
+      "detail": {
+        "id": "approval-b7d0b061-254f-4d76-ad1c-37845af16c47",
+        "kind": "personal_open",
+        "amount": 0.3,
+        "reason": "隔离验收：首次开通模型与个人额度",
+        "status": "effective",
+        "failure": null,
+        "objectId": null,
+        "scenario": "浏览器首次办公",
+        "createdAt": "2026-10-29T15:50:02.717Z",
+        "decidedAt": "2026-10-29T15:50:53.722Z",
+        "execution": {
+          "planId": "plan-ca58a992-3313-4c7c-bae0-c039e3fdd706"
+        },
+        "approverId": "operator-demo-001",
+        "applicantId": "member-fedfead9-c608-46d8-9dec-ef82858f82a1",
+        "effectiveAt": "2026-10-29T15:50:53.960Z",
+        "proposedName": "",
+        "approvedAmount": 0.2,
+        "decisionReason": "批准办公额度，按独立个人方案生效",
+        "approvedExpiresAt": "2026-11-28T15:59:59.999Z",
+        "proposedManagerId": null,
+        "requestedExpiresAt": "2026-11-28T15:59:59.999Z"
+      },
+      "reason": "",
+      "actorId": "operator-demo-001",
+      "objectId": "approval-b7d0b061-254f-4d76-ad1c-37845af16c47",
+      "actorName": "审核运营",
+      "createdAt": "2026-10-29T15:50:53.977Z",
+      "objectName": "个人开通申请 · 审核新员工"
+    },
+    {
+      "id": "audit-2c881995-4a75-481b-a30f-ef964eda8c93",
+      "action": "approval.submit",
+      "detail": {
+        "id": "approval-ef7b99d5-e33f-42c7-8b4f-aa4da90810f1",
+        "kind": "project_member_quota",
+        "amount": 0.2,
+        "reason": "从项目原预算分配给本人",
+        "status": "pending",
+        "failure": null,
+        "objectId": "project-5911ed22-83a3-4b06-8855-808ac5a6419e",
+        "scenario": "浏览器项目任务",
+        "createdAt": "2026-10-29T15:55:10.055Z",
+        "decidedAt": null,
+        "execution": null,
+        "approverId": null,
+        "applicantId": "member-fedfead9-c608-46d8-9dec-ef82858f82a1",
+        "effectiveAt": null,
+        "proposedName": "",
+        "approvedAmount": null,
+        "decisionReason": "",
+        "approvedExpiresAt": null,
+        "proposedManagerId": null,
+        "requestedExpiresAt": "2026-11-28T15:59:59.999Z"
+      },
+      "reason": "从项目原预算分配给本人",
+      "actorId": "member-fedfead9-c608-46d8-9dec-ef82858f82a1",
+      "objectId": "approval-ef7b99d5-e33f-42c7-8b4f-aa4da90810f1",
+      "actorName": "审核新员工",
+      "createdAt": "2026-10-29T15:55:10.095Z",
+      "objectName": "项目成员额度申请 · 审核新员工"
+    },
+    {
+      "id": "audit-ddafd4c1-bad1-4c84-9627-3bb8007ec9ca",
+      "action": "approval.decide",
+      "detail": {
+        "id": "approval-ef7b99d5-e33f-42c7-8b4f-aa4da90810f1",
+        "kind": "project_member_quota",
+        "amount": 0.2,
+        "reason": "从项目原预算分配给本人",
+        "status": "approved",
+        "failure": null,
+        "objectId": "project-5911ed22-83a3-4b06-8855-808ac5a6419e",
+        "scenario": "浏览器项目任务",
+        "createdAt": "2026-10-29T15:55:10.055Z",
+        "decidedAt": "2026-10-29T15:55:52.425Z",
+        "execution": {
+          "range": null,
+          "planId": null,
+          "managerId": null,
+          "sourceBatchId": "project-budget-3f1a0aae-c6ff-4149-af57-a58c7d8e1899"
+        },
+        "approverId": "member-0a0bb77f-baf6-4332-b3af-d31c5fb722d8",
+        "applicantId": "member-fedfead9-c608-46d8-9dec-ef82858f82a1",
+        "effectiveAt": null,
+        "proposedName": "",
+        "approvedAmount": 1,
+        "decisionReason": "先验证不足预算不会错误生效，再修正为原预算内额度",
+        "approvedExpiresAt": "2026-11-28T15:59:59.999Z",
+        "proposedManagerId": null,
+        "requestedExpiresAt": "2026-11-28T15:59:59.999Z"
+      },
+      "reason": "先验证不足预算不会错误生效，再修正为原预算内额度",
+      "actorId": "member-0a0bb77f-baf6-4332-b3af-d31c5fb722d8",
+      "objectId": "approval-ef7b99d5-e33f-42c7-8b4f-aa4da90810f1",
+      "actorName": "审核项目经理",
+      "createdAt": "2026-10-29T15:55:52.466Z",
+      "objectName": "项目成员额度申请 · 审核新员工"
+    },
+    {
+      "id": "audit-c27d8ef4-0dd8-445a-b61a-32370bb80a0e",
+      "action": "approval.execution_failed",
+      "detail": {},
+      "reason": "source budget is expired or insufficient",
+      "actorId": "member-0a0bb77f-baf6-4332-b3af-d31c5fb722d8",
+      "objectId": "approval-ef7b99d5-e33f-42c7-8b4f-aa4da90810f1",
+      "createdAt": "2026-10-29T15:55:52.794Z"
+    },
+    {
+      "id": "audit-45c4c00d-ac76-4153-a4fe-ca39a12ba9cd",
+      "action": "approval.execution_failed",
+      "detail": {},
+      "reason": "source budget is expired or insufficient",
+      "actorId": "member-0a0bb77f-baf6-4332-b3af-d31c5fb722d8",
+      "objectId": "approval-ef7b99d5-e33f-42c7-8b4f-aa4da90810f1",
+      "createdAt": "2026-10-29T15:57:09.485Z"
+    },
+    {
+      "id": "audit-6f7f9939-58f8-4ca2-ae70-c1014b1b2590",
+      "action": "approval.execution_repaired",
+      "detail": {
+        "after": {
+          "id": "approval-ef7b99d5-e33f-42c7-8b4f-aa4da90810f1",
+          "kind": "project_member_quota",
+          "amount": 0.2,
+          "reason": "从项目原预算分配给本人",
+          "status": "approved",
+          "failure": null,
+          "objectId": "project-5911ed22-83a3-4b06-8855-808ac5a6419e",
+          "scenario": "浏览器项目任务",
+          "createdAt": "2026-10-29T15:55:10.055Z",
+          "decidedAt": "2026-10-29T15:55:52.425Z",
+          "execution": {
+            "sourceBatchId": "project-budget-3f1a0aae-c6ff-4149-af57-a58c7d8e1899"
+          },
+          "approverId": "member-0a0bb77f-baf6-4332-b3af-d31c5fb722d8",
+          "applicantId": "member-fedfead9-c608-46d8-9dec-ef82858f82a1",
+          "effectiveAt": null,
+          "proposedName": "",
+          "approvedAmount": 0.1,
+          "decisionReason": "核对原预算后批准0.10元，保留原申请与失败记录",
+          "approvedExpiresAt": "2026-11-28T15:59:59.999Z",
+          "proposedManagerId": null,
+          "requestedExpiresAt": "2026-11-28T15:59:59.999Z"
+        },
+        "before": {
+          "id": "approval-ef7b99d5-e33f-42c7-8b4f-aa4da90810f1",
+          "kind": "project_member_quota",
+          "amount": 0.2,
+          "reason": "从项目原预算分配给本人",
+          "status": "failed",
+          "failure": "source budget is expired or insufficient",
+          "objectId": "project-5911ed22-83a3-4b06-8855-808ac5a6419e",
+          "scenario": "浏览器项目任务",
+          "createdAt": "2026-10-29T15:55:10.055Z",
+          "decidedAt": "2026-10-29T15:55:52.425Z",
+          "execution": {
+            "sourceBatchId": "project-budget-3f1a0aae-c6ff-4149-af57-a58c7d8e1899"
+          },
+          "approverId": "member-0a0bb77f-baf6-4332-b3af-d31c5fb722d8",
+          "applicantId": "member-fedfead9-c608-46d8-9dec-ef82858f82a1",
+          "effectiveAt": null,
+          "proposedName": "",
+          "approvedAmount": 1,
+          "decisionReason": "先验证不足预算不会错误生效，再修正为原预算内额度",
+          "approvedExpiresAt": "2026-11-28T15:59:59.999Z",
+          "proposedManagerId": null,
+          "requestedExpiresAt": "2026-11-28T15:59:59.999Z"
+        }
+      },
+      "reason": "核对原预算后批准0.10元，保留原申请与失败记录",
+      "actorId": "member-0a0bb77f-baf6-4332-b3af-d31c5fb722d8",
+      "objectId": "approval-ef7b99d5-e33f-42c7-8b4f-aa4da90810f1",
+      "createdAt": "2026-10-29T15:57:32.762Z"
+    },
+    {
+      "id": "audit-28b530b5-f79f-4fa6-97bc-8b49dcd2d63d",
+      "action": "approval.repair",
+      "detail": {
+        "id": "approval-ef7b99d5-e33f-42c7-8b4f-aa4da90810f1",
+        "kind": "project_member_quota",
+        "amount": 0.2,
+        "reason": "从项目原预算分配给本人",
+        "status": "approved",
+        "failure": null,
+        "objectId": "project-5911ed22-83a3-4b06-8855-808ac5a6419e",
+        "scenario": "浏览器项目任务",
+        "createdAt": "2026-10-29T15:55:10.055Z",
+        "decidedAt": "2026-10-29T15:55:52.425Z",
+        "execution": {
+          "sourceBatchId": "project-budget-3f1a0aae-c6ff-4149-af57-a58c7d8e1899"
+        },
+        "approverId": "member-0a0bb77f-baf6-4332-b3af-d31c5fb722d8",
+        "applicantId": "member-fedfead9-c608-46d8-9dec-ef82858f82a1",
+        "effectiveAt": null,
+        "proposedName": "",
+        "approvedAmount": 0.1,
+        "decisionReason": "核对原预算后批准0.10元，保留原申请与失败记录",
+        "approvedExpiresAt": "2026-11-28T15:59:59.999Z",
+        "proposedManagerId": null,
+        "requestedExpiresAt": "2026-11-28T15:59:59.999Z"
+      },
+      "reason": "核对原预算后批准0.10元，保留原申请与失败记录",
+      "actorId": "member-0a0bb77f-baf6-4332-b3af-d31c5fb722d8",
+      "objectId": "approval-ef7b99d5-e33f-42c7-8b4f-aa4da90810f1",
+      "actorName": "审核项目经理",
+      "createdAt": "2026-10-29T15:57:32.792Z",
+      "objectName": "项目成员额度申请 · 审核新员工"
+    },
+    {
+      "id": "audit-bbbda415-c589-4bb3-a5b8-918962385539",
+      "action": "approval.execute",
+      "detail": {
+        "id": "approval-ef7b99d5-e33f-42c7-8b4f-aa4da90810f1",
+        "kind": "project_member_quota",
+        "amount": 0.2,
+        "reason": "从项目原预算分配给本人",
+        "status": "effective",
+        "failure": null,
+        "objectId": "project-5911ed22-83a3-4b06-8855-808ac5a6419e",
+        "scenario": "浏览器项目任务",
+        "createdAt": "2026-10-29T15:55:10.055Z",
+        "decidedAt": "2026-10-29T15:55:52.425Z",
+        "execution": {
+          "sourceBatchId": "project-budget-3f1a0aae-c6ff-4149-af57-a58c7d8e1899"
+        },
+        "approverId": "member-0a0bb77f-baf6-4332-b3af-d31c5fb722d8",
+        "applicantId": "member-fedfead9-c608-46d8-9dec-ef82858f82a1",
+        "effectiveAt": "2026-10-29T15:57:39.777Z",
+        "proposedName": "",
+        "approvedAmount": 0.1,
+        "decisionReason": "核对原预算后批准0.10元，保留原申请与失败记录",
+        "approvedExpiresAt": "2026-11-28T15:59:59.999Z",
+        "proposedManagerId": null,
+        "requestedExpiresAt": "2026-11-28T15:59:59.999Z"
+      },
+      "reason": "",
+      "actorId": "member-0a0bb77f-baf6-4332-b3af-d31c5fb722d8",
+      "objectId": "approval-ef7b99d5-e33f-42c7-8b4f-aa4da90810f1",
+      "actorName": "审核项目经理",
+      "createdAt": "2026-10-29T15:57:39.826Z",
+      "objectName": "项目成员额度申请 · 审核新员工"
+    },
+    {
+      "id": "audit-4f2b45d4-9113-4bb1-93cb-1d1a699e5425",
+      "action": "approval.submit",
+      "detail": {
+        "id": "approval-994b62f3-cbe9-4e2b-b45f-91b8137efb3d",
+        "kind": "application_quota",
+        "amount": 0.3,
+        "reason": "应用独立预算验收，不使用负责人个人额度",
+        "status": "pending",
+        "failure": null,
+        "objectId": "application-65c4c8ed-66b8-40fa-9e70-87742b40d35d",
+        "scenario": "浏览器应用接入",
+        "createdAt": "2026-10-29T16:00:30.397Z",
+        "decidedAt": null,
+        "execution": null,
+        "approverId": null,
+        "applicantId": "member-a9f73628-647b-4d39-9fc5-fab83010a96f",
+        "effectiveAt": null,
+        "proposedName": "",
+        "approvedAmount": null,
+        "decisionReason": "",
+        "approvedExpiresAt": null,
+        "proposedManagerId": null,
+        "requestedExpiresAt": "2026-11-28T15:59:59.999Z"
+      },
+      "reason": "应用独立预算验收，不使用负责人个人额度",
+      "actorId": "member-a9f73628-647b-4d39-9fc5-fab83010a96f",
+      "objectId": "approval-994b62f3-cbe9-4e2b-b45f-91b8137efb3d",
+      "actorName": "审核应用负责人",
+      "createdAt": "2026-10-29T16:00:30.461Z",
+      "objectName": "应用额度申请 · 审核应用负责人"
+    },
+    {
+      "id": "audit-2587174d-fb3a-41d3-881d-1841cfa33abf",
+      "action": "approval.decide",
+      "detail": {
+        "id": "approval-994b62f3-cbe9-4e2b-b45f-91b8137efb3d",
+        "kind": "application_quota",
+        "amount": 0.3,
+        "reason": "应用独立预算验收，不使用负责人个人额度",
+        "status": "approved",
+        "failure": null,
+        "objectId": "application-65c4c8ed-66b8-40fa-9e70-87742b40d35d",
+        "scenario": "浏览器应用接入",
+        "createdAt": "2026-10-29T16:00:30.397Z",
+        "decidedAt": "2026-10-29T16:00:45.025Z",
+        "execution": {
+          "range": null,
+          "planId": null,
+          "managerId": null,
+          "sourceBatchId": null
+        },
+        "approverId": "operator-demo-001",
+        "applicantId": "member-a9f73628-647b-4d39-9fc5-fab83010a96f",
+        "effectiveAt": null,
+        "proposedName": "",
+        "approvedAmount": 0.25,
+        "decisionReason": "批准应用独立预算0.25元",
+        "approvedExpiresAt": "2026-11-28T15:59:59.999Z",
+        "proposedManagerId": null,
+        "requestedExpiresAt": "2026-11-28T15:59:59.999Z"
+      },
+      "reason": "批准应用独立预算0.25元",
+      "actorId": "operator-demo-001",
+      "objectId": "approval-994b62f3-cbe9-4e2b-b45f-91b8137efb3d",
+      "actorName": "审核运营",
+      "createdAt": "2026-10-29T16:00:45.083Z",
+      "objectName": "应用额度申请 · 审核应用负责人"
+    },
+    {
+      "id": "audit-34fd6a68-4059-4483-9c95-5037708659a9",
+      "action": "approval.execute",
+      "detail": {
+        "id": "approval-994b62f3-cbe9-4e2b-b45f-91b8137efb3d",
+        "kind": "application_quota",
+        "amount": 0.3,
+        "reason": "应用独立预算验收，不使用负责人个人额度",
+        "status": "effective",
+        "failure": null,
+        "objectId": "application-65c4c8ed-66b8-40fa-9e70-87742b40d35d",
+        "scenario": "浏览器应用接入",
+        "createdAt": "2026-10-29T16:00:30.397Z",
+        "decidedAt": "2026-10-29T16:00:45.025Z",
+        "execution": {},
+        "approverId": "operator-demo-001",
+        "applicantId": "member-a9f73628-647b-4d39-9fc5-fab83010a96f",
+        "effectiveAt": "2026-10-29T16:00:45.333Z",
+        "proposedName": "",
+        "approvedAmount": 0.25,
+        "decisionReason": "批准应用独立预算0.25元",
+        "approvedExpiresAt": "2026-11-28T15:59:59.999Z",
+        "proposedManagerId": null,
+        "requestedExpiresAt": "2026-11-28T15:59:59.999Z"
+      },
+      "reason": "",
+      "actorId": "operator-demo-001",
+      "objectId": "approval-994b62f3-cbe9-4e2b-b45f-91b8137efb3d",
+      "actorName": "审核运营",
+      "createdAt": "2026-10-29T16:00:45.398Z",
+      "objectName": "应用额度申请 · 审核应用负责人"
+    }
+  ],
+  "keys": [
+    {
+      "id": "key-c1670618-ea7e-4029-89de-da7dfaf31a28",
+      "name": "在线会话临时身份",
+      "masked": "sa_wpeM…HE_4",
+      "status": "revoked",
+      "ownerId": "member-fedfead9-c608-46d8-9dec-ef82858f82a1",
+      "purpose": "personal",
+      "subjectId": "member-fedfead9-c608-46d8-9dec-ef82858f82a1",
+      "projectId": null,
+      "internal": true
+    },
+    {
+      "id": "key-fdb4795f-a1bc-40ae-bb3b-fe7ede2b6207",
+      "name": "在线会话临时身份",
+      "masked": "sa_elID…jSg8",
+      "status": "revoked",
+      "ownerId": "member-fedfead9-c608-46d8-9dec-ef82858f82a1",
+      "purpose": "project",
+      "subjectId": "member-fedfead9-c608-46d8-9dec-ef82858f82a1",
+      "projectId": "project-5911ed22-83a3-4b06-8855-808ac5a6419e",
+      "internal": true
+    },
+    {
+      "id": "key-17abb6aa-6d96-4779-ad62-60838694bbfb",
+      "name": "浏览器应用接入验收",
+      "masked": "sa_yS-M…J9HE",
+      "status": "active",
+      "ownerId": "member-a9f73628-647b-4d39-9fc5-fab83010a96f",
+      "purpose": "application",
+      "subjectId": "application-65c4c8ed-66b8-40fa-9e70-87742b40d35d",
+      "projectId": null
+    },
+    {
+      "id": "key-8847bfd6-9665-4ac2-8153-0a27b10fc436",
+      "name": "浏览器应用外部工具验收",
+      "masked": "sa_krts…3Sok",
+      "status": "active",
+      "ownerId": "member-a9f73628-647b-4d39-9fc5-fab83010a96f",
+      "purpose": "application",
+      "subjectId": "application-65c4c8ed-66b8-40fa-9e70-87742b40d35d",
+      "projectId": null
+    }
+  ],
+  "entitlements": [
+    {
+      "id": "entitlement-eba05402-9107-4e6e-b255-1ed1ada1a838",
+      "memberId": "member-fedfead9-c608-46d8-9dec-ef82858f82a1",
+      "status": "active",
+      "planId": "plan-ca58a992-3313-4c7c-bae0-c039e3fdd706"
+    }
+  ],
+  "quotaBatches": [
+    {
+      "id": "personal-batch-demo-001",
+      "purpose": "personal",
+      "source_id": "employee-demo-001",
+      "project_id": null,
+      "source_batch_id": null,
+      "total_amount": "10.000000",
+      "available_amount": "10.000000",
+      "closed_amount": "0.000000"
+    },
+    {
+      "id": "project-member-batch-demo-001",
+      "purpose": "project",
+      "source_id": "employee-demo-001",
+      "project_id": "project-demo-001",
+      "source_batch_id": null,
+      "total_amount": "20.000000",
+      "available_amount": "20.000000",
+      "closed_amount": "0.000000"
+    },
+    {
+      "id": "quota-358b8e93-769a-4dd3-80fe-7a0a8f6945d5",
+      "purpose": "personal",
+      "source_id": "member-fedfead9-c608-46d8-9dec-ef82858f82a1",
+      "project_id": null,
+      "source_batch_id": null,
+      "total_amount": "0.200000",
+      "available_amount": "0.199868",
+      "closed_amount": "0.000000"
+    },
+    {
+      "id": "quota-6b1d681b-09ae-41d1-ab42-5c84fc21a75f",
+      "purpose": "application",
+      "source_id": "application-65c4c8ed-66b8-40fa-9e70-87742b40d35d",
+      "project_id": null,
+      "source_batch_id": null,
+      "total_amount": "0.250000",
+      "available_amount": "0.249604",
+      "closed_amount": "0.000000"
+    },
+    {
+      "id": "quota-89b682d6-ef2e-4c2d-b7de-19279e0fb24b",
+      "purpose": "project",
+      "source_id": "member-fedfead9-c608-46d8-9dec-ef82858f82a1",
+      "project_id": "project-5911ed22-83a3-4b06-8855-808ac5a6419e",
+      "source_batch_id": "project-budget-3f1a0aae-c6ff-4149-af57-a58c7d8e1899",
+      "total_amount": "0.100000",
+      "available_amount": "0.099868",
+      "closed_amount": "0.000000"
+    }
+  ],
+  "projectBudgets": [
+    {
+      "id": "project-budget-3f1a0aae-c6ff-4149-af57-a58c7d8e1899",
+      "project_id": "project-5911ed22-83a3-4b06-8855-808ac5a6419e",
+      "total_amount": "0.500000",
+      "available_amount": "0.400000",
+      "closed_amount": "0.000000"
+    }
+  ],
+  "calls": [
+    {
+      "request_id": "request-e9d3689f-9e29-44bb-9bff-1f104aad5d9c",
+      "purpose": "personal",
+      "subject_id": "member-fedfead9-c608-46d8-9dec-ef82858f82a1",
+      "project_id": null,
+      "billable_state": "confirmed",
+      "actual_amount": "0.000132",
+      "input_tokens": 13,
+      "output_tokens": 14,
+      "cached_input_tokens": 4
+    },
+    {
+      "request_id": "request-694f7b10-5ba3-4ed3-8983-4efa689f1b99",
+      "purpose": "project",
+      "subject_id": "member-fedfead9-c608-46d8-9dec-ef82858f82a1",
+      "project_id": "project-5911ed22-83a3-4b06-8855-808ac5a6419e",
+      "billable_state": "confirmed",
+      "actual_amount": "0.000132",
+      "input_tokens": 13,
+      "output_tokens": 14,
+      "cached_input_tokens": 4
+    },
+    {
+      "request_id": "browser-app-2e5b74ef-54c0-4c36-80ff-ecae49e9be97",
+      "purpose": "application",
+      "subject_id": "application-65c4c8ed-66b8-40fa-9e70-87742b40d35d",
+      "project_id": null,
+      "billable_state": "confirmed",
+      "actual_amount": "0.000132",
+      "input_tokens": 13,
+      "output_tokens": 14,
+      "cached_input_tokens": 4
+    },
+    {
+      "request_id": "browser-app-f7ddc7ba-cd9d-443d-a5ae-2b0f59c07e06",
+      "purpose": "application",
+      "subject_id": "application-65c4c8ed-66b8-40fa-9e70-87742b40d35d",
+      "project_id": null,
+      "billable_state": "confirmed",
+      "actual_amount": "0.000132",
+      "input_tokens": 13,
+      "output_tokens": 14,
+      "cached_input_tokens": 4
+    },
+    {
+      "request_id": "browser-app-a62d2dab-6c5e-46d2-8d5b-ecd02e436671",
+      "purpose": "application",
+      "subject_id": "application-65c4c8ed-66b8-40fa-9e70-87742b40d35d",
+      "project_id": null,
+      "billable_state": "confirmed",
+      "actual_amount": "0.000132",
+      "input_tokens": 13,
+      "output_tokens": 14,
+      "cached_input_tokens": 4
+    }
+  ],
+  "ledger": [
+    {
+      "request_id": "request-e9d3689f-9e29-44bb-9bff-1f104aad5d9c",
+      "kind": "settlement",
+      "amount": "0.000132"
+    },
+    {
+      "request_id": "request-694f7b10-5ba3-4ed3-8983-4efa689f1b99",
+      "kind": "settlement",
+      "amount": "0.000132"
+    },
+    {
+      "request_id": "browser-app-2e5b74ef-54c0-4c36-80ff-ecae49e9be97",
+      "kind": "settlement",
+      "amount": "0.000132"
+    },
+    {
+      "request_id": "browser-app-f7ddc7ba-cd9d-443d-a5ae-2b0f59c07e06",
+      "kind": "settlement",
+      "amount": "0.000132"
+    },
+    {
+      "request_id": "browser-app-a62d2dab-6c5e-46d2-8d5b-ecd02e436671",
+      "kind": "settlement",
+      "amount": "0.000132"
+    }
+  ],
+  "reservations": [
+    {
+      "request_id": "request-e9d3689f-9e29-44bb-9bff-1f104aad5d9c",
+      "finalized": true
+    },
+    {
+      "request_id": "request-694f7b10-5ba3-4ed3-8983-4efa689f1b99",
+      "finalized": true
+    },
+    {
+      "request_id": "browser-app-2e5b74ef-54c0-4c36-80ff-ecae49e9be97",
+      "finalized": true
+    },
+    {
+      "request_id": "browser-app-f7ddc7ba-cd9d-443d-a5ae-2b0f59c07e06",
+      "finalized": true
+    },
+    {
+      "request_id": "browser-app-a62d2dab-6c5e-46d2-8d5b-ecd02e436671",
+      "finalized": true
+    }
+  ],
+  "applicationCalls": [
+    {
+      "label": "active",
+      "requestId": "browser-app-2e5b74ef-54c0-4c36-80ff-ecae49e9be97",
+      "httpStatus": 200,
+      "call": {
+        "request_id": "browser-app-2e5b74ef-54c0-4c36-80ff-ecae49e9be97",
+        "purpose": "application",
+        "subject_id": "application-65c4c8ed-66b8-40fa-9e70-87742b40d35d",
+        "billable_state": "confirmed",
+        "actual_amount": "0.000132"
+      },
+      "before": [
+        {
+          "id": "personal-batch-demo-001",
+          "purpose": "personal",
+          "source_id": "employee-demo-001",
+          "available_amount": "10.000000"
+        },
+        {
+          "id": "project-member-batch-demo-001",
+          "purpose": "project",
+          "source_id": "employee-demo-001",
+          "available_amount": "20.000000"
+        },
+        {
+          "id": "quota-358b8e93-769a-4dd3-80fe-7a0a8f6945d5",
+          "purpose": "personal",
+          "source_id": "member-fedfead9-c608-46d8-9dec-ef82858f82a1",
+          "available_amount": "0.199868"
+        },
+        {
+          "id": "quota-6b1d681b-09ae-41d1-ab42-5c84fc21a75f",
+          "purpose": "application",
+          "source_id": "application-65c4c8ed-66b8-40fa-9e70-87742b40d35d",
+          "available_amount": "0.250000"
+        },
+        {
+          "id": "quota-89b682d6-ef2e-4c2d-b7de-19279e0fb24b",
+          "purpose": "project",
+          "source_id": "member-fedfead9-c608-46d8-9dec-ef82858f82a1",
+          "available_amount": "0.099868"
+        }
+      ],
+      "after": [
+        {
+          "id": "personal-batch-demo-001",
+          "purpose": "personal",
+          "source_id": "employee-demo-001",
+          "available_amount": "10.000000"
+        },
+        {
+          "id": "project-member-batch-demo-001",
+          "purpose": "project",
+          "source_id": "employee-demo-001",
+          "available_amount": "20.000000"
+        },
+        {
+          "id": "quota-358b8e93-769a-4dd3-80fe-7a0a8f6945d5",
+          "purpose": "personal",
+          "source_id": "member-fedfead9-c608-46d8-9dec-ef82858f82a1",
+          "available_amount": "0.199868"
+        },
+        {
+          "id": "quota-6b1d681b-09ae-41d1-ab42-5c84fc21a75f",
+          "purpose": "application",
+          "source_id": "application-65c4c8ed-66b8-40fa-9e70-87742b40d35d",
+          "available_amount": "0.249868"
+        },
+        {
+          "id": "quota-89b682d6-ef2e-4c2d-b7de-19279e0fb24b",
+          "purpose": "project",
+          "source_id": "member-fedfead9-c608-46d8-9dec-ef82858f82a1",
+          "available_amount": "0.099868"
+        }
+      ]
+    },
+    {
+      "label": "disabled",
+      "requestId": "browser-app-e299dee8-3c9c-4c2d-bf7d-884cd363b6e3",
+      "httpStatus": 401,
+      "call": null,
+      "before": [
+        {
+          "id": "personal-batch-demo-001",
+          "purpose": "personal",
+          "source_id": "employee-demo-001",
+          "available_amount": "10.000000"
+        },
+        {
+          "id": "project-member-batch-demo-001",
+          "purpose": "project",
+          "source_id": "employee-demo-001",
+          "available_amount": "20.000000"
+        },
+        {
+          "id": "quota-358b8e93-769a-4dd3-80fe-7a0a8f6945d5",
+          "purpose": "personal",
+          "source_id": "member-fedfead9-c608-46d8-9dec-ef82858f82a1",
+          "available_amount": "0.199868"
+        },
+        {
+          "id": "quota-6b1d681b-09ae-41d1-ab42-5c84fc21a75f",
+          "purpose": "application",
+          "source_id": "application-65c4c8ed-66b8-40fa-9e70-87742b40d35d",
+          "available_amount": "0.249868"
+        },
+        {
+          "id": "quota-89b682d6-ef2e-4c2d-b7de-19279e0fb24b",
+          "purpose": "project",
+          "source_id": "member-fedfead9-c608-46d8-9dec-ef82858f82a1",
+          "available_amount": "0.099868"
+        }
+      ],
+      "after": [
+        {
+          "id": "personal-batch-demo-001",
+          "purpose": "personal",
+          "source_id": "employee-demo-001",
+          "available_amount": "10.000000"
+        },
+        {
+          "id": "project-member-batch-demo-001",
+          "purpose": "project",
+          "source_id": "employee-demo-001",
+          "available_amount": "20.000000"
+        },
+        {
+          "id": "quota-358b8e93-769a-4dd3-80fe-7a0a8f6945d5",
+          "purpose": "personal",
+          "source_id": "member-fedfead9-c608-46d8-9dec-ef82858f82a1",
+          "available_amount": "0.199868"
+        },
+        {
+          "id": "quota-6b1d681b-09ae-41d1-ab42-5c84fc21a75f",
+          "purpose": "application",
+          "source_id": "application-65c4c8ed-66b8-40fa-9e70-87742b40d35d",
+          "available_amount": "0.249868"
+        },
+        {
+          "id": "quota-89b682d6-ef2e-4c2d-b7de-19279e0fb24b",
+          "purpose": "project",
+          "source_id": "member-fedfead9-c608-46d8-9dec-ef82858f82a1",
+          "available_amount": "0.099868"
+        }
+      ]
+    },
+    {
+      "label": "restored",
+      "requestId": "browser-app-f7ddc7ba-cd9d-443d-a5ae-2b0f59c07e06",
+      "httpStatus": 200,
+      "call": {
+        "request_id": "browser-app-f7ddc7ba-cd9d-443d-a5ae-2b0f59c07e06",
+        "purpose": "application",
+        "subject_id": "application-65c4c8ed-66b8-40fa-9e70-87742b40d35d",
+        "billable_state": "confirmed",
+        "actual_amount": "0.000132"
+      },
+      "before": [
+        {
+          "id": "personal-batch-demo-001",
+          "purpose": "personal",
+          "source_id": "employee-demo-001",
+          "available_amount": "10.000000"
+        },
+        {
+          "id": "project-member-batch-demo-001",
+          "purpose": "project",
+          "source_id": "employee-demo-001",
+          "available_amount": "20.000000"
+        },
+        {
+          "id": "quota-358b8e93-769a-4dd3-80fe-7a0a8f6945d5",
+          "purpose": "personal",
+          "source_id": "member-fedfead9-c608-46d8-9dec-ef82858f82a1",
+          "available_amount": "0.199868"
+        },
+        {
+          "id": "quota-6b1d681b-09ae-41d1-ab42-5c84fc21a75f",
+          "purpose": "application",
+          "source_id": "application-65c4c8ed-66b8-40fa-9e70-87742b40d35d",
+          "available_amount": "0.249868"
+        },
+        {
+          "id": "quota-89b682d6-ef2e-4c2d-b7de-19279e0fb24b",
+          "purpose": "project",
+          "source_id": "member-fedfead9-c608-46d8-9dec-ef82858f82a1",
+          "available_amount": "0.099868"
+        }
+      ],
+      "after": [
+        {
+          "id": "personal-batch-demo-001",
+          "purpose": "personal",
+          "source_id": "employee-demo-001",
+          "available_amount": "10.000000"
+        },
+        {
+          "id": "project-member-batch-demo-001",
+          "purpose": "project",
+          "source_id": "employee-demo-001",
+          "available_amount": "20.000000"
+        },
+        {
+          "id": "quota-358b8e93-769a-4dd3-80fe-7a0a8f6945d5",
+          "purpose": "personal",
+          "source_id": "member-fedfead9-c608-46d8-9dec-ef82858f82a1",
+          "available_amount": "0.199868"
+        },
+        {
+          "id": "quota-6b1d681b-09ae-41d1-ab42-5c84fc21a75f",
+          "purpose": "application",
+          "source_id": "application-65c4c8ed-66b8-40fa-9e70-87742b40d35d",
+          "available_amount": "0.249736"
+        },
+        {
+          "id": "quota-89b682d6-ef2e-4c2d-b7de-19279e0fb24b",
+          "purpose": "project",
+          "source_id": "member-fedfead9-c608-46d8-9dec-ef82858f82a1",
+          "available_amount": "0.099868"
+        }
+      ]
+    },
+    {
+      "label": "refresh",
+      "requestId": "browser-app-a62d2dab-6c5e-46d2-8d5b-ecd02e436671",
+      "httpStatus": 200,
+      "call": {
+        "request_id": "browser-app-a62d2dab-6c5e-46d2-8d5b-ecd02e436671",
+        "purpose": "application",
+        "subject_id": "application-65c4c8ed-66b8-40fa-9e70-87742b40d35d",
+        "billable_state": "confirmed",
+        "actual_amount": "0.000132"
+      },
+      "before": [
+        {
+          "id": "personal-batch-demo-001",
+          "purpose": "personal",
+          "source_id": "employee-demo-001",
+          "available_amount": "10.000000"
+        },
+        {
+          "id": "project-member-batch-demo-001",
+          "purpose": "project",
+          "source_id": "employee-demo-001",
+          "available_amount": "20.000000"
+        },
+        {
+          "id": "quota-358b8e93-769a-4dd3-80fe-7a0a8f6945d5",
+          "purpose": "personal",
+          "source_id": "member-fedfead9-c608-46d8-9dec-ef82858f82a1",
+          "available_amount": "0.199868"
+        },
+        {
+          "id": "quota-6b1d681b-09ae-41d1-ab42-5c84fc21a75f",
+          "purpose": "application",
+          "source_id": "application-65c4c8ed-66b8-40fa-9e70-87742b40d35d",
+          "available_amount": "0.249736"
+        },
+        {
+          "id": "quota-89b682d6-ef2e-4c2d-b7de-19279e0fb24b",
+          "purpose": "project",
+          "source_id": "member-fedfead9-c608-46d8-9dec-ef82858f82a1",
+          "available_amount": "0.099868"
+        }
+      ],
+      "after": [
+        {
+          "id": "personal-batch-demo-001",
+          "purpose": "personal",
+          "source_id": "employee-demo-001",
+          "available_amount": "10.000000"
+        },
+        {
+          "id": "project-member-batch-demo-001",
+          "purpose": "project",
+          "source_id": "employee-demo-001",
+          "available_amount": "20.000000"
+        },
+        {
+          "id": "quota-358b8e93-769a-4dd3-80fe-7a0a8f6945d5",
+          "purpose": "personal",
+          "source_id": "member-fedfead9-c608-46d8-9dec-ef82858f82a1",
+          "available_amount": "0.199868"
+        },
+        {
+          "id": "quota-6b1d681b-09ae-41d1-ab42-5c84fc21a75f",
+          "purpose": "application",
+          "source_id": "application-65c4c8ed-66b8-40fa-9e70-87742b40d35d",
+          "available_amount": "0.249604"
+        },
+        {
+          "id": "quota-89b682d6-ef2e-4c2d-b7de-19279e0fb24b",
+          "purpose": "project",
+          "source_id": "member-fedfead9-c608-46d8-9dec-ef82858f82a1",
+          "available_amount": "0.099868"
+        }
+      ]
+    }
+  ],
+  "defaultPreservation": {
+    "before": {
+      "defaultWorkspacePresent": true,
+      "liveBudgetHash": "64ec2a0fdd806efcef7a199bcc689baef5ddfd7df694e6b046b14c9d1c2bc063",
+      "workspaceId": "20bea9e2-970a-4e7d-98eb-12ca16e81692",
+      "stateFileHash": "e7b742a224289865187386d14dce3cc5cbcb98fa22844dcee1af4bc14194d5fe",
+      "businessConfigurationHash": "e7f267f7e4f24b7586b046da7d4e5d4ac894ee7bb03ca69d1e9e632563288e2c",
+      "fundsHash": "5626134a433f2ff7c8932f9aca6a874ef157ca45fa9b3732a3b3eb580bff118a",
+      "fundedBatches": 8
+    },
+    "after": {
+      "defaultWorkspacePresent": true,
+      "liveBudgetHash": "64ec2a0fdd806efcef7a199bcc689baef5ddfd7df694e6b046b14c9d1c2bc063",
+      "workspaceId": "20bea9e2-970a-4e7d-98eb-12ca16e81692",
+      "stateFileHash": "e7b742a224289865187386d14dce3cc5cbcb98fa22844dcee1af4bc14194d5fe",
+      "businessConfigurationHash": "e7f267f7e4f24b7586b046da7d4e5d4ac894ee7bb03ca69d1e9e632563288e2c",
+      "fundsHash": "5626134a433f2ff7c8932f9aca6a874ef157ca45fa9b3732a3b3eb580bff118a",
+      "fundedBatches": 8
+    }
+  },
+  "totals": {
+    "confirmedCalls": 5,
+    "confirmedMicroCny": 660,
+    "realModelRequests": 0
+  },
+  "recovery": {
+    "reason": "runner and Podman VM stopped after browser checks; recovered persisted PostgreSQL evidence",
+    "baselineSource": "first setup attempt before browser business writes; compared exact stored baseline",
+    "fixtureRequestTrace": "volatile model process memory unavailable after VM stop",
+    "gatewayTrace": "no matching request access lines retained; no fresh calls made"
+  },
+  "source": {
+    "head": "7a2cbc8233e6f2611745a50872ef739985386d28",
+    "workingTree": "included unrelated in-progress changes; scoped delivery recorded separately"
+  },
+  "gatewayAccess": [],
+  "gatewayAccessComplete": false
+}
