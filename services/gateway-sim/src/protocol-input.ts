@@ -27,7 +27,12 @@ function inspectNative(protocol:Exclude<PublicProtocol,'chat'>,body:Obj):Obj {
   if(body.modalities!==undefined&&array(body.modalities,'modalities').some(v=>v!=='text'))unsupported('only text output is enabled');
   for(const key of ['audio','image','video'])if(body[key]!=null)unsupported(key+' is not enabled');
   const parts=(value:unknown,allowed:string[],label:string)=>{if(typeof value==='string')return;for(const raw of array(value,label)){const p=object(raw,label+' block');if(!allowed.includes(String(p.type)))unsupported(label+' block '+String(p.type)+' is not enabled');}};
-  if(body.tools!==undefined)for(const raw of array(body.tools,'tools')){const tool=object(raw,'tool');if(protocol==='responses'?!['function','custom'].includes(String(tool.type)):tool.type!==undefined&&tool.type!=='custom')unsupported('only client-executed tools are enabled; server tools need separate pricing and acceptance');}
+  if(body.tools!==undefined)for(const raw of array(body.tools,'tools')){const tool=object(raw,'tool');
+    // Responses clients group client-executed tools under `namespace` (Codex does this) and may
+    // advertise the vendor-side `web_search` tool. Both are plain request data and pass through
+    // untouched; other server-executed tools still need their own pricing and acceptance.
+    const accepted=protocol==='responses'?['function','custom','namespace','web_search']:[undefined,'custom'];
+    if(!accepted.includes(tool.type as string|undefined))unsupported('only client-executed tools and web_search are enabled; other server tools need separate pricing and acceptance');}
   if(protocol==='responses'){
     if(body.input===undefined&&body.instructions===undefined)fail('input or instructions is required');
     if(body.input!==undefined&&typeof body.input!=='string')for(const raw of array(body.input,'input')){const item=object(raw,'input item');if(item.type===undefined||item.type==='message')parts(item.content,['input_text','output_text','refusal'],'message.content');else if(['function_call_output','custom_tool_call_output'].includes(String(item.type)))parts(item.output,['input_text','output_text'],'tool output');else if(!['function_call','custom_tool_call','reasoning'].includes(String(item.type)))unsupported('input item '+String(item.type)+' is not enabled');}

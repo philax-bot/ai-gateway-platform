@@ -62,3 +62,19 @@ claude                         # ~/.claude/settings.json 已指向 http://localh
 ```
 
 故障排查入口：`x-atlas-protocol-mode` 响应头（`native` / `adapted`）、控制面服务详情的协议探测结果、`.runtime/dev-console.log`。
+
+## Codex 段（Responses）
+
+Codex CLI 0.165.0（`~/.codex/config.toml`：`wire_api = "responses"`、`base_url = http://localhost:4300/v1`）报：
+
+```text
+{"error":{"type":"unsupported_parameter","message":"only client-executed tools are enabled; server tools need separate pricing and acceptance"}}
+```
+
+用本地记录代理抓到的真实请求体（21 个工具条目，输入约 210 KB）：`function` ×10、`namespace` ×12（Codex 自带的工具分组，如 `multi_agent_v1`，内部仍包着客户端执行的 `function`）、`web_search` ×1（`{"type":"web_search","external_web_access":false}`）；另有 `include: ["reasoning.encrypted_content"]`、`reasoning: {effort, summary}`、`store: false`、`prompt_cache_key`、`client_metadata`。
+
+阻塞点只有一个：`protocol-input.ts` 的 `inspectNative` 只接受 `function` / `custom` 两种工具类型。现已放行 `namespace` 与 `web_search`——两者都是请求数据，网关不需要为它们持有额外语义；其余服务端工具（`file_search`、`code_interpreter` 等）继续以原错误拒绝。原生 Responses 仍原样透传，未做任何改写。
+
+验证：`@ai-gateway/gateway-sim` 70/70 通过（新增一条断言：Codex 形态的 `namespace` + `web_search` 在原生检查下原样通过，且不会被 Chat 回退接受）；用真实凭据 + 伪造模型重放该请求，控制面返回 `model_not_open` 而不是 `unsupported_parameter`，证明校验已放行、请求已走到准入。
+
+**未验证**：DeepSeek 的 Responses 端点是否接受 `namespace` / `web_search` 这两种工具定义。若上游拒绝，下一步是在原生 Responses 转发前剥离供应商不支持的工具类型（需先取得上游真实返回作为依据），而不是继续放宽网关校验。另需注意：若上游执行了 `web_search`，下一轮输入的 `web_search_call` 条目目前也在拒绝列表内。
