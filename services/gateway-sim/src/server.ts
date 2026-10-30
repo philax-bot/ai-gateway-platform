@@ -100,7 +100,7 @@ async function handleCompletions(request: IncomingMessage, response: ServerRespo
   try {
     originalBody=await readJson(request);
     if(protocol==='messages'){
-      if(request.headers['anthropic-version']!=='2023-06-01')throw new ProtocolInputError('anthropic-version must be 2023-06-01; newer native versions are not implemented','unsupported_version');
+      if(typeof request.headers['anthropic-version']!=='string'||!request.headers['anthropic-version'].trim())throw new ProtocolInputError('anthropic-version is required','unsupported_version');
       const key=request.headers['x-api-key'];if(key!==undefined){if(typeof key!=='string'||(apiKey&&apiKey!==key))throw new ProtocolInputError('conflicting or invalid API key headers');apiKey=key;}
     }
     body=normalizeProtocolRequest(protocol,originalBody,true);
@@ -208,7 +208,11 @@ async function handleCompletions(request: IncomingMessage, response: ServerRespo
   try {
     const route=admission?.route;
     if(protocol!=='chat'&&route?.protocols?.[protocol]?.status==='supported')native=new NativeProtocolOutput(protocol,logicalModel);
-    if(protocol!=='chat'&&!native){body=normalizeProtocolRequest(protocol,originalBody);if(request.headers['anthropic-beta'])throw new ProtocolInputError('anthropic-beta extensions require native protocol support','unsupported_parameter');}
+    if(protocol!=='chat'&&!native){
+      if(protocol==='messages'&&request.headers['anthropic-version']!=='2023-06-01')throw new ProtocolInputError('Chat fallback requires anthropic-version 2023-06-01','unsupported_version');
+      body=normalizeProtocolRequest(protocol,originalBody);if(request.headers['anthropic-beta'])throw new ProtocolInputError('anthropic-beta extensions require native protocol support','unsupported_parameter');
+    }
+    if(native&&protocol==='messages')console.info(JSON.stringify({event:'native_protocol_version',requestId,version:request.headers['anthropic-version']}));
     response.setHeader('x-atlas-protocol-mode',protocol==='chat'?'native':native?'native':'adapted');
     if(runtimeMode==='production'&&!configured)throw new Error('production requires a configured admission route');
     if(configured&&!route)throw new Error('configured authorization has no route');

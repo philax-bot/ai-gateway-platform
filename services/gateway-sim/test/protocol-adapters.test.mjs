@@ -39,3 +39,18 @@ test('native inspection passes Codex-style namespaced and web_search tools throu
  assert.doesNotThrow(()=>normalize('responses',body,true));assert.deepEqual(body,original);
  assert.throws(()=>normalize('responses',body));
 });
+
+for(const protocol of ['responses','messages'])test(protocol+' native content is extensible while state, execution and billing boundaries remain enforced',()=>{
+ const content=[{type:'future_vendor_block',payload:{keep:true}},{type:protocol==='responses'?'input_image':'image',...(protocol==='responses'?{image_url:'data:image/png;base64,fixture'}:{source:{type:'base64',media_type:'image/png',data:'fixture'}})}];
+ const body={model:'logical',max_tokens:32,...(protocol==='responses'?{input:[{type:'future_vendor_item',content},{type:'function_call_output',call_id:'a',output:content},{type:'custom_tool_call_output',call_id:'b',output:content}]}:{messages:[{role:'user',content:[{type:'tool_result',tool_use_id:'a',content}]}]})};
+ const original=structuredClone(body);assert.doesNotThrow(()=>normalize(protocol,body,true));assert.deepEqual(body,original);assert.throws(()=>normalize(protocol,body));
+ // Malformed image references belong to the upstream, not a local image schema whitelist.
+ assert.doesNotThrow(()=>normalize(protocol,{...body,...(protocol==='responses'?{input:[{role:'user',content:[{type:'input_image'}]}]}:{messages:[{role:'user',content:[{type:'image'}]}]})},true));
+ for(const patch of [{store:true},{background:true},{previous_response_id:'r'},{conversation:'c'},{modalities:['audio']},{audio:{}},{image:{}},{video:{}},{mcp_servers:[]},...['code_interpreter','file_search','mcp','image_generation','code_execution_20250124','future_paid_tool'].map(type=>({tools:[{type}]}))])assert.throws(()=>normalize(protocol,{...body,...patch},true),{code:'unsupported_parameter'});
+ for(const type of ['input_audio','audio','input_video','video']){
+  const nested={type:'tool_result',content:[{type}]};
+  const patch=protocol==='responses'?{input:[{type:'custom_tool_call_output',output:[nested]}]}:{messages:[{role:'user',content:[nested]}]};
+  assert.throws(()=>normalize(protocol,{...body,...patch},true),{code:'unsupported_parameter'});
+ }
+ if(protocol==='responses')for(const type of ['code_interpreter','file_search','mcp','web_search','future_paid_tool'])assert.throws(()=>normalize(protocol,{...body,tools:[{type:'namespace',name:'outer',tools:[{type:'namespace',name:'inner',tools:[{type}]}]}]},true),{code:'unsupported_parameter'});
+});

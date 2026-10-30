@@ -7,9 +7,14 @@ info:
     immutable price and settlement. A service must pass Chat Completions verification.
     Responses and Messages prefer current per-model native probe evidence; otherwise
     they use the Chat adapter. Native HTTP/generation failures are never automatically
-    retried via another protocol. Only stateless full-history text and client tools
-    are enabled. Platform conversation storage, server tools and multimodal input are
-    excluded. Native Responses always sets store=false. A basic probe does not prove
+    retried via another protocol. Native input items and content blocks are extensible,
+    including image input and image tool results; unknown content is validated upstream.
+    Audio/video content and non-text output modalities remain excluded pending metering.
+    Platform conversation storage and background execution are excluded. Tools retain
+    a client-execution allowlist, recursively checked inside Responses namespaces;
+    top-level Responses web_search remains an existing compatibility exception without
+    separate tool-fee accounting. Other server/unknown tools and mcp_servers are rejected.
+    Native Responses always sets store=false. A basic probe does not prove
     streaming, tools, capacity or full vendor feature compatibility.
 servers:
   - url: http://localhost:4300
@@ -60,7 +65,8 @@ paths:
         - in: header
           name: anthropic-version
           required: true
-          schema: {type: string, const: '2023-06-01'}
+          schema: {type: string, minLength: 1}
+          description: Required; forwarded unchanged in native mode. Chat fallback accepts only 2023-06-01.
         - in: header
           name: anthropic-beta
           schema: {type: string}

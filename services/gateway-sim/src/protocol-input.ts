@@ -1,4 +1,4 @@
-/** Public protocol adapters terminate here; controlled upstreams always receive Chat Completions. */
+/** Native protocols retain provider payloads; Chat fallback converts the supported subset. */
 export type PublicProtocol='chat'|'responses'|'messages';
 type Obj=Record<string,unknown>;
 export class ProtocolInputError extends Error {constructor(message:string,readonly code='invalid_request_error'){super(message);}}
@@ -26,21 +26,31 @@ function inspectNative(protocol:Exclude<PublicProtocol,'chat'>,body:Obj):Obj {
   if(body.background!==undefined&&body.background!==false)unsupported('background execution is not supported');
   if(body.modalities!==undefined&&array(body.modalities,'modalities').some(v=>v!=='text'))unsupported('only text output is enabled');
   for(const key of ['audio','image','video'])if(body[key]!=null)unsupported(key+' is not enabled');
-  const parts=(value:unknown,allowed:string[],label:string)=>{if(typeof value==='string')return;for(const raw of array(value,label)){const p=object(raw,label+' block');if(!allowed.includes(String(p.type)))unsupported(label+' block '+String(p.type)+' is not enabled');}};
-  if(body.tools!==undefined)for(const raw of array(body.tools,'tools')){const tool=object(raw,'tool');
-    // Responses clients group client-executed tools under `namespace` (Codex does this) and may
-    // advertise the vendor-side `web_search` tool. Both are plain request data and pass through
-    // untouched; other server-executed tools still need their own pricing and acceptance.
-    const accepted=protocol==='responses'?['function','custom','namespace','web_search']:[undefined,'custom'];
-    if(!accepted.includes(tool.type as string|undefined))unsupported('only client-executed tools and web_search are enabled; other server tools need separate pricing and acceptance');}
+  // Content is provider-owned. Inspect only known unsupported billing modalities, including
+  // nested tool results; leave unknown item/block types and image validation to the upstream.
+  const parts=(value:unknown):void=>{if(Array.isArray(value)){for(const item of value)parts(item);return;}if(!value||typeof value!=='object')return;
+    const block=value as Obj;
+    if(['input_audio','output_audio','audio','input_video','output_video','video'].includes(String(block.type)))unsupported('audio/video content requires separate metering support');
+    for(const key of ['content','output'])if(block[key]!==undefined)parts(block[key]);
+  };
+  // Keep a positive execution boundary: unknown server tools may incur fees absent from our
+  // token ledger. web_search is an existing compatibility exception, not a billing guarantee.
+  const tools=(value:unknown,nested=false):void=>{for(const raw of array(value,'tools')){const tool=object(raw,'tool');
+    const accepted=protocol==='responses'?['function','custom','namespace',...(nested?[]:['web_search'])]:[undefined,'custom'];
+    if(!accepted.includes(tool.type as string|undefined))unsupported('server or unknown tool '+String(tool.type)+' requires separate pricing and acceptance');
+    if(tool.type==='namespace')tools(tool.tools,true);
+  }};
+  if(body.tools!==undefined)tools(body.tools);
+  if(body.mcp_servers!=null)unsupported('mcp_servers requires separate pricing and acceptance');
   if(protocol==='responses'){
     if(body.input===undefined&&body.instructions===undefined)fail('input or instructions is required');
-    if(body.input!==undefined&&typeof body.input!=='string')for(const raw of array(body.input,'input')){const item=object(raw,'input item');if(item.type===undefined||item.type==='message')parts(item.content,['input_text','output_text','refusal'],'message.content');else if(['function_call_output','custom_tool_call_output'].includes(String(item.type)))parts(item.output,['input_text','output_text'],'tool output');else if(!['function_call','custom_tool_call','reasoning'].includes(String(item.type)))unsupported('input item '+String(item.type)+' is not enabled');}
+    if(body.input!==undefined)parts(body.input);
   }else{
-    for(const raw of array(body.messages,'messages')){const message=object(raw,'message');parts(message.content,['text','tool_use','tool_result','thinking','redacted_thinking'],'message.content');if(Array.isArray(message.content))for(const raw of message.content){const block=object(raw,'content block');if(block.type==='tool_result'&&block.content!==undefined)parts(block.content,['text'],'tool result');}}
-    if(body.system!==undefined)parts(body.system,['text'],'system');
+    parts(array(body.messages,'messages'));
+    if(body.system!==undefined)parts(body.system);
   }
-  // Only this conservative estimate goes through admission. The original object is forwarded intact.
+  // Admission uses a serialized projection, not a vision-token estimate for remote images.
+  // The original content is forwarded intact; authoritative upstream usage drives settlement.
   const result:Obj={model:body.model,messages:[{role:'user',content:JSON.stringify(body)}]};
   if(body.stream!==undefined)result.stream=boolean(body.stream,'stream');
   const limit=protocol==='responses'?body.max_output_tokens:body.max_tokens;if(limit!==undefined)result.max_tokens=positive(limit,'output token limit');else if(protocol==='messages')fail('max_tokens is required');

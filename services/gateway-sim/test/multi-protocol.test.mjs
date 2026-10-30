@@ -37,11 +37,37 @@ for(const p of ['responses','messages']){
 test('unsupported state, unmatched tools and invalid authentication never generate',()=>gatewayFixture(async({base,requests,authorizations})=>{
  assert.equal((await call(base,'responses',{previous_response_id:'cross-user'})).status,400);
  assert.equal((await call(base,'messages',{}, {'x-api-key':'bad'})).status,401);
- assert.equal((await call(base,'messages',{}, {'anthropic-version':'new-version'})).status,400);
  assert.equal((await call(base,'messages',{}, {authorization:'Bearer different'})).status,400);
  assert.equal((await call(base,'responses',{input:[{type:'function_call_output',call_id:'unknown',output:'x'}]})).status,400);
  assert.equal(requests.length,0);assert.equal(authorizations.length,1);
 },async()=>{}));
+
+for(const p of ['responses','messages'])test(p+' native forwards image tool output and unknown content without rewriting provider fields',()=>gatewayFixture(async({base,requests,settlements})=>{
+ const content=[{type:p==='responses'?'input_image':'image',...(p==='responses'?{image_url:'data:image/png;base64,fixture'}:{source:{type:'base64',media_type:'image/png',data:'fixture'}})},{type:'future_block',vendor_marker:{keep:true}}];
+ const patch=p==='responses'?{input:[{type:'custom_tool_call_output',call_id:'a',output:content},{type:'future_item',vendor_marker:1}],tools:[{type:'namespace',name:'local',tools:[{type:'function',name:'inspect',parameters:{type:'object'}}]}]}:{messages:[{role:'user',content:[{type:'tool_result',tool_use_id:'a',content}]}]};
+ const r=await call(base,p,{...patch,store:undefined,...(p==='responses'?{max_output_tokens:64}:{max_tokens:64})});assert.equal(r.status,200);assert.equal(requests.length,1);
+ for(const [key,value]of Object.entries(patch))assert.deepEqual(requests[0][key],value);
+ if(p==='responses')assert.equal(requests[0].store,false);
+ assert.equal(requests[0][p==='responses'?'max_output_tokens':'max_tokens'],32);
+ assert.equal(settlements[0].usageFinal,true);assert.equal(settlements[0].inputTokens,13);
+},async(b,r)=>send(r,nativeValue(p,b.model)),{TEST_NATIVE_PROTOCOLS:nativeConfig}));
+
+test('native Messages forwards version and beta headers; Chat fallback rejects unknown versions before dispatch',async()=>{
+ await gatewayFixture(async({base,requests})=>{
+  const r=await call(base,'messages',{}, {'anthropic-version':'future-version','anthropic-beta':'future-feature'});assert.equal(r.status,200);assert.equal(requests.length,1);
+  const missing=await call(base,'messages',{}, {'anthropic-version':''});assert.equal(missing.status,400);assert.equal(requests.length,1);
+ },async(b,r,q)=>{assert.equal(q.headers['anthropic-version'],'future-version');assert.equal(q.headers['anthropic-beta'],'future-feature');send(r,nativeValue('messages',b.model));},{TEST_NATIVE_PROTOCOLS:nativeConfig});
+ await gatewayFixture(async({base,requests,settlements})=>{
+  const r=await call(base,'messages',{}, {'anthropic-version':'future-version'});assert.equal(r.status,400);assert.equal((await r.json()).error.type,'unsupported_version');assert.equal(requests.length,0);assert.equal(settlements[0].forwarded,false);assert.equal(settlements[0].usageFinal,true);
+ },async()=>assert.fail('fallback must not dispatch an unknown version'));
+});
+
+test('native execution boundaries reject paid and nested tools before admission',()=>gatewayFixture(async({base,requests,authorizations})=>{
+ for(const patch of [{store:true},{background:true},{conversation:'c'},{previous_response_id:'r'},{tools:[{type:'file_search'}]},{tools:[{type:'namespace',name:'local',tools:[{type:'mcp'}]}]},{modalities:['audio']},{input:[{type:'function_call_output',call_id:'a',output:[{type:'input_audio',input_audio:{}}]}]}]){
+  const r=await call(base,'responses',patch);assert.equal(r.status,400);assert.equal((await r.json()).error.type,'unsupported_parameter');
+ }
+ assert.equal(requests.length,0);assert.equal(authorizations.length,0);
+},async()=>assert.fail('unsupported execution must not dispatch'),{TEST_NATIVE_PROTOCOLS:nativeConfig}));
 test('control-plane RPC timeout override is bounded and rejects invalid startup values',async()=>{
  for(const value of ['0','60001','NaN'])await assert.rejects(()=>gatewayFixture(async()=>{},async()=>{},{CONTROL_PLANE_RPC_TIMEOUT_MS:value}),/CONTROL_PLANE_RPC_TIMEOUT_MS/);
  await gatewayFixture(async({base})=>assert.equal((await fetch(base+'/health')).status,200),async()=>{},{CONTROL_PLANE_RPC_TIMEOUT_MS:'15000'});
