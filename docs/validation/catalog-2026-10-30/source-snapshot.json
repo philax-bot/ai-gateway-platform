@@ -1,0 +1,42 @@
+{
+  "baseCommit": "978b031384994635f7b23d2c8d9d7c26add54987",
+  "scope": "T11 staged source; excludes unrelated Agent and Octop work; metadata added after test tree",
+  "files": [
+    {
+      "path": "apps/web/src/EnterpriseApp.tsx",
+      "sha256": "e18a33dbaf4f8e408dfc02f4bed298fd0601d29c75573903bb88e5a3b9bdfd40"
+    },
+    {
+      "path": "apps/web/src/ModelCatalog.tsx",
+      "sha256": "f3eb4f542b64a3b8921b4adbe5abddead6e612e2fba364087f3e9339b8127ea3"
+    },
+    {
+      "path": "apps/web/src/WorkspacePages.tsx",
+      "sha256": "e6de5e0e5e75676ead60a02541a5caf54ebd56e2c27fc5b594e976fd7d0e95fc"
+    },
+    {
+      "path": "apps/web/src/v2.tsx",
+      "sha256": "b55d713d1b8aced5a264e94117b920a5d93472bb72f594d46e3391006c228a5d"
+    },
+    {
+      "path": "package.json",
+      "sha256": "584fe766f3762f6c7bd00939a38ef08118ce1046fa86334391bf3cfa15533c4b"
+    },
+    {
+      "path": "packages/contracts/src/catalog.spec.ts",
+      "sha256": "e9349a545477fbe8c1741910e097bd6a6181f0938ac250ceb5c73c7c52ad147f"
+    },
+    {
+      "path": "packages/contracts/src/catalog.ts",
+      "sha256": "7f25a701268aaaa08de3cfbeb9478f677abba2d3e00181a6daa72648a096d8c5"
+    },
+    {
+      "path": "packages/contracts/src/index.ts",
+      "sha256": "31fcf2a14f8529320790167a6bf51ff2a7f7427d2944759f4884509728eed876"
+    },
+    {
+      "path": "scripts/check-model-catalog.mjs",
+      "sha256": "7d37c79f18570a2a7fd2672b2781e61079d71df293dd2d105a84f2fc2e84325b"
+    }
+  ]
+}

@@ -120,3 +120,5 @@ pnpm check:postgres
 验证层级见 [开发边界](docs/DEVELOPMENT-BOUNDARIES.md)，最新证据见 [2026-10-19 验证记录](docs/VALIDATION-ONBOARDING-2026-10-19.md)。本地/Mock/开发数据库结果不等于生产验收。
 
 2026-10-30：规则型输入安全围栏 V0.1 已完成，运营空间“配置与排查 → 安全围栏”可配置、试测和查看事件；默认关闭，运营确认后启用。支持仅记录/拦截，覆盖个人、项目、应用，见 [实施与验收](docs/architecture/safety-guardrail-v0.1-2026-10-30.md)。隔离检查：`pnpm check:guardrail`，含页面回归加 `--browser`；本轮真实模型新增请求为 0。
+
+2026-10-30：T11 模型目录已完成，运营空间“配置与排查 → 模型目录”可检索既有模型、核对逐来源配置价格和模型池开放范围，并进入原模型配置流程。37 项隔离页面、25 项默认环境只读页面及 8 项环境保留核对通过；没有新增真实模型请求。隔离复测 `pnpm check:catalog`，见 [实施与验收](docs/architecture/model-catalog-v0.1-2026-10-30.md)。T12 第二协议仍排队。

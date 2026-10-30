@@ -1,0 +1,61 @@
+{
+  "success": true,
+  "sourceTree": "a452db3fd78035798d8a65ead96b27bf09471c1a",
+  "scope": "exported Git index without unrelated work; offline frozen dependencies; metadata added after test tree",
+  "checks": {
+    "build": "all workspace packages passed",
+    "webTypecheck": "passed",
+    "contractsTests": 41,
+    "independentBrowserChecks": 37
+  },
+  "webBundle": {
+    "modules": 79,
+    "cssKB": 168.88,
+    "jsKB": 517.41,
+    "warning": "existing chunk above 500 kB"
+  },
+  "browser": {
+    "success": true,
+    "scope": "isolated memory fixture; no vendor calls",
+    "checks": [
+      "catalog navigation and existing configuration projection",
+      "desktop catalog no page overflow",
+      "disabled models excluded by default",
+      "unconfigured model is explicit",
+      "unverified source not called available",
+      "missing prices remain unknown",
+      "multiple source prices shown as range",
+      "unknown metadata remains unknown",
+      "detail preserves both source prices and states",
+      "open pools are not presented as personal entitlement",
+      "model identifier search is case insensitive",
+      "empty filter result is recoverable",
+      "historical disabled models can be included",
+      "source and pool filters must match the same relationship",
+      "azure desktop no overflow",
+      "azure modal Tab remains inside",
+      "azure Escape returns to model",
+      "sidebar desktop no overflow",
+      "sidebar modal Tab remains inside",
+      "sidebar Escape returns to model",
+      "next desktop no overflow",
+      "next modal Tab remains inside",
+      "next Escape returns to model",
+      "classic desktop no overflow",
+      "classic modal Tab remains inside",
+      "classic Escape returns to model",
+      "beacon desktop no overflow",
+      "beacon modal Tab remains inside",
+      "beacon Escape returns to model",
+      "mobile catalog no page overflow",
+      "mobile filters collapsed",
+      "mobile filtering works",
+      "mobile detail no page overflow",
+      "configuration flow remains reachable",
+      "no browser runtime exceptions",
+      "browsing does not mutate configuration",
+      "browsing does not trigger model connection verification"
+    ],
+    "configuredModels": 6
+  }
+}

@@ -12,6 +12,7 @@ import { ApprovalCenter,approvalLabels } from './ApprovalCenter';
 import { KeyManager } from './KeyManager';
 import { Projects } from './Projects';
 import { Applications } from './Applications';
+import {ModelCatalog} from './ModelCatalog';
 import { ModelSetup } from './ModelSetup';
 import {RetentionSettings} from './RetentionSettings';
 import {OperationAudit} from './OperationAudit';
@@ -28,6 +29,7 @@ export function WorkspacePages({data:d,page,targetId,active=true,isOps,edit,purp
   const purpose=d.purposes.find(p=>p.id===purposeId)??d.purposes[0];
   const selector=<label className="purpose-select">使用用途 <select value={purpose.id} onChange={e=>setPurpose(e.target.value)}>{d.purposes.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></label>;
   switch(page){
+    case 'catalog':return <ModelCatalog data={d} edit={edit} setPage={setPage} refresh={refresh} detail={detail}/>;
     case 'safety':return <SafetyGuardrail data={d} run={run} active={active}/>;
     case 'monitoring':return <Monitoring data={d} edit={edit} run={run} detail={detail} refreshWorkspace={refresh} active={active}/>;
     case 'reviews':return <CallExplorer key="reviews" data={d} kind="reviews" reconcile={edit.reconcile} detail={detail} active={active}/>;

@@ -1,0 +1,8 @@
+{
+  "success": false,
+  "scope": "isolated memory fixture; no vendor calls",
+  "checks": [],
+  "configuredModels": 6,
+  "error": "browser condition: document.body.innerText.includes('让同事开始使用 AI')",
+  "page": "人工审查模式 · 本地模型替身 · 业务数据在服务重启后清空\nSignal Atlas\n企业 AI 资源运营\n运营空间\n个人空间\n搜索\nCtrl K\n蓝灰\n信标\n左栏\n顶栏\n经典\n目\n目录验收运营\n企业工作空间\nSignal Atlas\n运营空间\n运营空间\n运营工作台\n为人员开通\n申请与审批\n项目\n应用\n配置与排查\n模型目录\n模型配置\n组织与成员\n密钥与接入\n运行监控\n安全围栏\n调用记录\n费用核对\n企业设置\n运营工作台\n运营空间\n2026.10.30 · 周五\nOPERATIONS\n运营工作台\n\n需要你处理的事项、下一步建议，以及当前运营口径下的关键数字。\n\n刷新数据\n需要你处理\n\n当前没有待处理的审批或费用核对。\n\n准备开始\n还需要一份人员开通方案\n\n把可用模型和每人额度保存为方案，开通时直接选用。\n\n0\n项待处理\n\n完成左侧这一步后即可为同事开通。\n\n设置开通方案\n当前运营口径\n企业\nSignal Atlas\n个人默认池\n目录 · 已开放池\n已开放模型\n5 个\n申请待审批\n0\n按你的审批职责\n费用待核对\n0\n需人工确认后结算\n可用开通方案\n0\n包含可用模型\n已开通人员\n0\n权益有效且未到期\n\n需要排查服务或查看调用记录时，可从导航中的“配置与排查”进入。"
+}

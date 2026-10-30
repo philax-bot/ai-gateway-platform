@@ -1,3 +1,4 @@
+export * from './catalog.js';
 export * from './guardrail.js';
 export type SubjectType = 'employee' | 'application';
 export * from './platform.js';

@@ -16,11 +16,12 @@ import { KeyDetails } from './KeyManager';
 import { OrganizationImpact } from './OrganizationImpact';
 import {RetentionCountsView,retentionTotal} from './RetentionSettings';
 
-const labels:Record<string,string>={overview:'运营工作台',models:'模型配置',members:'组织与成员',onboarding:'为人员开通',projects:'项目',applications:'应用',keys:'密钥与接入',approvals:'申请与审批',calls:'调用记录',reviews:'费用核对',monitoring:'运行监控',safety:'安全围栏',settings:'企业设置',home:'开始使用',quota:'我的额度',online:'在线使用',notifications:'通知'};
+const labels:Record<string,string>={overview:'运营工作台',models:'模型配置',catalog:'模型目录',members:'组织与成员',onboarding:'为人员开通',projects:'项目',applications:'应用',keys:'密钥与接入',approvals:'申请与审批',calls:'调用记录',reviews:'费用核对',monitoring:'运行监控',safety:'安全围栏',settings:'企业设置',home:'开始使用',quota:'我的额度',online:'在线使用',notifications:'通知'};
 /* One line per page: what this page is for and what the numbers mean. Shown under
    the page title so an operator does not have to read the panel text to orient. */
 const ledes:Record<string,string>={
   overview:'需要你处理的事项、下一步建议，以及当前运营口径下的关键数字。',
+  catalog:'查看已登记模型的来源、配置价格和开放范围，按需进入原配置流程。',
   models:'模型服务、模型池与开放范围。只有连接验证通过且价格已确认的服务才能开放给同事。',
   members:'组织决定权限边界，成员状态决定能否登录和接受开通。',
   onboarding:'选择人员和方案，确认金额与到期日后开通。开通不创建密钥，也不迁移已有权益。',
@@ -95,7 +96,7 @@ export function EnterpriseApp(){
     if(!data)return;
     const adminNow=data.actor.roles.includes('operator'),opsNow=operations&&adminNow;
     const valid=opsNow
-      ?['overview','onboarding','approvals','projects','applications','models','members','keys','monitoring','safety','calls','reviews','settings','notifications']
+      ?['overview','onboarding','approvals','projects','applications','catalog','models','members','keys','monitoring','safety','calls','reviews','settings','notifications']
       :['home','online','quota','approvals','keys','calls','projects','applications','notifications'];
     setOpenTabs(tabs=>{
       const pinned=opsNow?'overview':'home';
@@ -153,7 +154,7 @@ export function EnterpriseApp(){
   if(!data)return <><ReviewBanner/><DesignSwitch mode={uiMode} onChange={setUiMode} className="login-design-switch"/><Login setup={setup} tokenRequired={setupTokenRequired} message={message} modern={desk} onInitialized={()=>{setSetup(false);setSetupTokenRequired(false);}} onDone={async()=>{setSetup(false);setMessage('');await refresh();}}/></>;
   const d=data,admin=d.actor.roles.includes('operator'),isOps=operations&&admin,edit=makeEditors(d,run,setEditor);
   const navigation=isOps?['overview','onboarding','approvals','projects','applications']:['home','online','quota','approvals'];
-  const secondary=isOps?['models','members','keys','monitoring','safety','calls','reviews','settings']:['keys','calls','projects',...(d.applications.length?['applications']:[])];
+  const secondary=isOps?['catalog','models','members','keys','monitoring','safety','calls','reviews','settings']:['keys','calls','projects',...(d.applications.length?['applications']:[])];
   const navLabel=(item:string)=>!isOps&&!admin&&!d.projects.some(p=>p.managerId===d.actor.id)&&item==='approvals'?'我的申请':labels[item];
   const navItem=(item:string)=><button key={item} className={`nav-link ${page===item?'active':''}`} aria-current={page===item?'page':undefined} onClick={()=>navigate(item)}>{navLabel(item)}</button>;
   const secondaryLabel=isOps?'配置与排查':'工具与协作';

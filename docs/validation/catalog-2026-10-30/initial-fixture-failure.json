@@ -1,0 +1,6 @@
+{
+  "success": false,
+  "scope": "isolated memory fixture; no vendor calls",
+  "checks": [],
+  "error": "fixture API /api/v1/platform/commands\n\n409 !== 200\n"
+}
