@@ -1,0 +1,378 @@
+{
+  "success": true,
+  "createdAt": "2026-10-28T13:23:35.983Z",
+  "octop": {
+    "repository": "https://github.com/TencentCloud/Octop",
+    "revision": "890111b7879665840414ca28ab168b05b0db0921"
+  },
+  "scope": {
+    "actualOctop": true,
+    "topology": "per-user-instances",
+    "upstream": "DeepSeek official via controlled gateway",
+    "realModelRequests": 6,
+    "platformStore": "isolated memory",
+    "octopStore": "isolated SQLite",
+    "network": "Octop Python process restricted to loopback",
+    "deployment": false,
+    "osUserIsolation": false,
+    "priceBasis": "configured platform price; conservative transport estimate, not supplier invoice"
+  },
+  "checks": [
+    "runtime stays inside workspace",
+    "model service connection verification passed",
+    "alice: gateway model discovery",
+    "bob: gateway model discovery",
+    "low: gateway model discovery",
+    "alice: QA onboarding is complete before paid turns",
+    "alice: actual Octop model discovery",
+    "bob: QA onboarding is complete before paid turns",
+    "bob: actual Octop model discovery",
+    "low: QA onboarding is complete before paid turns",
+    "low: actual Octop model discovery",
+    "each user has a distinct Octop process",
+    "each user has a distinct Octop home and SQLite database",
+    "alice: instance contains only its own Provider and Key",
+    "alice: token cannot read bob's Provider",
+    "alice: token cannot read bob's Agent",
+    "alice: token cannot read low's Provider",
+    "alice: token cannot read low's Agent",
+    "bob: instance contains only its own Provider and Key",
+    "bob: token cannot read alice's Provider",
+    "bob: token cannot read alice's Agent",
+    "bob: token cannot read low's Provider",
+    "bob: token cannot read low's Agent",
+    "low: instance contains only its own Provider and Key",
+    "low: token cannot read alice's Provider",
+    "low: token cannot read alice's Agent",
+    "low: token cannot read bob's Provider",
+    "low: token cannot read bob's Agent",
+    "alice: session cannot open bob's chat WebSocket",
+    "bob: session cannot open alice's chat WebSocket",
+    "explicit cancellation completes the Octop turn",
+    "alice: OCTOP_TOOL: read /fixture.txt completed",
+    "alice: OCTOP_TOOL: read /fixture.txt streamed expected content",
+    "alice: actual Octop read_file returned its own workspace fixture",
+    "bob: actual Octop read_file returned its own workspace fixture",
+    "explicit cancellation completes the Octop turn",
+    "revoked key cannot discover models",
+    "alice: model request provenance is present",
+    "alice: every actual model request settles against its own member and credential",
+    "bob: model request provenance is present",
+    "bob: every actual model request settles against its own member and credential",
+    "alice: own confirmed accounting",
+    "alice: authoritative cached-token price",
+    "alice: authoritative cached-token price",
+    "alice: independent balance, charge and pending hold conserve funds",
+    "bob: own confirmed accounting",
+    "bob: authoritative cached-token price",
+    "bob: independent balance, charge and pending hold conserve funds",
+    "low: independent balance, charge and pending hold conserve funds",
+    "insufficient quota retains only non-billable refusal records",
+    "explicit Octop cancellation preserves unknown usage",
+    "Bob real cancellation preserves its own unknown usage",
+    "all streaming model requests include final usage",
+    "gateway settlement outbox drained",
+    "model fixture completed without handler errors"
+  ],
+  "modelRequests": [
+    {
+      "requestId": "octop-live-cce4cc76-6329-464a-b021-527486d75b80",
+      "owner": "bob",
+      "scenario": "tool",
+      "stream": true,
+      "tools": [
+        "read_file"
+      ],
+      "toolResultMatched": false,
+      "includeUsage": true,
+      "receivedBytes": 4810,
+      "httpStatus": 200
+    },
+    {
+      "requestId": "octop-live-6d87c9c4-f8cf-4cd3-b556-32695d833b17",
+      "owner": "alice",
+      "scenario": "tool",
+      "stream": true,
+      "tools": [
+        "read_file"
+      ],
+      "toolResultMatched": false,
+      "includeUsage": true,
+      "receivedBytes": 4810,
+      "httpStatus": 200
+    },
+    {
+      "requestId": "octop-live-b4df0c67-2284-4527-af4f-e5d8156f5df8",
+      "owner": "bob",
+      "scenario": "tool",
+      "stream": true,
+      "tools": [
+        "read_file"
+      ],
+      "toolResultMatched": true,
+      "includeUsage": true,
+      "receivedBytes": 304,
+      "httpStatus": 200
+    },
+    {
+      "requestId": "octop-live-3c9c641b-7dc4-4903-9192-fd2eaf04196a",
+      "owner": "alice",
+      "scenario": "tool",
+      "stream": true,
+      "tools": [
+        "read_file"
+      ],
+      "toolResultMatched": true,
+      "includeUsage": true,
+      "receivedBytes": 11099,
+      "httpStatus": 200
+    },
+    {
+      "requestId": "octop-live-8248c58c-219a-4317-80c1-fb669a9bc7cf",
+      "owner": "alice",
+      "scenario": "cancel",
+      "stream": true,
+      "tools": [
+        "read_file"
+      ],
+      "toolResultMatched": false,
+      "includeUsage": true,
+      "receivedBytes": 304,
+      "httpStatus": 200
+    }
+  ],
+  "turns": [
+    {
+      "user": "alice",
+      "scenario": "OCTOP_TOOL: read /fixture.txt",
+      "frameTypes": [
+        "turn.started",
+        "state_snapshot",
+        "state_update",
+        "tool_call_chunk",
+        "usage",
+        "tool_result",
+        "token",
+        "done"
+      ],
+      "done": true,
+      "error": false,
+      "receivedTextBytes": 64,
+      "finalMarkerMatched": true
+    },
+    {
+      "user": "bob",
+      "scenario": "OCTOP_TOOL: read /fixture.txt",
+      "frameTypes": [
+        "turn.started",
+        "state_snapshot",
+        "state_update",
+        "tool_call_chunk",
+        "usage",
+        "tool_result",
+        "done"
+      ],
+      "done": true,
+      "error": false,
+      "cancelSent": true,
+      "receivedTextBytes": 0
+    },
+    {
+      "user": "alice",
+      "scenario": "OCTOP_SLOW: write the numbers 1 through 10000, each with a detailed sentence",
+      "frameTypes": [
+        "turn.started",
+        "state_snapshot",
+        "state_update",
+        "done"
+      ],
+      "done": true,
+      "error": false,
+      "cancelSent": true,
+      "receivedTextBytes": 0
+    }
+  ],
+  "priorBudget": {
+    "maxRequests": 12,
+    "maxEstimatedAmount": 1,
+    "attempts": 6,
+    "estimatedUpperBound": 0.237566
+  },
+  "priceSnapshot": {
+    "input": 2,
+    "output": 8,
+    "cached": 0.04
+  },
+  "model": "deepseek-flash",
+  "verification": [
+    {
+      "outcome": "passed",
+      "usage": {
+        "inputTokens": 32,
+        "outputTokens": 1,
+        "cachedInputTokens": 0,
+        "complete": true
+      },
+      "cost": {
+        "state": "priced",
+        "amount": 0.000072,
+        "price": {
+          "version": "7d141b07570430b13260488f",
+          "currency": "CNY",
+          "unit": "per_million_tokens",
+          "inputPrice": 2,
+          "outputPrice": 8,
+          "cachedInputPrice": 0.04
+        }
+      }
+    }
+  ],
+  "instances": [
+    {
+      "owner": "alice",
+      "platformMemberId": "member-114706e9-34e8-42f2-97af-71fdcbb3d728",
+      "port": 56573,
+      "processId": 31696,
+      "home": "octop-alice",
+      "providerName": "gateway-alice"
+    },
+    {
+      "owner": "bob",
+      "platformMemberId": "member-8a3e708d-e6b7-49d5-b10d-3c3255aff3f9",
+      "port": 56638,
+      "processId": 33696,
+      "home": "octop-bob",
+      "providerName": "gateway-bob"
+    },
+    {
+      "owner": "low",
+      "platformMemberId": "member-a8ebb444-d138-4936-b880-688e76368ee7",
+      "port": 59930,
+      "processId": 3432,
+      "home": "octop-low",
+      "providerName": "gateway-low"
+    }
+  ],
+  "accounts": [
+    {
+      "user": "alice",
+      "subjectId": "member-114706e9-34e8-42f2-97af-71fdcbb3d728",
+      "calls": [
+        {
+          "requestId": "octop-live-8248c58c-219a-4317-80c1-fb669a9bc7cf",
+          "outcome": "client_cancelled",
+          "billableState": "pending_review",
+          "usageFinal": false,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cachedInputTokens": 0,
+          "actualAmount": 0,
+          "reservedAmount": 0.048462
+        },
+        {
+          "requestId": "octop-live-3c9c641b-7dc4-4903-9192-fd2eaf04196a",
+          "outcome": "completed",
+          "billableState": "confirmed",
+          "usageFinal": true,
+          "inputTokens": 5168,
+          "outputTokens": 36,
+          "cachedInputTokens": 4992,
+          "actualAmount": 0.00084,
+          "reservedAmount": 0.047976
+        },
+        {
+          "requestId": "octop-live-6d87c9c4-f8cf-4cd3-b556-32695d833b17",
+          "outcome": "completed",
+          "billableState": "confirmed",
+          "usageFinal": true,
+          "inputTokens": 5068,
+          "outputTokens": 41,
+          "cachedInputTokens": 0,
+          "actualAmount": 0.010464,
+          "reservedAmount": 0.04722
+        }
+      ],
+      "initial": 0.5,
+      "available": 0.440234,
+      "confirmedAmount": 0.011304,
+      "pendingReservedAmount": 0.048462
+    },
+    {
+      "user": "bob",
+      "subjectId": "member-8a3e708d-e6b7-49d5-b10d-3c3255aff3f9",
+      "calls": [
+        {
+          "requestId": "octop-live-b4df0c67-2284-4527-af4f-e5d8156f5df8",
+          "outcome": "client_cancelled",
+          "billableState": "pending_review",
+          "usageFinal": false,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cachedInputTokens": 0,
+          "actualAmount": 0,
+          "reservedAmount": 0.04798
+        },
+        {
+          "requestId": "octop-live-cce4cc76-6329-464a-b021-527486d75b80",
+          "outcome": "completed",
+          "billableState": "confirmed",
+          "usageFinal": true,
+          "inputTokens": 5067,
+          "outputTokens": 41,
+          "cachedInputTokens": 0,
+          "actualAmount": 0.010462,
+          "reservedAmount": 0.047216
+        }
+      ],
+      "initial": 0.5,
+      "available": 0.441558,
+      "confirmedAmount": 0.010462,
+      "pendingReservedAmount": 0.04798
+    },
+    {
+      "user": "low",
+      "subjectId": "member-a8ebb444-d138-4936-b880-688e76368ee7",
+      "calls": [],
+      "initial": 0.000001,
+      "available": 0.000001,
+      "confirmedAmount": 0,
+      "pendingReservedAmount": 0
+    }
+  ],
+  "outbox": {
+    "queued": 0,
+    "blocked": 0,
+    "active": 0,
+    "oldestQueuedAgeMs": 0,
+    "oldestBlockedAgeMs": 0,
+    "retryAttempts": 0,
+    "authorizing": 0,
+    "authorizationPending": 0,
+    "authorizationBlocked": 0,
+    "writePending": 0
+  },
+  "perUserReadiness": {
+    "localApplicationIsolationVerified": true,
+    "realModelBasicVerified": true,
+    "productionReady": false,
+    "remaining": [
+      "real model long-task and sustained load",
+      "SSO and account-to-instance routing",
+      "per-user OS/container and tool sandbox isolation",
+      "target deployment and recovery"
+    ]
+  },
+  "budget": {
+    "maxRequests": 6,
+    "maxEstimatedAmount": 0.7624340000000001,
+    "attempts": 6,
+    "estimatedUpperBound": 0.23898999999999998
+  },
+  "cumulativeBudget": {
+    "maxRequests": 12,
+    "maxEstimatedAmount": 1,
+    "attempts": 12,
+    "estimatedUpperBound": 0.476556
+  },
+  "finishedAt": "2026-10-28T13:24:22.120Z"
+}

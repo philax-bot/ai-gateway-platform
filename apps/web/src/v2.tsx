@@ -36,7 +36,7 @@ export function Icon({ name, size = 18 }: { name: IconName; size?: number }) {
 
 export function navIcon(id: string): IconName {
   return ({
-    overview: 'home', home: 'home', onboarding: 'userPlus', online: 'spark',
+    overview: 'home', home: 'home', onboarding: 'userPlus', online: 'spark', agent:'spark',
     quota: 'wallet', approvals: 'inbox', projects: 'folder', applications: 'grid',
     catalog:'chip', models: 'chip', members: 'users', keys: 'key', monitoring: 'activity',
     safety:'checklist', calls: 'list', reviews: 'checklist', settings: 'sliders', notifications: 'bell',

@@ -74,6 +74,7 @@ export interface Session { tokenHash: string; memberId: string; createdAt: strin
 export interface WorkspaceSettings { name: string; timezone: 'Asia/Shanghai'; personalDefaultPoolId: string | null; projectDefaultPoolId: string | null; limits: UsageLimits; retentionDays: number; retentionAutomatic?:boolean }
 export interface WorkspaceState {
   guardrail?: import('./guardrail.js').GuardrailPolicy;
+  agentInstances?: ManagedAgentInstance[];
   retention?:{lastRun:import('./retention.js').RetentionRun};
   monitoring?:import('./monitoring.js').MonitoringState;
   version: 1; tenantId: string; revision: number; organizations: Organization[]; members: Member[];
@@ -81,6 +82,18 @@ export interface WorkspaceState {
   rules: AutoRule[]; projects: Project[]; applications: Application[]; approvals: Approval[]; keys: ManagedKey[];
   distributions: Distribution[]; notifications: Notification[]; audit: AuditEntry[]; sessions: Session[];
   settings: WorkspaceSettings; operations: Record<string, { fingerprint: string; result: unknown }>;
+}
+export interface ManagedAgentInstance {
+  id:string; ownerId:string; status:'provisioning'|'running'|'stopping'|'stopped'|'failed';
+  generation:number; keyId:string|null; errorCode:string|null; updatedAt:string;
+  operation?:{key:string;actorId:string;action:'ensure'|'rotate'|'stop';token:string;expiresAt:string};
+}
+export interface ManagedAgentView {
+  enabled:boolean; instance:null|{
+    id:string;ownerId:string;status:ManagedAgentInstance['status'];generation:number;
+    key:Pick<ManagedKey,'id'|'masked'|'status'|'expiresAt'>|null;errorCode:string|null;updatedAt:string;
+    entryUrl:string|null;agentId:string|null;
+  };
 }
 export interface BusinessQuotaBatch {
   closedAt?:string|null;closedAmount?:number;

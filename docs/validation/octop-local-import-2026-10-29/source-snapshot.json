@@ -1,0 +1,73 @@
+{
+  "createdAt": "2026-10-28T16:35:01.3050274Z",
+  "files": [
+    {
+      "path": "apps/control-plane/src/agents/local-octop-import.service.ts",
+      "sha256": "1801e07df2a8dd95856d892c82e854c20a7009696374ca8e44f475756fc0e18c"
+    },
+    {
+      "path": "apps/control-plane/src/agents/local-octop-import.controller.ts",
+      "sha256": "2df420b5bb66fed56f8fd30c4790381f2a13c57ebf97452a450187f79b001d30"
+    },
+    {
+      "path": "apps/control-plane/src/agents/local-octop-import.spec.ts",
+      "sha256": "a0bd703130e395d3f0755a89e0598111b663f6417de2ffa2dad8d31d7fad58ab"
+    },
+    {
+      "path": "apps/control-plane/src/app.module.ts",
+      "sha256": "56997c803db20731d82622f2ea5234c2ae4124908ea32b2036267db1c7814787"
+    },
+    {
+      "path": "apps/web/public/octop-connector.ps1",
+      "sha256": "01c4f33549fbf3f60d36c13be5f6447df1f17cadb5e79569c5d789a67d8497f3"
+    },
+    {
+      "path": "apps/web/src/LocalOctopConnect.tsx",
+      "sha256": "0cf08afefb6734224ba4c508804e6704242827956b0acd0292d8aaeaac79782f"
+    },
+    {
+      "path": "apps/web/src/EnterpriseApp.tsx",
+      "sha256": "fa07d9509fe310d342e55fb8cc0da9d465cacd9c60e03bb37028080d5cc15b0e"
+    },
+    {
+      "path": "apps/web/src/KeyManager.tsx",
+      "sha256": "86822552557910e15e5bbb0ba649561de8182d3d1e35c447f73594f429578497"
+    },
+    {
+      "path": "apps/web/src/password-field.tsx",
+      "sha256": "12b4ff983db9d93fe7b8f985b22a92f6cba92a45e2125596758dc5611c4f507c"
+    },
+    {
+      "path": "apps/web/src/client.ts",
+      "sha256": "5f257ce0d495a5bff2bd91042e4e85182459fedbe78cdfd45831e5d9f27910fb"
+    },
+    {
+      "path": "scripts/test-octop-connector.ps1",
+      "sha256": "99ac49d3341f8b743dc8a96460fac7123f5669d2dbd5fe3e04c031ad2d832498"
+    },
+    {
+      "path": "scripts/check-octop-local-import.mjs",
+      "sha256": "480309ac979f3c01cedd9dfb05d077cf5facc75dffe1b2e1069244b8968484eb"
+    },
+    {
+      "path": "scripts/check-octop-local-import-web.mjs",
+      "sha256": "074fe43a372e29288413a92e31c059082bc5a082189e981059ee88348a7bec4b"
+    },
+    {
+      "path": "scripts/check-octop-managed.mjs",
+      "sha256": "b0839376375b209ec0966271c86830a183d7ee1f5f8988d558f672b6a88addbb"
+    },
+    {
+      "path": "scripts/check-octop-web.mjs",
+      "sha256": "2a988057a80d79cf0aea5702c89c6ccec94f278d795d3f576e7e5522749fd313"
+    },
+    {
+      "path": "contracts/platform-api-v0.1.yaml",
+      "sha256": "66d94dc2d1e26a766d7fba1842473e7379a9f1296a999a1b87599d6b5cc45428"
+    },
+    {
+      "path": "package.json",
+      "sha256": "493c567f044b56a4e6da2d16527dc7ced0da120d7903fd3dcad48eaec86a9a4d"
+    }
+  ]
+}

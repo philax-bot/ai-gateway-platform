@@ -1,0 +1,29 @@
+{
+  "success": true,
+  "scope": "read-only default workspace; no model requests",
+  "checks": [
+    "existing visible model selected",
+    "Chat complete endpoint shown",
+    "Responses endpoint and stateless input example correct",
+    "Messages keyboard selection and authentication headers correct",
+    "Messages root Base URL differs from complete endpoint",
+    "unselected model suppresses invalid example",
+    "example follows selected authorized model",
+    "azure desktop no page overflow",
+    "azure dialog focus contained",
+    "sidebar desktop no page overflow",
+    "sidebar dialog focus contained",
+    "next desktop no page overflow",
+    "next dialog focus contained",
+    "classic desktop no page overflow",
+    "classic dialog focus contained",
+    "beacon desktop no page overflow",
+    "beacon dialog focus contained",
+    "390 Messages no page overflow",
+    "390 Responses no page overflow",
+    "Escape closes detail",
+    "no browser runtime exceptions",
+    "guide interactions send no model requests"
+  ],
+  "modelRequests": 0
+}

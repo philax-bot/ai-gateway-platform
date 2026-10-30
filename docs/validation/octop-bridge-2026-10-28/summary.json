@@ -1,0 +1,37 @@
+{
+  "success": true,
+  "automatedTests": {
+    "gateway": 41,
+    "agentTargeted": 23,
+    "contracts": 18,
+    "controlPlane": 152,
+    "total": 211
+  },
+  "typecheck": true,
+  "createdAt": "2026-10-28T15:02:13.4233425Z",
+  "sourceSnapshot": "source-snapshot.json",
+  "historicalFailure": {
+    "reason": "Test expected data-ui=sidebar; actual sidebar uses data-ui=next and data-layout=sidebar. Selector and diagnostic capture fixed before successful retry.",
+    "file": "postgres-web.json"
+  },
+  "build": true,
+  "scopeNotes": [
+    "Runtime recordings precede the separately tested expired/revoked Key view guard; final control-plane suite has 152 passing tests.",
+    "Browser bundle uses the updated Agent page. Native credentials are exported only in legacy diagnostic mode, explicitly disabled in both bridge recordings.",
+    "Full enterprise OIDC, production execution sandbox and deployment are not delivered."
+  ],
+  "realModelRequests": 0,
+  "reports": [
+    {
+      "checks": 80,
+      "success": true,
+      "file": "memory.json"
+    },
+    {
+      "checks": 108,
+      "success": true,
+      "file": "postgres-web-retry.json"
+    }
+  ],
+  "deployed": false
+}

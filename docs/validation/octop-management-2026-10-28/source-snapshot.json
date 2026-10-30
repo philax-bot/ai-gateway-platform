@@ -1,0 +1,21 @@
+{
+  "createdAt": "2026-10-28T14:23:12.056Z",
+  "baseRevision": "72a36e7d7c42881ff3cc8ec9add2c2b2e3f3bdea",
+  "scope": "selected final source/runtime hashes, not a complete transitive manifest; runtime samples predate only separately unit-tested local-host and runtime-view readiness/observation gates",
+  "files": {
+    "apps/control-plane/src/agents/agent-instances.service.ts": "053fa6161acc62e4ff98f9dd72928885295dea9a569684e5c4c42a8f956c9532",
+    "apps/control-plane/src/agents/agent-instances.controller.ts": "e6e8353f0b12eb2b4f77ecb276a2385ea3ac6053e4360466df2cdddb128a22ea",
+    "apps/control-plane/src/agents/local-octop.runtime.ts": "12e02a10ddef8b462c79ea3797faf12cd2bfad6e0d70e96a758894b62071f181",
+    "apps/control-plane/src/agents/agent-instances.spec.ts": "b2cfd979142ece14eeff5a7aa59e1fd905b574d3c1823caf9cc0cf7d787620dc",
+    "apps/control-plane/src/agents/local-octop.runtime.spec.ts": "d87a9f65076062a7e3d5161f6fc8ffe5b797005db094eb01708386304a1d2ef5",
+    "apps/control-plane/src/app.module.ts": "a51d01ca3774c41f7132fd6630072b3052f11df085089988b33dde83af703f0f",
+    "packages/contracts/src/platform.ts": "65610bd08040aa3a03b25ae1e0157bd088b537850919d1b9e58282a2d2a4c34e",
+    "contracts/platform-api-v0.1.yaml": "4d2d142475bb7976e30177003fda2c8ced940cafd1cb6862085e4fdf9394335b",
+    "scripts/check-octop-managed.mjs": "85364e2e5d8475664d303d48f33953a53758a74a650b59f33fbd9ca7762d01c6",
+    "scripts/octop-local-only.py": "159158f228ee45e764e43cdb24a22a06834e2229d8aed2f4f80accb7f76bfedf",
+    "scripts/octop_gateway_compat.py": "4a8220f7cd40a4b9c89a22020dc9aca4a0fae7fe0db1f2a28d77e5d802119b0c",
+    "apps/control-plane/dist/agents/agent-instances.service.js": "3726a815769cce6057624c1bae6969276218b3e49cf4c737ad023656c4519477",
+    "apps/control-plane/dist/agents/local-octop.runtime.js": "ed5e6326b595af256c4906debf920f3353dc16d61ffa2690c4bf3d275889f65f",
+    ".runtime/octop-source-890111b/uv.lock": "49610bccad9751614f5e3f07d8aaa453e6c2617ced4ea6321c3598df9d6fab93"
+  }
+}

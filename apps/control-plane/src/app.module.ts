@@ -21,9 +21,15 @@ import { PlatformController } from './platform/platform.controller';
 import { MaintenanceService } from './platform/maintenance.service';
 import { MonitoringService } from './platform/monitoring.service';
 import { DiagnosticsController } from './store/diagnostics.controller';
+import {AgentInstancesController} from './agents/agent-instances.controller';
+import {AgentInstancesService} from './agents/agent-instances.service';
+import {LocalOctopRuntime} from './agents/local-octop.runtime';
+import {AgentChatService} from './agents/agent-chat.service';
+import {LocalOctopImportService} from './agents/local-octop-import.service';
+import {LocalOctopImportController} from './agents/local-octop-import.controller';
 
 @Module({
-  controllers: [PolicyController, UsageController, GatewaySyncController, CallsController, HealthController, AuthController, PlatformController, DiagnosticsController],
+  controllers: [PolicyController, UsageController, GatewaySyncController, CallsController, HealthController, AuthController, PlatformController, DiagnosticsController,AgentInstancesController,LocalOctopImportController],
   providers: [
     { provide: DemoStore, useClass: process.env.STORE_MODE === 'memory' ? DemoStore : PostgresStore },
     PolicyService,
@@ -38,6 +44,10 @@ import { DiagnosticsController } from './store/diagnostics.controller';
     PlatformService,
     MaintenanceService,
     MonitoringService,
+    AgentInstancesService,
+    LocalOctopRuntime,
+    AgentChatService,
+    LocalOctopImportService,
   ],
 })
 export class AppModule {}

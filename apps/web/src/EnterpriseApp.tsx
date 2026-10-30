@@ -13,10 +13,11 @@ import { WorkspacePages, type DetailContent } from './WorkspacePages';
 import { responsible } from './ApprovalCenter';
 import { AlertWatcher } from './AlertWatcher';
 import { KeyDetails } from './KeyManager';
+import {LocalOctopConnect} from './LocalOctopConnect';
 import { OrganizationImpact } from './OrganizationImpact';
 import {RetentionCountsView,retentionTotal} from './RetentionSettings';
 
-const labels:Record<string,string>={overview:'运营工作台',models:'模型配置',catalog:'模型目录',members:'组织与成员',onboarding:'为人员开通',projects:'项目',applications:'应用',keys:'密钥与接入',approvals:'申请与审批',calls:'调用记录',reviews:'费用核对',monitoring:'运行监控',safety:'安全围栏',settings:'企业设置',home:'开始使用',quota:'我的额度',online:'在线使用',notifications:'通知'};
+const labels:Record<string,string>={overview:'运营工作台',models:'模型配置',catalog:'模型目录',members:'组织与成员',onboarding:'为人员开通',projects:'项目',applications:'应用',keys:'密钥与接入',approvals:'申请与审批',calls:'调用记录',reviews:'费用核对',monitoring:'运行监控',safety:'安全围栏',settings:'企业设置',home:'开始使用',quota:'我的额度',online:'在线使用',agent:'在线 Agent',notifications:'通知'};
 /* One line per page: what this page is for and what the numbers mean. Shown under
    the page title so an operator does not have to read the panel text to orient. */
 const ledes:Record<string,string>={
@@ -36,6 +37,7 @@ const ledes:Record<string,string>={
   settings:'企业名称、默认模型池、默认使用保护与数据保留。变更只影响后续请求。',
   home:'你当前可用的模型与额度。在线使用不需要先创建密钥。',
   quota:'按用途查看额度来源、剩余金额，以及一次调用能使用的上限。',
+  agent:'用个人额度完成多步任务，并在调用记录中追溯费用。',
   online:'直接发起一次调用，结果与费用可在调用记录中追溯到同一请求编号。',
   notifications:'审批结果、额度变化与运行告警的通知，可在原页面打开对应对象。',
 };
@@ -97,7 +99,7 @@ export function EnterpriseApp(){
     const adminNow=data.actor.roles.includes('operator'),opsNow=operations&&adminNow;
     const valid=opsNow
       ?['overview','onboarding','approvals','projects','applications','catalog','models','members','keys','monitoring','safety','calls','reviews','settings','notifications']
-      :['home','online','quota','approvals','keys','calls','projects','applications','notifications'];
+      :['home','online','agent','quota','approvals','keys','calls','projects','applications','notifications'];
     setOpenTabs(tabs=>{
       const pinned=opsNow?'overview':'home';
       const filtered=tabs.filter(tab=>valid.includes(tab.page));
@@ -153,7 +155,7 @@ export function EnterpriseApp(){
   if(loading)return <div className="loading-state">正在连接企业工作空间…</div>;
   if(!data)return <><ReviewBanner/><DesignSwitch mode={uiMode} onChange={setUiMode} className="login-design-switch"/><Login setup={setup} tokenRequired={setupTokenRequired} message={message} modern={desk} onInitialized={()=>{setSetup(false);setSetupTokenRequired(false);}} onDone={async()=>{setSetup(false);setMessage('');await refresh();}}/></>;
   const d=data,admin=d.actor.roles.includes('operator'),isOps=operations&&admin,edit=makeEditors(d,run,setEditor);
-  const navigation=isOps?['overview','onboarding','approvals','projects','applications']:['home','online','quota','approvals'];
+  const navigation=isOps?['overview','onboarding','approvals','projects','applications']:['home','online','agent','quota','approvals'];
   const secondary=isOps?['catalog','models','members','keys','monitoring','safety','calls','reviews','settings']:['keys','calls','projects',...(d.applications.length?['applications']:[])];
   const navLabel=(item:string)=>!isOps&&!admin&&!d.projects.some(p=>p.managerId===d.actor.id)&&item==='approvals'?'我的申请':labels[item];
   const navItem=(item:string)=><button key={item} className={`nav-link ${page===item?'active':''}`} aria-current={page===item?'page':undefined} onClick={()=>navigate(item)}>{navLabel(item)}</button>;
@@ -221,7 +223,7 @@ export function EnterpriseApp(){
     <AlertWatcher enabled={isOps&&['overview','monitoring'].includes(page)&&!editor&&!pending&&!detail&&!secret} run={run} onOpen={()=>{setOperations(true);setPage('monitoring');}}/>
     {editor&&<EditorFlow key={editor.title} editor={editor} data={d} run={run} refresh={refresh} onClose={()=>setEditor(null)}/>}
     {pending&&<Modal title={confirmationTitle} onClose={()=>{if(!busy){pending.resolve(null);setPending(null);}}} footer={<><button className="ghost" disabled={busy} onClick={()=>{pending.resolve(null);setPending(null);}}>返回修改</button><button className="primary" disabled={busy} onClick={()=>void confirm()}>{busy?'正在执行…':confirmationLabel}</button></>}><Impact pending={pending} data={d}/></Modal>}
-    {secret&&<Modal title="请保存完整密钥" onClose={()=>setSecret(null)} footer={<button className="primary" onClick={()=>{const keyId=secret.keyId;setSecret(null);if(keyId)setDetail({title:'编程工具接入',content:<KeyDetails keyId={keyId} data={d} guideOnly/>});}}>我已保存，查看接入指引</button>}><div className="notice warning">仅本次显示，关闭后无法再次读取。请保存到受控的凭据管理工具。</div><textarea className="secret-value" readOnly value={secret.value} aria-label="完整密钥" onFocus={event=>event.target.select()}/></Modal>}
+    {secret&&<Modal title="请保存完整密钥" onClose={()=>setSecret(null)} footer={<button className="primary" onClick={()=>{const keyId=secret.keyId;setSecret(null);if(keyId)setDetail({title:'编程工具接入',content:<KeyDetails keyId={keyId} data={d} guideOnly/>});}}>我已保存，查看接入指引</button>}><div className="notice warning">仅本次显示，关闭后无法再次读取。请保存到受控的凭据管理工具。</div><label className="form-field" htmlFor="issued-api-key">完整密钥<PasswordInput id="issued-api-key" value={secret.value} onChange={()=>{}} readOnly autoComplete="off"/></label>{secret.keyId&&<LocalOctopConnect keyId={secret.keyId} issuedSecret={secret.value} canImport={d.keys.some(k=>k.id===secret.keyId&&k.ownerId===d.actor.id&&k.status==='active')}/>}</Modal>}
     {detail&&<Modal title={detail.title} onClose={()=>setDetail(null)}>{typeof detail.content==='function'?detail.content(d,edit):detail.content}</Modal>}
     {desk&&<CommandPalette open={paletteOpen} items={paletteItems} onClose={()=>setPaletteOpen(false)} onSelect={navigate}/>}
   </div></>;

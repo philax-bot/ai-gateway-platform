@@ -8,6 +8,8 @@ import { syncResources } from './domain';
 @Injectable()
 export class AuthService {
   private attempts = new Map<string, { count: number; until: number }>();
+  private logoutListeners = new Map<string,Set<()=>void>>();
+  onLogout(token:string,listener:()=>void){const key=hash(token),listeners=this.logoutListeners.get(key)??new Set<()=>void>();listeners.add(listener);this.logoutListeners.set(key,listeners);return()=>{listeners.delete(listener);if(!listeners.size)this.logoutListeners.delete(key);};}
   constructor(private readonly repository: WorkspaceRepository) {}
 
   async bootstrapStatus() {
@@ -64,6 +66,7 @@ export class AuthService {
       let changed=false;for(const key of tx.state.keys)if(key.internal&&key.onlineSessionHash===sessionHash&&key.status!=='revoked'){key.status='revoked';changed=true;}
       if(changed)await syncResources(tx);
     },{diagnosticContext:'auth_logout'});
+    for(const listener of this.logoutListeners.get(hash(token))??[])listener();
     return {loggedOut:true};
   }
 

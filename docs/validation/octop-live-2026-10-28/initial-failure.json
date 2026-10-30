@@ -1,0 +1,224 @@
+{
+  "success": false,
+  "createdAt": "2026-10-28T13:19:25.737Z",
+  "octop": {
+    "repository": "https://github.com/TencentCloud/Octop",
+    "revision": "890111b7879665840414ca28ab168b05b0db0921"
+  },
+  "scope": {
+    "actualOctop": true,
+    "topology": "per-user-instances",
+    "upstream": "DeepSeek official via controlled gateway",
+    "realModelRequests": null,
+    "platformStore": "isolated memory",
+    "octopStore": "isolated SQLite",
+    "network": "Octop Python process restricted to loopback",
+    "deployment": false,
+    "osUserIsolation": false,
+    "priceBasis": "configured platform price; conservative transport estimate, not supplier invoice"
+  },
+  "checks": [
+    "runtime stays inside workspace",
+    "model service connection verification passed",
+    "alice: gateway model discovery",
+    "bob: gateway model discovery",
+    "low: gateway model discovery",
+    "alice: actual Octop model discovery",
+    "bob: actual Octop model discovery",
+    "low: actual Octop model discovery",
+    "each user has a distinct Octop process",
+    "each user has a distinct Octop home and SQLite database",
+    "alice: instance contains only its own Provider and Key",
+    "alice: token cannot read bob's Provider",
+    "alice: token cannot read bob's Agent",
+    "alice: token cannot read low's Provider",
+    "alice: token cannot read low's Agent",
+    "bob: instance contains only its own Provider and Key",
+    "bob: token cannot read alice's Provider",
+    "bob: token cannot read alice's Agent",
+    "bob: token cannot read low's Provider",
+    "bob: token cannot read low's Agent",
+    "low: instance contains only its own Provider and Key",
+    "low: token cannot read alice's Provider",
+    "low: token cannot read alice's Agent",
+    "low: token cannot read bob's Provider",
+    "low: token cannot read bob's Agent",
+    "alice: session cannot open bob's chat WebSocket",
+    "bob: session cannot open alice's chat WebSocket",
+    "alice: OCTOP_BASIC completed"
+  ],
+  "modelRequests": [
+    {
+      "requestId": "octop-live-d58f9b26-56de-46bf-a23d-3365815e5026",
+      "owner": "bob",
+      "scenario": "basic",
+      "stream": true,
+      "tools": [
+        "read_file"
+      ],
+      "toolResultMatched": false,
+      "includeUsage": true,
+      "receivedBytes": 13540,
+      "httpStatus": 200
+    },
+    {
+      "requestId": "octop-live-386d570d-ebf1-4cb1-83cc-5c10a828b450",
+      "owner": "alice",
+      "scenario": "basic",
+      "stream": true,
+      "tools": [
+        "read_file"
+      ],
+      "toolResultMatched": false,
+      "includeUsage": true,
+      "receivedBytes": 12639,
+      "httpStatus": 200
+    },
+    {
+      "requestId": "octop-live-6835b65f-ff03-4527-8969-abfdfe2f3787",
+      "owner": "alice",
+      "scenario": "basic",
+      "stream": true,
+      "tools": [
+        "read_file"
+      ],
+      "toolResultMatched": false,
+      "includeUsage": true,
+      "receivedBytes": 108671,
+      "httpStatus": 200
+    },
+    {
+      "requestId": "octop-live-24fec8ff-dade-4d13-8d06-e19ad32bc3ac",
+      "owner": "bob",
+      "scenario": "basic",
+      "stream": true,
+      "tools": [
+        "read_file"
+      ],
+      "toolResultMatched": false,
+      "includeUsage": true,
+      "receivedBytes": 8846,
+      "httpStatus": 200
+    },
+    {
+      "requestId": "octop-live-bf779d86-da47-4d1c-8137-05fbe3ab390e",
+      "owner": "bob",
+      "scenario": "basic",
+      "stream": true,
+      "tools": [
+        "read_file"
+      ],
+      "toolResultMatched": false,
+      "includeUsage": true,
+      "receivedBytes": 60397,
+      "httpStatus": 200
+    }
+  ],
+  "turns": [
+    {
+      "user": "alice",
+      "scenario": "OCTOP_BASIC",
+      "frameTypes": [
+        "turn.started",
+        "state_snapshot",
+        "state_update",
+        "token",
+        "tool_call_chunk",
+        "usage",
+        "tool_result",
+        "done"
+      ],
+      "done": true,
+      "error": false,
+      "finalMarkerMatched": false
+    },
+    {
+      "user": "bob",
+      "scenario": "OCTOP_BASIC",
+      "frameTypes": [
+        "turn.started",
+        "state_snapshot",
+        "state_update",
+        "token",
+        "tool_call_chunk",
+        "usage",
+        "tool_result"
+      ],
+      "done": false,
+      "error": false
+    }
+  ],
+  "priceSnapshot": {
+    "input": 2,
+    "output": 8,
+    "cached": 0.04
+  },
+  "model": "deepseek-flash",
+  "verification": [
+    {
+      "outcome": "passed",
+      "usage": {
+        "inputTokens": 32,
+        "outputTokens": 1,
+        "cachedInputTokens": 0,
+        "complete": true
+      },
+      "cost": {
+        "state": "priced",
+        "amount": 0.000072,
+        "price": {
+          "version": "965545c1c588d8aff7ea5863",
+          "currency": "CNY",
+          "unit": "per_million_tokens",
+          "inputPrice": 2,
+          "outputPrice": 8,
+          "cachedInputPrice": 0.04
+        }
+      }
+    }
+  ],
+  "instances": [
+    {
+      "owner": "alice",
+      "platformMemberId": "member-f770806d-27cb-42e2-a2eb-d78aba1c4212",
+      "port": 52256,
+      "processId": 2592,
+      "home": "octop-alice",
+      "providerName": "gateway-alice"
+    },
+    {
+      "owner": "bob",
+      "platformMemberId": "member-3b3a4db8-d1c2-4f38-b521-24537ea8fa1d",
+      "port": 62112,
+      "processId": 36596,
+      "home": "octop-bob",
+      "providerName": "gateway-bob"
+    },
+    {
+      "owner": "low",
+      "platformMemberId": "member-d95ae0b9-f374-4771-91e2-4aa3cd33c56f",
+      "port": 62174,
+      "processId": 5544,
+      "home": "octop-low",
+      "providerName": "gateway-low"
+    }
+  ],
+  "failure": {
+    "stage": "octop-chat",
+    "message": "alice: OCTOP_BASIC streamed expected content"
+  },
+  "serviceDiagnostics": [
+    "ync, POST} route\u001b[39m\u001b[38;5;3m +1ms\u001b[39m\n\u001b[32m[Nest] 35364  - \u001b[39m2026/10/28 21:19:27 \u001b[32m    LOG\u001b[39m \u001b[38;5;3m[RouterExplorer] \u001b[39m\u001b[32mMapped {/internal/v1/gateway-sync/:resourceId, GET} route\u001b[39m\u001b[38;5;3m +0ms\u001b[39m\n\u001b[32m[Nest] 35364  - \u001b[39m2026/10/28 21:19:27 \u001b[32m    LOG\u001b[39m \u001b[38;5;3m[RoutesResolver] \u001b[39m\u001b[32mCallsController {/api/v1/calls}:\u001b[39m\u001b[38;5;3m +0ms\u001b[39m\n\u001b[32m[Nest] 35364  - \u001b[39m2026/10/28 21:19:27 \u001b[32m    LOG\u001b[39m \u001b[38;5;3m[RouterExplorer] \u001b[39m\u001b[32mMapped {/api/v1/calls, GET} route\u001b[39m\u001b[38;5;3m +1ms\u001b[39m\n\u001b[32m[Nest] 35364  - \u001b[39m2026/10/28 21:19:27 \u001b[32m    LOG\u001b[39m \u001b[38;5;3m[RouterExplorer] \u001b[39m\u001b[32mMapped {/api/v1/calls/quota, GET} route\u001b[39m\u001b[38;5;3m +0ms\u001b[39m\n\u001b[32m[Nest] 35364  - \u001b[39m2026/10/28 21:19:27 \u001b[32m    LOG\u001b[39m \u001b[38;5;3m[RoutesResolver] \u001b[39m\u001b[32mHealthController {/health}:\u001b[39m\u001b[38;5;3m +0ms\u001b[39m\n\u001b[32m[Nest] 35364  - \u001b[39m2026/10/28 21:19:27 \u001b[32m    LOG\u001b[39m \u001b[38;5;3m[RouterExplorer] \u001b[39m\u001b[32mMapped {/health, GET} route\u001b[39m\u001b[38;5;3m +1ms\u001b[39m\n\u001b[32m[Nest] 35364  - \u001b[39m2026/10/28 21:19:27 \u001b[32m    LOG\u001b[39m \u001b[38;5;3m[RoutesResolver] \u001b[39m\u001b[32mAuthController {/api/v1/auth}:\u001b[39m\u001b[38;5;3m +0ms\u001b[39m\n\u001b[32m[Nest] 35364  - \u001b[39m2026/10/28 21:19:27 \u001b[32m    LOG\u001b[39m \u001b[38;5;3m[RouterExplorer] \u001b[39m\u001b[32mMapped {/api/v1/auth/bootstrap, GET} route\u001b[39m\u001b[38;5;3m +0ms\u001b[39m\n\u001b[32m[Nest] 35364  - \u001b[39m2026/10/28 21:19:27 \u001b[32m    LOG\u001b[39m \u001b[38;5;3m[RouterExplorer] \u001b[39m\u001b[32mMapped {/api/v1/auth/setup, POST} route\u001b[39m\u001b[38;5;3m +0ms\u001b[39m\n\u001b[32m[Nest] 35364  - \u001b[39m2026/10/28 21:19:27 \u001b[32m    LOG\u001b[39m \u001b[38;5;3m[RouterExplorer] \u001b[39m\u001b[32mMapped {/api/v1/auth/login, POST} route\u001b[39m\u001b[38;5;3m +0ms\u001b[39m\n\u001b[32m[Nest] 35364  - \u001b[39m2026/10/28 21:19:27 \u001b[32m    LOG\u001b[39m \u001b[38;5;3m[RouterExplorer] \u001b[39m\u001b[32mMapped {/api/v1/auth/me, GET} route\u001b[39m\u001b[38;5;3m +1ms\u001b[39m\n\u001b[32m[Nest] 35364  - \u001b[39m2026/10/28 21:19:27 \u001b[32m    LOG\u001b[39m \u001b[38;5;3m[RouterExplorer] \u001b[39m\u001b[32mMapped {/api/v1/auth/logout, POST} route\u001b[39m\u001b[38;5;3m +0ms\u001b[39m\n\u001b[32m[Nest] 35364  - \u001b[39m2026/10/28 21:19:27 \u001b[32m    LOG\u001b[39m \u001b[38;5;3m[RoutesResolver] \u001b[39m\u001b[32mPlatformController {/api/v1/platform}:\u001b[39m\u001b[38;5;3m +1ms\u001b[39m\n\u001b[32m[Nest] 35364  - \u001b[39m2026/10/28 21:19:27 \u001b[32m    LOG\u001b[39m \u001b[38;5;3m[RouterExplorer] \u001b[39m\u001b[32mMapped {/api/v1/platform/state, GET} route\u001b[39m\u001b[38;5;3m +0ms\u001b[39m\n\u001b[32m[Nest] 35364  - \u001b[39m2026/10/28 21:19:27 \u001b[32m    LOG\u001b[39m \u001b[38;5;3m[RouterExplorer] \u001b[39m\u001b[32mMapped {/api/v1/platform/retention, GET} route\u001b[39m\u001b[38;5;3m +0ms\u001b[39m\n\u001b[32m[Nest] 35364  - \u001b[39m2026/10/28 21:19:27 \u001b[32m    LOG\u001b[39m \u001b[38;5;3m[RouterExplorer] \u001b[39m\u001b[32mMapped {/api/v1/platform/approvals/:id, GET} route\u001b[39m\u001b[38;5;3m +1ms\u001b[39m\n\u001b[32m[Nest] 35364  - \u001b[39m2026/10/28 21:19:27 \u001b[32m    LOG\u001b[39m \u001b[38;5;3m[RouterExplorer] \u001b[39m\u001b[32mMapped {/api/v1/platform/keys/:id, GET} route\u001b[39m\u001b[38;5;3m +0ms\u001b[39m\n\u001b[32m[Nest] 35364  - \u001b[39m2026/10/28 21:19:27 \u001b[32m    LOG\u001b[39m \u001b[38;5;3m[RouterExplorer] \u001b[39m\u001b[32mMapped {/api/v1/platform/projects/:id, GET} route\u001b[39m\u001b[38;5;3m +0ms\u001b[39m\n\u001b[32m[Nest] 35364  - \u001b[39m2026/10/28 21:19:27 \u001b[32m    LOG\u001b[39m \u001b[38;5;3m[RouterExplorer] \u001b[39m\u001b[32mMapped {/api/v1/platform/projects/:id/member-candidates, GET} route\u001b[39m\u001b[38;5;3m +1ms\u001b[39m\n\u001b[32m[Nest] 35364  - \u001b[39m2026/10/28 21:19:27 \u001b[32m    LOG\u001b[39m \u001b[38;5;3m[RouterExplorer] \u001b[39m\u001b[32mMapped {/api/v1/platform/applications/:id, GET} route\u001b[39m\u001b[38;5;3m +0ms\u001b[39m\n\u001b[32m[Nest] 35364  - \u001b[39m2026/10/28 21:19:27 \u001b[32m    LOG\u001b[39m \u001b[38;5;3m[RouterExplorer] \u001b[39m\u001b[32mMapped {/api/v1/platform/calls/:requestId, GET} route\u001b[39m\u001b[38;5;3m +0ms\u001b[39m\n\u001b[32m[Nest] 35364  - \u001b[39m2026/10/28 21:19:27 \u001b[32m    LOG\u001b[39m \u001b[38;5;3m[RouterExplorer] \u001b[39m\u001b[32mMapped {/api/v1/platform/calls/query, POST} route\u001b[39m\u001b[38;5;3m +0ms\u001b[39m\n\u001b[32m[Nest] 35364  - \u001b[39m2026/10/28 21:19:27 \u001b[32m    LOG\u001b[39m \u001b[38;5;3m[RouterExplorer] \u001b[39m\u001b[32mMapped {/api/v1/platform/audit/query, POST} route\u001b[39m\u001b[38;5;3m +0ms\u001b[39m\n\u001b[32m[Nest] 35364  - \u001b[39m2026/10/28 21:19:27 \u001b[32m    LOG\u001b[39m \u001b[38;5;3m[RouterExplorer] \u001b[39m\u001b[32mMapped {/api/v1/platform/monitoring, GET} route\u001b[39m\u001b[38;5;3m +1ms\u001b[39m\n\u001b[32m[Nest] 35364  - \u001b[39m2026/10/28 21:19:27 \u001b[32m    LOG\u001b[39m \u001b[38;5;3m[RouterExplorer] \u001b[39m\u001b[32mMapped {/api/v1/platform/monitoring/check, POST} route\u001b[39m\u001b[38;5;3m +0ms\u001b[39m\n\u001b[32m[Nest] 35364  - \u001b[39m2026/10/28 21:19:27 \u001b[32m    LOG\u001b[39m \u001b[38;5;3m[RouterExplorer] \u001b[39m\u001b[32mMapped {/api/v1/platform/preview, POST} route\u001b[39m\u001b[38;5;3m +0ms\u001b[39m\n\u001b[32m[Nest] 35364  - \u001b[39m2026/10/28 21:19:27 \u001b[32m    LOG\u001b[39m \u001b[38;5;3m[RouterExplorer] \u001b[39m\u001b[32mMapped {/api/v1/platform/commands, POST} route\u001b[39m\u001b[38;5;3m +0ms\u001b[39m\n\u001b[32m[Nest] 35364  - \u001b[39m2026/10/28 21:19:27 \u001b[32m    LOG\u001b[39m \u001b[38;5;3m[RouterExplorer] \u001b[39m\u001b[32mMapped {/api/v1/platform/services/:id/verify, POST} route\u001b[39m\u001b[38;5;3m +0ms\u001b[39m\n\u001b[32m[Nest] 35364  - \u001b[39m2026/10/28 21:19:27 \u001b[32m    LOG\u001b[39m \u001b[38;5;3m[RouterExplorer] \u001b[39m\u001b[32mMapped {/api/v1/platform/services/:id/verifications, GET} route\u001b[39m\u001b[38;5;3m +1ms\u001b[39m\n\u001b[32m[Nest] 35364  - \u001b[39m2026/10/28 21:19:27 \u001b[32m    LOG\u001b[39m \u001b[38;5;3m[RouterExplorer] \u001b[39m\u001b[32mMapped {/api/v1/platform/online-credential, POST} route\u001b[39m\u001b[38;5;3m +0ms\u001b[39m\n\u001b[32m[Nest] 35364  - \u001b[39m2026/10/28 21:19:27 \u001b[32m    LOG\u001b[39m \u001b[38;5;3m[RouterExplorer] \u001b[39m\u001b[32mMapped {/api/v1/platform/quote, POST} route\u001b[39m\u001b[38;5;3m +0ms\u001b[39m\n\u001b[32m[Nest] 35364  - \u001b[39m2026/10/28 21:19:27 \u001b[32m    LOG\u001b[39m \u001b[38;5;3m[RouterExplorer] \u001b[39m\u001b[32mMapped {/api/v1/platform/maintenance/run, POST} route\u001b[39m\u001b[38;5;3m +0ms\u001b[39m\n\u001b[32m[Nest] 35364  - \u001b[39m2026/10/28 21:19:27 \u001b[32m    LOG\u001b[39m \u001b[38;5;3m[RoutesResolver] \u001b[39m\u001b[32mDiagnosticsController {/internal/v1/diagnostics}:\u001b[39m\u001b[38;5;3m +0ms\u001b[39m\n\u001b[32m[Nest] 35364  - \u001b[39m2026/10/28 21:19:27 \u001b[32m    LOG\u001b[39m \u001b[38;5;3m[RouterExplorer] \u001b[39m\u001b[32mMapped {/internal/v1/diagnostics/hot-path, GET} route\u001b[39m\u001b[38;5;3m +0ms\u001b[39m\n\u001b[32m[Nest] 35364  - \u001b[39m2026/10/28 21:19:27 \u001b[32m    LOG\u001b[39m \u001b[38;5;3m[NestApplication] \u001b[39m\u001b[32mNest application successfully started\u001b[39m\u001b[38;5;3m +1ms\u001b[39m\n",
+    "gateway listening on 127.0.0.1:52239\n",
+    "Saved config to D:\\Workspace\\pri\\ai-gateway-platform\\.runtime\\octop-check-ef6b5eff-6d94-45ed-bfae-d8d66e611c63\\octop-alice\\config.json\r\nINFO:     Started server process [33516]\r\nINFO:     Waiting for application startup.\r\nINFO:     Application startup complete.\r\nINFO:     Uvicorn running on http://127.0.0.1:52256 (Press CTRL+C to quit)\r\nINFO:     127.0.0.1:62102 - \"GET /api/health HTTP/1.1\" 200 OK\r\nINFO:     127.0.0.1:62103 - \"POST /api/setup/begin HTTP/1.1\" 200 OK\r\nINFO:     127.0.0.1:62102 - \"POST /api/setup/initial-admin HTTP/1.1\" 201 Created\r\nINFO:     127.0.0.1:62103 - \"POST /api/setup/finish HTTP/1.1\" 200 OK\r\nINFO:     127.0.0.1:62102 - \"POST /api/users HTTP/1.1\" 201 Created\r\nINFO:     127.0.0.1:62103 - \"POST /api/auth/login HTTP/1.1\" 200 OK\r\nINFO:     127.0.0.1:62102 - \"POST /api/admin/providers HTTP/1.1\" 201 Created\r\nINFO:     127.0.0.1:62103 - \"POST /api/agents HTTP/1.1\" 201 Created\r\nINFO:     127.0.0.1:62102 - \"POST /api/agents/4WA503/start HTTP/1.1\" 204 No Content\r\nINFO:     127.0.0.1:62103 - \"POST /api/admin/providers/fetch-models HTTP/1.1\" 200 OK\r\nINFO:     127.0.0.1:52037 - \"GET /api/providers HTTP/1.1\" 200 OK\r\nINFO:     127.0.0.1:52037 - \"GET /api/providers HTTP/1.1\" 401 Unauthorized\r\nINFO:     127.0.0.1:52040 - \"GET /api/agents/4WA503 HTTP/1.1\" 401 Unauthorized\r\nINFO:     127.0.0.1:52037 - \"GET /api/providers HTTP/1.1\" 401 Unauthorized\r\nINFO:     127.0.0.1:52040 - \"GET /api/agents/4WA503 HTTP/1.1\" 401 Unauthorized\r\nINFO:     127.0.0.1:52037 - \"WebSocket /api/agents/4WA503/chat/ws?token=[redacted]\" 403\r\nINFO:     connection rejected (403 Forbidden)\r\nINFO:     connection closed\r\nINFO:     127.0.0.1:52040 - \"WebSocket /api/agents/4WA503/chat/ws?token=[redacted]\" [accepted]\r\nINFO:     connection open\r\n",
+    "Saved config to D:\\Workspace\\pri\\ai-gateway-platform\\.runtime\\octop-check-ef6b5eff-6d94-45ed-bfae-d8d66e611c63\\octop-bob\\config.json\r\nINFO:     Started server process [29632]\r\nINFO:     Waiting for application startup.\r\nINFO:     Application startup complete.\r\nINFO:     Uvicorn running on http://127.0.0.1:62112 (Press CTRL+C to quit)\r\nINFO:     127.0.0.1:62164 - \"GET /api/health HTTP/1.1\" 200 OK\r\nINFO:     127.0.0.1:62165 - \"POST /api/setup/begin HTTP/1.1\" 200 OK\r\nINFO:     127.0.0.1:62164 - \"POST /api/setup/initial-admin HTTP/1.1\" 201 Created\r\nINFO:     127.0.0.1:62165 - \"POST /api/setup/finish HTTP/1.1\" 200 OK\r\nINFO:     127.0.0.1:62164 - \"POST /api/users HTTP/1.1\" 201 Created\r\nINFO:     127.0.0.1:62165 - \"POST /api/auth/login HTTP/1.1\" 200 OK\r\nINFO:     127.0.0.1:62164 - \"POST /api/admin/providers HTTP/1.1\" 201 Created\r\nINFO:     127.0.0.1:62165 - \"POST /api/agents HTTP/1.1\" 201 Created\r\nINFO:     127.0.0.1:62164 - \"POST /api/agents/RWMW6P/start HTTP/1.1\" 204 No Content\r\nINFO:     127.0.0.1:62165 - \"POST /api/admin/providers/fetch-models HTTP/1.1\" 200 OK\r\nINFO:     127.0.0.1:52038 - \"GET /api/providers HTTP/1.1\" 401 Unauthorized\r\nINFO:     127.0.0.1:52039 - \"GET /api/agents/RWMW6P HTTP/1.1\" 401 Unauthorized\r\nINFO:     127.0.0.1:52038 - \"GET /api/providers HTTP/1.1\" 200 OK\r\nINFO:     127.0.0.1:52038 - \"GET /api/providers HTTP/1.1\" 401 Unauthorized\r\nINFO:     127.0.0.1:52039 - \"GET /api/agents/RWMW6P HTTP/1.1\" 401 Unauthorized\r\nINFO:     127.0.0.1:52038 - \"WebSocket /api/agents/RWMW6P/chat/ws?token=[redacted]\" 403\r\nINFO:     connection rejected (403 Forbidden)\r\nINFO:     connection closed\r\nINFO:     127.0.0.1:52041 - \"WebSocket /api/agents/RWMW6P/chat/ws?token=[redacted]\" [accepted]\r\nINFO:     connection open\r\n",
+    "Saved config to D:\\Workspace\\pri\\ai-gateway-platform\\.runtime\\octop-check-ef6b5eff-6d94-45ed-bfae-d8d66e611c63\\octop-low\\config.json\r\nINFO:     Started server process [36004]\r\nINFO:     Waiting for application startup.\r\nINFO:     Application startup complete.\r\nINFO:     Uvicorn running on http://127.0.0.1:62174 (Press CTRL+C to quit)\r\nINFO:     127.0.0.1:52029 - \"GET /api/health HTTP/1.1\" 200 OK\r\nINFO:     127.0.0.1:52030 - \"POST /api/setup/begin HTTP/1.1\" 200 OK\r\nINFO:     127.0.0.1:52029 - \"POST /api/setup/initial-admin HTTP/1.1\" 201 Created\r\nINFO:     127.0.0.1:52030 - \"POST /api/setup/finish HTTP/1.1\" 200 OK\r\nINFO:     127.0.0.1:52029 - \"POST /api/users HTTP/1.1\" 201 Created\r\nINFO:     127.0.0.1:52030 - \"POST /api/auth/login HTTP/1.1\" 200 OK\r\nINFO:     127.0.0.1:52029 - \"POST /api/admin/providers HTTP/1.1\" 201 Created\r\nINFO:     127.0.0.1:52030 - \"POST /api/agents HTTP/1.1\" 201 Created\r\nINFO:     127.0.0.1:52029 - \"POST /api/agents/K9FVQH/start HTTP/1.1\" 204 No Content\r\nINFO:     127.0.0.1:52030 - \"POST /api/admin/providers/fetch-models HTTP/1.1\" 200 OK\r\nINFO:     127.0.0.1:52029 - \"GET /api/providers HTTP/1.1\" 401 Unauthorized\r\nINFO:     127.0.0.1:52030 - \"GET /api/agents/K9FVQH HTTP/1.1\" 401 Unauthorized\r\nINFO:     127.0.0.1:52029 - \"GET /api/providers HTTP/1.1\" 401 Unauthorized\r\nINFO:     127.0.0.1:52030 - \"GET /api/agents/K9FVQH HTTP/1.1\" 401 Unauthorized\r\nINFO:     127.0.0.1:52029 - \"GET /api/providers HTTP/1.1\" 200 OK\r\n"
+  ],
+  "budget": {
+    "maxRequests": 12,
+    "maxEstimatedAmount": 1,
+    "attempts": 6,
+    "estimatedUpperBound": 0.237566
+  },
+  "finishedAt": "2026-10-28T13:20:11.792Z"
+}

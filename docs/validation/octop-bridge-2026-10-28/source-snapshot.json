@@ -1,0 +1,65 @@
+{
+  "files": [
+    {
+      "path": "apps/control-plane/src/agents/agent-chat.service.ts",
+      "sha256": "2efd271335d07b01b2867fd6fd1b037dc3f52a1845c12a5cef2d07f23cda2601"
+    },
+    {
+      "path": "apps/control-plane/src/agents/agent-chat.spec.ts",
+      "sha256": "f760429c6e96db310e0e729855f01181a41e6aa091b6768baaa4b867ce702d24"
+    },
+    {
+      "path": "apps/control-plane/src/agents/agent-instances.service.ts",
+      "sha256": "8842b99578195a51ec2b7994d6478ff0248d2e4d22df3a32a250b9e2b7ce9a17"
+    },
+    {
+      "path": "apps/control-plane/src/agents/agent-instances.controller.ts",
+      "sha256": "1991647d9d9a9d8972a3e0384169efd3da140eee7cac76d31b23020cb47f1ba4"
+    },
+    {
+      "path": "apps/control-plane/src/agents/local-octop.runtime.ts",
+      "sha256": "ecb7870b55af1aabf117f1e2f7fb2db338c4a77871b9e368f686db227575a7d6"
+    },
+    {
+      "path": "apps/control-plane/src/platform/auth.service.ts",
+      "sha256": "171ed58e7d4569b61ee2af3d6d02126f1f4c2ca1c5b17828878016e5a9f0dfac"
+    },
+    {
+      "path": "apps/web/src/AgentWorkspace.tsx",
+      "sha256": "1c7a40902ed94e5e9dfe8386528cabd489550a09b0b812f9933c97a3db856d84"
+    },
+    {
+      "path": "apps/web/src/EnterpriseApp.tsx",
+      "sha256": "79a76338a8d21184a6c85d64a9dee1954629a4aa41f6cf184f8f6470f9f5a785"
+    },
+    {
+      "path": "apps/web/src/WorkspacePages.tsx",
+      "sha256": "4db960727c5d98d50c6a33e4826001b4b475da8627e5c7c4af970a880cd26026"
+    },
+    {
+      "path": "apps/web/src/components.tsx",
+      "sha256": "2f08dcf031935b7da0150f8032b2b08e75e8763c4c27131e28340f8248bb72c7"
+    },
+    {
+      "path": "apps/web/src/client.ts",
+      "sha256": "bf21d9f2f5da8dd0e8ab15a5289f63f308754a66dff87547927a574ec6d4c576"
+    },
+    {
+      "path": "apps/web/src/v2.tsx",
+      "sha256": "65ca682a4edc35d82363fd7cd9f633b8adfad8dfb21dfe9bcc35b4c537fefb01"
+    },
+    {
+      "path": "contracts/platform-api-v0.1.yaml",
+      "sha256": "d5173918ead7c49b7d13a416836dd5b3c9da2f96d64ad9828e483433b0594208"
+    },
+    {
+      "path": "scripts/check-octop-managed.mjs",
+      "sha256": "da7daeedfd2f6612815097e49320d25f45a7fb62e92951faef8103be4fc478d3"
+    },
+    {
+      "path": "scripts/check-octop-web.mjs",
+      "sha256": "026a898f8805e9a5c5d2f83ff2b3d04f7ea215113f0cee909175c1f0f70665e3"
+    }
+  ],
+  "createdAt": "2026-10-28T15:02:13.3712921Z"
+}

@@ -1,10 +1,12 @@
 import { useEffect,useState,type ReactNode } from 'react';
 import type { AuditEntry,CallPage,ModelRange,PlatformSnapshot,UsageLimits } from '@ai-gateway/contracts';
-import { api,openAiBaseUrl } from './client';
+import { api,gatewayBaseUrl,openAiBaseUrl } from './client';
 import { date,money,Panel,Status,Table,toDateInput } from './components';
 import { DateField } from './date-field';
 import type { makeEditors } from './editors';
 import {organizationPath,organizationTree} from './organizations';
+import {LocalOctopConnect} from './LocalOctopConnect';
+import {ProtocolConnectionGuide} from './ProtocolConnectionGuide';
 type Key=PlatformSnapshot['keys'][number];
 interface KeyDetail {key:Key;ownerName:string;sourceActive:boolean;models:{modelId:string;name:string}[];sources:{name:string;poolName:string;range:ModelRange;limits:UsageLimits;expiresAt:string|null;planVersion:number|null;balance:number}[];protections:{name:string;limits:UsageLimits}[];calls:CallPage;history:AuditEntry[]}
 const purposes:Record<string,string>={personal:'个人 · 日常办公',project:'项目成员',application:'独立应用'};
@@ -14,11 +16,9 @@ export function KeyDetails({keyId,data,guideOnly=false}:{keyId:string;data:Platf
   useEffect(()=>{let disposed=false;setError('');void api<KeyDetail>(`/api/v1/platform/keys/${encodeURIComponent(keyId)}`).then(v=>{if(!disposed){setValue(v);setSelected(current=>v.models.some(m=>m.modelId===current)?current:v.models[0]?.modelId??'');}}).catch(e=>{if(!disposed)setError(e instanceof Error?e.message:'读取失败');});return()=>{disposed=true;};},[keyId,data]);
   if(error)return <div role="alert" className="notice danger">{error}</div>;if(!value)return <p role="status">正在读取密钥用途与接入配置…</p>;
   const {key:k}=value,active=k.status==='active'&&Date.parse(k.expiresAt)>Date.now()&&value.sourceActive;
-  const example=[`$headers = @{ Authorization = "Bearer $env:AI_API_KEY" }`,"$body = @'",JSON.stringify({model:selected,messages:[{role:'user',content:'你好'}],max_tokens:32},null,2),"'@",`Invoke-RestMethod -Method Post -Uri '${`${openAiBaseUrl}/chat/completions`.replace(/'/g,"''")}' -Headers $headers -ContentType 'application/json' -Body ([Text.Encoding]::UTF8.GetBytes($body))`].join('\n');
   return <><p>{k.name} · <code>{k.masked}</code> · {purposes[k.purpose]} · 所有者 {value.ownerName}</p>{!active&&<div className="notice warning">密钥或用途当前停用 / 到期，不能发起新调用。修改工具配置不会恢复权益。</div>}
-    <h3>编程工具接入</h3><ol><li>选择支持 OpenAI Chat Completions 的服务商或自定义入口。</li><li>Base URL 填写 <code>{openAiBaseUrl}</code>；API Key 填写签发时保存的完整值。</li><li>从下方选择本用途开放的模型标识；先发一次简短请求，再按请求编号查看费用和调用结果。</li></ol>
-    <label>本密钥可见模型<select value={selected} onChange={e=>setSelected(e.target.value)}>{value.models.map(m=><option key={m.modelId} value={m.modelId}>{m.name} · {m.modelId}</option>)}</select></label>
-    {!value.models.length?<p className="notice warning">当前没有开放模型。请检查用途权益及模型服务，追加金额不能解决模型不可用。</p>:<><p className="secondary">将完整值保存在本机受控的 AI_API_KEY 环境变量。下方 PowerShell 示例读取环境变量，不写入或展示密钥。</p><pre className="code-example">{example}</pre></>}
+    <ProtocolConnectionGuide models={value.models} selected={selected} onSelect={setSelected}/>
+    <LocalOctopConnect keyId={keyId} canImport={active&&k.ownerId===data.actor.id}/>
     <p>多把密钥共享同一人员用途或应用的额度与保护。密钥本身不增加余额；项目用途与个人用途分别扣费。失败时保留请求编号并查看 error.code：401 检查密钥，403 核对用途权益、模型和余额，429 检查使用限制。价格未确认时联系运营核实。</p>
     {!guideOnly&&<><h3>权益与额度来源</h3><Table headers={['来源 / 版本','模型池与范围','有效批次余额','权益期限','来源保护']} rows={value.sources.map(s=>[`${s.name}${s.planVersion===null?'':` · v${s.planVersion}`}`,`${s.poolName} · ${s.range.mode==='follow'?'跟随模型池':'仅指定模型'}`,money(s.balance),date(s.expiresAt),limitsText(s.limits)])}/><p className="secondary">余额为有效来源批次的账面合计；具体模型可消费金额取决于来源范围和单批余额。服务、模型入口与共享容量保护也会继续生效。</p><p>{value.protections.map(p=>`${p.name}：${limitsText(p.limits)}`).join('；')}</p>
       <h3>最近调用</h3><p>历史已结束 {value.calls.summary.ended} 次 · 待核对 {value.calls.summary.pendingReview} 次 · 确认费用 {money(value.calls.summary.confirmedAmount)}。下表为最近 10 条，完整记录可按密钥进入调用日志筛选。</p><Table headers={['请求编号','模型','结果','计费','结束时间']} rows={value.calls.items.map(c=>[c.requestId,c.modelId,<Status value={c.outcome}/>,c.billableState==='confirmed'?money(c.actualAmount):<Status value={c.billableState}/>,date(c.completedAt)])}/>
@@ -67,6 +67,6 @@ export function KeyManager({data:d,isOps,edit,detail}:{data:PlatformSnapshot;isO
     <Table headers={['选择','名称 / 脱敏标识','所有者 / 组织','用途 / 对象','状态','创建 / 到期 / 最近使用','操作']} empty={d.keys.length?'没有符合筛选条件的密钥，请调整或清除筛选。':'还没有接入密钥。在线使用无需创建；需要连接工具时再签发。'} rows={keys.map(k=>[
       <input type="checkbox" aria-label={`选择密钥 ${k.name}`} disabled={k.status==='revoked'||atLimit&&!selection.some(s=>s.id===k.id)} checked={selection.some(s=>s.id===k.id)} onChange={e=>setSelected(previous=>e.target.checked?[...new Set([...previous,k.id])]:previous.filter(id=>id!==k.id))}/>,
       <>{k.name}<small className="cell-help"><code>{k.masked}</code></small></>,<>{owner(k)}<small className="cell-help">{organizationPath(d.organizations,organization(k)??'未归属组织')}</small></>,`${purposes[k.purpose]} · ${object(k)??'—'}`,<><Status value={k.status}/>{Date.parse(k.expiresAt)<=Date.now()&&<small className="cell-help">已到期</small>}</>,<>创建 {date(k.createdAt)}<small className="cell-help">到期 {date(k.expiresAt)}</small><small className="cell-help">最近使用 {k.lastUsedAt?date(k.lastUsedAt):'尚未使用'}</small></>,<div className="inline-actions"><button onClick={()=>detail('密钥详情与接入',<KeyDetails keyId={k.id} data={d}/>)}>详情与接入</button>{k.status!=='revoked'&&<><button onClick={()=>edit.keyStatus(k.id,k.status==='active'?'disabled':'active')}>{k.status==='active'?'停用':'启用'}</button><button onClick={()=>edit.keyStatus(k.id,'revoked')}>吊销</button></>}</div>
-    ])}/><p className="secondary">接入地址 <code>{openAiBaseUrl}</code> · 每次最多处理 200 把；更改筛选会清空选择。停用或吊销不退还额度，已准入请求继续按原预占结算。</p>
+    ])}/><p className="secondary">OpenAI Base URL <code>{openAiBaseUrl}</code> · Anthropic Base URL <code>{gatewayBaseUrl}</code> · 每次最多处理 200 把；更改筛选会清空选择。停用或吊销不退还额度，已准入请求继续按原预占结算。</p>
   </Panel>;
 }

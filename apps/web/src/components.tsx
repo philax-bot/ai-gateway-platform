@@ -46,7 +46,7 @@ export function EditorDialog({editor,onClose,onCreate,returnTo}:{editor:Editor;o
     {error&&<div className="notice danger" role="alert">{error}</div>}{denied&&<p className="secondary">已填写内容保留在当前窗口，返回后不会提交这次操作。</p>}
   </form></Modal>;
 }
-function Field({spec,value,onChange}:{spec:FieldSpec;value:string|string[];onChange:(value:string|string[])=>void}){
+export function Field({spec,value,onChange}:{spec:FieldSpec;value:string|string[];onChange:(value:string|string[])=>void}){
   const id=useId(),labelId=`${id}-label`,helpId=spec.help?`${id}-help`:undefined,[fileError,setFileError]=useState(''),common={id,required:spec.required,'aria-describedby':helpId};
   const multiple=Array.isArray(value)?value:[];
   return <div className={`form-field ${['textarea','import'].includes(spec.type??'')?'wide':''}`}>

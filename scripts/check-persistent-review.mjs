@@ -14,7 +14,7 @@ if(!process.env.npm_execpath)throw new Error('请使用 pnpm check:review，先�
 const selected=new Set();async function freePort(){for(;;){const server=createServer();await new Promise(r=>server.listen(0,'127.0.0.1',r));const port=server.address().port;await new Promise(r=>server.close(r));if(!selected.has(port)){selected.add(port);return port;}}}
 const ports={web:await freePort(),control:await freePort(),gateway:await freePort(),model:await freePort()},cp=`http://127.0.0.1:${ports.control}`,gw=`http://127.0.0.1:${ports.gateway}`;
 function start(extra={}){
-  const child=spawn(process.execPath,[resolve(root,'scripts/review.mjs'),'--postgres','--prebuilt'],{cwd:root,windowsHide:true,stdio:['ignore','pipe','pipe','ipc'],env:{...process.env,REVIEW_WORKSPACE:workspace,REVIEW_HOSTNAME:'127.0.0.1',REVIEW_WEB_PORT:String(ports.web),REVIEW_CONTROL_PORT:String(ports.control),REVIEW_GATEWAY_PORT:String(ports.gateway),REVIEW_MODEL_PORT:String(ports.model),...extra}});
+  const child=spawn(process.execPath,[resolve(root,'scripts/dev.mjs'),'--prebuilt'],{cwd:root,windowsHide:true,stdio:['ignore','pipe','pipe','ipc'],env:{...process.env,REVIEW_ALLOW_UPSTREAM_VALIDATION:'false',REVIEW_ALLOW_UPSTREAM_REQUESTS:'false',REVIEW_WORKSPACE:workspace,REVIEW_HOSTNAME:'127.0.0.1',REVIEW_WEB_PORT:String(ports.web),REVIEW_CONTROL_PORT:String(ports.control),REVIEW_GATEWAY_PORT:String(ports.gateway),REVIEW_MODEL_PORT:String(ports.model),...extra}});
   let output='';child.stdout.on('data',v=>output=(output+v).slice(-7000));child.stderr.on('data',v=>output=(output+v).slice(-7000));child.on('error',()=>{output+='process unavailable';});child.on('message',message=>{if(message?.type==='review-ready')child.ownedPids=message.pids;});child.output=()=>output;children.push(child);return child;
 }
 async function ready(child){for(let n=0;n<300;n++){if(child.exitCode!==null||child.signalCode!==null)throw new Error(child.output());if(child.ownedPids&&child.output().includes('人工审查入口：'))return;await pause(200);}throw new Error('持久审查启动超时：'+child.output());}
@@ -27,6 +27,9 @@ try{
   const {connectionString}=await connectionConfig();database=new Pool({connectionString,connectionTimeoutMillis:5000,max:1});
   console.log('CHECK fresh review uses a generated schema and rejects a concurrent writer');
   let worker=start();await ready(worker);original=JSON.parse(await readFile(stateFile,'utf8'));ownedIds.add(original.id);
+  const webAddress=`http://127.0.0.1:${ports.web}`;
+  check((await (await fetch(webAddress)).text()).includes('/@vite/client'),'canonical development command serves the Vite hot reload client');
+  const connector=await fetch(webAddress+'/octop-connector.ps1');check(connector.ok&&(await connector.text()).includes('Start-OctopImport'),'development serves the local Octop connector');
   assert.equal(original.workspace,workspace);assert.equal(original.schema,`agp_review_${original.id.replaceAll('-','')}`);
   check(original.ready===true,'initial review seed publishes ready state');
   check((await rejected()).includes('已有进程运行'),'second review writer is rejected before startup');
@@ -41,6 +44,11 @@ try{
   const label=`审查保留-${id}`;await command(admin,'settings.update',{name:label});const organization=await command(admin,'save.organization',{name:'跨重启审查组织',parentId:'org-demo'});const member=await command(admin,'save.member',{name:'跨重启审查人员',directoryId:`retained-${id}`,organizationId:organization.id});
   const employee=(await request('/api/v1/auth/login',{directoryId:'review-employee',password:'Review-local-2026!'})).cookie;
   const issued=await command(employee,'key.issue',{name:'跨重启验证',purpose:'personal'});
+  const handoff=await request('/api/v1/platform/local-octop/imports',{keyId:issued.key.id,apiKey:issued.secret},employee);check(handoff.status===201||handoff.status===200,'development issues a local Octop handoff');
+  const ticket=new URL(handoff.body.url).searchParams.get('ticket');
+  const claimed=await request('/api/v1/platform/local-octop/imports/claim',{ticket});
+  check(claimed.status===201||claimed.status===200,'local connector can claim development handoff');
+  check(claimed.body.config.baseUrl===gw+'/v1','Octop import uses the same development gateway as the web');
   async function call(){const result=await fetch(gw+'/v1/chat/completions',{method:'POST',headers:{'content-type':'application/json',authorization:`Bearer ${issued.secret}`},body:JSON.stringify({model:'test-model',messages:[{role:'user',content:'persistent review local stand-in'}],max_tokens:32})});await result.text();return result.status;}
   check(await call()===200,'review key completes a real local stand-in request');
   const before=(await request('/api/v1/platform/state',undefined,admin)).body,beforeFunds=funds(before),beforeOperations=Number((await database.query(`select count(*)::int as count from "${original.schema}".schema_migrations`)).rows[0].count);

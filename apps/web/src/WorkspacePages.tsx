@@ -5,6 +5,7 @@ import { batchAppliesToMember,batchModelNames,batchSourceName,fundingSourceSumma
 import { date, money, Panel, Status, Table } from './components';
 import { makeEditors, type RunCommand } from './editors';
 import { Online, purposeLabels } from './Online';
+import {AgentWorkspace} from './AgentWorkspace';
 import {SafetyGuardrail} from './SafetyGuardrail';
 import { CallExplorer } from './CallExplorer';
 import { Monitoring } from './Monitoring';
@@ -31,6 +32,7 @@ export function WorkspacePages({data:d,page,targetId,active=true,isOps,edit,purp
   switch(page){
     case 'catalog':return <ModelCatalog data={d} edit={edit} setPage={setPage} refresh={refresh} detail={detail}/>;
     case 'safety':return <SafetyGuardrail data={d} run={run} active={active}/>;
+    case 'agent':return <AgentWorkspace refreshWorkspace={refresh} setPage={setPage}/>;
     case 'monitoring':return <Monitoring data={d} edit={edit} run={run} detail={detail} refreshWorkspace={refresh} active={active}/>;
     case 'reviews':return <CallExplorer key="reviews" data={d} kind="reviews" reconcile={edit.reconcile} detail={detail} active={active}/>;
     case 'overview':return <OperationsHome data={d} setPage={setPage}/>;

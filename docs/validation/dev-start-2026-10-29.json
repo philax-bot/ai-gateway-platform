@@ -1,0 +1,19 @@
+{
+  "date": "2026-10-29",
+  "entry": "pnpm dev",
+  "url": "http://localhost:5176/",
+  "persistentReviewAssertions": 28,
+  "build": "passed",
+  "defaultWorkspace": "resumed without reseeding",
+  "health": {
+    "web": 200,
+    "controlPlane": 200,
+    "gateway": 200,
+    "testModel": 200
+  },
+  "frontend": "Vite hot reload client verified",
+  "octop": "handoff base URL verified against development gateway",
+  "realModelRequests": 0,
+  "cleanup": "isolated regression schema and processes removed; default development environment left running",
+  "staleLock": "removed only a verified old lock whose PID had been reused by ChatGPT.exe; no application process terminated"
+}

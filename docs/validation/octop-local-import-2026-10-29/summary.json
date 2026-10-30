@@ -1,0 +1,64 @@
+{
+  "success": true,
+  "realModelRequests": 0,
+  "sourceSnapshot": "source-snapshot.json",
+  "earlierPassingReports": [
+    {
+      "file": "memory-web-final.json",
+      "checks": 71
+    },
+    {
+      "file": "postgres-installed.json",
+      "checks": 61
+    }
+  ],
+  "historicalFailures": [
+    "REST array pipeline enumeration in Windows PowerShell",
+    "Isolated installer test wrote a duplicate BOM",
+    "Windows PowerShell module autoload inherited incompatible PSModulePath",
+    "Installed Octop default tool context estimated 34397 tokens exceeded the 32768-token QA fixture; gateway correctly refused. Final fixture explicitly declares 131072 tokens; production limits unchanged."
+  ],
+  "browser": {
+    "success": true,
+    "screenSizes": [
+      [
+        1440,
+        1000
+      ],
+      [
+        390,
+        844
+      ]
+    ],
+    "shells": 5,
+    "installerValidated": true,
+    "isolatedRegistryInstall": true,
+    "realUserProtocolRegistration": false,
+    "appLaunchAndBrowserCompletion": "native launch requested; browser receipt simulated; actual import and actual model call tested independently through Windows helper"
+  },
+  "controlPlaneUnitTests": 162,
+  "realUserConfigurationChanged": false,
+  "installedCompatibility": {
+    "version": "1.0.2b7",
+    "actualProviderApiImport": true,
+    "actualProviderApiUpdate": true,
+    "actualMeteredTurn": true,
+    "home": "isolated QA home",
+    "desktopGuiOpened": false,
+    "existingUserHomeChanged": false
+  },
+  "primaryReport": "postgres-context-web-final.json",
+  "deployed": false,
+  "typecheck": true,
+  "build": true,
+  "remaining": [
+    "First install and import into the user daily official Octop desktop instance",
+    "Public API domain and HTTPS deployment",
+    "Signed Windows installer packaging",
+    "Multi-replica handoff persistence"
+  ],
+  "runtimeVsFinalSource": "Final runtime sample precedes only local login cancel button and frontend trimming/mismatch-message refinements, covered by final PowerShell check/typecheck/build.",
+  "createdAt": "2026-10-28T16:35:01.3401606Z",
+  "windowsConnectorChecks": 27,
+  "checks": 79
+}

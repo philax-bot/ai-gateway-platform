@@ -1,0 +1,72 @@
+{
+  "success": true,
+  "createdAt": "2026-10-28T14:11:07.158Z",
+  "scope": {
+    "platformStore": "isolated memory",
+    "actualOctop": true,
+    "upstream": "deterministic local HTTP stand-in",
+    "realModelRequests": 0,
+    "deployment": false
+  },
+  "checks": [
+    "runtime stays in workspace",
+    "local service verification",
+    "alice: initially unprovisioned",
+    "alice: caller cannot inject owner or paths",
+    "bob: initially unprovisioned",
+    "bob: caller cannot inject owner or paths",
+    "bob: platform provisions a running dedicated instance",
+    "bob: ensure replay preserves one dedicated Key",
+    "bob: platform view contains no raw credentials",
+    "bob: login reset is not cacheable",
+    "alice: platform provisions a running dedicated instance",
+    "alice: ensure replay preserves one dedicated Key",
+    "alice: platform view contains no raw credentials",
+    "alice: login reset is not cacheable",
+    "owners have separate runtimes and credentials",
+    "foreign user cannot discover the instance",
+    "foreign user cannot stop the instance",
+    "alice: actual managed Octop calls its gateway Key",
+    "bob: actual managed Octop calls its gateway Key",
+    "bob: actual managed Octop calls its gateway Key",
+    "alice: login reset is not cacheable",
+    "rotation installs a different dedicated Key",
+    "rotation revokes the prior Key",
+    "alice: actual managed Octop calls its gateway Key",
+    "stop removes runtime entry",
+    "stop revokes the instance Key",
+    "bob: actual managed Octop calls its gateway Key",
+    "restart preserves platform owner mapping",
+    "alice: login reset is not cacheable",
+    "alice: actual managed Octop calls its gateway Key",
+    "gateway failure produces a recoverable delivery failure",
+    "failed delivery revokes the pending Key",
+    "failed operation replay does not mint another Key",
+    "alice: login reset is not cacheable",
+    "alice: actual managed Octop calls its gateway Key",
+    "bob: actual managed Octop calls its gateway Key",
+    "platform state and audit contain no delivered credentials",
+    "alice: actual managed calls use authoritative cached-token price",
+    "alice: personal funds conserve across lifecycle operations",
+    "bob: actual managed calls use authoritative cached-token price",
+    "bob: personal funds conserve across lifecycle operations"
+  ],
+  "accounts": [
+    {
+      "owner": "alice",
+      "calls": 4,
+      "confirmed": 0.000156,
+      "available": 0.999844,
+      "instanceId": "octop-ff9fc897a171ebc18bc1bade11633c301b1ca376",
+      "generation": 7
+    },
+    {
+      "owner": "bob",
+      "calls": 4,
+      "confirmed": 0.000156,
+      "available": 0.999844,
+      "instanceId": "octop-b5722a229d49bb757452d66e841bd81e656e19dc",
+      "generation": 2
+    }
+  ]
+}

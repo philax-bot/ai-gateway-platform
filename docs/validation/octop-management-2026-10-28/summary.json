@@ -1,0 +1,61 @@
+{
+  "createdAt": "2026-10-28T14:21:13.842Z",
+  "scope": {
+    "upstream": "local deterministic stand-in only",
+    "realModelRequests": 0,
+    "productionEnabled": false,
+    "webUI": false,
+    "SSO": false
+  },
+  "checks": [
+    {
+      "command": "pnpm typecheck",
+      "result": "passed"
+    },
+    {
+      "command": "pnpm build plus final control-plane build",
+      "result": "passed"
+    },
+    {
+      "command": "pnpm test plus final control-plane test",
+      "result": "passed",
+      "counts": {
+        "contracts": 18,
+        "controlPlane": 141,
+        "gateway": 41,
+        "total": 200
+      }
+    },
+    {
+      "command": "node scripts/check-isolated.mjs",
+      "result": "passed",
+      "assertions": 372
+    },
+    {
+      "command": "node scripts/check-isolated.mjs --postgres",
+      "result": "passed",
+      "assertions": 428
+    },
+    {
+      "command": "node scripts/check-octop-managed.mjs",
+      "result": "passed",
+      "assertions": 41,
+      "report": "memory.json"
+    },
+    {
+      "command": "node scripts/check-octop-managed.mjs --postgres",
+      "result": "passed",
+      "assertions": 46,
+      "report": "postgres.json"
+    },
+    {
+      "command": "Python YAML parser for platform API and managed request schema",
+      "result": "passed"
+    },
+    {
+      "command": "pnpm --filter @ai-gateway/control-plane exec vitest run src/agents plus final full control-plane run",
+      "result": "passed",
+      "managedTests": 12
+    }
+  ]
+}

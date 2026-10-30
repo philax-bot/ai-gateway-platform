@@ -1,5 +1,6 @@
 import type { PlatformCommand, PlatformSnapshot } from '@ai-gateway/contracts';
 const base=(import.meta.env.VITE_CONTROL_PLANE_URL??'http://127.0.0.1:4001').replace(/\/+$/,'');
+export const controlPlaneBaseUrl=base;
 export const gatewayBaseUrl=(import.meta.env.VITE_GATEWAY_URL??'http://127.0.0.1:4000').replace(/\/+$/,'');
 export const openAiBaseUrl=`${gatewayBaseUrl}/v1`;
 export function gatewayFailureMessage(raw:string):string{
@@ -12,6 +13,7 @@ export function approvalFailureMessage(message:string):string{
 function readableError(status:number,message:unknown,path:string):string{
   const value=Array.isArray(message)?message.join('；'):typeof message==='string'?message:'';
   if(value==='source budget is expired or insufficient')return approvalFailureMessage(value);
+  if(status===401&&path.includes('/local-octop/imports')&&value==='API key does not match')return '完整密钥与所选记录不匹配，请核对后重试。';
   if(status===401)return path.endsWith('/auth/login')?'账号或密码不正确，请核对后重试。':value==='login required'?'请先登录企业账号后继续。':'登录已过期，请重新登录后继续。';
   if(status===403){
     if(path.endsWith('/auth/setup'))return '安装口令无效，请向安装负责人核对后重试。';
@@ -25,6 +27,7 @@ function readableError(status:number,message:unknown,path:string):string{
     return /[\u4e00-\u9fff]/.test(value)?value:'当前账号无权继续此操作。请刷新页面，或联系运营管理员确认权限。';
   }
   if(status===409&&/preview/.test(value))return '内容已更新，当前影响预览已失效。请重新提交并核对最新影响后再确认。';
+  if(path.includes('/agent-instances')&&status===409)return /in progress/.test(value)?'Agent 的另一项操作正在进行，请稍后刷新状态。':'Agent 暂未就绪，请刷新状态确认结果；启动失败时可重新启动恢复。';
   if(status>=500)return '服务暂时无法完成请求。请稍后刷新结果，确认是否已生效后再重试。';
   return value||`请求未完成（HTTP ${status}），请稍后重试。`;
 }

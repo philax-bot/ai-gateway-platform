@@ -1,0 +1,51 @@
+import {spawn} from 'node:child_process';
+import {createServer} from 'node:net';
+import {mkdir,readdir,readFile,writeFile} from 'node:fs/promises';
+import {resolve} from 'node:path';
+import {randomUUID} from 'node:crypto';
+import {connect} from './check-octop-web.mjs';
+
+const pause=ms=>new Promise(r=>setTimeout(r,ms));
+export async function verifyLocalImportBrowser({root,directory,cp,gw,web,password,children,check,report}){
+  const vite=resolve(root,'apps/web/node_modules/vite/bin/vite.js'),dist=resolve(directory,'web'),env={...Object.fromEntries(Object.entries(process.env).filter(([k])=>!k.startsWith('VITE_'))),VITE_CONTROL_PLANE_URL:cp,VITE_GATEWAY_URL:gw,VITE_REVIEW_MODE:'true',VITE_REVIEW_STORAGE:'memory'};
+  const build=spawn(process.execPath,[vite,'build','--outDir',dist,'--emptyOutDir'],{cwd:resolve(root,'apps/web'),env,windowsHide:true,stdio:'ignore'});children.push(build);await new Promise((r,j)=>build.once('exit',c=>c===0?r():j(Error('web build failed'))));
+  const preview=spawn(process.execPath,[vite,'preview','--host','127.0.0.1','--port',new URL(web).port,'--strictPort','--outDir',dist],{cwd:resolve(root,'apps/web'),env,windowsHide:true,stdio:'ignore'});children.push(preview);
+  for(let i=0;i<100;i++){try{if((await fetch(web)).ok)break;}catch{}await pause(100);}
+  const server=createServer();await new Promise(r=>server.listen(0,'127.0.0.1',r));const debug=server.address().port;await new Promise(r=>server.close(r));
+  const browser=spawn(process.env.CHROME_PATH??'C:/Program Files/Google/Chrome/Application/chrome.exe',['--headless=new',`--remote-debugging-port=${debug}`,`--user-data-dir=${resolve(directory,'browser')}`,'--no-first-run','--no-default-browser-check','--remote-allow-origins=*','about:blank'],{windowsHide:true,stdio:'ignore'});children.push(browser);
+  let page;for(let i=0;i<100;i++){try{page=(await(await fetch(`http://127.0.0.1:${debug}/json/list`)).json()).find(t=>t.type==='page');if(page)break;}catch{}await pause(100);}if(!page)throw Error('Chrome failed');
+  const cdp=await connect(page.webSocketDebuggerUrl),ev=s=>cdp.evaluate(s),downloads=resolve(directory,'downloads');await mkdir(downloads);
+  const wait=async(s,ms=15000)=>{const end=Date.now()+ms;while(Date.now()<end){if(await ev(s).catch(()=>false))return;await pause(100);}throw Error('UI condition timed out: '+s);};
+  const click=text=>ev(`(()=>{const el=[...document.querySelectorAll('button')].find(e=>e.getClientRects().length&&!e.closest('[hidden]')&&e.textContent.trim()===${JSON.stringify(text)});if(!el)return false;el.click();return true;})()`);
+  const fill=(selector,value)=>ev(`(()=>{const e=document.querySelector(${JSON.stringify(selector)});if(!e)return false;Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(e,${JSON.stringify(value)});e.dispatchEvent(new Event('input',{bubbles:true}));return true;})()`);
+  const viewport=async(width,height)=>{await cdp.send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:width<760});await pause(150);};
+  const output=resolve(root,'docs/validation/octop-local-import-2026-10-29/screenshots');await mkdir(output,{recursive:true});
+  const shot=async name=>{await pause(200);const {data}=await cdp.send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});await writeFile(resolve(output,name),Buffer.from(data,'base64'));};
+  const noOverflow=()=>ev('document.documentElement.scrollWidth<=innerWidth+1');
+  let importReply=null,importRequest=null;
+  cdp.on('Network.responseReceived',p=>{if(p.response.url===cp+'/api/v1/platform/local-octop/imports')importRequest=p.requestId;});
+  cdp.on('Network.loadingFinished',p=>{if(p.requestId===importRequest)void cdp.send('Network.getResponseBody',{requestId:p.requestId}).then(r=>{importReply=JSON.parse(r.body);}).catch(()=>{});});
+  try{
+    await cdp.send('Runtime.enable');await cdp.send('Page.enable');await cdp.send('Network.enable');await cdp.send('Browser.setDownloadBehavior',{behavior:'allow',downloadPath:downloads});await viewport(1440,1000);await cdp.send('Page.navigate',{url:web+'/?ui=beacon'});
+    await wait('!!document.querySelector("input[autocomplete=username]")');await fill('input[autocomplete=username]','managed-alice');await fill('#login-password',password);await click('登录');await wait('!!document.querySelector("#v4-sidebar")');await click('密钥与接入');await wait('document.body.innerText.includes("接入与密钥")');
+    await click('签发密钥');await wait('!!document.querySelector("dialog[open] input[type=text]")');await fill('dialog[open] input[type=text]','Local Octop browser QA');await click('继续');await wait('[...document.querySelectorAll("button")].some(b=>b.textContent.trim()==="确认执行")');await click('确认执行');await wait('document.body.innerText.includes("请保存完整密钥")');
+    check(await ev('document.querySelector("#issued-api-key").type==="password"'),'new API Key is masked by default and can be revealed');check(await ev('[...document.querySelectorAll("dialog[open] button")].some(b=>b.textContent.trim()==="导入本地 Octop"&&!b.disabled)'),'new Key can be imported without copying or typing it');
+    await shot('new-key-octop-1440.png');await viewport(390,844);check(await noOverflow(),'390px new Key import modal has no page overflow');await shot('new-key-octop-390.png');await viewport(1440,1000);
+    await click('首次安装接入器');for(let i=0;i<100;i++){const files=await readdir(downloads);if(files.some(f=>f.endsWith('.ps1')))break;await pause(100);}const file=(await readdir(downloads)).find(f=>f.endsWith('.ps1'));if(!file)throw Error('installer was not downloaded');const installer=resolve(downloads,file),source=await readFile(installer,'utf8');
+    check(source.includes(cp)&&!source.includes('sa_'),'downloaded installer is platform-specific and contains no API Key');
+    const validate=spawn('powershell.exe',['-NoProfile','-ExecutionPolicy','Bypass','-File',installer,'-ValidateOnly'],{windowsHide:true,stdio:'ignore'});children.push(validate);check(await new Promise(r=>validate.once('exit',c=>r(c===0))),'downloaded installer and embedded helper parse under Windows PowerShell');
+    // Exercise registry installation in a dedicated test key and directory, with synthetic acceptance.
+    const testScheme='signal-octop-test-'+randomUUID().replaceAll('-',''),testRoot=resolve(directory,'installer-check'),testScript=resolve(directory,'installer-check.ps1');await mkdir(testRoot);
+    const modified=source.replace(/^\$choice=.*$/m,"$choice='Yes'").replace(/^\[Windows.Forms.MessageBox\]::Show\('安装完成.*$/m,"Write-Output 'INSTALLED'").replaceAll("HKCU:\\Software\\Classes\\signal-octop'",`HKCU:\\Software\\Classes\\${testScheme}'`);
+    await writeFile(testScript,'\uFEFF'+modified.replace(/^\uFEFF/,''));const install=spawn('powershell.exe',['-NoProfile','-ExecutionPolicy','Bypass','-File',testScript],{env:{...process.env,LOCALAPPDATA:testRoot},windowsHide:true,stdio:['ignore','pipe','pipe']});let installerLog='';install.stdout.on('data',d=>installerLog+=d);install.stderr.on('data',d=>installerLog+=d);children.push(install);const installed=await new Promise(r=>install.once('exit',c=>r(c===0)));
+    if(!/^signal-octop-test-[a-f0-9]{32}$/.test(testScheme))throw Error('invalid test registry identity');
+    const registryCleanup=spawn('powershell.exe',['-NoProfile','-Command',`$p='HKCU:\\Software\\Classes\\${testScheme}';if(Test-Path -LiteralPath $p){Remove-Item -LiteralPath $p -Recurse -Force}`],{windowsHide:true,stdio:'ignore'});children.push(registryCleanup);await new Promise(r=>registryCleanup.once('exit',r));if(!installed)throw Error('isolated registry installer failed: '+installerLog.slice(-2200));check(installed,'installer registers an isolated per-user protocol and writes its owned helper');
+    await click('导入本地 Octop');for(let i=0;i<100&&!importReply;i++)await pause(100);check(!!importReply?.url?.startsWith('signal-octop://import?')&&!importReply.url.includes('sa_'),'web import creates a short-lived ticket-only launch URL');
+    check(await ev('document.body.innerText.includes("已请求打开本机接入器")'),'page distinguishes launch request from completed import');
+    const url=new URL(importReply.url),claimed=await fetch(cp+'/api/v1/platform/local-octop/imports/claim',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({ticket:url.searchParams.get('ticket')})}).then(r=>r.json());
+    await fetch(cp+'/api/v1/platform/local-octop/imports/complete',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({id:claimed.id,receipt:claimed.receipt,status:'completed'})});await wait('document.body.innerText.includes("本机接入器已确认配置导入完成")');check(true,'completion UI follows local acknowledgement (browser acknowledgement is simulated)');
+    await cdp.send('Input.dispatchKeyEvent',{type:'keyDown',key:'Tab',code:'Tab',windowsVirtualKeyCode:9});check(await ev('!!document.activeElement.closest("dialog[open]")'),'keyboard focus stays in new Key modal');await cdp.send('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});await wait('!document.querySelector("dialog[open]")');check(await ev('document.activeElement.textContent.includes("签发密钥")'),'Escape closes the Key modal and restores focus');
+    for(const shell of ['azure','sidebar','next','classic','beacon']){await cdp.send('Page.navigate',{url:web+'/?ui='+shell});await wait('document.body.innerText.includes("开始使用")');await click('密钥与接入');await wait('document.body.innerText.includes("接入与密钥")');await click('详情与接入');await wait('document.body.innerText.includes("本次导入使用的完整密钥")');check(await noOverflow(),`${shell} retains existing-key Octop import without horizontal overflow`);await cdp.send('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});}
+    check(cdp.errors.length===0,'no uncaught browser exceptions');report.localImportBrowser={success:true,screenSizes:[[1440,1000],[390,844]],shells:5,installerValidated:true,isolatedRegistryInstall:true,realUserProtocolRegistration:false,appLaunchAndBrowserCompletion:'native launch requested; browser receipt simulated; actual import and actual model call tested independently through Windows helper'};
+  }catch(e){await shot('failure.png').catch(()=>{});throw e;}finally{cdp.close();}
+}

@@ -42,6 +42,145 @@ paths:
         '200': {description: Rule identifiers, categories, version, optional scan-limit error; inputOnly true and modelCalled false. Off mode still permits trial; model scope still applies. No trial event or input is stored.}
         '400': {description: Invalid trial input}
         '403': {description: Operator required}
+  /api/v1/platform/local-octop/imports:
+    post:
+      security: [{sessionCookie: []}]
+      description: Creates a five-minute, single-use handoff to the user's locally installed Octop. Requires the owner's active existing API Key value and current platform session. Does not issue a new Key. Gateway URL and authorized text models are derived on the server. Returns id, expiresAt and a signal-octop URI containing only a random ticket. API Key and payload stay in bounded process memory, never in the launch URI or workspace state. Recreating an import for the same Key invalidates the older ticket. Requires a single control-plane process (or sticky routing); restart invalidates pending imports.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [keyId, apiKey]
+              properties:
+                keyId: {type: string}
+                apiKey: {type: string, maxLength: 512, writeOnly: true}
+      responses:
+        '200': {description: Uncached id, expiresAt and ticket-only launch URL}
+        '401': {description: Session or supplied API Key invalid}
+        '404': {description: Key missing or not owned by caller}
+        '409': {description: Key/model unavailable or pending-import limit reached}
+  /api/v1/platform/local-octop/imports/{id}:
+    get:
+      security: [{sessionCookie: []}]
+      parameters: [{in: path, name: id, required: true, schema: {type: string}}]
+      description: Owner-only progress. Status is pending, claimed, completed or failed. Completed means the local connector reported success, not a model-call or billing acceptance. No credentials returned. Expired records return 404.
+      responses:
+        '200': {description: Uncached progress and expiration}
+        '404': {description: Import missing, expired or outside actor scope}
+  /api/v1/platform/local-octop/imports/claim:
+    post:
+      description: Native connector exchanges a 43-character capability ticket in the POST body. No platform cookie is needed. Checks original platform session, membership, Key status and model scope again. A ticket can only be claimed once. Uncached response carries config and a separate one-use completion receipt; keep request and response bodies out of logs.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {type: object, additionalProperties: false, required: [ticket], properties: {ticket: {type: string, pattern: '^[A-Za-z0-9_-]{43}$', writeOnly: true}}}
+      responses:
+        '200': {description: Import configuration, id, expiresAt and one-use receipt}
+        '410': {description: Ticket expired/used or original authorization changed}
+  /api/v1/platform/local-octop/imports/complete:
+    post:
+      description: Native connector reports completed or failed using its one-use completion receipt. It does not extend the five-minute TTL or reactivate the Key. No session cookie required. This is a connector self-report, not device attestation.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [id, receipt, status]
+              properties:
+                id: {type: string}
+                receipt: {type: string, writeOnly: true}
+                status: {type: string, enum: [completed, failed]}
+      responses:
+        '200': {description: Result recorded}
+        '410': {description: Receipt expired, invalid or already used}
+  /api/v1/platform/agent-instances/self/chat:
+    post:
+      security: [{sessionCookie: []}]
+      description: Local-development platform-session bridge to the caller's running Octop instance. Accepts text and an optional owned threadId only. Native credentials and runtime selection stay on the server. One active turn per instance, with a 180-second ceiling. A process-local lifecycle lock rejects start/stop/rotation/access-reset operations with 409 until the turn and cancellation cleanup finish. Cancellation callbacks are bound to the original instance generation and become inactive when the turn releases its lock. Logout immediately requests cancellation; membership, session and instance generation are checked every second. Client disconnect explicitly cancels the native turn; an unacknowledged cancellation attempts to revoke the dedicated Key and stop this owned runtime. Runtime stop is still attempted if the revocation transaction fails. Cancellation does not imply zero charges. No automatic retries.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [text]
+              properties:
+                text: {type: string, minLength: 1, maxLength: 16000}
+                threadId: {type: string, maxLength: 200, pattern: '^[-A-Za-z0-9_:]+$'}
+      responses:
+        '200':
+          description: Uncached SSE data objects. Types are session (threadId), token (content), tool (generic message), error (safe message), and done (cancelled). Setup failure can end with error only. Raw native state, tool arguments/results, Provider config, URLs and tokens are not forwarded.
+          content:
+            text/event-stream:
+              schema: {type: string}
+        '400': {description: Invalid text, fields or conversation identity}
+        '401': {description: Platform session expired or missing}
+        '403': {description: Member or organization inactive}
+        '409': {description: Instance unavailable or another turn is active}
+  /api/v1/platform/agent-instances/self:
+    get:
+      security: [{sessionCookie: []}]
+      description: Local-development managed Octop status for the current stable platform member. Returns enabled and an optional instance view; excludes raw API Keys, admin credentials, runtime paths and operation leases. No process is created by a read.
+      responses:
+        '200': {description: ManagedAgentView}
+        '401': {description: Current active platform session required}
+  /api/v1/platform/agent-instances/{id}:
+    get:
+      security: [{sessionCookie: []}]
+      parameters: [{in: path, name: id, required: true, schema: {type: string}}]
+      description: Owner or operator view. Missing and foreign instances both return 404.
+      responses:
+        '200': {description: ManagedAgentView}
+        '404': {description: Instance not found in current actor scope}
+  /api/v1/platform/agent-instances/self/ensure:
+    post:
+      security: [{sessionCookie: []}]
+      description: Explicitly enabled local development only. Derives owner from the current platform session. Creates or starts the dedicated instance and delivers a newly signed personal Key server-side. The only accepted body field is idempotencyKey. An already healthy running instance is reused. Network and process work run outside the workspace transaction. Failed or ambiguous delivery revokes the new Key; retry with a fresh idempotency key. Does not implement SSO or production sandboxing.
+      requestBody: {$ref: '#/components/requestBodies/ManagedAgentOperation'}
+      responses:
+        '200': {description: Current instance view; raw Key is never returned}
+        '400': {description: Invalid body or client-supplied ownership/runtime configuration}
+        '409': {description: In progress, idempotency conflict or recoverable operation failure}
+        '503': {description: Local managed runtime disabled}
+  /api/v1/platform/agent-instances/{id}/rotate-key:
+    post:
+      security: [{sessionCookie: []}]
+      parameters: [{in: path, name: id, required: true, schema: {type: string}}]
+      description: Owner or operator. Immediately revokes the old dedicated Key before creating and installing a replacement. Existing unrelated client Keys are unaffected. Brief interruption is expected. On delivery failure the replacement is revoked and the instance is stopped when possible.
+      requestBody: {$ref: '#/components/requestBodies/ManagedAgentOperation'}
+      responses:
+        '200': {description: Current instance view}
+        '404': {description: Instance outside current actor scope}
+        '409': {description: Busy, conflict or recoverable failure}
+        '503': {description: Local managed runtime disabled}
+  /api/v1/platform/agent-instances/{id}/stop:
+    post:
+      security: [{sessionCookie: []}]
+      parameters: [{in: path, name: id, required: true, schema: {type: string}}]
+      description: Owner or operator. Revokes the instance Key before stopping only its owned process tree. Preserves workspace and mapping for restart. Stopping another member's instance is operator-only; operators cannot obtain that member's login credentials.
+      requestBody: {$ref: '#/components/requestBodies/ManagedAgentOperation'}
+      responses:
+        '200': {description: Stopped view, or replay of the current view}
+        '404': {description: Instance outside current actor scope}
+        '409': {description: Busy or recoverable stop failure}
+        '503': {description: Local managed runtime disabled}
+  /api/v1/platform/agent-instances/{id}/access:
+    post:
+      security: [{sessionCookie: []}]
+      parameters: [{in: path, name: id, required: true, schema: {type: string}}]
+      description: Deprecated local diagnostic export. Disabled by default unless the server explicitly enables OCTOP_LEGACY_LOGIN_ENABLED=true. Owner-only reset returning the ordinary Octop username/password plus loginUrl with Cache-Control no-store. Native JWTs bypass the platform bridge and are not revoked by platform logout. Keep disabled for the platform UI path. Password is not retained in workspace, audit or idempotent results. Never returns administrator credentials.
+      responses:
+        '200': {description: Ordinary-user loginUrl, username and newly reset password}
+        '404': {description: Caller is not the instance owner, including operators}
+        '409': {description: Legacy login export disabled, instance stopped or operation pending}
+        '503': {description: Local managed runtime disabled}
   /api/v1/auth/bootstrap:
     get:
       responses:
@@ -171,6 +310,17 @@ paths:
         '200': {description: Counts of newly issued batches and expired reservations marked for review}
         '403': {description: Operator responsibility required}
 components:
+  requestBodies:
+    ManagedAgentOperation:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required: [idempotencyKey]
+            properties:
+              idempotencyKey: {type: string, minLength: 1, maxLength: 100, pattern: '^[A-Za-z0-9_-]+$'}
   securitySchemes:
     sessionCookie:
       type: apiKey

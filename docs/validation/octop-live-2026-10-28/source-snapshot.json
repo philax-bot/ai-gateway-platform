@@ -1,0 +1,15 @@
+{
+  "createdAt": "2026-10-28T13:29:14.030Z",
+  "scope": "final selected runner and entry artifacts; not a full transitive manifest; initial-failure predates runner corrections",
+  "files": {
+    "scripts/check-octop.mjs": "9918a1b602ead31029eabd97cf252418eda36dffc39b5e7cb7255e0f33e6f8d2",
+    "scripts/octop-local-only.py": "159158f228ee45e764e43cdb24a22a06834e2229d8aed2f4f80accb7f76bfedf",
+    "scripts/octop_gateway_compat.py": "4a8220f7cd40a4b9c89a22020dc9aca4a0fae7fe0db1f2a28d77e5d802119b0c",
+    "scripts/test_octop_gateway_compat.py": "bda3235bc46fcb878136c2c2eb1dd1a08a10ba35d560598408633f937036ea3b",
+    "scripts/octop-live-config.mjs": "2ce0aae8338ed527ff04b6d464ef9cc914086f337d57402b3c631aa1a798cb40",
+    "scripts/octop-live-budget.test.mjs": "021e23dee6af13467a1ae806ab5fe7b4dac16eb57b9e7f10a17848c6d497a087",
+    "services/gateway-sim/dist/server.js": "239ca235d3392a0fce47c4e632b180a7e1f26470371723221f104e649bbf2895",
+    "apps/control-plane/dist/main.js": "ec86d54cd10ce5ea80c016340f8f740b84b791df916d61c1813f157d4d4f5dc3",
+    ".runtime/octop-source-890111b/uv.lock": "49610bccad9751614f5e3f07d8aaa453e6c2617ced4ea6321c3598df9d6fab93"
+  }
+}
