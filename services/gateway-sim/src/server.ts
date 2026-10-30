@@ -234,7 +234,12 @@ async function handleCompletions(request: IncomingMessage, response: ServerRespo
       headers:{'content-type':'application/json','x-request-id':requestId,...(native&&protocol==='messages'?{'anthropic-version':String(request.headers['anthropic-version']),...(request.headers['anthropic-beta']?{'anthropic-beta':String(request.headers['anthropic-beta'])}:{})}:{}),...(upstreamCredential?{[transport?'x-atlas-hop-token':'authorization']:`Bearer ${upstreamCredential}`,...(native&&protocol==='messages'&&!transport?{'x-api-key':upstreamCredential}:{})}:{})},body:JSON.stringify(native?forwarded:adaptUpstreamChatRequest(target,forwarded)) });
     upstreamStatus=upstream.status;
     upstreamRequestId=readUpstreamRequestId(upstream.headers);
-    if(!upstream.ok) { raw=await boundedText(upstream,()=>deadline!.receivedBytes()); outcome='upstream_error';usageFinal=extractUpstreamUsage(raw)!==null||!configured||upstream.status<500; }
+    if(!upstream.ok) { raw=await boundedText(upstream,()=>deadline!.receivedBytes()); outcome='upstream_error';usageFinal=extractUpstreamUsage(raw)!==null||!configured||upstream.status<500;
+      // Local-only diagnostic: the client still gets a generic message, but operators need the vendor's own reason.
+      let vendorType:string|null=null,vendorMessage:string|null=null;
+      try{const body=JSON.parse(raw) as {error?:{type?:unknown;message?:unknown}};vendorType=typeof body.error?.type==='string'?body.error.type.slice(0,80):null;vendorMessage=typeof body.error?.message==='string'?body.error.message.slice(0,200):null;}catch{/* non-JSON vendor error body: the status code is still logged */}
+      console.error(JSON.stringify({event:'upstream_error_response',requestId,status:upstream.status,vendorType,vendorMessage}));
+    }
     else if(body.stream===true && upstream.body) {
       response.writeHead(200,{'content-type':'text/event-stream; charset=utf-8','cache-control':'no-cache','x-request-id':requestId,...corsHeaders(origin)});
       streamStarted=true;
