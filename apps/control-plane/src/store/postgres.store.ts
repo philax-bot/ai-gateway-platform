@@ -14,6 +14,7 @@ import { authorizationFingerprint, checkSettlementScope, reconciliationCalculati
 import { admissionForBatch, admissionDenialMessage, publicLogAdmission } from './admission';
 import { callVisible, type CallScope } from './call-query';
 import { queryPostgresCalls, type CallRow } from './postgres-call-query';
+import { queryPostgresUsage } from './postgres-call-analytics';
 import { databaseSchema,runtimeMode } from '@ai-gateway/contracts';
 import { applyMigrations,loadMigrations } from './migrations';
 import { hotPathDiagnostics } from './hot-path-diagnostics';
@@ -290,6 +291,16 @@ export class PostgresStore extends DemoStore implements OnModuleDestroy {
       const client=trace.acquired(raw);let failed=false;
       await client.query('begin isolation level repeatable read read only');
       try{const result=await queryPostgresCalls(client,input,scope,r=>this.mapCall(r));await client.query('commit');return result;}
+      catch(error){failed=true;await client.query('rollback');throw error;}finally{trace.finish(failed);}
+    }).catch(error=>{trace.finish(true);throw error;});
+  }
+  async queryUsage(input:import('@ai-gateway/contracts').UsageAnalyticsQuery|undefined,scope:CallScope=null,timezone='Asia/Shanghai',existingClient?:PoolClient){
+    if(existingClient)return this.statisticsWithin(existingClient,()=>queryPostgresUsage(existingClient,input,scope,timezone));
+    const trace=hotPathDiagnostics.start('query_usage');
+    return this.withClient(async raw=>{
+      const client=trace.acquired(raw);let failed=false;
+      await client.query('begin isolation level repeatable read read only');
+      try{const result=await queryPostgresUsage(client,input,scope,timezone);await client.query('commit');return result;}
       catch(error){failed=true;await client.query('rollback');throw error;}finally{trace.finish(failed);}
     }).catch(error=>{trace.finish(true);throw error;});
   }

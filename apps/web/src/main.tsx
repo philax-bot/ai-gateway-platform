@@ -7,6 +7,8 @@ import './design-v2.css';
 import './design-v3.css';
 import './design-v4.css';
 import './design-v5.css';
+import './analytics.css';
+import './cockpit-demo.css';
 
 applyUiDesign(readUiDesign());
 

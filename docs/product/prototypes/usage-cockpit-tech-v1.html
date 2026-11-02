@@ -1,0 +1,759 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>用量驾驶舱 · 深蓝科技演示版 v1 · Signal Atlas</title>
+<!--
+  演示稿（demo prototype），不是产品页面，不进入 apps/web 构建。
+  与 docs/product/prototypes/usage-cockpit-v1.html（信标浅色版）使用同一套演示数据，
+  便于评审在同一窗口内左右对比：大屏驾驶舱的视觉表现 vs 产品既有语言。
+  产品页面仍以 docs/product/ui-component-contract-v1.md 为准；本稿的图表、
+  发光边框、倾斜边角都属于演示皮肤，落地前需先补契约（见页脚说明）。
+-->
+<style>
+/* ================= tokens ================= */
+:root{
+  color-scheme:dark;
+  --bg:#040a1b; --bg2:#061331; --bg3:#0a1c3f;
+  --panel:rgba(8,20,46,.78); --panel-2:rgba(11,29,64,.72);
+  --line:rgba(56,189,248,.26); --line-strong:rgba(34,211,238,.68);
+  --cyan:#22d3ee; --cyan-2:#38bdf8; --blue:#3b82f6; --lime:#a3e635;
+  --violet:#a78bfa; --magenta:#f472b6; --amber:#fbbf24; --rose:#fb7185; --emerald:#34d399;
+  --text:#e8f1ff; --text-2:#b8c9e2; --muted:#8ba3c7; --muted-2:#6d89b0;
+  --mono:"Cascadia Code","SFMono-Regular",Consolas,"Liberation Mono",ui-monospace,monospace;
+  --sans:"Segoe UI Variable Text","Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans SC",sans-serif;
+  --glow:0 0 18px rgba(34,211,238,.28);
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  position:relative; min-height:100vh; background:
+    radial-gradient(1100px 620px at 50% -18%, rgba(34,211,238,.16), transparent 60%),
+    radial-gradient(900px 520px at 8% 8%, rgba(59,130,246,.18), transparent 62%),
+    radial-gradient(900px 520px at 96% 6%, rgba(139,92,246,.14), transparent 60%),
+    linear-gradient(180deg,#030817 0%,#04102a 42%,#030a1d 100%);
+  color:var(--text-2); font:14px/1.6 var(--sans);
+  font-variant-numeric:tabular-nums; -webkit-font-smoothing:antialiased;
+}
+/* 背景网格 + 扫描线，只用两层渐变，避免大图 */
+body::before{
+  content:""; position:fixed; inset:0; pointer-events:none; z-index:0; opacity:.5;
+  background-image:
+    linear-gradient(rgba(56,189,248,.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(56,189,248,.055) 1px, transparent 1px);
+  background-size:64px 64px, 64px 64px;
+  mask-image:radial-gradient(ellipse 100% 70% at 50% 0%, #000 25%, transparent 85%);
+}
+body::after{
+  content:""; position:fixed; inset:0; pointer-events:none; z-index:0;
+  background:repeating-linear-gradient(180deg, rgba(255,255,255,.018) 0 1px, transparent 1px 3px);
+  opacity:.5;
+}
+a{color:var(--cyan)}
+:focus-visible{outline:2px solid var(--cyan); outline-offset:2px; border-radius:3px}
+h1,h2,h3,p{margin:0}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-thumb{background:rgba(56,189,248,.35);border-radius:999px}
+::-webkit-scrollbar-track{background:transparent}
+
+/* ================= page frame ================= */
+.stage{position:relative; z-index:1; padding:14px 20px 18px; max-width:1920px; margin:0 auto}
+
+/* ---- header ---- */
+.tech-head{position:relative; display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:18px; padding:4px 4px 10px}
+.tech-head::after{
+  content:""; position:absolute; left:0; right:0; bottom:0; height:1px;
+  background:linear-gradient(90deg, transparent, rgba(34,211,238,.55) 18%, rgba(34,211,238,.9) 50%, rgba(34,211,238,.55) 82%, transparent);
+}
+.range-chip{
+  justify-self:start; display:inline-flex; align-items:center; gap:10px; max-width:100%;
+  padding:8px 26px 8px 16px; font:600 12.5px var(--mono); letter-spacing:.04em; color:var(--cyan); white-space:nowrap;
+  background:linear-gradient(90deg, rgba(34,211,238,.18), rgba(34,211,238,.04));
+  border:1px solid rgba(34,211,238,.42); border-left:3px solid var(--cyan);
+  clip-path:polygon(0 0, calc(100% - 16px) 0, 100% 50%, calc(100% - 16px) 100%, 0 100%);
+}
+.range-chip small{color:var(--muted); font-weight:400; letter-spacing:0}
+.title-block{text-align:center; min-width:0}
+.title-block h1{
+  font-size:clamp(22px,2.1vw,34px); font-weight:700; letter-spacing:.14em; color:#eaf6ff;
+  text-shadow:0 0 22px rgba(34,211,238,.55), 0 0 60px rgba(34,211,238,.25);
+}
+.title-block .sub{margin-top:5px; font:600 10.5px var(--mono); letter-spacing:.34em; color:rgba(139,163,199,.9)}
+.title-deco{display:flex; align-items:center; justify-content:center; gap:10px; margin-top:7px}
+.title-deco i{display:block; height:3px; width:56px; background:linear-gradient(90deg,transparent,var(--cyan)); border-radius:2px}
+.title-deco i:last-child{background:linear-gradient(270deg,transparent,var(--cyan))}
+.title-deco b{display:block; width:7px; height:7px; background:var(--cyan); transform:rotate(45deg); box-shadow:0 0 10px var(--cyan)}
+.head-right{justify-self:end; display:flex; align-items:center; gap:14px; flex-wrap:wrap; justify-content:flex-end}
+.clock{text-align:right}
+.clock b{display:block; font:600 20px/1.1 var(--mono); letter-spacing:.06em; color:#eaf6ff; text-shadow:0 0 14px rgba(34,211,238,.45)}
+.clock small{display:block; margin-top:3px; font:500 10px var(--mono); letter-spacing:.18em; color:var(--muted-2)}
+.live{display:inline-flex; align-items:center; gap:7px; padding:5px 10px; border:1px solid rgba(52,211,153,.42); border-radius:3px; background:rgba(52,211,153,.1); color:#6ee7b7; font:600 10.5px var(--mono); letter-spacing:.1em}
+.live::before{content:""; width:6px; height:6px; border-radius:50%; background:#34d399; box-shadow:0 0 8px #34d399; animation:pulse 1.8s infinite}
+@keyframes pulse{50%{opacity:.35}}
+.demo-tag{padding:5px 9px; border:1px solid rgba(251,191,36,.45); border-radius:3px; background:rgba(251,191,36,.1); color:#fcd34d; font:600 10px var(--mono); letter-spacing:.12em}
+.head-link{
+  padding:5px 10px; border:1px solid rgba(56,189,248,.35); border-radius:2px;
+  font:600 10.5px var(--mono); letter-spacing:.1em; color:var(--muted); text-decoration:none;
+}
+.head-link:hover{color:var(--cyan); border-color:var(--cyan); background:rgba(34,211,238,.08)}
+
+/* ---- KPI strip ---- */
+.kpi-row{display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:12px; margin:14px 0}
+.kpi{
+  position:relative; padding:10px 15px 11px; min-width:0;
+  background:linear-gradient(180deg, rgba(13,36,78,.86), rgba(7,19,44,.86));
+  border:1px solid var(--line);
+  clip-path:polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+}
+.kpi::before{content:""; position:absolute; inset:0; pointer-events:none; border-top:1px solid rgba(34,211,238,.55)}
+.kpi span{display:block; font:600 11.5px var(--sans); letter-spacing:.06em; color:var(--muted)}
+.kpi strong{display:flex; align-items:baseline; gap:6px; margin-top:6px; font:700 27px/1.1 var(--mono); letter-spacing:-.02em; color:#eaf6ff; text-shadow:0 0 16px rgba(34,211,238,.45); white-space:nowrap}
+.kpi strong em{font:600 12px/1 var(--mono); font-style:normal; letter-spacing:.04em; color:var(--cyan); text-shadow:none}
+.kpi small{display:block; margin-top:5px; font-size:11px; color:var(--muted-2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.kpi.is-warn strong{color:#fcd34d; text-shadow:0 0 16px rgba(251,191,36,.4)}
+.kpi.is-warn strong em{color:var(--amber)}
+
+/* ---- panel ---- */
+.tech-grid{
+  display:grid; gap:12px;
+  grid-template-columns:repeat(12,minmax(0,1fr));
+  grid-template-areas:
+    "dist dist dist rank rank rank rank rank rank gauge gauge gauge"
+    "org org org trend trend trend trend trend trend quality quality quality";
+}
+.area-dist{grid-area:dist} .area-rank{grid-area:rank} .area-gauge{grid-area:gauge}
+.area-org{grid-area:org} .area-trend{grid-area:trend} .area-quality{grid-area:quality}
+
+.tpanel{
+  position:relative; min-width:0; padding:10px 15px 12px;
+  background:
+    linear-gradient(var(--line-strong),var(--line-strong)) 0 0/16px 2px no-repeat,
+    linear-gradient(var(--line-strong),var(--line-strong)) 0 0/2px 16px no-repeat,
+    linear-gradient(var(--line-strong),var(--line-strong)) 100% 0/16px 2px no-repeat,
+    linear-gradient(var(--line-strong),var(--line-strong)) 100% 0/2px 16px no-repeat,
+    linear-gradient(var(--line-strong),var(--line-strong)) 0 100%/16px 2px no-repeat,
+    linear-gradient(var(--line-strong),var(--line-strong)) 0 100%/2px 16px no-repeat,
+    linear-gradient(var(--line-strong),var(--line-strong)) 100% 100%/16px 2px no-repeat,
+    linear-gradient(var(--line-strong),var(--line-strong)) 100% 100%/2px 16px no-repeat,
+    linear-gradient(180deg, rgba(10,27,60,.86), rgba(6,17,41,.88));
+  border:1px solid rgba(56,189,248,.18);
+  box-shadow:inset 0 0 40px rgba(34,211,238,.06), 0 10px 30px -22px rgba(0,0,0,.9);
+}
+.tpanel>header{display:flex; align-items:center; gap:10px; margin-bottom:10px}
+.tpanel>header h2{font:600 14px var(--sans); letter-spacing:.1em; color:#dceafd}
+.tpanel>header h2::before{
+  content:""; display:inline-block; width:3px; height:13px; margin-right:9px; vertical-align:-2px;
+  background:var(--cyan); box-shadow:0 0 10px var(--cyan);
+}
+.tpanel>header .ph-note{margin-left:auto; font:600 10.5px var(--mono); letter-spacing:.08em; color:var(--muted-2); white-space:nowrap}
+.tpanel>header .ph-note b{color:var(--cyan); font-weight:600}
+.panel-note{margin-top:8px; font-size:11.5px; line-height:1.6; color:var(--muted-2)}
+.panel-note a{color:var(--cyan); text-decoration:none; border-bottom:1px dashed rgba(34,211,238,.4)}
+
+/* ---- donut (模型用量分布) ---- */
+.dist-body{display:flex; align-items:center; gap:16px; flex-wrap:wrap}
+.donut-wrap{position:relative; width:160px; height:160px; flex:none; margin:2px auto}
+.donut{
+  position:absolute; inset:0; border-radius:50%;
+  background:conic-gradient(from -90deg,
+    var(--cyan) 0 48.8%, transparent 48.8% 50%,
+    var(--blue) 50% 76.9%, transparent 76.9% 78.1%,
+    var(--violet) 78.1% 91.7%, transparent 91.7% 92.9%,
+    var(--lime) 92.9% 99.4%, transparent 99.4% 100%);
+  mask:radial-gradient(closest-side, transparent 70%, #000 71.5%);
+  -webkit-mask:radial-gradient(closest-side, transparent 70%, #000 71.5%);
+  filter:drop-shadow(0 0 14px rgba(34,211,238,.4));
+}
+.donut::after{
+  content:""; position:absolute; inset:-12px; border-radius:50%;
+  border:1px dashed rgba(56,189,248,.22);
+}
+.donut-center{position:absolute; inset:0; display:grid; place-content:center; text-align:center; gap:2px}
+/* 文字下面的深色圆盘：无论遮罩在哪个引擎上算出的内径大小，数字都不会压在环上 */
+.donut-center::before{
+  content:""; position:absolute; left:50%; top:50%; width:98px; height:98px; margin:-49px 0 0 -49px; border-radius:50%;
+  background:radial-gradient(circle, #061331 60%, rgba(6,19,49,.55) 100%);
+  box-shadow:inset 0 0 18px rgba(34,211,238,.16);
+}
+.donut-center b{position:relative; font:700 18px/1.15 var(--mono); color:#eaf6ff; letter-spacing:-.04em}
+.donut-center span{position:relative; font:600 9.5px var(--mono); letter-spacing:.16em; color:var(--muted-2)}
+.legend{flex:1; min-width:150px; display:grid; gap:8px; margin:0; padding:0; list-style:none}
+.legend li{display:grid; grid-template-columns:8px 1fr auto; gap:9px; align-items:center; font-size:12px; color:var(--text-2)}
+.legend i{width:8px; height:8px; border-radius:2px; background:var(--cyan); box-shadow:0 0 8px currentColor}
+.legend li:nth-child(2) i{background:var(--blue); color:var(--blue)}
+.legend li:nth-child(3) i{background:var(--violet); color:var(--violet)}
+.legend li:nth-child(4) i{background:var(--lime); color:var(--lime)}
+.legend li:nth-child(1) i{color:var(--cyan)}
+.legend .lg-name{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.legend .lg-val{font:600 11.5px var(--mono); color:#dceafd}
+.legend .lg-val small{display:block; text-align:right; font-weight:400; font-size:10px; color:var(--muted-2)}
+
+/* ---- ranking bars ---- */
+.metric-switch{display:inline-flex; gap:2px; margin-left:auto; padding:2px; border:1px solid rgba(56,189,248,.28); border-radius:3px; background:rgba(6,20,46,.7)}
+.metric-switch button{
+  padding:3px 8px; border:0; border-radius:2px; background:transparent; color:var(--muted);
+  font:600 10.5px var(--mono); letter-spacing:.06em; cursor:pointer;
+}
+.metric-switch button:hover{color:var(--text)}
+.metric-switch button[aria-pressed="true"]{background:rgba(34,211,238,.18); color:var(--cyan); box-shadow:0 0 0 1px rgba(34,211,238,.4) inset}
+.rank-list{display:grid; gap:7px; margin:0; padding:0; list-style:none}
+.rank-row{display:grid; grid-template-columns:20px 132px minmax(0,1fr) 92px 50px; gap:9px; align-items:center; font-size:12.5px; min-height:24px}
+.rank-row.is-org{grid-template-columns:20px 108px minmax(0,1fr) 84px}
+.rank-no{font:700 11px var(--mono); color:var(--muted-2); text-align:center}
+.rank-row:nth-child(1) .rank-no{color:var(--cyan); text-shadow:0 0 10px rgba(34,211,238,.8)}
+.rank-row:nth-child(2) .rank-no{color:#93c5fd}
+.rank-row:nth-child(3) .rank-no{color:#c4b5fd}
+.rank-name{display:flex; align-items:baseline; gap:7px; min-width:0; overflow:hidden}
+.rank-name b{font-size:12.5px; font-weight:600; color:#e2edfb; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex:none; max-width:66%}
+.rank-name small{font-size:10px; color:var(--muted-2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.rank-track{position:relative; height:10px; border-radius:2px; background:rgba(56,189,248,.08); overflow:hidden; box-shadow:inset 0 0 0 1px rgba(56,189,248,.12)}
+.rank-track i{
+  display:block; height:100%; width:var(--w,0%); border-radius:2px;
+  background:linear-gradient(90deg, rgba(34,211,238,.55), var(--cyan));
+  box-shadow:0 0 12px rgba(34,211,238,.55), inset 0 0 6px rgba(255,255,255,.25);
+  transition:width .45s cubic-bezier(.22,.61,.36,1);
+}
+.rank-row.is-second .rank-track i{background:linear-gradient(90deg, rgba(59,130,246,.5), #60a5fa); box-shadow:0 0 12px rgba(96,165,250,.5)}
+.rank-row.is-third .rank-track i{background:linear-gradient(90deg, rgba(167,139,250,.45), #c4b5fd); box-shadow:0 0 12px rgba(196,181,253,.45)}
+.rank-val{font:600 12px var(--mono); color:#eaf6ff; text-align:right; white-space:nowrap}
+.rank-share{font:600 11px var(--mono); color:var(--cyan); text-align:right}
+.rank-foot{display:flex; align-items:center; gap:12px; margin-top:11px; padding-top:9px; border-top:1px solid rgba(56,189,248,.16); font-size:11px; color:var(--muted-2); flex-wrap:wrap; row-gap:4px}
+.rank-foot b{font:600 11.5px var(--mono); color:#dceafd}
+.rank-foot .spacer{margin-left:auto}
+
+/* ---- 模型明细 / 失败率 Top ---- */
+.mini-table{width:100%; margin:10px 0 0; border-collapse:collapse; font-size:10.5px}
+.mini-table th,.mini-table td{padding:3px 6px; border-bottom:1px solid rgba(56,189,248,.12); text-align:right; font-family:var(--mono); color:var(--text-2); white-space:nowrap}
+.mini-table th{color:var(--muted-2); font-weight:600; letter-spacing:.06em; text-transform:uppercase; font-size:9.5px}
+.mini-table th:first-child,.mini-table td:first-child{text-align:left; font-family:var(--sans); color:#cfdcee}
+.mini-table tr:last-child td{border-bottom:0}
+.mini-block{margin-top:10px; padding-top:8px; border-top:1px solid rgba(56,189,248,.16)}
+.mini-title{display:flex; align-items:center; gap:8px; margin-bottom:7px; font:600 10.5px var(--mono); letter-spacing:.1em; color:var(--muted-2); text-transform:uppercase}
+.mini-title b{color:#fcd34d}
+.fail-list{display:grid; gap:6px; margin:0; padding:0; list-style:none; font-size:11.5px}
+.fail-list li{display:grid; grid-template-columns:minmax(0,1fr) 52px 62px; gap:8px; align-items:center; color:var(--text-2)}
+.fail-list li span{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.fail-list li b{font:600 11.5px var(--mono); color:#fca5a5; text-align:right}
+.fail-list li em{font:600 10.5px var(--mono); font-style:normal; color:var(--muted-2); text-align:right}
+.tech-btn{
+  display:inline-flex; align-items:center; gap:7px; margin-top:12px; padding:6px 13px; cursor:pointer;
+  border:1px solid rgba(34,211,238,.45); border-radius:2px; background:rgba(34,211,238,.1);
+  color:var(--cyan); font:600 11px var(--mono); letter-spacing:.08em;
+}
+.tech-btn:hover{background:rgba(34,211,238,.2); box-shadow:0 0 14px rgba(34,211,238,.25)}
+.tech-btn::before{content:""; width:5px; height:5px; background:var(--cyan); transform:rotate(45deg); box-shadow:0 0 8px var(--cyan)}
+
+/* ---- gauge ---- */
+.gauge-body{display:grid; justify-items:center; gap:4px; padding-top:2px}
+.gauge{position:relative; width:206px; height:206px}
+.gauge svg{width:100%; height:100%; display:block; filter:drop-shadow(0 0 12px rgba(34,211,238,.35))}
+.gauge-center{position:absolute; inset:0; display:grid; place-content:center; text-align:center; gap:3px}
+.gauge-center b{font:700 44px/1 var(--mono); letter-spacing:-.04em; color:#eaf6ff; text-shadow:0 0 22px rgba(34,211,238,.6)}
+.gauge-center .g-label{font:600 11.5px var(--sans); letter-spacing:.06em; color:var(--muted)}
+.gauge-legend{display:flex; align-items:center; gap:8px; font:600 11px var(--mono); letter-spacing:.06em; color:var(--muted-2)}
+.gauge-legend .box{display:inline-grid; place-items:center; min-width:26px; height:26px; padding:0 5px; border:1px solid rgba(34,211,238,.45); background:rgba(34,211,238,.08); color:var(--cyan); font:700 13px var(--mono)}
+.gauge-foot{margin-top:6px; font-size:11px; color:var(--muted-2); text-align:center}
+
+/* ---- trend chart ---- */
+.trend-wrap{position:relative}
+.trend-svg{width:100%; height:auto; display:block}.chart-legend{display:flex; gap:16px; align-items:center; margin-bottom:6px; font:600 11px var(--mono); letter-spacing:.05em; color:var(--muted)}
+.chart-legend span{display:inline-flex; align-items:center; gap:6px}
+.chart-legend i{width:16px; height:3px; border-radius:2px; background:var(--cyan); box-shadow:0 0 8px var(--cyan)}
+.chart-legend .l-cost i{background:var(--lime); box-shadow:0 0 8px var(--lime)}
+details.data-notes{margin-top:8px}
+details.data-notes summary{
+  cursor:pointer; list-style:none; font:600 10.5px var(--mono); letter-spacing:.08em; color:var(--muted-2);
+  display:inline-flex; align-items:center; gap:6px;
+}
+details.data-notes summary::-webkit-details-marker{display:none}
+details.data-notes summary::before{content:"+"; display:inline-grid; place-items:center; width:13px; height:13px; border:1px solid rgba(56,189,248,.35); color:var(--cyan); font-size:10px; line-height:1}
+details.data-notes[open] summary::before{content:"−"}
+.data-table{width:100%; margin-top:8px; border-collapse:collapse; font-size:11px}
+.data-table th,.data-table td{padding:5px 7px; border-bottom:1px solid rgba(56,189,248,.14); text-align:right; font-family:var(--mono); color:var(--text-2)}
+.data-table th{color:var(--muted-2); font-weight:600; letter-spacing:.06em; text-transform:uppercase; font-size:10px}
+.data-table td:first-child,.data-table th:first-child{text-align:left}
+.data-table tr:last-child td{border-bottom:0}
+
+/* ---- quality panel ---- */
+.q-list{display:grid; gap:0; margin:0}
+.q-list>div{display:flex; align-items:center; gap:12px; padding:9px 0; border-bottom:1px solid rgba(56,189,248,.12); font-size:12px}
+.q-list>div:last-child{border-bottom:0}
+.q-list dt{margin:0; color:var(--muted); flex:1; min-width:0}
+.q-list dd{margin:0; text-align:right; font:600 12.5px var(--mono); color:#e2edfb; white-space:nowrap}
+.q-list dd.ok{color:#6ee7b7}
+.q-list dd.warn{color:#fcd34d}
+.q-pipeline{display:flex; align-items:center; gap:6px; margin-top:10px; font:600 10px var(--mono); letter-spacing:.06em; color:var(--muted-2)}
+.q-pipeline .step{flex:1; min-width:0; padding:5px 6px; text-align:center; border:1px solid rgba(56,189,248,.22); background:rgba(34,211,238,.07); color:var(--text-2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.q-pipeline .step.ok{border-color:rgba(52,211,153,.4); background:rgba(52,211,153,.1); color:#6ee7b7}
+.q-pipeline .arrow{color:rgba(56,189,248,.5)}
+
+/* ---- footer ---- */
+.tech-foot{display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin-top:12px; font:500 10.5px var(--mono); letter-spacing:.06em; color:var(--muted-2)}
+.tech-foot .bar{flex:1; min-width:40px; height:1px; background:linear-gradient(90deg, rgba(56,189,248,.4), transparent)}
+.tech-foot a{color:var(--muted); text-decoration:none; border-bottom:1px dashed rgba(139,163,199,.4)}
+.tech-foot a:hover{color:var(--cyan)}
+
+/* ================= responsive ================= */
+@media (max-width:1520px){
+  /* 三列在 1440 上仍成立，但左栏变容：环形图与图例同步缩小，避免图例换行把面板拉高 */
+  .donut-wrap{width:132px; height:132px}
+  .donut-center::before{width:82px; height:82px; margin:-41px 0 0 -41px}
+  .donut-center b{font-size:15px}
+  .dist-body{gap:10px}
+  .legend{min-width:112px; gap:6px}
+  .legend li{font-size:11.5px}
+}
+@media (max-width:1240px){
+  .kpi-row{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .tech-grid{grid-template-columns:repeat(6,minmax(0,1fr)); grid-template-areas:
+    "dist dist dist rank rank rank"
+    "gauge gauge gauge org org org"
+    "trend trend trend trend trend trend"
+    "quality quality quality quality quality quality";}
+  .tech-head{grid-template-columns:1fr; justify-items:center; gap:10px}
+  .range-chip,.head-right{justify-self:center}
+  .head-right{order:3}
+}
+@media (max-width:900px){
+  .stage{padding:12px 12px 16px}
+  .kpi-row{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .tech-grid{grid-template-columns:minmax(0,1fr); grid-template-areas:
+    "rank" "dist" "gauge" "org" "trend" "quality";}
+  .rank-row{grid-template-columns:18px 100px minmax(0,1fr) 84px; gap:8px}
+  .rank-share{display:none}
+  .donut-wrap{width:150px; height:150px}
+  .gauge{width:180px; height:180px}
+  /* 小屏保留图表可读性：图表在容器内横向滚动，页面本身不溢出 */
+  .trend-wrap{overflow-x:auto; padding-bottom:4px}
+  .trend-svg{min-width:620px}
+  .range-chip{font-size:11px; gap:7px; padding:7px 20px 7px 12px}
+}
+@media (max-width:560px){
+  .title-block h1{letter-spacing:.06em}
+  .kpi strong{font-size:22px}
+  .kpi small{white-space:normal}
+  .dist-body{flex-direction:column; align-items:stretch; gap:12px}
+  .donut-wrap{width:150px; height:150px; margin:0 auto}
+  .legend{min-width:0}
+  .head-right{gap:8px; justify-content:center}
+  .clock b{font-size:16px}
+  .tech-head{grid-template-columns:minmax(0,1fr)}
+}
+@media (max-width:410px){
+  .kpi-row{grid-template-columns:minmax(0,1fr)}
+  .range-chip{font-size:10px; letter-spacing:0}
+  .range-chip small{display:none}
+}
+@media (prefers-reduced-motion:reduce){ *{animation:none !important; transition:none !important} }
+</style>
+</head>
+<body>
+<div class="stage">
+
+  <!-- ================= header ================= -->
+  <header class="tech-head">
+    <div class="range-chip">2026-10-23 09:41 <span>–</span> 2026-10-30 09:41 <small>近 7 天</small></div>
+    <div class="title-block">
+      <h1>企业 AI 用量驾驶舱</h1>
+      <div class="sub">SIGNAL ATLAS · OPERATIONS COCKPIT</div>
+      <div class="title-deco" aria-hidden="true"><i></i><b></b><i></i></div>
+    </div>
+    <div class="head-right">
+      <span class="demo-tag">DEMO 数据</span>
+      <span class="live">采集正常</span>
+      <div class="clock"><b id="clock">09:41:07</b><small>2026-10-30 · UTC+8</small></div>
+      <a class="head-link" href="./usage-cockpit-v1.html">浅色版 →</a>
+    </div>
+  </header>
+
+  <!-- ================= KPI ================= -->
+  <section class="kpi-row" aria-label="核心指标">
+    <article class="kpi">
+      <span>活跃人员</span>
+      <strong>42<em>/ 46 人</em></strong>
+      <small>已开通且本期有已结束调用</small>
+    </article>
+    <article class="kpi">
+      <span>已结束请求</span>
+      <strong>18,364<em>次</em></strong>
+      <small>人均 437 次 · 拒绝 216 次单列</small>
+    </article>
+    <article class="kpi">
+      <span>Token 输入 / 输出</span>
+      <strong>8.42M<em>/ 2.19M</em></strong>
+      <small>缓存输入 1.06M · 46 条用量未知</small>
+    </article>
+    <article class="kpi">
+      <span>已确认费用</span>
+      <strong>¥1,248.04</strong>
+      <small>已确认计费金额合计</small>
+    </article>
+    <article class="kpi is-warn">
+      <span>待核对费用</span>
+      <strong>¥33.62<em>12 条</em></strong>
+      <small>待核对不代表免费，需人工确认</small>
+    </article>
+  </section>
+
+  <div class="tech-grid">
+
+    <!-- ---------- 模型用量分布 ---------- -->
+    <section class="tpanel area-dist">
+      <header><h2>模型用量分布</h2><span class="ph-note">按<b>已确认费用</b></span></header>
+      <div class="dist-body">
+        <div class="donut-wrap">
+          <div class="donut" role="img" aria-label="模型费用占比：DeepSeek V3.2 49.8%，Qwen3-Max 27.9%，本地测试模型 14.8%，GLM-4.6 7.5%"></div>
+          <div class="donut-center"><b>¥1,248</b><span>费用合计</span></div>
+        </div>
+        <ul class="legend">
+          <li><i></i><span class="lg-name">DeepSeek V3.2</span><span class="lg-val">49.8%<small>¥621.41</small></span></li>
+          <li><i></i><span class="lg-name">Qwen3-Max</span><span class="lg-val">27.9%<small>¥348.62</small></span></li>
+          <li><i></i><span class="lg-name">本地测试模型</span><span class="lg-val">14.8%<small>¥184.24</small></span></li>
+          <li><i></i><span class="lg-name">GLM-4.6</span><span class="lg-val">7.5%<small>¥93.77</small></span></li>
+        </ul>
+      </div>
+      <table class="mini-table">
+        <thead><tr><th>模型</th><th>请求</th><th>Token 入 / 出</th><th>费用</th></tr></thead>
+        <tbody>
+          <tr><td>DeepSeek V3.2</td><td>9,842</td><td>4.61M / 1.22M</td><td>¥621.41</td></tr>
+          <tr><td>Qwen3-Max</td><td>5,206</td><td>2.44M / 612K</td><td>¥348.62</td></tr>
+          <tr><td>本地测试模型</td><td>2,314</td><td>1.09M / 268K</td><td>¥184.24</td></tr>
+          <tr><td>GLM-4.6</td><td>1,002</td><td>284K / 90K</td><td>¥93.77</td></tr>
+        </tbody>
+      </table>
+      <p class="panel-note">4 个模型合计与费用总额一致；原价未配置的模型不进入费用分布。</p>
+    </section>
+
+    <!-- ---------- 用户排名 ---------- -->
+    <section class="tpanel area-rank">
+      <header>
+        <h2>用户排名</h2>
+        <div class="metric-switch" role="group" aria-label="排名口径">
+          <button type="button" data-metric="cost" aria-pressed="true">费用</button>
+          <button type="button" data-metric="token" aria-pressed="false">TOKEN</button>
+          <button type="button" data-metric="request" aria-pressed="false">请求</button>
+        </div>
+        <span class="ph-note">TOP 8 / 42</span>
+      </header>
+      <ol class="rank-list" id="rank-list">
+        <li class="rank-row" data-cost="284.22" data-token="1879300" data-request="2140" data-share="22.8">
+          <span class="rank-no">01</span>
+          <span class="rank-name"><b>林晓</b><small>研发部</small></span>
+          <span class="rank-track" aria-hidden="true"><i style="--w:100%"></i></span>
+          <span class="rank-val">¥284.22</span>
+          <span class="rank-share">22.8%</span>
+        </li>
+        <li class="rank-row is-second" data-cost="221.49" data-token="1487100" data-request="2486" data-share="17.7">
+          <span class="rank-no">02</span>
+          <span class="rank-name"><b>周航</b><small>研发部</small></span>
+          <span class="rank-track" aria-hidden="true"><i style="--w:77.9%"></i></span>
+          <span class="rank-val">¥221.49</span>
+          <span class="rank-share">17.7%</span>
+        </li>
+        <li class="rank-row is-third" data-cost="173.64" data-token="1144600" data-request="1903" data-share="13.9">
+          <span class="rank-no">03</span>
+          <span class="rank-name"><b>苏韵</b><small>产品部</small></span>
+          <span class="rank-track" aria-hidden="true"><i style="--w:61.1%"></i></span>
+          <span class="rank-val">¥173.64</span>
+          <span class="rank-share">13.9%</span>
+        </li>
+        <li class="rank-row" data-cost="140.89" data-token="974400" data-request="3410" data-share="11.3">
+          <span class="rank-no">04</span>
+          <span class="rank-name"><b>陈默</b><small>研发部</small></span>
+          <span class="rank-track" aria-hidden="true"><i style="--w:49.6%"></i></span>
+          <span class="rank-val">¥140.89</span>
+          <span class="rank-share">11.3%</span>
+        </li>
+        <li class="rank-row" data-cost="98.63" data-token="2220000" data-request="1220" data-share="7.9">
+          <span class="rank-no">05</span>
+          <span class="rank-name"><b>赵斌</b><small>市场部</small></span>
+          <span class="rank-track" aria-hidden="true"><i style="--w:34.7%"></i></span>
+          <span class="rank-val">¥98.63</span>
+          <span class="rank-share">7.9%</span>
+        </li>
+        <li class="rank-row" data-cost="74.22" data-token="535000" data-request="986" data-share="5.9">
+          <span class="rank-no">06</span>
+          <span class="rank-name"><b>吴桐</b><small>研发部</small></span>
+          <span class="rank-track" aria-hidden="true"><i style="--w:26.1%"></i></span>
+          <span class="rank-val">¥74.22</span>
+          <span class="rank-share">5.9%</span>
+        </li>
+        <li class="rank-row" data-cost="51.25" data-token="385200" data-request="704" data-share="4.1">
+          <span class="rank-no">07</span>
+          <span class="rank-name"><b>郑楠</b><small>产品部</small></span>
+          <span class="rank-track" aria-hidden="true"><i style="--w:18%"></i></span>
+          <span class="rank-val">¥51.25</span>
+          <span class="rank-share">4.1%</span>
+        </li>
+        <li class="rank-row" data-cost="19.67" data-token="120100" data-request="236" data-share="1.6">
+          <span class="rank-no">08</span>
+          <span class="rank-name"><b>何川</b><small>市场部</small></span>
+          <span class="rank-track" aria-hidden="true"><i style="--w:6.9%"></i></span>
+          <span class="rank-val">¥19.67</span>
+          <span class="rank-share">1.6%</span>
+        </li>
+      </ol>
+      <div class="rank-foot">
+        <span>其余 34 人</span><b>¥184.03 · 14.8%</b>
+        <span class="spacer">合计</span><b>¥1,248.04</b><b>18,364 次</b>
+      </div>
+    </section>
+
+    <!-- ---------- 活跃率仪表 ---------- -->
+    <section class="tpanel area-gauge">
+      <header><h2>人员活跃度</h2><span class="ph-note">42 / 46</span></header>
+      <div class="gauge-body">
+        <div class="gauge">
+          <svg viewBox="0 0 240 240" role="img" aria-label="活跃人员占比 91.3%：42 名活跃，46 名已开通">
+            <defs>
+              <linearGradient id="arc" x1="0" y1="1" x2="1" y2="0">
+                <stop offset="0%" stop-color="#22d3ee"/>
+                <stop offset="55%" stop-color="#38bdf8"/>
+                <stop offset="100%" stop-color="#a3e635"/>
+              </linearGradient>
+              <linearGradient id="arcDim" x1="0" y1="1" x2="1" y2="0">
+                <stop offset="0%" stop-color="#1e3a6b"/>
+                <stop offset="100%" stop-color="#4b5f86"/>
+              </linearGradient>
+            </defs>
+            <!-- 刻度圈 -->
+            <circle cx="120" cy="120" r="104" fill="none" stroke="rgba(56,189,248,.35)" stroke-width="1.4" stroke-dasharray="2 7"/>
+            <circle cx="120" cy="120" r="112" fill="none" stroke="rgba(56,189,248,.16)" stroke-width="1"/>
+            <!-- 轨道 + 进度（91.3% of 552.9 = 504.8） -->
+            <circle cx="120" cy="120" r="88" fill="none" stroke="url(#arcDim)" stroke-width="10" transform="rotate(-90 120 120)"/>
+            <circle cx="120" cy="120" r="88" fill="none" stroke="url(#arc)" stroke-width="10" stroke-linecap="round"
+                    stroke-dasharray="504.8 552.9" transform="rotate(-90 120 120)"/>
+            <!-- 内圈刻度 -->
+            <circle cx="120" cy="120" r="70" fill="none" stroke="rgba(56,189,248,.22)" stroke-width="1" stroke-dasharray="1 9"/>
+            <circle cx="120" cy="120" r="70" fill="none" stroke="rgba(34,211,238,.5)" stroke-width="2" stroke-dasharray="132 307"/>
+          </svg>
+          <div class="gauge-center">
+            <b>42</b>
+            <span class="g-label">已活跃人员</span>
+          </div>
+        </div>
+        <div class="gauge-legend">本期无调用 <span class="box">4</span> 人</div>
+        <p class="gauge-foot">活跃率 91.3% · 分母为有效且未到期的已开通人员</p>
+      </div>
+      <p class="panel-note">无调用的 4 人显示为「本期无调用」，不显示为 0 费用，也不参与排名。</p>
+    </section>
+
+    <!-- ---------- 组织用量 ---------- -->
+    <section class="tpanel area-org">
+      <header><h2>组织用量排名</h2><span class="ph-note">按费用</span></header>
+      <ol class="rank-list">
+        <li class="rank-row is-org">
+          <span class="rank-no">01</span>
+          <span class="rank-name"><b>研发部</b><small>19 / 21 活跃</small></span>
+          <span class="rank-track" aria-hidden="true"><i style="--w:100%"></i></span>
+          <span class="rank-val">¥698.62</span>
+        </li>
+        <li class="rank-row is-org is-second">
+          <span class="rank-no">02</span>
+          <span class="rank-name"><b>产品部</b><small>9 / 10 活跃</small></span>
+          <span class="rank-track" aria-hidden="true"><i style="--w:41%"></i></span>
+          <span class="rank-val">¥286.41</span>
+        </li>
+        <li class="rank-row is-org is-third">
+          <span class="rank-no">03</span>
+          <span class="rank-name"><b>市场部</b><small>8 / 9 活跃</small></span>
+          <span class="rank-track" aria-hidden="true"><i style="--w:25%"></i></span>
+          <span class="rank-val">¥174.29</span>
+        </li>
+        <li class="rank-row is-org">
+          <span class="rank-no">04</span>
+          <span class="rank-name"><b>职能与支持</b><small>6 / 6 活跃</small></span>
+          <span class="rank-track" aria-hidden="true"><i style="--w:12.7%"></i></span>
+          <span class="rank-val">¥88.72</span>
+        </li>
+      </ol>
+      <div class="mini-block">
+        <div class="mini-title">失败率 <b>TOP 3</b></div>
+        <ul class="fail-list">
+          <li><span>何川 · 市场部</span><b>12.3%</b><em>29 / 236</em></li>
+          <li><span>赵斌 · 市场部</span><b>6.1%</b><em>74 / 1,220</em></li>
+          <li><span>苏韵 · 产品部</span><b>2.4%</b><em>34 / 1,903</em></li>
+        </ul>
+      </div>
+      <div class="rank-foot"><span>研发部占 56.0%，其中平台组 3 人贡献 ¥212.40</span></div>
+    </section>
+
+    <!-- ---------- 近 7 天趋势 ---------- -->
+    <section class="tpanel area-trend">
+      <header><h2>近 7 天用量趋势</h2><span class="ph-note">今日至 <b>09:41</b></span></header>
+      <div class="chart-legend">
+        <span><i></i>已结束请求（次）</span>
+        <span class="l-cost"><i></i>已确认费用（元）</span>
+      </div>
+      <div class="trend-wrap">
+        <svg class="trend-svg" viewBox="0 0 900 260" role="img" aria-label="近 7 天趋势：请求数从 2,486 次升到 3,510 次；已确认费用从 168.42 元升到 240.04 元。逐日数值见下方折叠表。">
+          <defs>
+            <linearGradient id="areaReq" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#22d3ee" stop-opacity=".38"/>
+              <stop offset="100%" stop-color="#22d3ee" stop-opacity="0"/>
+            </linearGradient>
+            <linearGradient id="lineReq" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stop-color="#3b82f6"/>
+              <stop offset="100%" stop-color="#22d3ee"/>
+            </linearGradient>
+            <linearGradient id="lineCost" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stop-color="#84cc16"/>
+              <stop offset="100%" stop-color="#e2ff8a"/>
+            </linearGradient>
+            <filter id="glowCyan" x="-40%" y="-40%" width="180%" height="180%">
+              <feGaussianBlur stdDeviation="3.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+            <filter id="glowLime" x="-40%" y="-40%" width="180%" height="180%">
+              <feGaussianBlur stdDeviation="2.6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+          </defs>
+
+          <!-- 网格与左右轴 -->
+          <g stroke="rgba(56,189,248,.14)" stroke-width="1">
+            <line x1="52" y1="18" x2="812" y2="18"/>
+            <line x1="52" y1="58" x2="812" y2="58"/>
+            <line x1="52" y1="98" x2="812" y2="98"/>
+            <line x1="52" y1="138" x2="812" y2="138"/>
+            <line x1="52" y1="178" x2="812" y2="178"/>
+            <line x1="52" y1="218" x2="812" y2="218" stroke="rgba(56,189,248,.35)"/>
+          </g>
+          <g fill="#5f7ba3" font-family="Cascadia Code,Consolas,monospace" font-size="10" text-anchor="end">
+            <text x="44" y="22">250</text><text x="44" y="62">200</text><text x="44" y="102">150</text>
+            <text x="44" y="142">100</text><text x="44" y="182">50</text><text x="44" y="222">0</text>
+          </g>
+          <g fill="#5f7ba3" font-family="Cascadia Code,Consolas,monospace" font-size="10" text-anchor="start">
+            <text x="822" y="22">5k</text><text x="822" y="62">4k</text><text x="822" y="102">3k</text><text x="822" y="142">2k</text><text x="822" y="182">1k</text>
+          </g>
+          <g fill="#5f7ba3" font-family="Cascadia Code,Consolas,monospace" font-size="10" text-anchor="middle">
+            <text x="52" y="240">10-24</text><text x="178.7" y="240">10-25</text><text x="305.3" y="240">10-26</text>
+            <text x="432" y="240">10-27</text><text x="558.7" y="240">10-28</text><text x="685.3" y="240">10-29</text>
+            <text x="812" y="240">10-30</text>
+          </g>
+
+          <!-- 请求面积 + 折线 -->
+          <path d="M52,118.6 L178.7,133.9 L305.3,159.3 L432,114.6 L558.7,102.2 L685.3,85.3 L812,77.6 L812,218 L52,218 Z" fill="url(#areaReq)"/>
+          <polyline points="52,118.6 178.7,133.9 305.3,159.3 432,114.6 558.7,102.2 685.3,85.3 812,77.6"
+                    fill="none" stroke="url(#lineReq)" stroke-width="2.2" stroke-linejoin="round" filter="url(#glowCyan)"/>
+          <g fill="#7dd3fc">
+            <circle cx="52" cy="118.6" r="3"/><circle cx="178.7" cy="133.9" r="3"/><circle cx="305.3" cy="159.3" r="3"/>
+            <circle cx="432" cy="114.6" r="3"/><circle cx="558.7" cy="102.2" r="3"/><circle cx="685.3" cy="85.3" r="3"/>
+            <circle cx="812" cy="77.6" r="4" stroke="#e0f2fe" stroke-width="1.4"/>
+          </g>
+
+          <!-- 费用折线 -->
+          <polyline points="52,83.3 178.7,105.8 305.3,139.1 432,78.6 558.7,61.3 685.3,33.5 812,26"
+                    fill="none" stroke="url(#lineCost)" stroke-width="2.2" stroke-linejoin="round" filter="url(#glowLime)"/>
+          <g fill="#d9f99d">
+            <circle cx="52" cy="83.3" r="3"/><circle cx="178.7" cy="105.8" r="3"/><circle cx="305.3" cy="139.1" r="3"/>
+            <circle cx="432" cy="78.6" r="3"/><circle cx="558.7" cy="61.3" r="3"/><circle cx="685.3" cy="33.5" r="3"/>
+            <circle cx="812" cy="26" r="4" stroke="#f7fee7" stroke-width="1.4"/>
+          </g>
+          <text x="792" y="14" fill="#d9f99d" font-family="Cascadia Code,Consolas,monospace" font-size="10.5" text-anchor="end">¥240.04</text>
+          <text x="792" y="70" fill="#7dd3fc" font-family="Cascadia Code,Consolas,monospace" font-size="10.5" text-anchor="end">3,510 次</text>
+        </svg>
+      </div>
+      <details class="data-notes">
+        <summary>逐日数值</summary>
+        <table class="data-table">
+          <thead><tr><th>日期</th><th>请求</th><th>输入 / 输出</th><th>已确认费用</th></tr></thead>
+          <tbody>
+            <tr><td>10-24</td><td>2,486</td><td>1.14M / 296K</td><td>¥168.42</td></tr>
+            <tr><td>10-25</td><td>2,102</td><td>0.96M / 251K</td><td>¥140.29</td></tr>
+            <tr><td>10-26</td><td>1,468</td><td>0.67M / 175K</td><td>¥98.63</td></tr>
+            <tr><td>10-27</td><td>2,584</td><td>1.18M / 308K</td><td>¥174.21</td></tr>
+            <tr><td>10-28</td><td>2,896</td><td>1.33M / 346K</td><td>¥195.84</td></tr>
+            <tr><td>10-29</td><td>3,318</td><td>1.52M / 396K</td><td>¥230.61</td></tr>
+            <tr><td>10-30 至今</td><td>3,510</td><td>1.62M / 421K</td><td>¥240.04</td></tr>
+            <tr><td>合计</td><td>18,364</td><td>8.42M / 2.19M</td><td>¥1,248.04</td></tr>
+          </tbody>
+        </table>
+      </details>
+      <p class="panel-note">周末回落来自研发部；今日为进行中数据，不与其他完整日同比。</p>
+    </section>
+
+    <!-- ---------- 数据质量 ---------- -->
+    <section class="tpanel area-quality">
+      <header><h2>数据质量</h2><span class="ph-note"><b>09:40</b> 采集</span></header>
+      <dl class="q-list">
+        <div><dt>采集状态</dt><dd class="ok">已采集</dd></div>
+        <div><dt>用量未知记录</dt><dd class="warn">46 条</dd></div>
+        <div><dt>待核对记录</dt><dd class="warn">12 条 · ¥33.62</dd></div>
+        <div><dt>未识别身份</dt><dd>3 条</dd></div>
+        <div><dt>本期无调用人员</dt><dd>4 人</dd></div>
+      </dl>
+      <div class="q-pipeline" aria-hidden="true">
+        <span class="step ok">网关</span><i class="arrow">›</i>
+        <span class="step ok">日志</span><i class="arrow">›</i>
+        <span class="step ok">聚合</span><i class="arrow">›</i>
+        <span class="step ok">驾驶舱</span>
+      </div>
+      <p class="panel-note">采集失败时整页数字转为「未知」并提示检查采集；未知用量不计入 Token 排名，待核对不计入已确认费用。</p>
+      <button type="button" class="tech-btn">检查监控采集</button>
+    </section>
+
+  </div>
+
+  <footer class="tech-foot">
+    <span>DEMO PROTOTYPE · 同一套数据的另两版：<a href="./usage-cockpit-v1.html">信标浅色版</a> · <a href="./usage-cockpit-beacon-v1.html">信标驾驶舱版</a></span>
+    <span class="bar" aria-hidden="true"></span>
+    <span>排名不代表绩效 · 费用为已确认金额 · 更新于 2026-10-30 09:41</span>
+  </footer>
+</div>
+
+<script>
+(function(){
+  /* ---- 时钟：以演示数据窗口为基准（09:41:07 起跑），避免与统计时间矛盾 ---- */
+  var clock=document.getElementById('clock');
+  var base=new Date(2026,9,30,9,41,7);
+  var started=Date.now();
+  function tick(){
+    var now=new Date(base.getTime()+(Date.now()-started));
+    var hh=String(now.getHours()).padStart(2,'0');
+    var mm=String(now.getMinutes()).padStart(2,'0');
+    var ss=String(now.getSeconds()).padStart(2,'0');
+    if(clock)clock.textContent=hh+':'+mm+':'+ss;
+  }
+  tick(); setInterval(tick,1000);
+
+  /* ---- 排名口径切换：重排、重算条长与数值 ---- */
+  var list=document.getElementById('rank-list');
+  var rows=[].slice.call(list.querySelectorAll('.rank-row'));
+  var format={
+    cost:function(v){return '¥'+Number(v).toLocaleString('zh-CN',{minimumFractionDigits:2,maximumFractionDigits:2});},
+    token:function(v){return (Number(v)/1000000).toFixed(2)+'M';},
+    request:function(v){return Number(v).toLocaleString('zh-CN');}
+  };
+  function render(metric){
+    var values=rows.map(function(r){return Number(r.dataset[metric]);});
+    var max=Math.max.apply(null,values);
+    var total=values.reduce(function(a,b){return a+b;},0);
+    rows.slice().sort(function(a,b){return Number(b.dataset[metric])-Number(a.dataset[metric]);})
+      .forEach(function(row,index){
+        list.appendChild(row);
+        var value=Number(row.dataset[metric]);
+        row.querySelector('.rank-no').textContent=String(index+1).padStart(2,'0');
+        row.querySelector('.rank-track i').style.setProperty('--w',(value/max*100).toFixed(1)+'%');
+        row.querySelector('.rank-val').textContent=format[metric](value);
+        var share=row.querySelector('.rank-share');
+        if(metric==='cost'){share.textContent=row.dataset.share+'%';}
+        else{share.textContent=(value/total*100).toFixed(1)+'%';}
+        row.classList.remove('is-second','is-third');
+        if(index===1)row.classList.add('is-second');
+        if(index===2)row.classList.add('is-third');
+      });
+  }
+  [].slice.call(document.querySelectorAll('.metric-switch button')).forEach(function(button){
+    button.addEventListener('click',function(){
+      var metric=button.dataset.metric;
+      [].slice.call(document.querySelectorAll('.metric-switch button')).forEach(function(item){
+        item.setAttribute('aria-pressed',String(item===button));
+      });
+      render(metric);
+    });
+  });
+})();
+</script>
+</body>
+</html>

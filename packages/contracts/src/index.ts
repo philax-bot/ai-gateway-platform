@@ -10,6 +10,7 @@ export * from './audit.js';
 export * from './tracing.js';
 export * from './verification.js';
 export * from './usage.js';
+export * from './analytics.js';
 export * from './connection-failure.js';
 export { estimateChatInput,chatCompletionsUrl } from './request.js';
 export type Purpose = 'personal' | 'project' | 'application';

@@ -74,6 +74,16 @@ export class PlatformService {
     const actor=activeMember(s,actorId);return actor.roles.includes('operator')?null:{employeeId:actorId,applicationIds:s.applications.filter(a=>a.ownerId===actorId).map(a=>a.id)};
   }
   async queryCalls(actorId:string,query:CallQuery){const s=await this.repository.read();return this.store.queryCalls(query,this.callScope(s,actorId));}
+  /* Analytics adds one scope to queryCalls: a project manager also sees project-purpose
+     calls inside the projects they manage. Personal calls of other members never enter
+     this scope, so a manager cannot read a colleague's private spend. */
+  private analyticsScope(s:WorkspaceState,actorId:string):CallScope{
+    const scope=this.callScope(s,actorId);
+    if(!scope)return null;
+    const projectIds=s.projects.filter(project=>project.managerId===actorId&&project.status==='active').map(project=>project.id);
+    return projectIds.length?{...scope,projectIds}:scope;
+  }
+  async usageAnalytics(actorId:string,query:import('@ai-gateway/contracts').UsageAnalyticsQuery){const s=await this.repository.read();return this.store.queryUsage(query,this.analyticsScope(s,actorId),s.settings.timezone);}
   async approvalDetail(actorId:string,id:string):Promise<ApprovalDetail>{
     const s=await this.repository.read(),actor=activeMember(s,actorId),approval=pick(s.approvals,id,'approval');
     if(!actor.roles.includes('operator')&&approval.applicantId!==actorId&&!canApprove(s,actor,approval))throw new ForbiddenException('approval is outside actor scope');

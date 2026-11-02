@@ -1,0 +1,665 @@
+<!doctype html>
+<html lang="zh-CN" data-ui="beacon">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>用量驾驶舱 · 信标驾驶舱版 v1 · Signal Atlas</title>
+<!--
+  演示稿（prototype），不进入 apps/web 构建。
+  同一套演示数据的三版并列：
+    usage-cockpit-v1.html        信标浅色版（列表页形态，完全按契约）
+    usage-cockpit-beacon-v1.html 信标驾驶舱版（本文件：大屏布局 + 信标语言）
+    usage-cockpit-tech-v1.html   深蓝科技版（大屏皮肤，仅演示对比）
+  本文件把信标 tokens（暖白画布 / 深墨卡 / 紫色强调 / 20–26px 圆角）套到驾驶舱布局上，
+  组件仍取契约里的 Panel / StatStrip / Table / TaskHero / tag；图表与占比条是待入契约的新增项。
+-->
+<style>
+/* ================= beacon tokens（与 apps/web/src/design-v5.css 一致） ================= */
+html[data-ui="beacon"]{
+  color-scheme:light;
+  --bg:#f6f5f2; --surface:#ffffff; --surface2:#f1efe9; --surface3:#e7e4dc;
+  --line:#e3dfd6; --line-strong:#cfcabf;
+  --text:#191c22; --muted:#666a75; --faint:#666a75;
+  --action:#5a55d6; --action-ink:#fff; --tint:#eeedfb; --blue:#2b5f8a;
+  --hover:#4b46c4; --strong:#403bb0;
+  --ok:#1f6b50; --ok-soft:#e9f5ee; --warn:#8a5a12; --warn-soft:#fdf3e2;
+  --danger:#a1332a; --danger-soft:#fbecea;
+  --radius-panel:20px; --radius-control:10px; --radius-hero:26px; --radius-tag:6px;
+  --mono:"Cascadia Code","SFMono-Regular",Consolas,"Liberation Mono",ui-monospace,monospace;
+  --sans:"Segoe UI Variable Text","Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans SC",sans-serif;
+  --shadow-panel:0 1px 2px rgba(25,28,34,.04),0 20px 40px -36px rgba(25,28,34,.42);
+  --shadow-hero:0 2px 4px rgba(25,28,34,.06),0 34px 64px -52px rgba(25,28,34,.7);
+  --ink:#14161c; --ink-2:#1d2028; --ink-text:#f5f4f0; --ink-line:#2f333d; --ink-accent:#b5b1f5;
+  --chart-2:#8b87e6; --chart-3:#2b5f8a; --chart-4:#cfcabf;
+  --ring:rgba(90,85,214,.18); --ease:cubic-bezier(.22,.61,.36,1);
+}
+*{box-sizing:border-box}
+html[data-ui="beacon"] body{
+  margin:0; background:var(--bg); color:var(--text);
+  font:14px/1.6 var(--sans); font-variant-numeric:tabular-nums; -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,p{margin:0}
+a{color:var(--action)}
+:focus-visible{outline:3px solid var(--action); outline-offset:2px; border-radius:4px}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+::-webkit-scrollbar{width:9px;height:9px}
+::-webkit-scrollbar-thumb{background:var(--line-strong);border:2px solid transparent;border-radius:999px;background-clip:padding-box}
+
+.stage{max-width:1920px;margin:0 auto;padding:14px 26px 16px}
+
+/* ================= header ================= */
+.cockpit-head{display:flex;align-items:flex-end;gap:20px;flex-wrap:wrap;padding-bottom:12px;border-bottom:1px solid var(--line)}
+.head-main{min-width:0}
+.eyebrow{font:650 10px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.head-main h1{font-size:clamp(26px,2.2vw,34px);line-height:1.16;letter-spacing:-.02em;font-weight:650;margin:4px 0 5px}
+.head-main{flex:1 1 520px}
+.head-main .lede{max-width:660px;font-size:12.5px;line-height:1.7;color:var(--muted)}
+.head-tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-left:auto}
+.chip{
+  display:inline-flex;align-items:center;gap:8px;min-height:32px;padding:0 12px;white-space:nowrap;
+  border:1px solid var(--line);border-radius:var(--radius-control);background:var(--surface);
+  font:600 11.5px var(--mono);letter-spacing:.02em;color:var(--text-2,#454a55);
+}
+.chip svg{color:var(--muted);flex:none}
+.tag{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:var(--radius-tag);background:var(--surface2);color:#454a55;font:650 11px var(--sans);white-space:nowrap}
+.tag::before{content:"";width:5px;height:5px;border-radius:50%;background:currentColor;flex:none}
+.tag.success{background:var(--ok-soft);color:var(--ok)}
+.tag.warning{background:var(--warn-soft);color:var(--warn)}
+.tag.danger{background:var(--danger-soft);color:var(--danger)}
+.clock{text-align:right;min-width:78px}
+.clock b{display:block;font:650 17px/1.1 var(--mono);letter-spacing:.02em}
+.clock small{display:block;margin-top:2px;font:600 9.5px var(--mono);letter-spacing:.1em;color:var(--muted)}
+.head-link{
+  display:inline-flex;align-items:center;gap:5px;min-height:30px;padding:0 10px;border-radius:var(--radius-control);
+  border:1px solid var(--line);background:var(--surface);color:var(--muted);font:600 11px var(--mono);text-decoration:none;
+}
+.head-link:hover{color:var(--strong);border-color:var(--line-strong);background:var(--surface2)}
+
+/* ================= ink band（主数值 + 3 行口径） ================= */
+.ink-band{
+  position:relative;display:grid;grid-template-columns:minmax(0,1.6fr) minmax(240px,.7fr);
+  column-gap:26px;align-items:start;
+  margin-top:10px;padding:13px 22px 14px;border:1px solid var(--ink-line);border-radius:var(--radius-hero);
+  background:var(--ink);color:var(--ink-text);overflow:hidden;box-shadow:var(--shadow-hero);
+}
+.ink-band::after{
+  content:"";position:absolute;top:0;right:0;width:340px;height:100%;pointer-events:none;
+  background:radial-gradient(160px 160px at 78% 20%,rgba(90,85,214,.42),transparent 72%);
+}
+.ink-band>*{position:relative;z-index:1}
+.ink-band .eyebrow{color:var(--ink-accent);letter-spacing:.14em}
+.ink-num{display:flex;align-items:baseline;gap:10px;margin-top:6px}
+.ink-cur{font-size:17px;opacity:.6}
+.ink-val{font:650 40px/1 var(--mono);letter-spacing:-.045em;color:var(--ink-text)}
+.ink-unit{font-size:10.5px;letter-spacing:.12em;opacity:.6}
+.ink-row{display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-top:8px}
+.ink-note{flex:1;min-width:220px;max-width:70ch;font-size:12px;line-height:1.6;color:rgba(245,244,240,.66)}
+.ink-side{grid-column:2;grid-row:1/span 9;align-self:stretch;display:flex;flex-direction:column;gap:2px;padding-left:22px;border-left:1px solid var(--ink-line)}
+.ink-side-title{font:650 10px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:rgba(245,244,240,.56)}
+.ink-kv{display:flex;justify-content:space-between;gap:12px;padding:4.5px 0;border-bottom:1px solid var(--ink-line);font-size:12px;color:rgba(245,244,240,.72)}
+.ink-kv:last-child{border-bottom:0}
+.ink-kv b{max-width:64%;text-align:right;font-weight:500;color:var(--ink-text);overflow-wrap:anywhere}
+.ink-action{
+  display:inline-flex;align-items:center;gap:6px;min-height:32px;padding:0 13px;flex:none;
+  border:1px solid rgba(245,244,240,.45);border-radius:var(--radius-control);background:transparent;
+  color:var(--ink-text);font:600 12.5px var(--sans);cursor:pointer;
+}
+.ink-action:hover{background:var(--ink-2);border-color:var(--ink-text)}
+
+/* ================= stat strip ================= */
+.stat-strip{
+  display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0;margin-top:10px;
+  background:var(--surface);border:1px solid var(--line);border-radius:16px;overflow:hidden;box-shadow:var(--shadow-panel);
+}
+.stat{padding:9px 18px 10px;border-right:1px solid var(--line);min-width:0}
+.stat:last-child{border-right:0}
+.stat span{display:block;font-size:11.5px;color:var(--muted)}
+.stat strong{display:flex;align-items:baseline;gap:5px;margin-top:4px;font:650 22px/1.1 var(--mono);letter-spacing:-.03em;color:var(--text);white-space:nowrap}
+.stat strong em{font:600 11.5px/1 var(--mono);font-style:normal;color:var(--muted);letter-spacing:0}
+.stat small{display:block;margin-top:4px;font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stat.is-warn strong{color:var(--warn)}
+.stat.is-warn strong em{color:var(--warn)}
+.stat.is-token strong{font-size:clamp(15px,3.6vw,24px)}
+.stat.is-token strong em{padding:0 4px}
+
+/* ================= grid & panel ================= */
+.grid{
+  display:grid;gap:10px;margin-top:10px;grid-template-columns:repeat(12,minmax(0,1fr));
+  grid-template-areas:
+    "dist dist dist dist rank rank rank rank rank gauge gauge gauge"
+    "org org org org trend trend trend trend trend quality quality quality";
+}
+.area-dist{grid-area:dist} .area-rank{grid-area:rank} .area-gauge{grid-area:gauge}
+.area-org{grid-area:org} .area-trend{grid-area:trend} .area-quality{grid-area:quality}
+
+.panel{
+  min-width:0;padding:12px 16px 14px;background:var(--surface);border:1px solid var(--line);
+  border-radius:var(--radius-panel);box-shadow:var(--shadow-panel);
+}
+.panel>header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:6px}
+.panel>header h2{display:flex;align-items:center;gap:9px;font-size:15px;font-weight:650;letter-spacing:-.01em}
+.panel>header h2::before{content:"";width:6px;height:6px;border-radius:2px;background:var(--action);flex:none}
+.panel>header .ph-note{margin-left:auto;font:650 10px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);white-space:nowrap}
+.panel-note{margin-top:7px;font-size:11.5px;line-height:1.6;color:var(--muted)}
+.panel-note a{color:var(--action);text-decoration:none;font-weight:600}
+.panel-note a:hover{text-decoration:underline}
+.measure{margin:0 0 8px;font-size:11.5px;line-height:1.6;color:var(--muted)}
+
+/* ---- donut ---- */
+.dist-body{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.donut-wrap{position:relative;width:132px;height:132px;flex:none;margin:2px auto}
+.donut{
+  position:absolute;inset:0;border-radius:50%;
+  background:conic-gradient(from -90deg,
+    var(--action) 0 48.8%, transparent 48.8% 50%,
+    var(--chart-2) 50% 76.9%, transparent 76.9% 78.1%,
+    var(--chart-3) 78.1% 91.7%, transparent 91.7% 92.9%,
+    var(--chart-4) 92.9% 99.4%, transparent 99.4% 100%);
+  mask:radial-gradient(closest-side, transparent 66%, #000 67.5%);
+  -webkit-mask:radial-gradient(closest-side, transparent 66%, #000 67.5%);
+}
+.donut-center{position:absolute;inset:0;display:grid;place-content:center;text-align:center;gap:1px}
+.donut-center::before{
+  content:"";position:absolute;left:50%;top:50%;width:86px;height:86px;margin:-43px 0 0 -43px;border-radius:50%;
+  background:var(--surface);
+}
+.donut-center b{position:relative;font:650 15px/1.15 var(--mono);letter-spacing:-.045em;color:var(--text)}
+.donut-center span{position:relative;font:650 9px var(--mono);letter-spacing:.14em;color:var(--muted)}
+.legend{flex:1;min-width:140px;display:grid;gap:7px;margin:0;padding:0;list-style:none}
+.legend li{display:grid;grid-template-columns:9px 1fr auto;gap:9px;align-items:center;font-size:12px;color:#454a55}
+.legend i{width:9px;height:9px;border-radius:2px;background:var(--action)}
+.legend li:nth-child(2) i{background:var(--chart-2)}
+.legend li:nth-child(3) i{background:var(--chart-3)}
+.legend li:nth-child(4) i{background:var(--chart-4)}
+.legend .lg-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.legend .lg-val{font:650 11.5px var(--mono);color:var(--text)}
+.legend .lg-val small{display:block;text-align:right;font-weight:400;font-size:10px;color:var(--muted)}
+
+/* ---- 排名 ---- */
+.seg{display:inline-flex;gap:2px;padding:3px;border:1px solid var(--line);border-radius:10px;background:var(--surface2)}
+.seg button{padding:3px 9px;border:0;border-radius:7px;background:transparent;color:var(--muted);font:600 11px var(--sans);cursor:pointer}
+.seg button:hover{color:var(--text)}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--strong);font-weight:650;box-shadow:0 1px 2px rgba(25,28,34,.12)}
+.rank-list{display:grid;gap:3px;margin:0;padding:0;list-style:none}
+.rank-row{display:grid;grid-template-columns:22px 126px minmax(0,1fr) 82px 46px;gap:8px;align-items:center;min-height:21px}
+.rank-row.is-org{grid-template-columns:22px 104px minmax(0,1fr) 80px}
+.rank-no{font:650 11px var(--mono);color:var(--muted);text-align:center}
+.rank-row:nth-child(1) .rank-no{color:var(--action)}
+.rank-row:nth-child(2) .rank-no,.rank-row:nth-child(3) .rank-no{color:var(--chart-2)}
+.rank-name{display:flex;align-items:baseline;gap:6px;min-width:0;overflow:hidden}
+.rank-name b{flex:none;max-width:66%;font-size:12.5px;font-weight:650;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rank-name small{font-size:10.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rank-track{position:relative;height:9px;border-radius:999px;background:var(--surface2);overflow:hidden}
+.rank-track i{display:block;height:100%;width:var(--w,0%);border-radius:999px;background:var(--action);transition:width .4s var(--ease)}
+.rank-row.is-second .rank-track i{background:var(--chart-2)}
+.rank-row.is-third .rank-track i{background:var(--chart-3)}
+.rank-val{font:650 11.5px var(--mono);color:var(--text);text-align:right;white-space:nowrap}
+.rank-share{font:600 10.5px var(--mono);color:var(--muted);text-align:right}
+.rank-foot{display:flex;align-items:center;gap:10px;flex-wrap:wrap;row-gap:3px;margin-top:7px;padding-top:7px;border-top:1px solid var(--line);font-size:11px;color:var(--muted)}
+.rank-foot b{font:650 11px var(--mono);color:#454a55}
+.rank-foot .spacer{margin-left:auto}
+
+/* ---- gauge ---- */
+.gauge-body{display:grid;justify-items:center;gap:2px;padding-top:2px}
+.gauge{position:relative;width:152px;height:152px}
+.gauge svg{width:100%;height:100%;display:block}
+.gauge-center{position:absolute;inset:0;display:grid;place-content:center;text-align:center;gap:2px}
+.gauge-center b{font:650 34px/1 var(--mono);letter-spacing:-.04em;color:var(--text)}
+.gauge-center span{font:650 10px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.gauge-boxes{display:flex;align-items:center;gap:7px;margin-top:6px;font:600 11px var(--sans);color:var(--muted)}
+.gauge-boxes .box{display:inline-grid;place-items:center;min-width:26px;height:24px;padding:0 6px;border:1px solid var(--line-strong);border-radius:7px;background:var(--surface2);color:#454a55;font:650 12px var(--mono)}
+.gauge-foot{margin-top:4px;font-size:11px;color:var(--muted);text-align:center}
+
+/* ---- trend ---- */
+.trend-legend{display:flex;align-items:center;gap:16px;margin-bottom:4px;font:600 11px var(--sans);color:var(--muted)}
+.trend-legend span{display:inline-flex;align-items:center;gap:6px}
+.trend-legend i{width:14px;height:3px;border-radius:2px;background:var(--action)}
+.trend-legend .l-cost i{background:var(--text)}
+.trend-wrap{position:relative}
+.trend-svg{width:100%;height:auto;display:block}
+details.data-notes{margin-top:6px}
+details.data-notes summary{display:inline-flex;align-items:center;gap:6px;cursor:pointer;list-style:none;font:650 10.5px var(--mono);letter-spacing:.06em;color:var(--muted)}
+details.data-notes summary::-webkit-details-marker{display:none}
+details.data-notes summary::before{content:"+";display:inline-grid;place-items:center;width:14px;height:14px;border-radius:4px;background:var(--surface3);color:var(--strong);font:650 10px/1 var(--mono)}
+details.data-notes[open] summary::before{content:"−"}
+.data-table{width:100%;margin-top:6px;border-collapse:collapse;font-size:10.5px}
+.data-table th,.data-table td{padding:2.5px 7px;border-bottom:1px solid var(--line);text-align:right;font-family:var(--mono);color:#454a55}
+.data-table th{font-weight:650;font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.data-table td:first-child,.data-table th:first-child{text-align:left}
+.data-table tr:last-child td{border-bottom:0}
+
+/* ---- quality ---- */
+.kv{display:grid;margin:0}
+.kv>div{display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--line);font-size:12px}
+.kv>div:last-child{border-bottom:0}
+.kv dt{margin:0;flex:1;min-width:0;color:var(--muted)}
+.kv dd{margin:0;text-align:right;font:650 12px var(--mono);color:var(--text);white-space:nowrap}
+.kv dd.ok{color:var(--ok)}
+.kv dd.warn{color:var(--warn)}
+.pipeline{display:flex;align-items:center;gap:5px;margin-top:9px;font:600 10px var(--mono);letter-spacing:.04em;color:var(--muted)}
+.pipeline .step{flex:1;min-width:0;padding:4px 6px;text-align:center;border:1px solid var(--line);border-radius:6px;background:var(--surface2);color:#454a55;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pipeline .step.ok{border-color:#d9e9e0;background:var(--ok-soft);color:var(--ok)}
+.pipeline .arrow{color:var(--line-strong)}
+
+/* ---- footer ---- */
+.foot{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:10px;font:500 10.5px var(--mono);letter-spacing:.04em;color:var(--muted)}
+.foot .rule{flex:1;min-width:40px;height:1px;background:var(--line)}
+.foot a{color:var(--muted);text-decoration:none;border-bottom:1px dashed var(--line-strong);padding-bottom:1px}
+.foot a:hover{color:var(--strong)}
+
+/* ================= responsive ================= */
+@media (max-width:1520px){
+  .donut-wrap{width:128px;height:128px}
+  .donut-center::before{width:74px;height:74px;margin:-37px 0 0 -37px}
+  .donut-center b{font-size:15px}
+  .dist-body{gap:12px}
+  .legend{min-width:112px;gap:6px}
+  .legend li{font-size:11.5px}
+  .gauge{width:140px;height:140px}
+  .gauge-center b{font-size:30px}
+}
+@media (max-width:1240px){
+  .grid{grid-template-columns:repeat(6,minmax(0,1fr));grid-template-areas:
+    "dist dist dist rank rank rank"
+    "gauge gauge gauge org org org"
+    "trend trend trend trend trend trend"
+    "quality quality quality quality quality quality";}
+  .stat-strip{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .stat:nth-child(2){border-right:0}
+  .stat:nth-child(1),.stat:nth-child(2){border-bottom:1px solid var(--line)}
+}
+@media (max-width:900px){
+  .stage{padding:14px 14px 18px}
+  .ink-band{grid-template-columns:minmax(0,1fr);padding:18px 20px}
+  .ink-side{grid-column:1;grid-row:auto;margin-top:16px;padding-left:0;padding-top:14px;border-left:0;border-top:1px solid var(--ink-line)}
+  .ink-val{font-size:38px}
+  .grid{grid-template-columns:minmax(0,1fr);grid-template-areas:
+    "rank" "dist" "gauge" "org" "trend" "quality";}
+  .rank-row{grid-template-columns:20px 96px minmax(0,1fr) 78px;gap:8px}
+  .rank-share{display:none}
+  .head-tools{margin-left:0;width:100%}
+  .trend-wrap{overflow-x:auto;padding-bottom:4px}
+  .trend-svg{min-width:600px}
+}
+@media (max-width:560px){
+  /* 手机上人名优先完整显示，组织信息在详情与组织榜里仍有；版本链接收进页脚 */
+  .rank-row:not(.is-org) .rank-name small{display:none}
+  .head-link{display:none}
+  .stat-strip{grid-template-columns:minmax(0,1fr)}
+  .stat{border-right:0;border-bottom:1px solid var(--line)}
+  .stat:last-child{border-bottom:0}
+  .dist-body{flex-direction:column;align-items:stretch}
+  .donut-wrap{width:140px;height:140px;margin:0 auto}
+  .clock{text-align:left}
+  .head-tools{gap:6px}
+}
+@media (prefers-reduced-motion:reduce){ *{animation:none !important; transition:none !important} }
+</style>
+</head>
+<body>
+<div class="stage">
+
+  <!-- ================= header ================= -->
+  <header class="cockpit-head">
+    <div class="head-main">
+      <span class="eyebrow">OPERATIONS / USAGE COCKPIT</span>
+      <h1>用量驾驶舱</h1>
+      <p class="lede">排名只统计已识别身份的已结束调用；未知用量、待核对与未识别身份单列，不并入排名，也不显示为 0。</p>
+    </div>
+    <div class="head-tools">
+      <span class="chip">
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="2.5" y="3.5" width="11" height="10" rx="2"/><path d="M2.5 6.5h11M5.5 2v3M10.5 2v3"/></svg>
+        2026-10-23 09:41 → 10-30 09:41
+      </span>
+      <span class="tag success">采集正常</span>
+      <span class="tag warning">DEMO 数据</span>
+      <div class="clock"><b id="clock">09:41:07</b><small>2026-10-30 · UTC+8</small></div>
+      <a class="head-link" href="./usage-cockpit-v1.html">浅色版</a>
+      <a class="head-link" href="./usage-cockpit-tech-v1.html">深蓝版</a>
+    </div>
+  </header>
+
+  <!-- ================= ink band：唯一主数值 ================= -->
+  <section class="ink-band" aria-label="本期已确认费用">
+    <span class="eyebrow">统计窗口 · 近 7 天（含今日至今）</span>
+    <div class="ink-num">
+      <span class="ink-cur" aria-hidden="true">¥</span>
+      <span class="ink-val">1,248.04</span>
+      <span class="ink-unit">已确认费用</span>
+    </div>
+    <div class="ink-row">
+      <p class="ink-note">前 3 名承担 54.4% 的费用，集中在研发部与代码助手场景；待核对与用量未知不计入。</p>
+      <button type="button" class="ink-action">查看调用记录 →</button>
+    </div>
+    <div class="ink-side">
+      <span class="ink-side-title">统计口径与质量</span>
+      <div class="ink-kv"><span>统计窗口</span><b>近 7 天 · 含今日至今</b></div>
+      <div class="ink-kv"><span>数据采集</span><b>已采集 · 09:40</b></div>
+      <div class="ink-kv"><span>费用覆盖</span><b>38 / 42 人有已确认费用</b></div>
+    </div>
+  </section>
+
+  <!-- ================= stat strip ================= -->
+  <section class="stat-strip" aria-label="核心指标">
+    <article class="stat">
+      <span>活跃人员</span>
+      <strong>42<em>/ 46 人</em></strong>
+      <small>已开通且本期有已结束调用</small>
+    </article>
+    <article class="stat">
+      <span>已结束请求</span>
+      <strong>18,364<em>次</em></strong>
+      <small>人均 437 次 · 授权拒绝 216 次单列</small>
+    </article>
+    <article class="stat is-token">
+      <span>Token 输入 / 输出</span>
+      <strong>8.42M<em>/</em>2.19M</strong>
+      <small>缓存输入 1.06M · 46 条用量未知</small>
+    </article>
+    <article class="stat is-warn">
+      <span>待核对费用</span>
+      <strong>¥33.62<em>12 条</em></strong>
+      <small>需人工确认后结算</small>
+    </article>
+  </section>
+
+  <div class="grid">
+
+    <!-- ---------- 模型用量分布 ---------- -->
+    <section class="panel area-dist">
+      <header><h2>模型用量分布</h2><span class="ph-note">按已确认费用</span></header>
+      <div class="dist-body">
+        <div class="donut-wrap">
+          <div class="donut" role="img" aria-label="模型费用占比：DeepSeek V3.2 49.8%，Qwen3-Max 27.9%，本地测试模型 14.8%，GLM-4.6 7.5%"></div>
+          <div class="donut-center"><b>1,248.04</b><span>费用合计</span></div>
+        </div>
+        <ul class="legend">
+          <li><i></i><span class="lg-name">DeepSeek V3.2</span><span class="lg-val">49.8%<small>¥621.41</small></span></li>
+          <li><i></i><span class="lg-name">Qwen3-Max</span><span class="lg-val">27.9%<small>¥348.62</small></span></li>
+          <li><i></i><span class="lg-name">本地测试模型</span><span class="lg-val">14.8%<small>¥184.24</small></span></li>
+          <li><i></i><span class="lg-name">GLM-4.6</span><span class="lg-val">7.5%<small>¥93.77</small></span></li>
+        </ul>
+      </div>
+      <table class="data-table">
+        <thead><tr><th>模型</th><th>请求</th><th>Token 入 / 出</th><th>费用</th></tr></thead>
+        <tbody>
+          <tr><td>DeepSeek V3.2</td><td>9,842</td><td>4.61M / 1.22M</td><td>¥621.41</td></tr>
+          <tr><td>Qwen3-Max</td><td>5,206</td><td>2.44M / 612K</td><td>¥348.62</td></tr>
+          <tr><td>本地测试模型</td><td>2,314</td><td>1.09M / 268K</td><td>¥184.24</td></tr>
+          <tr><td>GLM-4.6</td><td>1,002</td><td>284K / 90K</td><td>¥93.77</td></tr>
+        </tbody>
+      </table>
+      <p class="panel-note">4 个模型合计与总额一致；原价未配置的模型不进入费用分布。</p>
+    </section>
+
+    <!-- ---------- 用户排名 ---------- -->
+    <section class="panel area-rank">
+      <header>
+        <h2>用户排名</h2>
+        <div class="seg" role="group" aria-label="排名口径">
+          <button type="button" data-metric="cost" aria-pressed="true">费用</button>
+          <button type="button" data-metric="token" aria-pressed="false">Token</button>
+          <button type="button" data-metric="request" aria-pressed="false">请求</button>
+        </div>
+        <span class="ph-note">TOP 8 / 42</span>
+      </header>
+      <p class="measure">同一身份在本窗口的已结束调用合计；Token 排名只统计用量完整的调用。</p>
+      <ol class="rank-list" id="rank-list">
+        <li class="rank-row" data-cost="284.22" data-token="1879300" data-request="2140" data-share="22.8">
+          <span class="rank-no">01</span><span class="rank-name"><b>林晓</b><small>研发部</small></span>
+          <span class="rank-track" aria-hidden="true"><i style="--w:100%"></i></span>
+          <span class="rank-val">¥284.22</span><span class="rank-share">22.8%</span>
+        </li>
+        <li class="rank-row is-second" data-cost="221.49" data-token="1487100" data-request="2486" data-share="17.7">
+          <span class="rank-no">02</span><span class="rank-name"><b>周航</b><small>研发部</small></span>
+          <span class="rank-track" aria-hidden="true"><i style="--w:77.9%"></i></span>
+          <span class="rank-val">¥221.49</span><span class="rank-share">17.7%</span>
+        </li>
+        <li class="rank-row is-third" data-cost="173.64" data-token="1144600" data-request="1903" data-share="13.9">
+          <span class="rank-no">03</span><span class="rank-name"><b>苏韵</b><small>产品部</small></span>
+          <span class="rank-track" aria-hidden="true"><i style="--w:61.1%"></i></span>
+          <span class="rank-val">¥173.64</span><span class="rank-share">13.9%</span>
+        </li>
+        <li class="rank-row" data-cost="140.89" data-token="974400" data-request="3410" data-share="11.3">
+          <span class="rank-no">04</span><span class="rank-name"><b>陈默</b><small>研发部 · 平台组</small></span>
+          <span class="rank-track" aria-hidden="true"><i style="--w:49.6%"></i></span>
+          <span class="rank-val">¥140.89</span><span class="rank-share">11.3%</span>
+        </li>
+        <li class="rank-row" data-cost="98.63" data-token="2220000" data-request="1220" data-share="7.9">
+          <span class="rank-no">05</span><span class="rank-name"><b>赵斌</b><small>市场部 · 低价模型</small></span>
+          <span class="rank-track" aria-hidden="true"><i style="--w:34.7%"></i></span>
+          <span class="rank-val">¥98.63</span><span class="rank-share">7.9%</span>
+        </li>
+        <li class="rank-row" data-cost="74.22" data-token="535000" data-request="986" data-share="5.9">
+          <span class="rank-no">06</span><span class="rank-name"><b>吴桐</b><small>研发部 · 外部协作</small></span>
+          <span class="rank-track" aria-hidden="true"><i style="--w:26.1%"></i></span>
+          <span class="rank-val">¥74.22</span><span class="rank-share">5.9%</span>
+        </li>
+        <li class="rank-row" data-cost="51.25" data-token="385200" data-request="704" data-share="4.1">
+          <span class="rank-no">07</span><span class="rank-name"><b>郑楠</b><small>产品部</small></span>
+          <span class="rank-track" aria-hidden="true"><i style="--w:18%"></i></span>
+          <span class="rank-val">¥51.25</span><span class="rank-share">4.1%</span>
+        </li>
+        <li class="rank-row" data-cost="19.67" data-token="120100" data-request="236" data-share="1.6">
+          <span class="rank-no">08</span><span class="rank-name"><b>何川</b><small>市场部 · 失败 12.3%</small></span>
+          <span class="rank-track" aria-hidden="true"><i style="--w:6.9%"></i></span>
+          <span class="rank-val">¥19.67</span><span class="rank-share">1.6%</span>
+        </li>
+      </ol>
+      <div class="rank-foot">
+        <span>其余 34 人</span><b>¥184.03 · 14.8%</b>
+        <span class="spacer">合计</span><b>¥1,248.04</b><b>18,364 次</b>
+      </div>
+    </section>
+
+    <!-- ---------- 人员活跃度 ---------- -->
+    <section class="panel area-gauge">
+      <header><h2>人员活跃度</h2><span class="ph-note">42 / 46</span></header>
+      <div class="gauge-body">
+        <div class="gauge">
+          <svg viewBox="0 0 240 240" role="img" aria-label="活跃人员占比 91.3%：42 名活跃，46 名已开通">
+            <defs>
+              <linearGradient id="arcBeacon" x1="0" y1="1" x2="1" y2="0">
+                <stop offset="0%" stop-color="#5a55d6"/>
+                <stop offset="100%" stop-color="#8b87e6"/>
+              </linearGradient>
+            </defs>
+            <circle cx="120" cy="120" r="102" fill="none" stroke="#cfcabf" stroke-width="1.2" stroke-dasharray="2 7"/>
+            <circle cx="120" cy="120" r="88" fill="none" stroke="#e7e4dc" stroke-width="9" transform="rotate(-90 120 120)"/>
+            <circle cx="120" cy="120" r="88" fill="none" stroke="url(#arcBeacon)" stroke-width="9" stroke-linecap="round"
+                    stroke-dasharray="504.8 552.9" transform="rotate(-90 120 120)"/>
+            <circle cx="120" cy="120" r="70" fill="none" stroke="#e3dfd6" stroke-width="1" stroke-dasharray="1 9"/>
+            <circle cx="120" cy="120" r="70" fill="none" stroke="#cfcbf3" stroke-width="2" stroke-dasharray="132 307"/>
+          </svg>
+          <div class="gauge-center"><b>42</b><span>已活跃人员</span></div>
+        </div>
+        <div class="gauge-boxes">本期无调用 <span class="box">4</span> 人</div>
+        <p class="gauge-foot">活跃率 91.3% · 分母为有效且未到期的已开通人员</p>
+      </div>
+      <p class="panel-note">无调用的 4 人显示为「本期无调用」，不显示为 0 费用，也不参与排名。</p>
+    </section>
+
+    <!-- ---------- 组织用量 ---------- -->
+    <section class="panel area-org">
+      <header><h2>组织用量排名</h2><span class="ph-note">按费用</span></header>
+      <ol class="rank-list">
+        <li class="rank-row is-org">
+          <span class="rank-no">01</span><span class="rank-name"><b>研发部</b><small>19 / 21</small></span>
+          <span class="rank-track" aria-hidden="true"><i style="--w:100%"></i></span>
+          <span class="rank-val">¥698.62</span>
+        </li>
+        <li class="rank-row is-org is-second">
+          <span class="rank-no">02</span><span class="rank-name"><b>产品部</b><small>9 / 10</small></span>
+          <span class="rank-track" aria-hidden="true"><i style="--w:41%"></i></span>
+          <span class="rank-val">¥286.41</span>
+        </li>
+        <li class="rank-row is-org is-third">
+          <span class="rank-no">03</span><span class="rank-name"><b>市场部</b><small>8 / 9</small></span>
+          <span class="rank-track" aria-hidden="true"><i style="--w:25%"></i></span>
+          <span class="rank-val">¥174.29</span>
+        </li>
+        <li class="rank-row is-org">
+          <span class="rank-no">04</span><span class="rank-name"><b>职能与支持</b><small>6 / 6</small></span>
+          <span class="rank-track" aria-hidden="true"><i style="--w:12.7%"></i></span>
+          <span class="rank-val">¥88.72</span>
+        </li>
+      </ol>
+      <div class="rank-foot"><span>研发部占 56.0%，平台组 3 人贡献 ¥212.40</span></div>
+      <p class="panel-note">研发部含下级平台组；组织停用后历史调用仍计入区间，但不再进入活跃分母。</p>
+    </section>
+
+    <!-- ---------- 近 7 天趋势 ---------- -->
+    <section class="panel area-trend">
+      <header><h2>近 7 天用量趋势</h2><span class="ph-note">今日至 09:41</span></header>
+      <div class="trend-legend">
+        <span><i></i>已结束请求（次）</span>
+        <span class="l-cost"><i></i>已确认费用（元）</span>
+      </div>
+      <div class="trend-wrap">
+        <svg class="trend-svg" viewBox="0 0 900 220" role="img" aria-label="近 7 天趋势：请求从 2,486 次升到 3,510 次；已确认费用从 168.42 元升到 240.04 元。逐日数值见下方折叠表。">
+          <defs>
+            <linearGradient id="areaReqBeacon" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#5a55d6" stop-opacity=".16"/>
+              <stop offset="100%" stop-color="#5a55d6" stop-opacity="0"/>
+            </linearGradient>
+          </defs>
+          <g stroke="#e3dfd6" stroke-width="1">
+            <line x1="52" y1="16" x2="812" y2="16"/>
+            <line x1="52" y1="51" x2="812" y2="51"/>
+            <line x1="52" y1="86" x2="812" y2="86"/>
+            <line x1="52" y1="121" x2="812" y2="121"/>
+            <line x1="52" y1="156" x2="812" y2="156"/>
+            <line x1="52" y1="191" x2="812" y2="191" stroke="#cfcabf"/>
+          </g>
+          <g fill="#666a75" font-family="Cascadia Code,Consolas,monospace" font-size="11.5" text-anchor="end">
+            <text x="44" y="20">250</text><text x="44" y="55">200</text><text x="44" y="90">150</text>
+            <text x="44" y="125">100</text><text x="44" y="160">50</text><text x="44" y="195">0</text>
+          </g>
+          <g fill="#666a75" font-family="Cascadia Code,Consolas,monospace" font-size="11.5" text-anchor="start">
+            <text x="822" y="20">5k</text><text x="822" y="55">4k</text><text x="822" y="90">3k</text>
+            <text x="822" y="125">2k</text><text x="822" y="160">1k</text>
+          </g>
+          <g fill="#666a75" font-family="Cascadia Code,Consolas,monospace" font-size="11.5" text-anchor="middle">
+            <text x="52" y="212">10-24</text><text x="178.7" y="212">10-25</text><text x="305.3" y="212">10-26</text>
+            <text x="432" y="212">10-27</text><text x="558.7" y="212">10-28</text><text x="685.3" y="212">10-29</text>
+            <text x="812" y="212">10-30</text>
+          </g>
+          <path d="M52,104 L178.7,117.4 L305.3,139.6 L432,100.6 L558.7,89.6 L685.3,74.9 L812,68.1 L812,191 L52,191 Z" fill="url(#areaReqBeacon)"/>
+          <polyline points="52,104 178.7,117.4 305.3,139.6 432,100.6 558.7,89.6 685.3,74.9 812,68.1"
+                    fill="none" stroke="#5a55d6" stroke-width="2" stroke-linejoin="round"/>
+          <g fill="#fff" stroke="#5a55d6" stroke-width="1.6">
+            <circle cx="52" cy="104" r="3"/><circle cx="178.7" cy="117.4" r="3"/><circle cx="305.3" cy="139.6" r="3"/>
+            <circle cx="432" cy="100.6" r="3"/><circle cx="558.7" cy="89.6" r="3"/><circle cx="685.3" cy="74.9" r="3"/>
+            <circle cx="812" cy="68.1" r="3.4" fill="#5a55d6"/>
+          </g>
+          <polyline points="52,73.1 178.7,92.8 305.3,122 432,69.1 558.7,53.9 685.3,29.6 812,23"
+                    fill="none" stroke="#191c22" stroke-width="2" stroke-linejoin="round"/>
+          <g fill="#191c22">
+            <circle cx="52" cy="73.1" r="2.6"/><circle cx="178.7" cy="92.8" r="2.6"/><circle cx="305.3" cy="122" r="2.6"/>
+            <circle cx="432" cy="69.1" r="2.6"/><circle cx="558.7" cy="53.9" r="2.6"/><circle cx="685.3" cy="29.6" r="2.6"/>
+            <circle cx="812" cy="23" r="3.4"/>
+          </g>
+          <text x="790" y="12" fill="#191c22" font-family="Cascadia Code,Consolas,monospace" font-size="11.5" text-anchor="end">¥240.04</text>
+          <text x="790" y="62" fill="#5a55d6" font-family="Cascadia Code,Consolas,monospace" font-size="11.5" text-anchor="end">3,510 次</text>
+        </svg>
+      </div>
+      <details class="data-notes">
+        <summary>逐日数值</summary>
+        <table class="data-table">
+          <thead><tr><th>日期</th><th>请求</th><th>输入 / 输出</th><th>已确认费用</th></tr></thead>
+          <tbody>
+            <tr><td>10-24</td><td>2,486</td><td>1.14M / 296K</td><td>¥168.42</td></tr>
+            <tr><td>10-25</td><td>2,102</td><td>0.96M / 251K</td><td>¥140.29</td></tr>
+            <tr><td>10-26</td><td>1,468</td><td>0.67M / 175K</td><td>¥98.63</td></tr>
+            <tr><td>10-27</td><td>2,584</td><td>1.18M / 308K</td><td>¥174.21</td></tr>
+            <tr><td>10-28</td><td>2,896</td><td>1.33M / 346K</td><td>¥195.84</td></tr>
+            <tr><td>10-29</td><td>3,318</td><td>1.52M / 396K</td><td>¥230.61</td></tr>
+            <tr><td>10-30 至今</td><td>3,510</td><td>1.62M / 421K</td><td>¥240.04</td></tr>
+            <tr><td>合计</td><td>18,364</td><td>8.42M / 2.19M</td><td>¥1,248.04</td></tr>
+          </tbody>
+        </table>
+      </details>
+      <p class="panel-note">周末回落来自研发部；今日为进行中数据，不与其他完整日同比。</p>
+    </section>
+
+    <!-- ---------- 数据质量 ---------- -->
+    <section class="panel area-quality">
+      <header><h2>数据质量</h2><span class="ph-note">09:40 采集</span></header>
+      <dl class="kv">
+        <div><dt>采集状态</dt><dd class="ok">已采集</dd></div>
+        <div><dt>用量未知记录</dt><dd class="warn">46 条</dd></div>
+        <div><dt>待核对记录</dt><dd class="warn">12 条 · ¥33.62</dd></div>
+        <div><dt>未识别身份</dt><dd>3 条</dd></div>
+        <div><dt>本期无调用人员</dt><dd>4 人</dd></div>
+      </dl>
+      <div class="pipeline" aria-hidden="true">
+        <span class="step ok">网关</span><span class="arrow">›</span>
+        <span class="step ok">日志</span><span class="arrow">›</span>
+        <span class="step ok">聚合</span><span class="arrow">›</span>
+        <span class="step ok">驾驶舱</span>
+      </div>
+      <p class="panel-note">采集失败时整页数字转为「未知」并提示检查采集；未知用量不计入 Token 排名，待核对不计入已确认费用。</p>
+    </section>
+
+  </div>
+
+  <footer class="foot">
+    <span>DEMO PROTOTYPE · 同一套数据的另两版：<a href="./usage-cockpit-v1.html">信标浅色版</a> · <a href="./usage-cockpit-tech-v1.html">深蓝科技版</a></span>
+    <span class="rule" aria-hidden="true"></span>
+    <span>排名不代表绩效 · 费用为已确认金额 · 更新于 2026-10-30 09:41</span>
+  </footer>
+</div>
+
+<script>
+(function(){
+  /* ---- 时钟：锚定演示数据窗口（09:41:07 起跑），不与统计时间矛盾 ---- */
+  var clock=document.getElementById('clock');
+  var base=new Date(2026,9,30,9,41,7);
+  var started=Date.now();
+  function tick(){
+    var now=new Date(base.getTime()+(Date.now()-started));
+    if(clock){
+      clock.textContent=[now.getHours(),now.getMinutes(),now.getSeconds()]
+        .map(function(n){return String(n).padStart(2,'0');}).join(':');
+    }
+  }
+  tick(); setInterval(tick,1000);
+
+  /* ---- 排名口径切换：重排 + 重算条长与数值 ---- */
+  var list=document.getElementById('rank-list');
+  var rows=[].slice.call(list.querySelectorAll('.rank-row'));
+  var format={
+    cost:function(v){return '¥'+Number(v).toLocaleString('zh-CN',{minimumFractionDigits:2,maximumFractionDigits:2});},
+    token:function(v){return (Number(v)/1000000).toFixed(2)+'M';},
+    request:function(v){return Number(v).toLocaleString('zh-CN');}
+  };
+  function render(metric){
+    var values=rows.map(function(r){return Number(r.dataset[metric]);});
+    var max=Math.max.apply(null,values);
+    var total=values.reduce(function(a,b){return a+b;},0);
+    rows.slice().sort(function(a,b){return Number(b.dataset[metric])-Number(a.dataset[metric]);})
+      .forEach(function(row,index){
+        list.appendChild(row);
+        var value=Number(row.dataset[metric]);
+        row.querySelector('.rank-no').textContent=String(index+1).padStart(2,'0');
+        row.querySelector('.rank-track i').style.setProperty('--w',(value/max*100).toFixed(1)+'%');
+        row.querySelector('.rank-val').textContent=format[metric](value);
+        row.querySelector('.rank-share').textContent=
+          metric==='cost'?row.dataset.share+'%':(value/total*100).toFixed(1)+'%';
+        row.classList.remove('is-second','is-third');
+        if(index===1)row.classList.add('is-second');
+        if(index===2)row.classList.add('is-third');
+      });
+  }
+  [].slice.call(document.querySelectorAll('.seg button')).forEach(function(button){
+    button.addEventListener('click',function(){
+      [].slice.call(document.querySelectorAll('.seg button')).forEach(function(item){
+        item.setAttribute('aria-pressed',String(item===button));
+      });
+      render(button.dataset.metric);
+    });
+  });
+})();
+</script>
+</body>
+</html>

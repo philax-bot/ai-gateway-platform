@@ -4,7 +4,7 @@ import { UI_DESIGNS, type UiDesign } from './ui-mode';
 export type IconName =
   | 'home' | 'spark' | 'wallet' | 'inbox' | 'userPlus' | 'folder' | 'grid'
   | 'chip' | 'users' | 'key' | 'activity' | 'list' | 'checklist' | 'sliders'
-  | 'bell' | 'search' | 'logout' | 'signal' | 'menu' | 'eye' | 'eyeOff';
+  | 'bell' | 'search' | 'logout' | 'signal' | 'menu' | 'eye' | 'eyeOff' | 'chart';
 
 const iconPaths: Record<IconName, ReactNode> = {
   home: <><path d="M3 10.5 12 3l9 7.5" /><path d="M5.5 9.5V21h13V9.5" /><path d="M9.5 21v-6h5v6" /></>,
@@ -22,6 +22,7 @@ const iconPaths: Record<IconName, ReactNode> = {
   checklist: <><path d="M9 6h11M9 12h11M9 18h11" /><path d="m3 6 1.5 1.5L7 5M3 12l1.5 1.5L7 11M3 18l1.5 1.5L7 17" /></>,
   sliders: <><path d="M4 6h9M19 6h1M4 12h3M13 12h7M4 18h11M21 18h-1" /><circle cx="16" cy="6" r="2" /><circle cx="10" cy="12" r="2" /><circle cx="18" cy="18" r="2" /></>,
   bell: <><path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6" /><path d="M10 20a2 2 0 0 0 4 0" /></>,
+  chart: <><path d="M4 21V10M10 21V4M16 21v-7M22 21H2" /></>,
   search: <><circle cx="11" cy="11" r="7" /><path d="m20 20-4-4" /></>,
   logout: <><path d="M10 4H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h5" /><path d="m14 8 4 4-4 4M8 12h10" /></>,
   signal: <><path d="M5 19V10M12 19V4M19 19v-6" /></>,
@@ -36,7 +37,7 @@ export function Icon({ name, size = 18 }: { name: IconName; size?: number }) {
 
 export function navIcon(id: string): IconName {
   return ({
-    overview: 'home', home: 'home', onboarding: 'userPlus', online: 'spark', agent:'spark',
+    overview: 'home', usage:'chart', leaderboard:'signal', 'cockpit-light':'chart', 'cockpit-tech':'signal', 'cockpit-beacon':'grid', home: 'home', onboarding: 'userPlus', online: 'spark', agent:'spark',
     quota: 'wallet', approvals: 'inbox', projects: 'folder', applications: 'grid',
     catalog:'chip', models: 'chip', members: 'users', keys: 'key', monitoring: 'activity',
     safety:'checklist', calls: 'list', reviews: 'checklist', settings: 'sliders', notifications: 'bell',

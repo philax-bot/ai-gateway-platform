@@ -1,0 +1,102 @@
+/* 用量驾驶舱：新增组件层的共享样式（组件契约 §3.18–3.19）。
+   只使用语义 token，因此五套壳层都能直接渲染；这里只负责图表与驾驶舱网格的布局，
+   不覆盖任何控件的既有外观。类名全部带组件前缀（share-/donut-/gauge-/trend-/cockpit-）。 */
+
+/* ---------- 表格内占比条（§3.18） ---------- */
+.share-cell{display:flex;align-items:center;justify-content:flex-end;gap:8px;min-width:104px}
+.share-bar{flex:1;min-width:44px;height:6px;border-radius:999px;background:var(--surface3);overflow:hidden}
+.share-bar > i{display:block;height:100%;border-radius:999px;background:var(--action)}
+.share-bar.is-warn > i{background:var(--warn)}
+.share-bar.is-danger > i{background:var(--danger)}
+.share-cell > b{flex:none;font:600 12px/1.3 var(--v2-mono, ui-monospace);color:var(--text);white-space:nowrap}
+
+/* ---------- 环形图（§3.19） ---------- */
+.donut-chart{display:flex;align-items:center;gap:18px;flex-wrap:wrap;margin:6px 0 4px}
+.donut-ring{position:relative;width:150px;height:150px;flex:none;margin:0 auto;border-radius:50%}
+.donut-hole{position:absolute;inset:24px;display:grid;place-content:center;gap:1px;border-radius:50%;background:var(--surface);text-align:center}
+.donut-hole b{font:650 16px/1.2 var(--v2-mono, ui-monospace);letter-spacing:-.03em;color:var(--text)}
+.donut-hole small{font-size:10px;color:var(--muted);letter-spacing:.04em}
+.donut-legend{flex:1;min-width:150px;margin:0;padding:0;list-style:none;display:grid;gap:7px}
+.donut-legend li{display:grid;grid-template-columns:9px minmax(0,1fr) auto;align-items:center;gap:9px;font-size:12px;color:var(--text)}
+.donut-legend i{width:9px;height:9px;border-radius:2px;background:var(--action)}
+.donut-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.donut-value{text-align:right;font:600 11.5px/1.3 var(--v2-mono, ui-monospace)}
+.donut-value small{display:block;font-weight:400;font-size:10px;color:var(--muted)}
+
+/* ---------- 仪表（§3.19） ---------- */
+.gauge-chart{display:grid;justify-items:center;gap:6px;margin:4px 0}
+.gauge-visual{position:relative;width:168px;height:168px}
+.gauge-visual svg{width:100%;height:100%;display:block}
+.gauge-center{position:absolute;inset:0;display:grid;place-content:center;justify-items:center;gap:1px;text-align:center;pointer-events:none}
+.gauge-center b{font:650 34px/1 var(--v2-mono, ui-monospace);letter-spacing:-.04em;color:var(--text)}
+.gauge-center small{font-size:10px;color:var(--muted)}
+.gauge-center em{font-style:normal;font-size:11.5px;color:var(--muted)}
+.gauge-boxes{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;font-size:11.5px;color:var(--muted)}
+.gauge-boxes span{display:inline-flex;align-items:center;gap:7px}
+.gauge-boxes b{display:inline-grid;place-items:center;min-width:26px;height:24px;padding:0 6px;border:1px solid var(--line-strong);border-radius:6px;background:var(--surface2);color:var(--text);font:600 12px var(--v2-mono, ui-monospace)}
+.gauge-caption{margin:0;font-size:11.5px;line-height:1.6;color:var(--muted);text-align:center}
+
+/* ---------- 趋势（§3.19） ---------- */
+.trend-chart{margin:2px 0 4px}
+.trend-chart svg{width:100%;height:auto;display:block;min-width:0}
+.trend-legend,.chart-legend{display:flex;gap:16px;flex-wrap:wrap;margin:0 0 6px;font-size:11.5px;color:var(--muted)}
+.trend-legend span,.chart-legend span{display:inline-flex;align-items:center;gap:6px}
+.trend-legend i,.chart-legend i{width:14px;height:3px;border-radius:2px;background:var(--text)}
+.trend-legend i.is-primary,.chart-legend i.is-primary{background:var(--action)}
+.trend-legend i.is-secondary,.chart-legend i.is-secondary{background:var(--text)}
+.chart-empty{margin:10px 0;padding:14px;border:1px dashed var(--line-strong);border-radius:10px;background:var(--surface2);font-size:12px}
+.metric-unit{margin-left:6px;font:600 12px/1 var(--v2-mono, ui-monospace);color:var(--muted);letter-spacing:0}
+
+/* ---------- 驾驶舱网格（§4.5） ---------- */
+.cockpit-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:14px;margin-top:2px}
+.cockpit-grid > *{min-width:0}
+/* 同一行的卡片底边对齐：网格项拉伸，面板填满该行。 */
+.cockpit-grid > div{display:flex}
+.cockpit-grid > div > .panel{flex:1;margin-bottom:0}
+.cockpit-area-dist{grid-column:span 2}
+.cockpit-area-rank{grid-column:span 4}
+.cockpit-area-gauge,.cockpit-area-org,.cockpit-area-quality{grid-column:span 2}
+.cockpit-area-trend{grid-column:span 6}
+.cockpit-views{margin:4px 0 12px}
+.cockpit-seg{margin:0;flex-wrap:nowrap}
+.cockpit-seg button{padding:5px 10px;font-size:12px}
+
+.cockpit-rank{display:grid;gap:7px;margin:10px 0 0;padding:0;list-style:none}
+.cockpit-rank-row{display:grid;grid-template-columns:24px minmax(0,150px) minmax(0,1fr) 52px 40px;align-items:center;gap:10px;font-size:12.5px}
+.cockpit-rank-no{font:650 11px var(--v2-mono, ui-monospace);color:var(--muted);text-align:center}
+.cockpit-rank-row.is-top .cockpit-rank-no{color:var(--action)}
+.cockpit-rank-name{display:flex;align-items:baseline;gap:6px;min-width:0;overflow:hidden}
+.cockpit-rank-name b{flex:none;max-width:68%;font-size:12.5px;font-weight:650;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cockpit-rank-name small{font-size:10.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cockpit-rank-track{display:flex;min-width:0}
+.cockpit-rank-track .share-cell{flex:1}
+.cockpit-rank-share{text-align:right;font:600 11px var(--v2-mono, ui-monospace);color:var(--muted)}
+.cockpit-rank-action{text-align:right;font-size:11.5px}
+.cockpit-rank-action .link-button{font-size:11.5px;padding:2px 0}
+.cockpit-rank-action:empty{display:none}
+.cockpit-rank-foot{display:flex;align-items:center;gap:10px;flex-wrap:wrap;row-gap:4px;margin-top:10px;padding-top:9px;border-top:1px solid var(--line);font-size:11.5px;color:var(--muted)}
+.cockpit-rank-foot b{font:650 11.5px var(--v2-mono, ui-monospace);color:var(--text)}
+.cockpit-foot-spacer{margin-left:auto}
+
+.cockpit-dim-row{display:grid;grid-template-columns:minmax(0,88px) minmax(0,1fr) 44px 34px;align-items:center;gap:8px;padding:5px 0;font-size:12.5px}
+.cockpit-dim-row > span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)}
+.cockpit-dim-row > b{text-align:right;font:600 11px var(--v2-mono, ui-monospace);color:var(--muted)}
+.cockpit-dim-action{text-align:right;font-size:11.5px}
+.cockpit-dim-action .link-button{font-size:11.5px;padding:2px 0}
+
+@media (max-width:1100px){
+  .cockpit-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .cockpit-area-dist,.cockpit-area-rank,.cockpit-area-gauge,.cockpit-area-org,.cockpit-area-quality{grid-column:span 1}
+  .cockpit-area-trend{grid-column:1/-1}
+}
+@media (max-width:760px){
+  .cockpit-grid{grid-template-columns:minmax(0,1fr)}
+  .cockpit-area-dist,.cockpit-area-rank,.cockpit-area-gauge,.cockpit-area-org,.cockpit-area-quality,.cockpit-area-trend{grid-column:auto}
+  .cockpit-rank-row{grid-template-columns:22px minmax(0,100px) minmax(0,1fr) 38px;gap:8px}
+  .cockpit-rank-share{display:none}
+  .cockpit-dim-row{grid-template-columns:minmax(0,72px) minmax(0,1fr) 38px 32px;gap:6px}
+  .donut-chart{gap:12px}
+  .donut-ring{width:132px;height:132px}
+  .donut-hole{inset:21px}
+  .gauge-visual{width:150px;height:150px}
+}

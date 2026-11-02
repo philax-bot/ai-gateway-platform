@@ -17,7 +17,9 @@ import type {
   VerificationRun,
   VerificationRunPage,
   VerificationMappingResult,
+  UsageAnalyticsQuery,
 } from '@ai-gateway/contracts';
+import { aggregateUsage } from './call-analytics';
 import type { ControlPlaneStore, DemoCredential, QuotaSnapshot, StartVerificationInput, VerificationPageQuery } from './control-plane.store';
 import { authorizationFingerprint, checkSettlementScope, reconciliationCalculation, RESERVATION_AMOUNT, retryLinkAllowed, sameIdentity, settlementAmount, type RetryTarget } from './accounting';
 import { admissionForBatch, admissionDenialMessage, legacyAdmission, publicLogAdmission } from './admission';
@@ -368,6 +370,7 @@ export class DemoStore implements ControlPlaneStore {
     return [...this.callLogs].reverse();
   }
   async queryCalls(input:CallQuery,scope:CallScope=null,_client?:import('pg').PoolClient){return queryMemoryCalls(this.callLogs,input,scope);}
+  async queryUsage(input:UsageAnalyticsQuery|undefined,scope:CallScope=null,timezone='Asia/Shanghai',_client?:import('pg').PoolClient){return aggregateUsage(this.callLogs,input,scope,timezone);}
   async inFlightCounts(_client?:import('pg').PoolClient):Promise<InFlightCount[]>{
     const groups=new Map<string,InFlightCount>();for(const r of this.reservationsByRequest.values())if(!r.finalized&&Date.parse(r.expiresAt)>Date.now()){
       const serviceId=r.admission?.route?.serviceId??null,key=JSON.stringify([serviceId,r.modelId]),group=groups.get(key)??{serviceId,modelId:r.modelId,count:0};group.count++;groups.set(key,group);

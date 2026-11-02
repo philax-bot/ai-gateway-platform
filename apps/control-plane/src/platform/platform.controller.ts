@@ -25,6 +25,8 @@ export class PlatformController {
   callRelations(@Req() request:UserRequest,@Param('requestId') requestId:string){return this.platform.callRelations(request.actor.id,requestId);}
   @Post('/calls/query') @HttpCode(200)
   calls(@Req() request:UserRequest,@Body() body:CallQuery){return this.platform.queryCalls(request.actor.id,body);}
+  @Post('/analytics/usage') @HttpCode(200)
+  usageAnalytics(@Req() request:UserRequest,@Body() body:import('@ai-gateway/contracts').UsageAnalyticsQuery){return this.platform.usageAnalytics(request.actor.id,body);}
   @Post('/audit/query') @HttpCode(200)
   audit(@Req() request:UserRequest,@Body() body:import('@ai-gateway/contracts').AuditQuery){return this.platform.queryAudit(request.actor.id,body);}
   @Get('/monitoring')

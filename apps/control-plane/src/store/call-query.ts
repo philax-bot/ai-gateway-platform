@@ -2,7 +2,9 @@ import { BadRequestException } from '@nestjs/common';
 import type { CallFilters, CallLog, CallPage, CallQuery, CallSummary } from '@ai-gateway/contracts';
 
 // Scope is supplied by the authenticated service, never accepted from the request body.
-export type CallScope = { employeeId:string; applicationIds:string[] } | null;
+/* `projectIds` only exists for the analytics scope: a project manager sees
+   project-purpose calls inside the projects they manage, plus their own usage. */
+export type CallScope = { employeeId:string; applicationIds:string[]; projectIds?:string[] } | null;
 export const filterColumns:Record<keyof CallFilters,string>={from:'completed_at',to:'completed_at',requestId:'request_id',subjectId:'subject_id',credentialId:'credential_id',projectId:'project_id',modelId:'model_id',serviceId:"admission->'route'->>'serviceId'",poolId:"admission->'route'->>'poolId'",purpose:'purpose',outcome:'outcome',billableState:'billable_state'};
 const outcomes=['completed','upstream_error','timeout','client_cancelled','partial','rejected_before_upstream'];
 export function normalizeCallQuery(raw:CallQuery):CallQuery{
@@ -26,7 +28,10 @@ export function decodeCursor(value:string):[string,string]{
   try{if(typeof value!=='string'||value.length>512)throw 0;const v=JSON.parse(Buffer.from(value,'base64url').toString());if(!Array.isArray(v)||v.length!==2||!v.every(x=>typeof x==='string')||!Number.isFinite(Date.parse(v[0]))||v[1].length>160)throw 0;return [v[0],v[1]];}catch{throw new BadRequestException('invalid page cursor');}
 }
 export function callVisible(c:CallLog,scope:CallScope):boolean{
-  return !scope||(c.subjectType==='employee'&&c.subjectId===scope.employeeId)||(c.subjectType==='application'&&scope.applicationIds.includes(c.subjectId));
+  if(!scope)return true;
+  if(c.subjectType==='employee'&&c.subjectId===scope.employeeId)return true;
+  if(c.subjectType==='application'&&scope.applicationIds.includes(c.subjectId))return true;
+  return !!scope.projectIds?.length&&c.purpose==='project'&&!!c.projectId&&scope.projectIds.includes(c.projectId);
 }
 export function matchesCall(c:CallLog,q:CallFilters,scope:CallScope){
   if(!callVisible(c,scope))return false;
