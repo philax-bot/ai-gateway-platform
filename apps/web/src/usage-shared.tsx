@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { PlatformSnapshot, UsageAnalytics, UsageAnalyticsQuery, UsageBucket } from '@ai-gateway/contracts';
 import { api } from './client';
 import { DateField } from './date-field';
@@ -80,6 +80,7 @@ const filterDefaults={from:'',to:'',organizationId:'',modelId:'',purpose:''};
 export type UsageFilters=typeof filterDefaults;
 
 export interface UsageQuery {
+  appliedQuery:UsageAnalyticsQuery;
   filters:UsageFilters;
   filter:(key:keyof UsageFilters,value:string)=>void;
   report:UsageAnalytics|null;
@@ -95,13 +96,14 @@ export interface UsageQuery {
 export function useUsageQuery(active:boolean):UsageQuery{
   const [filters,setFilters]=useState(filterDefaults);
   const [query,setQuery]=useState<UsageAnalyticsQuery>({});
+  const resolved=useRef<{query:UsageAnalyticsQuery;value:UsageAnalyticsQuery}|null>(null);
   const [report,setReport]=useState<UsageAnalytics|null>(null),[error,setError]=useState(''),[busy,setBusy]=useState(false),[notice,setNotice]=useState('');
 
   useEffect(()=>{
     if(!active)return;
     let current=true;setBusy(true);setError('');setReport(null);setNotice('');
-    void api<UsageAnalytics>('/api/v1/platform/analytics/usage',query)
-      .then(value=>{if(current)setReport(value);})
+    void api<UsageAnalytics>('/api/v1/platform/analytics/usage',resolved.current?.query===query?resolved.current.value:query)
+      .then(value=>{if(current){resolved.current={query,value:{...query,from:value.from,to:value.to}};setReport(value);}})
       .catch(failure=>{if(current){setReport(null);setError(failure instanceof Error?failure.message:'用量汇总读取失败');}})
       .finally(()=>{if(current)setBusy(false);});
     return()=>{current=false;};
@@ -114,6 +116,7 @@ export function useUsageQuery(active:boolean):UsageQuery{
   },[report]);
 
   return {
+    appliedQuery:query,
     filters,
     filter:(key,value)=>setFilters(previous=>({...previous,[key]:value})),
     report,error,busy,notice,setNotice,

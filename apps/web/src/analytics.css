@@ -46,6 +46,7 @@
 .trend-legend i.is-secondary,.chart-legend i.is-secondary{background:var(--text)}
 .chart-empty{margin:10px 0;padding:14px;border:1px dashed var(--line-strong);border-radius:10px;background:var(--surface2);font-size:12px}
 .metric-unit{margin-left:6px;font:600 12px/1 var(--v2-mono, ui-monospace);color:var(--muted);letter-spacing:0}
+.metric strong > .link-button{font:inherit;letter-spacing:inherit;color:inherit;text-align:left;padding:0}
 
 /* ---------- 驾驶舱网格（§4.5） ---------- */
 .cockpit-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:14px;margin-top:2px}

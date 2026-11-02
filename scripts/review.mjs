@@ -7,6 +7,7 @@ import {resolve,sep} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {openPersistentReview} from './lib/review-state.mjs';
 import {openHigress} from './lib/higress-runtime.mjs';
+import {prepareBusinessDemo} from './lib/business-demo.mjs';
 
 const root=fileURLToPath(new URL('../',import.meta.url)),children=[],serviceToken=randomUUID();
 const persistent=process.argv.includes('--postgres'),prebuilt=process.argv.includes('--prebuilt');
@@ -104,6 +105,13 @@ try{
   await Promise.all([waitFor(`${url('model')}/health`,model),waitFor(`${url('control')}/health`,control),waitFor(`${url('gateway')}/health`,gateway)]);
   if(!persistentState?.state.ready){const objects=await seed();await persistentState?.markReady(objects);}else console.log('已恢复原审查工作区；不会重建账号、重置配置或重复发放。');
   if(higress){const response=await fetch(`${url('control')}/internal/v1/gateway-sync/reconcile`,{method:'POST',headers:{authorization:`Bearer ${serviceToken}`},signal:AbortSignal.timeout(180000)});if(!response.ok)throw new Error('Higress 路由准备失败');const result=await response.json();console.log(`Higress 已准备 ${result.routes.filter(route=>route.status==='applied').length}/${result.routes.length} 条路由；未生效路由会拦截调用。`);}
+  if(development&&process.env.REVIEW_PREPARE_DEMO==='true'){
+    const demo=await prepareBusinessDemo({controlPlaneUrl:url('control'),gatewayUrl:url('gateway'),modelUrl:url('model'),workspaceId:persistentState.state.id,createdAt:persistentState.state.createdAt,round:process.env.REVIEW_DEMO_ROUND??'1',afterResources:async()=>{
+      if(higress){const response=await fetch(`${url('control')}/internal/v1/gateway-sync/reconcile`,{method:'POST',headers:{authorization:`Bearer ${serviceToken}`},signal:AbortSignal.timeout(180000)});if(!response.ok)throw new Error('演示模型路由准备失败');}
+    }});
+    await writeFile(resolve(directory,'business-demo.json'),JSON.stringify(demo,null,2));
+    console.log('内部演示账号 demo-ops / demo-lin / demo-manager / demo-app；初始口令 Demo-local-2026!；脚本见 docs/BUSINESS-DEMO.md');
+  }
   const web=start('apps/web/node_modules/vite/bin/vite.js',development?['--host','127.0.0.1','--port',String(ports.web),'--strictPort']:['preview','--host','127.0.0.1','--port',String(ports.web),'--strictPort','--outDir',resolve(directory,'web')],development?{VITE_CONTROL_PLANE_URL:url('control'),VITE_GATEWAY_URL:url('gateway'),VITE_REVIEW_MODE:'true',VITE_REVIEW_STORAGE:'postgres'}:{},resolve(root,'apps/web'));await waitFor(url('web'),web);ready=true;
   if(development)console.log('本地开发：pnpm dev；前端热更新，后端改动后 Ctrl+C 并重新运行 pnpm dev。');
   process.send?.({type:'review-ready',pids:children.filter(child=>child.exitCode===null&&child.signalCode===null).map(child=>child.pid)});

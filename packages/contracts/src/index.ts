@@ -96,6 +96,8 @@ export interface AdmissionScope {
   concurrency?: number;
 }
 export interface AdmissionSnapshot {
+  /** Directory organization at admission time, independent of the tenant authorization identity. */
+  attributionOrganizationId?:string|null;
   protocol?:{requested:import('./protocol.js').ModelProtocol;upstream:import('./protocol.js').ModelProtocol;mode:'native'|'adapted'};
   kind: 'configured' | 'legacy_simulation';
   route: RouteSnapshot | null;
@@ -201,7 +203,7 @@ export interface CallLog {
   forwarded?:boolean|null;
   ttftMs?:number|null;
   usageFinal?:boolean;
-  admission?: {protocol?:AdmissionSnapshot['protocol'];kind:AdmissionSnapshot['kind'];price:PriceSnapshot|null;reservedAmount:number;route:Pick<RouteSnapshot,'serviceId'|'poolId'|'definitionId'|'upstreamModel'>|null} | null;
+  admission?: {attributionOrganizationId?:string|null;protocol?:AdmissionSnapshot['protocol'];kind:AdmissionSnapshot['kind'];price:PriceSnapshot|null;reservedAmount:number;route:Pick<RouteSnapshot,'serviceId'|'poolId'|'definitionId'|'upstreamModel'>|null} | null;
   organizationId?: string | null;
   errorCode?: string | null;
   latencyMs?: number | null;

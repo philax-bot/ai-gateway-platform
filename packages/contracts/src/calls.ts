@@ -2,7 +2,7 @@ import type { CallLog, Purpose, SettlementOutcome } from './index.js';
 
 export interface CallFilters {
   from?:string; to?:string; requestId?:string; subjectId?:string; credentialId?:string;
-  projectId?:string; modelId?:string; serviceId?:string; poolId?:string;
+  projectId?:string; organizationId?:string; subjectType?:CallLog['subjectType']; resultGroup?:'errors'; modelId?:string; serviceId?:string; poolId?:string;
   purpose?:Purpose; outcome?:SettlementOutcome; billableState?:CallLog['billableState'];
 }
 export interface CallQuery extends CallFilters { limit?:number; cursor?:string }

@@ -5,6 +5,7 @@ import { DemoStore } from './demo.store';
 import { costForUsage,UPSTREAM_MAX_OUTPUT_TOKENS } from './admission';
 import { WorkspaceRepository } from '../platform/workspace.repository';
 import { PlatformService } from '../platform/platform.service';
+import {aggregateUsage} from './call-analytics';
 
 function configured(){
   const store=new DemoStore(),state=initialWorkspace(),identity=store.credentials.get('local-employee-key')!.identity;
@@ -20,6 +21,18 @@ function configured(){
   return {store,state,batch,request};
 }
 describe('trusted admission and immutable billing',()=>{
+  it('freezes directory organization for analytics without changing tenant identity or retry scope',async()=>{
+    const {store,state,request}=configured(),input=request(),member=state.members.find(member=>member.id===input.identity.subjectId)!;
+    const original=member.organizationId,authorized=await store.authorize(input);
+    expect(authorized.admission?.attributionOrganizationId).toBe(original);
+    member.organizationId='moved-after-admission';
+    await store.settle({requestId:input.requestId,idempotencyKey:crypto.randomUUID(),reservationId:authorized.reservation!.reservationId,outcome:'completed',completedAt:new Date().toISOString(),inputTokens:13,outputTokens:14,cachedInputTokens:0,usageFinal:true,forwarded:true});
+    const log=(await store.listCalls()).find(log=>log.requestId===input.requestId)!;
+    expect(log.organizationId).toBe(input.identity.organizationId);
+    expect(log.admission?.attributionOrganizationId).toBe(original);
+    const report=aggregateUsage([log],{from:new Date(Date.now()-86400000).toISOString(),to:new Date(Date.now()+86400000).toISOString(),organizationId:original},null,'Asia/Shanghai');
+    expect(report.organizations.map(row=>row.key)).toEqual([original]);
+  });
   it('freezes native versus adapted protocol selection from current per-model capability evidence',async()=>{
     const {store,state,request}=configured(),service=state.services[0],definitionId=service.mappings[0].definitionId;
     const first=await store.authorize(request({modelProtocol:'responses'}));expect(first.admission?.protocol).toEqual({requested:'responses',upstream:'chat',mode:'adapted'});

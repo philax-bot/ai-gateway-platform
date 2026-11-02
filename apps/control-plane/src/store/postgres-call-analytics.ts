@@ -35,7 +35,7 @@ with window_rows as materialized (
   where completed_at >= $1::timestamptz
     and completed_at < $2::timestamptz
     and ($3::text is null or model_id = $3::text)
-    and ($4::text is null or organization_id = $4::text)
+    and ($4::text is null or coalesce(admission->>'attributionOrganizationId',organization_id) = $4::text)
     and ($5::text is null or purpose = $5::text)
     and ($6::boolean is false or (subject_type = 'employee' and subject_id = $7::text)
          or (subject_type = 'application' and subject_id = any($8::text[]))
@@ -63,7 +63,7 @@ from (
   union all
   select 'models', model_id, window_rows.* from window_rows
   union all
-  select 'organizations', coalesce(organization_id,''), window_rows.* from window_rows
+  select 'organizations', coalesce(admission->>'attributionOrganizationId',organization_id,''), window_rows.* from window_rows
   union all
   select 'days', to_char(completed_at at time zone $9::text,'YYYY-MM-DD'), window_rows.* from window_rows
   union all

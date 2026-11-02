@@ -82,17 +82,18 @@ export function aggregateUsage(rows:CallLog[],input:UsageAnalyticsQuery|undefine
   const totals:Acc=empty(),groups={people:new Map<string,Acc>(),applications:new Map<string,Acc>(),projects:new Map<string,Acc>(),models:new Map<string,Acc>(),organizations:new Map<string,Acc>(),days:new Map<string,Acc>()};
   const push=(map:Map<string,Acc>,key:string,call:CallLog)=>{const acc=map.get(key)??empty();add(acc,call);map.set(key,acc);};
   for(const call of rows){
+    const organizationId=call.admission?.attributionOrganizationId??call.organizationId;
     const at=Date.parse(call.completedAt);
     if(!Number.isFinite(at)||at<from||at>=to)continue;
     if(!callVisible(call,scope))continue;
     if(query.modelId&&call.modelId!==query.modelId)continue;
-    if(query.organizationId&&call.organizationId!==query.organizationId)continue;
+    if(query.organizationId&&organizationId!==query.organizationId)continue;
     if(query.purpose&&call.purpose!==query.purpose)continue;
     add(totals,call);
     push(call.subjectType==='employee'?groups.people:groups.applications,call.subjectId,call);
     push(groups.projects,call.projectId??'',call);
     push(groups.models,call.modelId,call);
-    push(groups.organizations,call.organizationId??'',call);
+    push(groups.organizations,organizationId??'',call);
     push(groups.days,dayKey(call.completedAt,timezone),call);
   }
   const {key:_unusedKey,...totalsFields}=bucket('',totals);

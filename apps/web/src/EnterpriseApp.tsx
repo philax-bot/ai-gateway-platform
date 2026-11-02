@@ -23,7 +23,7 @@ const labels:Record<string,string>={overview:'运营工作台',usage:'用量驾�
    the page title so an operator does not have to read the panel text to orient. */
 const ledes:Record<string,string>={
   overview:'需要你处理的事项、下一步建议，以及当前运营口径下的关键数字。',
-  usage:'谁在用、用在哪、花了多少。排名只统计已识别身份的已结束调用；未知用量与待核对单列，不并入排名。',
+  usage:'谁在用、用在哪、花了多少。按已结束调用统计；排名只含已识别身份，未知用量与待核对费用单列。',
   leaderboard:'人员 / 项目 / 应用 / 组织的完整排名与逐行额度入口。默认本月至今，按已确认费用排序。',
   'cockpit-light':'三版驾驶舱并列演示之一：暖白列表版，排名用表格，模型与组织在右侧并列。',
   'cockpit-tech':'三版驾驶舱并列演示之二：深蓝底 + 青色霓虹，切角指标卡与发光排名条，适合大屏投放。',
@@ -55,6 +55,7 @@ export function EnterpriseApp(){
   const [page,setPage]=useState('home'),[operations,setOperations]=useState(false),[message,setMessage]=useState('');
   const [targetId,setTargetId]=useState<string|null>(null);
   const [openTabs,setOpenTabs]=useState<OpenTab[]>([]),[menuOpen,setMenuOpen]=useState(false),[narrow,setNarrow]=useState(false);
+  const scrollPositions=useRef<Record<string,number>>({});
   const menuButtonRef=useRef<HTMLButtonElement>(null);
   function closeMenu(){setMenuOpen(false);window.setTimeout(()=>menuButtonRef.current?.focus(),20);}
   useEffect(()=>{
@@ -63,6 +64,7 @@ export function EnterpriseApp(){
     return()=>query.removeEventListener('change',sync);
   },[]);
   function navigate(value:string,id?:string){
+    scrollPositions.current[page]=window.scrollY;
     setPage(value);setTargetId(id??null);
     setOpenTabs(tabs=>{
       const entry={page:value,targetId:id??null};
@@ -99,7 +101,15 @@ export function EnterpriseApp(){
     window.addEventListener('keydown',keepFocusInside);
     return()=>{document.body.style.overflow=overflow;window.removeEventListener('keydown',keepFocusInside);};
   },[menuOpen]);
-  useEffect(()=>{window.scrollTo(0,0);},[page]);
+  useEffect(()=>{
+    const target=scrollPositions.current[page]??0;
+    const observer=new ResizeObserver(()=>window.scrollTo(0,target));
+    const frame=requestAnimationFrame(()=>{window.scrollTo(0,target);if(target>0)observer.observe(document.body);});
+    const stop=()=>observer.disconnect(),timer=window.setTimeout(stop,15000);
+    const events=['wheel','touchstart','pointerdown','keydown'] as const;
+    events.forEach(event=>window.addEventListener(event,stop,{once:true}));
+    return()=>{cancelAnimationFrame(frame);clearTimeout(timer);observer.disconnect();events.forEach(event=>window.removeEventListener(event,stop));};
+  },[page]);
   useEffect(()=>{
     if(!data)return;
     const adminNow=data.actor.roles.includes('operator'),opsNow=operations&&adminNow;
@@ -115,6 +125,7 @@ export function EnterpriseApp(){
     });
   },[data,operations,page,targetId]);
   function resetSession(){
+    scrollPositions.current={};
     setData(null);setEditor(null);setSecret(null);setDetail(null);setPurposeId('personal');setOperations(false);setPaletteOpen(false);setMenuOpen(false);setOpenTabs([]);setPage('home');setTargetId(null);setMessage('');
     setPending(previous=>{previous?.resolve(null);return null;});
   }
@@ -178,7 +189,7 @@ export function EnterpriseApp(){
   const navBadges:Record<string,number>={approvals:pendingApprovals+stalledApprovals,reviews:d.pendingReviewCount??0};
   const spaceLabel=isOps?'运营空间':'个人空间';
   const logout=()=>action(async()=>{await api('/api/v1/auth/logout',{});resetSession();});
-  const activateTab=(tab:OpenTab)=>{setPage(tab.page);setTargetId(tab.targetId);setMenuOpen(false);};
+  const activateTab=(tab:OpenTab)=>{scrollPositions.current[page]=window.scrollY;setPage(tab.page);setTargetId(tab.targetId);setMenuOpen(false);};
   const closeTab=(tabPage:string)=>{
     const index=openTabs.findIndex(tab=>tab.page===tabPage);
     if(index<0)return;

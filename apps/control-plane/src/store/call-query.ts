@@ -5,7 +5,7 @@ import type { CallFilters, CallLog, CallPage, CallQuery, CallSummary } from '@ai
 /* `projectIds` only exists for the analytics scope: a project manager sees
    project-purpose calls inside the projects they manage, plus their own usage. */
 export type CallScope = { employeeId:string; applicationIds:string[]; projectIds?:string[] } | null;
-export const filterColumns:Record<keyof CallFilters,string>={from:'completed_at',to:'completed_at',requestId:'request_id',subjectId:'subject_id',credentialId:'credential_id',projectId:'project_id',modelId:'model_id',serviceId:"admission->'route'->>'serviceId'",poolId:"admission->'route'->>'poolId'",purpose:'purpose',outcome:'outcome',billableState:'billable_state'};
+export const filterColumns:Record<keyof CallFilters,string>={from:'completed_at',to:'completed_at',requestId:'request_id',subjectId:'subject_id',subjectType:'subject_type',organizationId:"coalesce(admission->>'attributionOrganizationId',organization_id)",resultGroup:'outcome',credentialId:'credential_id',projectId:'project_id',modelId:'model_id',serviceId:"admission->'route'->>'serviceId'",poolId:"admission->'route'->>'poolId'",purpose:'purpose',outcome:'outcome',billableState:'billable_state'};
 const outcomes=['completed','upstream_error','timeout','client_cancelled','partial','rejected_before_upstream'];
 export function normalizeCallQuery(raw:CallQuery):CallQuery{
   if(!raw||typeof raw!=='object'||Array.isArray(raw))throw new BadRequestException('invalid call query');
@@ -19,6 +19,8 @@ export function normalizeCallQuery(raw:CallQuery):CallQuery{
   if(q.from&&q.to&&String(q.from)>=String(q.to))throw new BadRequestException('from must be before to');
   if(q.purpose&&!['personal','project','application'].includes(String(q.purpose)))throw new BadRequestException('invalid purpose');
   if(q.outcome&&!outcomes.includes(String(q.outcome)))throw new BadRequestException('invalid outcome');
+  if(q.subjectType&&!['employee','application'].includes(String(q.subjectType)))throw new BadRequestException('invalid subject type');
+  if(q.resultGroup&&q.resultGroup!=='errors')throw new BadRequestException('invalid result group');
   if(q.billableState&&!['confirmed','pending_review','not_billable'].includes(String(q.billableState)))throw new BadRequestException('invalid billing state');
   if(raw.cursor!==undefined){decodeCursor(raw.cursor);q.cursor=raw.cursor;}
   return q as CallQuery;
@@ -38,6 +40,8 @@ export function matchesCall(c:CallLog,q:CallFilters,scope:CallScope){
   for(const [key,value] of Object.entries(q)){if(value===undefined||!Object.hasOwn(filterColumns,key))continue;
     if(key==='from'){if(Date.parse(c.completedAt)<Date.parse(value))return false;}
     else if(key==='to'){if(Date.parse(c.completedAt)>=Date.parse(value))return false;}
+    else if(key==='resultGroup'){if(['completed','client_cancelled'].includes(c.outcome))return false;}
+    else if(key==='organizationId'){if((c.admission?.attributionOrganizationId??c.organizationId)!==value)return false;}
     else if(key==='serviceId'||key==='poolId'){if(c.admission?.route?.[key]!==value)return false;}
     else if(c[key as keyof CallLog]!==value)return false;
   }return true;

@@ -37,7 +37,7 @@ export function WorkspacePages({data:d,page,targetId,active=true,isOps,edit,purp
     case 'safety':return <SafetyGuardrail data={d} run={run} active={active}/>;
     case 'agent':return <AgentWorkspace refreshWorkspace={refresh} setPage={setPage}/>;
     case 'monitoring':return <Monitoring data={d} edit={edit} run={run} detail={detail} refreshWorkspace={refresh} active={active}/>;
-    case 'reviews':return <CallExplorer key="reviews" data={d} kind="reviews" reconcile={edit.reconcile} detail={detail} active={active}/>;
+    case 'reviews':return <CallExplorer key="reviews" data={d} kind="reviews" reconcile={edit.reconcile} detail={detail} active={active} targetId={targetId} setPage={setPage}/>;
     case 'usage':return <UsageCockpit data={d} active={active} setPage={setPage} edit={edit}/>;
     case 'leaderboard':return <UsageLeaderboard data={d} active={active} setPage={setPage} edit={edit} targetId={targetId}/>;
     case 'cockpit-light':return <CockpitLightDemo data={d} active={active} setPage={setPage}/>;
@@ -85,7 +85,7 @@ export function WorkspacePages({data:d,page,targetId,active=true,isOps,edit,purp
     case 'online':return <Online data={d} purposeId={purpose.id} onPurpose={setPurpose} refresh={refresh}/>;
     case 'keys':return <KeyManager data={d} isOps={isOps} edit={edit} detail={detail}/>;
     case 'approvals':return <ApprovalCenter data={d} edit={edit} run={run} setPage={setPage} targetId={targetId}/>;
-    case 'calls':return <CallExplorer key="calls" data={d} kind="calls" reconcile={edit.reconcile} detail={detail} active={active}/>;
+    case 'calls':return <CallExplorer key="calls" data={d} kind="calls" reconcile={edit.reconcile} detail={detail} active={active} targetId={targetId} setPage={setPage}/>;
     case 'settings':if(!admin)return <Panel title="设置权限已变化"><p>当前账号已无运营设置权限，请返回首页继续处理自己的任务。</p><button className="primary" onClick={()=>setPage('home')}>返回首页</button></Panel>;return <>
       <Panel title="企业信息与默认模型池" actions={<><button className="ghost" onClick={()=>edit.workspaceName()}>调整企业名称</button><button className="primary" onClick={()=>edit.defaults()}>调整默认池</button></>}><dl className="detail-list"><div><dt>企业名称</dt><dd>{d.settings.name}</dd></div><div><dt>时区</dt><dd>Asia/Shanghai</dd></div><div><dt>个人默认池</dt><dd>{poolName(d.settings.personalDefaultPoolId??'未设置')}</dd></div><div><dt>项目默认池</dt><dd>{poolName(d.settings.projectDefaultPoolId??'未设置')}</dd></div></dl></Panel>
       <Panel title="默认使用保护" actions={<button className="primary" onClick={()=>edit.defaultLimits()}>调整保护</button>}><p>{limitDescription(d.settings.limits)}</p><p className="secondary">默认值用于产品准入保护，不代表已验证的模型容量。变更影响后续新请求；已预占请求按原快照结算。</p></Panel>

@@ -129,7 +129,7 @@ export function CockpitDemo({variant,data,active=true,setPage}:Props&{variant:Co
       <div><dt>本期无调用</dt><dd>{report?`${inactiveCount} 人`:'—'}</dd></div>
       <div><dt>上游故障</dt><dd>{totals?`${totals.upstreamFailures} 次`:'—'}</dd></div>
     </dl>
-    <p className="dc-note">未知用量不计 Token、占比与排名；待核对金额不进已确认费用。</p>
+    <p className="dc-note">Token 只计完整用量；费用只计已确认金额；未知用量与待核对费用单列。</p>
   </section>;
 
   return <div className={`demo-cockpit is-${variant}`}>

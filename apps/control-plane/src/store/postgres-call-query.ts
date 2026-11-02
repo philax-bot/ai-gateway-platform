@@ -17,7 +17,7 @@ export async function queryPostgresCalls(client:PoolClient,input:CallQuery,scope
   const q=normalizeCallQuery(input),values:unknown[]=[],conditions:string[]=[];
   const bind=(value:unknown)=>{values.push(value);return `$${values.length}`;};
   if(scope)conditions.push(`((subject_type='employee' and subject_id=${bind(scope.employeeId)}) or (subject_type='application' and subject_id=any(${bind(scope.applicationIds)}::text[])))`);
-  for(const key of Object.keys(filterColumns) as (keyof typeof filterColumns)[]){const value=q[key];if(value!==undefined)conditions.push(`${filterColumns[key]}${key==='from'?'>=':key==='to'?'<':'='}${bind(value)}`);}
+  for(const key of Object.keys(filterColumns) as (keyof typeof filterColumns)[]){const value=q[key];if(value!==undefined)conditions.push(key==='resultGroup'?"outcome not in ('completed','client_cancelled')":`${filterColumns[key]}${key==='from'?'>=':key==='to'?'<':'='}${bind(value)}`);}
   const where=conditions.length?conditions.join(' and '):'true';
   const count=(condition:string)=>`count(*) filter(where ${condition})`;
   const sum=(column:string,condition:string)=>`coalesce(sum(${column}) filter(where ${condition}),0)`;

@@ -377,6 +377,9 @@ components:
         to: {type: string, format: date-time, description: Exclusive completion time}
         requestId: {type: string}
         subjectId: {type: string}
+        subjectType: {type: string, enum: [employee, application]}
+        organizationId: {type: string}
+        resultGroup: {type: string, enum: [errors], description: Outcomes other than completed and client_cancelled}
         credentialId: {type: string}
         projectId: {type: string}
         modelId: {type: string}

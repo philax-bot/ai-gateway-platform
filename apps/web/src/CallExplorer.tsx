@@ -1,23 +1,29 @@
-import { useEffect,useId,useState,type ReactNode } from 'react';
+import { useEffect,useId,useMemo,useRef,useState,type ReactNode } from 'react';
 import type { CallLog,CallPage,CallQuery,CallRelations,PlatformSnapshot } from '@ai-gateway/contracts';
 import { api } from './client';
 import { date,money,Panel,Status,Table,useNarrow } from './components';
 import { DateField } from './date-field';
+import {readUsageTarget} from './usage-navigation';
 
-type Props={data:PlatformSnapshot;kind:'calls'|'reviews'|'overview';reconcile:(c:CallLog)=>void;detail:(title:string,content:ReactNode)=>void;initialQuery?:CallQuery;active?:boolean};
-const emptyFilters={from:'',to:'',requestId:'',subjectId:'',modelId:'',serviceId:'',poolId:'',projectId:'',credentialId:'',purpose:'',outcome:'',billableState:''};
+type Props={data:PlatformSnapshot;kind:'calls'|'reviews'|'overview';reconcile:(c:CallLog)=>void;detail:(title:string,content:ReactNode)=>void;initialQuery?:CallQuery;active?:boolean;targetId?:string|null;setPage?:(page:string)=>void};
+const emptyFilters={from:'',to:'',requestId:'',subjectId:'',subjectType:'',organizationId:'',resultGroup:'',modelId:'',serviceId:'',poolId:'',projectId:'',credentialId:'',purpose:'',outcome:'',billableState:''};
+function queryFilters(query:CallQuery){const filters={...emptyFilters};for(const key of Object.keys(filters) as (keyof typeof filters)[]){const value=query[key];if(value){if(key==='from'||key==='to'){const at=new Date(value);filters[key]=new Date(at.getTime()-at.getTimezoneOffset()*60000).toISOString().slice(0,16);}else filters[key]=value;}}return filters;}
 const outcomes:Record<string,string>={completed:'完成',upstream_error:'上游错误',timeout:'超时',client_cancelled:'客户端取消',partial:'流式 / 部分异常',rejected_before_upstream:'生成前拒绝'};
 const purposeLabels:Record<string,string>={personal:'个人',project:'项目成员',application:'独立应用'};
-export function CallExplorer({data:d,kind,reconcile,detail,initialQuery,active=true}:Props){
-  const [initial]=useState<CallQuery>(()=>initialQuery??(kind==='reviews'?{billableState:'pending_review',limit:50}:{from:new Date(Date.now()-86400000).toISOString(),limit:50}));
-  const [filters,setFilters]=useState(()=>{const f={...emptyFilters};for(const key of Object.keys(f) as (keyof typeof f)[]){const value=initial[key];if(value){if(key==='from'||key==='to'){const date=new Date(value);f[key]=new Date(date.getTime()-date.getTimezoneOffset()*60000).toISOString().slice(0,16);}else f[key]=value;}}return f;}),[query,setQuery]=useState<CallQuery>(initial);
+export function CallExplorer({data:d,kind,reconcile,detail,initialQuery,active=true,targetId,setPage:navigate}:Props){
+  const navigation=useMemo(()=>readUsageTarget(targetId),[targetId]),lastNavigation=useRef(navigation?.id);
+  const navigationPending=!!navigation&&lastNavigation.current!==navigation.id;
+  const [origin,setOrigin]=useState(navigation);
+  const [initial]=useState<CallQuery>(()=>navigation?.query??initialQuery??(kind==='reviews'?{billableState:'pending_review',limit:50}:{from:new Date(Date.now()-86400000).toISOString(),limit:50}));
+  const [filters,setFilters]=useState(()=>queryFilters(initial)),[query,setQuery]=useState<CallQuery>(initial);
   const [page,setPage]=useState<CallPage|null>(null),[error,setError]=useState(''),[busy,setBusy]=useState(false),[refresh,setRefresh]=useState(0),[previous,setPrevious]=useState<(string|undefined)[]>([]);
   const [advancedOpen,setAdvancedOpen]=useState(()=>Boolean(initial.subjectId||initial.serviceId||initial.poolId||initial.credentialId||initial.outcome||(kind!=='reviews'&&initial.billableState)));
   const [relatedRequest,setRelatedRequest]=useState<string|null>(null);
   const narrow=useNarrow(),filterId=useId(),[filtersOpen,setFiltersOpen]=useState(!narrow);
   useEffect(()=>{setFiltersOpen(!narrow);},[narrow]);
   const admin=d.actor.roles.includes('operator');
-  useEffect(()=>{if(!active)return;let current=true;setBusy(true);setError('');void api<CallPage>('/api/v1/platform/calls/query',query).then(value=>{if(current)setPage(value);}).catch(e=>{if(current){setPage(null);setError(e instanceof Error?e.message:'日志采集失败');}}).finally(()=>{if(current)setBusy(false);});return()=>{current=false;};},[query,d,refresh,active]);
+  useEffect(()=>{if(!navigation||lastNavigation.current===navigation.id)return;lastNavigation.current=navigation.id;const next={...navigation.query,...(kind==='reviews'?{billableState:'pending_review' as const}:{})};setOrigin(navigation);setFilters(queryFilters(next));setPrevious([]);setPage(null);setQuery(next);setAdvancedOpen(true);},[navigation,kind]);
+  useEffect(()=>{if(!active||navigationPending)return;let current=true;setBusy(true);setPage(null);setError('');void api<CallPage>('/api/v1/platform/calls/query',query).then(value=>{if(current)setPage(value);}).catch(e=>{if(current){setPage(null);setError(e instanceof Error?e.message:'日志采集失败');}}).finally(()=>{if(current)setBusy(false);});return()=>{current=false;};},[query,d,refresh,active,navigationPending]);
   const name=(id:string)=>d.members.find(m=>m.id===id)?.name??d.applications.find(a=>a.id===id)?.name??id;
   const model=(id:string)=>d.definitions.find(m=>m.modelId===id)?.name??id;
   async function openRelated(requestId:string){
@@ -52,7 +58,7 @@ export function CallExplorer({data:d,kind,reconcile,detail,initialQuery,active=t
     {c.safety&&<p className="notice">输入规则命中 · {c.safety.action==='block'?'已拦截，未发送给模型、未扣费':'仅记录，按正常调用结算'} · 策略版本 {c.safety.policyVersion} · {c.safety.matches.map(m=>m.ruleId).join('、')}</p>}
     <div className="detail-groups">
       <section className="detail-group"><h3>主体与路由</h3><dl className="detail-list">{[
-        ['主体',name(c.subjectId)],['用途',({personal:'个人',project:'项目成员',application:'独立应用'})[c.purpose]],['模型 / 协议',model(c.modelId)+(c.admission?.protocol?` · ${c.admission.protocol.requested} → ${c.admission.protocol.upstream}（${c.admission.protocol.mode==='native'?'原生透传':'Chat 适配'}）`:' · 协议历史未知')],['项目',d.projects.find(p=>p.id===c.projectId)?.name??c.projectId??'—'],
+        ['主体',name(c.subjectId)],['调用时组织',d.organizations.find(org=>org.id===(c.admission?.attributionOrganizationId??c.organizationId))?.name??'历史归属未知'],['用途',({personal:'个人',project:'项目成员',application:'独立应用'})[c.purpose]],['模型 / 协议',model(c.modelId)+(c.admission?.protocol?` · ${c.admission.protocol.requested} → ${c.admission.protocol.upstream}（${c.admission.protocol.mode==='native'?'原生透传':'Chat 适配'}）`:' · 协议历史未知')],['项目',d.projects.find(p=>p.id===c.projectId)?.name??c.projectId??'—'],
         ['密钥',d.keys.find(k=>k.credentialId===c.credentialId)?.masked??'历史或在线临时身份'],
         ['服务',d.services.find(s=>s.id===c.admission?.route?.serviceId)?.name??c.admission?.route?.serviceId??'未选定 / 历史未知'],
         ['模型池',d.pools.find(p=>p.id===c.admission?.route?.poolId)?.name??c.admission?.route?.poolId??'未选定 / 历史未知'],
@@ -73,7 +79,7 @@ export function CallExplorer({data:d,kind,reconcile,detail,initialQuery,active=t
     <p className="secondary">缓存输入是输入 Token 的子集。用量未知与零用量分别表达；待核对不代表免费。默认不保存和展示正文。</p>
   </>);
   const s=page?.summary,rate=(n:number,denominator:number)=>denominator?`${(100*n/denominator).toFixed(1)}%`:'证据不足';
-  const advancedKeys=['credentialId','outcome',...(kind!=='reviews'?['billableState']:[]),...(admin?['subjectId','serviceId','poolId']:[])] as (keyof typeof emptyFilters)[];
+  const advancedKeys=['credentialId','outcome','organizationId','subjectType','resultGroup',...(kind!=='reviews'?['billableState']:[]),...(admin?['subjectId','serviceId','poolId']:[])] as (keyof typeof emptyFilters)[];
   const advancedCount=advancedKeys.filter(key=>filters[key]).length;
   const activeCount=Object.entries(filters).filter(([key,value])=>value&&!(kind==='reviews'&&key==='billableState')).length;
   const refined=Object.entries(filters).some(([key,value])=>!!value&&key!=='from'&&key!=='to'&&!(kind==='reviews'&&key==='billableState'));
@@ -84,6 +90,7 @@ export function CallExplorer({data:d,kind,reconcile,detail,initialQuery,active=t
       ?<div className="empty-state"><strong>当前没有待核对的调用</strong><p>已结束调用都已核对完成。新的待核对记录会在出现时列在这里，可稍后刷新查看。</p></div>
       :<div className="empty-state"><strong>这段时间还没有调用记录</strong><p>当前查询范围内没有已结束的调用。同事发起调用后会出现在这里；也可以查看全部历史。</p><div className="actions"><button className="ghost" onClick={clearRange}>查看全部历史</button></div></div>;
   return <Panel title={kind==='reviews'?'待核对调用':kind==='overview'?'用量与费用汇总':'调用明细'} actions={<button className="ghost" disabled={busy} onClick={()=>setRefresh(n=>n+1)}>{busy?'正在读取…':'刷新记录'}</button>}>
+    {origin&&navigate&&<div className="notice"><div className="inline-actions"><span>来自{origin.source==='usage'?'用量驾驶舱':'排行榜'} · {origin.label}；查询范围以当前筛选为准。</span><button className="ghost" data-usage-return onClick={()=>navigate(origin.source)}>返回{origin.source==='usage'?'用量驾驶舱':'排行榜'}</button></div></div>}
     {narrow?<details className="disclosure"><summary>统计口径与查询范围</summary>{scope}</details>:scope}
     {narrow&&<div className="filter-summary"><button type="button" className="ghost" aria-expanded={filtersOpen} aria-controls={filterId} onClick={()=>setFiltersOpen(open=>!open)}>{filtersOpen?'收起筛选':'筛选'}{activeCount?` · ${activeCount} 项条件`:''}</button></div>}
     {(!narrow||filtersOpen)&&<form id={filterId} className="call-filters call-filter-form" onSubmit={event=>{event.preventDefault();search();}}>
@@ -97,6 +104,9 @@ export function CallExplorer({data:d,kind,reconcile,detail,initialQuery,active=t
       <details className="filter-more" open={advancedOpen} onToggle={event=>setAdvancedOpen(event.currentTarget.open)}>
         <summary>更多筛选{advancedCount?` · ${advancedCount} 项`:''}</summary>
         <div className="filter-more-grid">
+          <label>组织<select value={filters.organizationId} onChange={e=>field('organizationId',e.target.value)}><option value="">全部</option>{d.organizations.map(org=><option key={org.id} value={org.id}>{org.name}</option>)}</select></label>
+          <label>主体类型<select value={filters.subjectType} onChange={e=>field('subjectType',e.target.value)}><option value="">全部</option><option value="employee">人员</option><option value="application">应用</option></select></label>
+          <label>异常分组<select value={filters.resultGroup} onChange={e=>field('resultGroup',e.target.value)}><option value="">全部调用</option><option value="errors">异常调用（不含客户端取消）</option></select></label>
           {admin&&<><label>主体<select value={filters.subjectId} onChange={e=>field('subjectId',e.target.value)}><option value="">全部</option>{[...d.members,...d.applications].map(m=><option key={m.id} value={m.id}>{m.name}</option>)}</select></label><label>服务<select value={filters.serviceId} onChange={e=>field('serviceId',e.target.value)}><option value="">全部</option>{d.services.map(m=><option key={m.id} value={m.id}>{m.name}</option>)}</select></label><label>模型池<select value={filters.poolId} onChange={e=>field('poolId',e.target.value)}><option value="">全部</option>{d.pools.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></label></>}
           <label>密钥<select value={filters.credentialId} onChange={e=>field('credentialId',e.target.value)}><option value="">全部 / 含在线身份</option>{d.keys.map(k=><option key={k.id} value={k.credentialId}>{k.name} · {k.masked}</option>)}</select></label>
           <label>结果<select value={filters.outcome} onChange={e=>field('outcome',e.target.value)}><option value="">全部</option>{Object.entries(outcomes).map(([v,label])=><option key={v} value={v}>{label}</option>)}</select></label>

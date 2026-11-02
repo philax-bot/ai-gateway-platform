@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { PlatformSnapshot, UsageBucket } from '@ai-gateway/contracts';
+import type { CallQuery, PlatformSnapshot, UsageBucket } from '@ai-gateway/contracts';
+import {usageTarget} from './usage-navigation';
 import { Panel, Table, date } from './components';
 import { ShareBar } from './components-charts';
 import type { makeEditors } from './editors';
@@ -32,6 +33,8 @@ export function UsageLeaderboard({data,active=true,setPage,edit,targetId}:Props)
   },[report,dimension,metric,data.members,data.applications]);
 
   const label=(row:UsageBucket)=>dimension==='people'?names.subject(row.key):dimension==='projects'?names.project(row.key):dimension==='applications'?(names.application(row.key)??'未识别应用'):names.organization(row.key);
+  const rowQuery=(row:UsageBucket):CallQuery=>dimension==='people'?{subjectId:row.key,subjectType:'employee'}:dimension==='applications'?{subjectId:row.key,subjectType:'application'}:dimension==='projects'?{projectId:row.key}:{organizationId:row.key};
+  const drill=(row:UsageBucket,extra:CallQuery={},reviews=false)=>{if(report&&operator)setPage(reviews?'reviews':'calls',usageTarget('leaderboard',label(row),report,{...query.appliedQuery,...rowQuery(row),...extra}));};
   const action=(row:UsageBucket)=>{
     if(!operator)return null;
     if(dimension==='people'){const member=memberOf(row.key);return member?<button className="link-button" onClick={()=>edit.grantPlan(undefined,member.id)}>调整额度</button>:'—';}
@@ -63,20 +66,20 @@ export function UsageLeaderboard({data,active=true,setPage,edit,targetId}:Props)
     </div>
     <Panel title={`${dimensions.find(([value])=>value===dimension)?.[1]}用量排名`} actions={<div className="section-tabs cockpit-seg" aria-label="排名口径">{usageMetricSwitch.map(([value,text])=><button key={value} type="button" className={metric===value?'selected':''} aria-pressed={metric===value} onClick={()=>setMetric(value)}>{text}</button>)}</div>}>
       <p className="secondary">{operator
-        ? `按${usageMetricLabels[metric]}降序，排名只统计已识别身份的已结束调用；未识别身份、未知用量与待核对金额在驾驶舱的数据质量里单列，不参与排序。`
+        ? `按${usageMetricLabels[metric]}降序，排名只含已识别身份；费用只计已确认金额，Token 只计完整用量。未识别身份与未知用量在驾驶舱的数据质量里单列。`
         : `只包含你管理项目下的项目用途调用与你本人的调用；其他成员的个人用途调用不进入这里。按${usageMetricLabels[metric]}降序。`}</p>
       {operator&&dimension==='people'&&<p className="secondary">「调整额度」进入现有开通 / 追加流程，名单与金额仍需在预览里确认。</p>}
       <Table headers={headers} empty={<div className="empty-state"><strong>这个维度没有数据</strong><p>{emptyCopy[dimension]}</p><div className="actions"><button className="ghost" onClick={query.clear}>清除筛选</button></div></div>}
         rows={rows.map((row,index)=>{
           const member=dimension==='people'?memberOf(row.key):undefined;
           const cells=[String(index+1).padStart(2,'0'),
-            <>{label(row)}{dimension==='people'&&member?<small className="cell-help">{member.directoryId} · {names.organization(member.organizationId)}</small>:row.key?null:<small className="cell-help">未归属</small>}</>,
+            <>{operator&&row.key?<button className="link-button" data-usage-drill={dimension} onClick={()=>drill(row)}>{label(row)}</button>:label(row)}{dimension==='people'&&member?<small className="cell-help">{member.directoryId} · {names.organization(member.organizationId)}</small>:row.key?null:<small className="cell-help">未归属</small>}</>,
             row.requests.toLocaleString('zh-CN'),
             `${row.inputTokens.toLocaleString('zh-CN')} / ${row.outputTokens.toLocaleString('zh-CN')}`,
             <>{money(row.confirmedAmount)}{row.pendingReview>0&&<small className="cell-help">待核对 {row.pendingReview} 条</small>}</>,
             <ShareBar ratio={totals?.confirmedAmount?row.confirmedAmount/totals.confirmedAmount:0} label={percent(row.confirmedAmount,totals?.confirmedAmount||0)}/>,
-            <>{percent(row.errors,row.requests)}{row.forwarded>0&&<small className="cell-help">上游故障 {percent(row.upstreamFailures,row.forwarded)}</small>}</>,
-            pendingText(row.pendingReview,row.pendingAmount),
+            <>{operator&&row.key?<button className="link-button" data-usage-drill="errors" disabled={!row.errors} onClick={()=>drill(row,{resultGroup:'errors'})}>{percent(row.errors,row.requests)}</button>:percent(row.errors,row.requests)}{row.forwarded>0&&<small className="cell-help">上游故障 {percent(row.upstreamFailures,row.forwarded)}</small>}</>,
+            operator&&row.key?<button className="link-button" data-usage-drill="pending" disabled={!row.pendingReview} onClick={()=>drill(row,{billableState:'pending_review'},true)}>{pendingText(row.pendingReview,row.pendingAmount)}</button>:pendingText(row.pendingReview,row.pendingAmount),
             row.lastActiveAt?date(row.lastActiveAt):'—'];
           return operator?[...cells,action(row)]:cells;
         })}/>

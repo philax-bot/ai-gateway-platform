@@ -1,0 +1,10 @@
+{
+  "assertions": 19,
+  "reconciledRequestId": "business-demo-v1-20bea9e2-970a-4e7d-98eb-12ca16e81692-2026-11-02-r2-2-4",
+  "date": "2026-11-02",
+  "entry": "http://localhost:5176",
+  "ui": "beacon",
+  "modelInference": false,
+  "mobileOverflow": false,
+  "uncaughtBrowserExceptions": 0
+}

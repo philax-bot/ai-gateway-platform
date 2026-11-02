@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import type { PlatformSnapshot } from '@ai-gateway/contracts';
+import type { CallQuery, PlatformSnapshot } from '@ai-gateway/contracts';
+import {usageTarget} from './usage-navigation';
 import { ChartEmpty, DonutChart, GaugeChart, ShareBar, TrendChart } from './components-charts';
 import { date, Panel, Table } from './components';
 import type { makeEditors } from './editors';
@@ -18,6 +19,7 @@ export function UsageCockpit({data,active=true,setPage,edit}:Props){
   const managesProjects=data.projects.some(project=>project.managerId===data.actor.id&&project.status==='active');
 
   const report=query.report,totals=report?.totals;
+  const drill=(label:string,extra:CallQuery={},reviews=false)=>{if(report&&operator)setPage(reviews?'reviews':'calls',usageTarget('usage',label,report,{...query.appliedQuery,...extra}));};
   const memberOf=(id:string)=>data.members.find(member=>member.id===id);
   const applicationOf=(id:string)=>data.applications.find(application=>application.id===id);
   const projectOf=(id:string)=>data.projects.find(project=>project.id===id);
@@ -65,7 +67,7 @@ export function UsageCockpit({data,active=true,setPage,edit}:Props){
       <div><dt>采集状态</dt><dd>{query.error?'读取失败，当前数字不可用':query.busy&&!report?'正在读取…':'已采集'}</dd></div>
       <div><dt>最近读取</dt><dd>{report?date(report.collectedAt):'—'}</dd></div>
       <div><dt>用量未知记录</dt><dd>{totals?`${totals.unknownUsage} 条`:'—'}</dd></div>
-      <div><dt>待核对记录</dt><dd>{totals?pendingText(totals.pendingReview,totals.pendingAmount):'—'}</dd></div>
+      <div><dt>待核对记录</dt><dd>{totals?<button className="link-button" disabled={!totals.pendingReview} onClick={()=>drill('当前窗口待核对记录',{billableState:'pending_review'},true)}>{pendingText(totals.pendingReview,totals.pendingAmount)}</button>:'—'}</dd></div>
       <div><dt>未识别身份</dt><dd>{report?`${unknownRequests} 次请求 / ${unknownSubjects.length} 个主体`:'—'}</dd></div>
       <div><dt>本期无调用人员</dt><dd>{report?`${inactiveCount} 人`:'—'}</dd></div>
     </dl>
@@ -75,7 +77,7 @@ export function UsageCockpit({data,active=true,setPage,edit}:Props){
   const emptyPage=<Panel title="这段时间没有调用">
     <div className="empty-state">
       <strong>当前筛选下没有已结束的调用</strong>
-      <p>窗口内没有符合组织、模型或用途条件的已结束调用。可以放宽时间范围或清除筛选后重新查询；在途调用与未识别身份的调用不计入这里。</p>
+      <p>窗口内没有符合组织、模型或用途条件的已结束调用。可以放宽时间范围或清除筛选后重新查询；在途调用不计入这里。</p>
       <div className="actions"><button className="ghost" onClick={query.clear}>清除筛选</button><button className="ghost" onClick={()=>setPage('calls')}>查看全部调用记录</button></div>
     </div>
   </Panel>;
@@ -85,9 +87,9 @@ export function UsageCockpit({data,active=true,setPage,edit}:Props){
     :<>
       <div className="metric-grid">
         <article className="metric"><span>活跃人员</span><strong>{activeCount}<small className="metric-unit">/ {entitled.size} 已开通</small></strong><small>当前有效开通人员中有调用的人数</small></article>
-        <article className="metric"><span>已结束请求</span><strong>{totals?totals.requests.toLocaleString('zh-CN'):'未知'}</strong><small>人均 {totals&&totals.activePeople?Math.round(totals.requests/totals.activePeople):'—'} 次 · 异常 {totals?.errors??0} 次</small></article>
+        <article className="metric"><span>已结束请求</span><strong><button className="link-button" data-usage-drill="all" onClick={()=>drill('当前窗口全部调用')}>{totals?totals.requests.toLocaleString('zh-CN'):'未知'}</button></strong><small>人均 {totals&&totals.activePeople?Math.round(totals.requests/totals.activePeople):'—'} 次 · <button className="link-button" data-usage-drill="errors" disabled={!totals?.errors} onClick={()=>drill('当前窗口异常调用',{resultGroup:'errors'})}>异常 {totals?.errors??0} 次</button></small></article>
         <article className="metric"><span>输入 / 输出 Token</span><strong>{totals?`${(totals.inputTokens/1000000).toFixed(2)}M / ${(totals.outputTokens/1000000).toFixed(2)}M`:'未知'}</strong><small>缓存输入 {(totals?totals.cachedInputTokens/1000000:0).toFixed(2)}M · 未知用量 {totals?.unknownUsage??0} 条未计入</small></article>
-        <article className={`metric ${(totals?.pendingReview??0)>0?'is-alert':''}`}><span>待核对费用</span><strong>{!totals?'未知':totals.pendingReview===0?money(0):totals.pendingAmount>0?money(totals.pendingAmount):'金额待定'}</strong><small>{totals?.pendingReview??0} 条记录 · 待核对不代表免费</small></article>
+        <article className={`metric ${(totals?.pendingReview??0)>0?'is-alert':''}`}><span>待核对费用</span><strong><button className="link-button" data-usage-drill="pending" disabled={!totals?.pendingReview} onClick={()=>drill('当前窗口待核对记录',{billableState:'pending_review'},true)}>{!totals?'未知':totals.pendingReview===0?money(0):totals.pendingAmount>0?money(totals.pendingAmount):'金额待定'}</button></strong><small>{totals?.pendingReview??0} 条记录 · 待核对不代表免费</small></article>
       </div>
 
       <div className="cockpit-grid">
@@ -107,7 +109,7 @@ export function UsageCockpit({data,active=true,setPage,edit}:Props){
             const member=memberOf(row.key);
             return <li key={row.key} className={`cockpit-rank-row ${index<3?'is-top':''}`}>
               <span className="cockpit-rank-no">{String(index+1).padStart(2,'0')}</span>
-              <span className="cockpit-rank-name"><b>{names.subject(row.key)}</b><small>{member?names.organization(member.organizationId):'应用 / 未识别'}</small></span>
+              <span className="cockpit-rank-name"><b><button className="link-button" data-usage-drill="people" onClick={()=>drill(names.subject(row.key),{subjectId:row.key,subjectType:'employee'})}>{names.subject(row.key)}</button></b><small>{member?names.organization(member.organizationId):'应用 / 未识别'}</small></span>
               <span className="cockpit-rank-track"><ShareBar ratio={metricValue(row,metric)/maxValue} label={metricText(row,metric)}/></span>
               <span className="cockpit-rank-share">{metricTotal?percent(metricValue(row,metric),metricTotal):'—'}</span>
               <span className="cockpit-rank-action">{member?<button className="link-button" aria-label={`调整 ${member.name} 的额度`} onClick={()=>edit.grantPlan(undefined,member.id)}>额度</button>:null}</span>
@@ -129,7 +131,7 @@ export function UsageCockpit({data,active=true,setPage,edit}:Props){
         <div className="cockpit-area-org"><Panel title="归属排名" actions={<button className="link-button" onClick={()=>setPage('leaderboard',dimensionPage[dimension])}>完整排行榜</button>}>
           <div className="section-tabs cockpit-seg" aria-label="归属维度" role="tablist">{(['organizations','projects','applications'] as Dimension[]).map(value=><button key={value} type="button" role="tab" aria-selected={dimension===value} className={dimension===value?'selected':''} onClick={()=>setDimension(value)}>{dimensionLabels[value]}</button>)}</div>
           {dimensionRows.slice(0,5).map(row=><div className="cockpit-dim-row" key={row.key||'none'}>
-            <span>{dimensionName(row.key)}</span>
+            <span>{row.key?<button className="link-button" data-usage-drill={dimension} onClick={()=>drill(dimensionName(row.key),dimension==='projects'?{projectId:row.key}:dimension==='applications'?{subjectId:row.key,subjectType:'application'}:{organizationId:row.key})}>{dimensionName(row.key)}</button>:dimensionName(row.key)}</span>
             <ShareBar ratio={row.confirmedAmount/dimensionTotal} label={money(row.confirmedAmount)}/>
             <b>{percent(row.confirmedAmount,totals?.confirmedAmount||0)}</b>
             <span className="cockpit-dim-action">{dimension==='projects'&&projectOf(row.key)?<button className="link-button" onClick={()=>edit.fund('project',projectOf(row.key)!)}>额度</button>:dimension==='applications'&&applicationOf(row.key)?<button className="link-button" onClick={()=>edit.fund('application',applicationOf(row.key)!)}>额度</button>:dimension==='organizations'?<button className="link-button" onClick={()=>setPage('members')}>成员</button>:null}</span>
@@ -157,6 +159,6 @@ export function UsageCockpit({data,active=true,setPage,edit}:Props){
   return <div className="usage-cockpit">
     <UsageFilterBar data={data} state={query} names={names}/>
     {report&&!hasData?emptyPage:cockpit}
-    <p className="secondary">窗口内已结束调用；在途、未识别密钥与控制面未收到的请求不在分母内。未知用量不计入 Token 与占比，待核对金额不计入已确认费用，导出 CSV 时留空而不是写 0。完整表格在「排行榜」。</p>
+    <p className="secondary">窗口内已结束调用；在途、未识别密钥与控制面未收到的请求不在分母内。Token 只计完整用量，费用只计已确认金额；导出 CSV 时待核对的未知金额留空。完整表格在「排行榜」。</p>
   </div>;
 }

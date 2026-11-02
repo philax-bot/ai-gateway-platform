@@ -11,7 +11,7 @@ export const legacyAdmission=():AdmissionSnapshot=>({kind:'legacy_simulation',ro
 export function publicLogAdmission(admission:AdmissionSnapshot|null|undefined){
   if(!admission)return null;
   const route=admission.route;
-  return {...(admission.protocol?{protocol:admission.protocol}:{}),kind:admission.kind,price:admission.price,reservedAmount:admission.reservedAmount,route:route?{serviceId:route.serviceId,poolId:route.poolId,definitionId:route.definitionId,upstreamModel:route.upstreamModel}:null};
+  return {...(admission.attributionOrganizationId?{attributionOrganizationId:admission.attributionOrganizationId}:{}),...(admission.protocol?{protocol:admission.protocol}:{}),kind:admission.kind,price:admission.price,reservedAmount:admission.reservedAmount,route:route?{serviceId:route.serviceId,poolId:route.poolId,definitionId:route.definitionId,upstreamModel:route.upstreamModel}:null};
 }
 export interface BatchScope {entitlementId?:string|null;projectId:string|null;purpose:string;sourceId:string}
 type AdmissionResult={admission:AdmissionSnapshot;reason?:never;requestLimits?:never}|{admission?:never;reason:ReasonCode;requestLimits?:RequestLimitDiagnostic};
@@ -107,5 +107,6 @@ export function admissionForBatch(state:AdmissionWorkspace|undefined,input:Autho
   const reservedAmount=costForUsage(reservePrice,estimatedInputTokens,maxOutputTokens,0);
   const requested=input.modelProtocol??'chat';if(!['chat','responses','messages'].includes(requested))throw new BadRequestException('unsupported model protocol');
   const native=requested==='chat'||service.protocolCapabilities?.configVersion===service.configVersion&&service.protocolCapabilities.mappings[definition.id]?.[requested]?.status==='supported';
-  return {admission:{...(input.modelProtocol?{protocol:{requested,upstream:native?requested:'chat',mode:native?'native' as const:'adapted' as const}}:{}),kind:'configured',route:{serviceId:service.id,poolId:pool.id,definitionId:definition.id,baseUrl:service.baseUrl,protocolPaths:service.protocolPaths,protocols:service.protocolCapabilities?.configVersion===service.configVersion?service.protocolCapabilities.mappings[definition.id]:undefined,upstreamModel:mapping.upstreamModel,credentialRef:service.credentialRef,maxOutputTokens},price,reservedAmount,estimatedTokens:estimatedInputTokens+maxOutputTokens,scopes}};
+  const attributionOrganizationId=input.identity.subjectType==='application'?state.applications.find(app=>app.id===input.identity.subjectId)?.organizationId:state.members.find(member=>member.id===input.identity.subjectId)?.organizationId;
+  return {admission:{attributionOrganizationId,...(input.modelProtocol?{protocol:{requested,upstream:native?requested:'chat',mode:native?'native' as const:'adapted' as const}}:{}),kind:'configured',route:{serviceId:service.id,poolId:pool.id,definitionId:definition.id,baseUrl:service.baseUrl,protocolPaths:service.protocolPaths,protocols:service.protocolCapabilities?.configVersion===service.configVersion?service.protocolCapabilities.mappings[definition.id]:undefined,upstreamModel:mapping.upstreamModel,credentialRef:service.credentialRef,maxOutputTokens},price,reservedAmount,estimatedTokens:estimatedInputTokens+maxOutputTokens,scopes}};
 }

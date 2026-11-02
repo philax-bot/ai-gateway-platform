@@ -1,4 +1,7 @@
 import assert from 'node:assert/strict';
+import {connectCdp} from './lib/browser-cdp.mjs';
+import {prepareBusinessDemo} from './lib/business-demo.mjs';
+import {rehearseBusinessDemo} from './lib/demo-rehearsal.mjs';
 import { spawn } from 'node:child_process';
 import { createServer } from 'node:net';
 import { randomUUID } from 'node:crypto';
@@ -83,42 +86,6 @@ async function stopAll() {
 }
 
 /* ---------------- minimal CDP client ---------------- */
-async function connectCdp(webSocketDebuggerUrl) {
-  const socket = new WebSocket(webSocketDebuggerUrl);
-  await new Promise((resolve, reject) => { socket.addEventListener('open', resolve, { once: true }); socket.addEventListener('error', reject, { once: true }); });
-  let sequence = 0;
-  const pending = new Map();
-  const runtimeErrors = [];
-  socket.addEventListener('message', event => {
-    let message;
-    try { message = JSON.parse(event.data); } catch { return; }
-    if (message.id && pending.has(message.id)) {
-      const { resolve: done, reject: fail } = pending.get(message.id);
-      pending.delete(message.id);
-      if (message.error) fail(new Error(`${message.error.message}${message.error.data ? `: ${message.error.data}` : ''}`));
-      else done(message.result);
-    } else if (message.method === 'Runtime.exceptionThrown') {
-      runtimeErrors.push(message.params.exceptionDetails?.exception?.description ?? message.params.exceptionDetails?.text ?? 'runtime exception');
-    }
-  });
-  return {
-    runtimeErrors,
-    send(method, params = {}) {
-      const id = ++sequence;
-      return new Promise((resolve, reject) => {
-        pending.set(id, { resolve, reject });
-        socket.send(JSON.stringify({ id, method, params }));
-      });
-    },
-    async evaluate(expression) {
-      const result = await this.send('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true, userGesture: true });
-      if (result.exceptionDetails) throw new Error(result.exceptionDetails.exception?.description ?? result.exceptionDetails.text ?? 'evaluation failed');
-      return result.result.value;
-    },
-    close() { socket.close(); return Promise.resolve(); },
-  };
-}
-
 async function waitFor(expression, timeout = 10000) {
   const deadline = Date.now() + timeout;
   while (Date.now() < deadline) {
@@ -529,6 +496,13 @@ try {
   await screenshot('calls-mobile-390.png');
 
   check(cdp.runtimeErrors.length === 0, `no uncaught browser exceptions (${cdp.runtimeErrors.join(' | ')})`);
+  if(process.argv.includes('--demo')){
+    const options={controlPlaneUrl:cp,gatewayUrl:gateway,modelUrl:model,workspaceId:schema??randomUUID(),createdAt:new Date().toISOString(),operatorLogin:'web-ops',operatorPassword:seeded.adminPassword};
+    const demo=await prepareBusinessDemo(options);
+    await setViewport(1440,1000);
+    await rehearseBusinessDemo({evaluate,waitFor,clickNav,clickExact,setInput,screenshot,login,navigate:url=>cdp.send('Page.navigate',{url}),controlPlaneUrl:cp,webUrl:web,manifest:demo});
+    check(cdp.runtimeErrors.length===0,'demo rehearsal has no uncaught browser exceptions');
+  }
   console.log(`PASS ${assertions.length} browser assertions (${postgres?'isolated PostgreSQL':'memory'}; real API/CSV plus fault fixtures)`);
   console.log(`Screenshots: ${screenshotDir}`);
 } catch (error) {
