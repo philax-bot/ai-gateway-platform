@@ -44,7 +44,9 @@ export class PostgresStore extends DemoStore implements OnModuleDestroy {
     try { return await work(client); } finally { client.release(); }
   }
   private readonly pool = new Pool({ connectionString: process.env.DATABASE_URL, max: 10,
-    options: databaseSchema(process.env)?`-c search_path=${databaseSchema(process.env)}`:process.env.PGOPTIONS, connectionTimeoutMillis: 5000 });
+    options: ['-c lock_timeout=5000 -c statement_timeout=30000 -c idle_in_transaction_session_timeout=30000',databaseSchema(process.env)?`-c search_path=${databaseSchema(process.env)}`:process.env.PGOPTIONS].filter(Boolean).join(' '),
+    application_name:process.env.PGAPPNAME??`atlas-control:${databaseSchema(process.env)??'default'}`,
+    keepAlive:true,keepAliveInitialDelayMillis:10000,connectionTimeoutMillis: 5000 });
   private readonly redis = process.env.REDIS_URL
     ? new Redis(process.env.REDIS_URL, { lazyConnect: true, maxRetriesPerRequest: 1, retryStrategy: () => null })
     : null;

@@ -11,9 +11,11 @@ export class MaintenanceService implements OnApplicationBootstrap,OnModuleDestro
   private active:Promise<{issued:number;expired:number}>|null=null;
   private readonly state:{lastRunAt:string|null;lastSuccessAt:string|null;error:string|null}={lastRunAt:null,lastSuccessAt:null,error:null};
   constructor(private readonly repository:WorkspaceRepository,private readonly store:DemoStore,@Optional() private readonly monitoring?:MonitoringService){}
-  async onApplicationBootstrap(){
+  onApplicationBootstrap(){
     if(process.env.MAINTENANCE_DISABLED==='true')return;
-    await this.run().catch(()=>undefined);
+    // Background collection/periodic work must not hold Nest's listen barrier.
+    // Failures remain visible through status(), and run() still serializes ticks.
+    void this.run().catch(()=>undefined);
     const configured=Number(process.env.MAINTENANCE_INTERVAL_MS??60000),interval=Number.isFinite(configured)?Math.max(1000,configured):60000;
     this.timer=setInterval(()=>{void this.run().catch(()=>undefined);},interval);this.timer.unref();
   }
