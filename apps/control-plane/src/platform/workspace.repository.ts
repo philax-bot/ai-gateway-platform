@@ -133,7 +133,7 @@ export class WorkspaceRepository {
       batches: async () => {
         if (!client) return [...this.store.quotaBatches.values()].map(b => ({...b,entitlementId:b.entitlementId??null,sourceBatchId:b.sourceBatchId??null}));
         const result = await client.query('select * from quota_batches order by expires_at,id');
-        return result.rows.map(r => ({id:r.id,sourceType:r.source_type,sourceId:r.source_id,organizationId:r.organization_id,projectId:r.project_id,totalAmount:Number(r.total_amount),availableAmount:Number(r.available_amount),modelIds:r.model_ids,expiresAt:r.expires_at.toISOString(),purpose:r.purpose,entitlementId:r.entitlement_id,sourceBatchId:r.source_batch_id,closedAt:r.closed_at?.toISOString()??null,closedAmount:Number(r.closed_amount)}));
+        return result.rows.map(r => ({id:r.id,accounting:r.accounting,sourceType:r.source_type,sourceId:r.source_id,organizationId:r.organization_id,projectId:r.project_id,totalAmount:Number(r.total_amount),availableAmount:Number(r.available_amount),modelIds:r.model_ids,expiresAt:r.expires_at.toISOString(),purpose:r.purpose,entitlementId:r.entitlement_id,sourceBatchId:r.source_batch_id,closedAt:r.closed_at?.toISOString()??null,closedAmount:Number(r.closed_amount)}));
       },
       grant: async batch => {
         writable();
@@ -141,8 +141,8 @@ export class WorkspaceRepository {
           if (this.store.quotaBatches.has(batch.id)) throw new ConflictException('quota batch already exists');
           this.store.quotaBatches.set(batch.id, structuredClone(batch)); return;
         }
-        await client.query(`insert into quota_batches(id,source_type,source_id,organization_id,project_id,total_amount,available_amount,model_ids,expires_at,purpose,entitlement_id,source_batch_id)
-          values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,[batch.id,batch.sourceType,batch.sourceId,batch.organizationId,batch.projectId,batch.totalAmount,batch.availableAmount,JSON.stringify(batch.modelIds),batch.expiresAt,batch.purpose,batch.entitlementId,batch.sourceBatchId]);
+        await client.query(`insert into quota_batches(id,source_type,source_id,organization_id,project_id,total_amount,available_amount,model_ids,expires_at,purpose,entitlement_id,source_batch_id,accounting)
+          values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,[batch.id,batch.sourceType,batch.sourceId,batch.organizationId,batch.projectId,batch.totalAmount,batch.availableAmount,JSON.stringify(batch.modelIds),batch.expiresAt,batch.purpose,batch.entitlementId,batch.sourceBatchId,batch.accounting===true]);
       },
       updateBatchModels: async (id, modelIds) => {
         writable();

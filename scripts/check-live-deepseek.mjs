@@ -53,7 +53,7 @@ try{
       if(request.headers.authorization!==`Bearer ${key.secret}`){response.writeHead(401);response.end();return;}
       if(!(request.method==='GET'&&request.url==='/v1/models')&&!(request.method==='POST'&&request.url==='/v1/chat/completions')){response.writeHead(404);response.end();return;}
       let body;if(request.method==='POST')body=await readJson(request);
-      if(body){const max=body.max_completion_tokens??body.max_tokens??2048,upper=(estimateChatInput(body)*Math.max(mapping.inputPrice,mapping.cachedInputPrice)+max*mapping.outputPrice)/1e6;
+      if(body){const max=body.max_completion_tokens??body.max_tokens??2048,upper=(Math.max(estimateChatInput(body),Buffer.byteLength(JSON.stringify(body)))*Math.max(mapping.inputPrice,mapping.cachedInputPrice)+max*mapping.outputPrice)/1e6;
         if(!Number.isSafeInteger(max)||max<1||max>2048||!Number.isFinite(upper)||upper<0){response.writeHead(400);response.end();return;}
         if(report.budget.attempts>=report.budget.maxRequests||report.budget.estimatedUpperBound+upper>report.budget.maxEstimatedAmount){response.writeHead(429,{'content-type':'application/json'});response.end('{"error":{"type":"local_validation_budget_exceeded"}}');return;}
         report.budget.attempts++;report.budget.estimatedUpperBound+=upper;

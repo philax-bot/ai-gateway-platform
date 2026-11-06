@@ -3,7 +3,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { createHash, randomUUID, timingSafeEqual } from 'node:crypto';
 import { isAbsolute,resolve } from 'node:path';
 import type { AuthorizeRequest, AuthorizeResponse, SettlementRequest, SettlementResponse } from '@ai-gateway/contracts';
-import { chatCompletionsUrl,estimateChatInput,extractUpstreamUsage,isRequestReference,readUpstreamRequestId,validateRuntimeConfig } from '@ai-gateway/contracts';
+import { chatCompletionsUrl,estimateProtocolInput,extractUpstreamUsage,isRequestReference,readUpstreamRequestId,validateRuntimeConfig } from '@ai-gateway/contracts';
 import { SettlementJournal } from './journal.js';
 import { definitelyNotSent, shouldRetryConnect } from './connection-failure.js';
 import { adaptUpstreamChatRequest } from './upstream-compat.js';
@@ -11,6 +11,7 @@ import { gatewayTimeouts, UpstreamDeadline } from './upstream-timeout.js';
 import {normalizeProtocolRequest,protocolError,ProtocolInputError,type PublicProtocol} from './protocol-input.js';
 import {ProtocolOutput} from './protocol-output.js';
 import {NativeProtocolOutput} from './protocol-native.js';
+import {validateChatContent} from './chat-content.js';
 import {protocolUrl,extractProtocolUsage} from '@ai-gateway/contracts';
 
 const runtimeMode=validateRuntimeConfig(process.env,'gateway');
@@ -41,7 +42,7 @@ function sendJson(response: ServerResponse, status: number, value: unknown, orig
 }
 async function readJson(request: IncomingMessage): Promise<Record<string, unknown>> {
   const chunks: Buffer[] = []; let size=0;
-  for await (const chunk of request) { size+=chunk.length; if(size>1048576) throw new Error('request body exceeds 1 MiB'); chunks.push(Buffer.from(chunk)); }
+  for await (const chunk of request) { size+=chunk.length; if(size>20*1048576) throw new Error('request body exceeds 20 MiB'); chunks.push(Buffer.from(chunk)); }
   const value: unknown=JSON.parse(Buffer.concat(chunks).toString('utf8')||'{}');
   if (!value || typeof value!=='object' || Array.isArray(value)) throw new Error('body must be a JSON object');
   return value as Record<string, unknown>;
@@ -112,8 +113,8 @@ async function handleCompletions(request: IncomingMessage, response: ServerRespo
     reply(400,{error:{type:'invalid_request_error',message:'model and messages are required'}});return;
   }
   const output=protocol==='chat'?null:new ProtocolOutput(protocol,body.model);
-  if(body.messages.some(message=>!message||typeof message!=='object'||Array.isArray(message)||('content'in message&&message.content!==null&&typeof message.content!=='string'&&!(Array.isArray(message.content)&&message.content.every((part:unknown)=>part&&typeof part==='object'&&!Array.isArray(part)&&'type'in part&&part.type==='text'&&'text'in part&&typeof part.text==='string'))))){
-    reply(400,{error:{type:'unsupported_content',message:'this release accepts text messages and tool calls; image/audio content requires a separate adapter'}});return;
+  try { validateChatContent(body); } catch(error) {
+    reply(400,{error:{type:error instanceof ProtocolInputError?error.code:'invalid_request_error',message:error instanceof Error?error.message:'invalid content'}});return;
   }
   const requestedOutput=body.max_completion_tokens??body.max_tokens;
   if(requestedOutput!==undefined&&(typeof requestedOutput!=='number'||!Number.isSafeInteger(requestedOutput)||requestedOutput<1)){
@@ -140,7 +141,7 @@ async function handleCompletions(request: IncomingMessage, response: ServerRespo
       guardrail:assessment,
       ...(protocol==='chat'?{}:{modelProtocol:protocol}),
       requestId,idempotencyKey,admissionAttemptId,identity:credential.identity,purpose:credential.purpose,modelId:body.model,mode:'chat',
-      estimatedInputTokens:protocol==='chat'?estimateChatInput(body):Math.max(estimateChatInput(body),Buffer.byteLength(JSON.stringify(originalBody))),expectedPriceVersion:typeof request.headers['x-price-version']==='string'?request.headers['x-price-version']:undefined,
+      estimatedInputTokens:estimateProtocolInput(originalBody,protocol),expectedPriceVersion:typeof request.headers['x-price-version']==='string'?request.headers['x-price-version']:undefined,
       maxOutputTokens:requestedOutput as number|undefined,requestFingerprint:createHash('sha256').update(protocol==='chat'?JSON.stringify(body):protocol+':'+JSON.stringify(originalBody)).digest('hex'),policyVersion:'policy-local-1',
       retryOfRequestId,
   };

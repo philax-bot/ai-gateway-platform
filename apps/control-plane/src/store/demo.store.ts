@@ -22,7 +22,7 @@ import type {
 import { aggregateUsage } from './call-analytics';
 import type { ControlPlaneStore, DemoCredential, QuotaSnapshot, StartVerificationInput, VerificationPageQuery } from './control-plane.store';
 import { authorizationFingerprint, checkSettlementScope, reconciliationCalculation, RESERVATION_AMOUNT, retryLinkAllowed, sameIdentity, settlementAmount, type RetryTarget } from './accounting';
-import { admissionForBatch, admissionDenialMessage, legacyAdmission, publicLogAdmission } from './admission';
+import { admissionOptionsForBatch, admissionDenialMessage, legacyAdmission, publicLogAdmission } from './admission';
 import { businessDenial } from '../platform/domain';
 import {runtimeMode} from '@ai-gateway/contracts';
 import { queryMemoryCalls, callVisible, type CallScope } from './call-query';
@@ -37,6 +37,7 @@ export interface CredentialRecord {
 }
 
 export interface QuotaBatch {
+  accounting?:boolean;
   closedAt?:string|null;closedAmount?:number;
   entitlementId?: string | null;
   sourceBatchId?: string | null;
@@ -214,6 +215,7 @@ export class DemoStore implements ControlPlaneStore {
         && item.organizationId === input.identity.organizationId
         && item.projectId === (input.identity.projectId ?? null)
         && item.modelIds.includes(input.modelId)
+        && (input.purpose!=='application'||!!item.accounting===(workspace?.applications.find(a=>a.id===input.identity.subjectId)?.billingMode==='accounting'))
         && !item.closedAt && new Date(item.expiresAt).getTime() > Date.now(),
     ).sort((a, b) => a.expiresAt.localeCompare(b.expiresAt) || a.id.localeCompare(b.id));
     let batch:QuotaBatch|undefined;
@@ -221,28 +223,28 @@ export class DemoStore implements ControlPlaneStore {
     let eligible=0;
     let candidateReason:AuthorizeResponse['reasonCode']='no_quota';
     let candidateLimits:AuthorizeResponse['requestLimits'];
-    for(const candidate of batches){
-      const quote=admissionForBatch(workspace,input,candidate);
-      if(quote.reason){candidateReason=quote.reason;candidateLimits=quote.requestLimits;continue;}
-      eligible++;
-      if(candidate.availableAmount>=quote.admission.reservedAmount){batch=candidate;admission=quote.admission;break;}
-    }
-    if (!batch) {
-      response.reasonCode = eligible?'quota_insufficient':batches.length?candidateReason:'no_quota';
-      if(response.reasonCode==='request_limit_exceeded')response.requestLimits=candidateLimits;
-      response.reasonMessage = admissionDenialMessage(response.reasonCode,response.requestLimits);
-      this.authorizationResponsesByRequest.set(input.requestId, response);
-      return response;
-    }
     const windowStart=Math.floor(Date.now()/60000)*60000;
     const activeReservations=[...this.reservationsByRequest.values()].filter(r=>!r.finalized&&Date.parse(r.expiresAt)>Date.now());
-    if(admission.scopes.some(scope=>{
-      const previous=this.admissionWindows.get(scope.id),window=previous?.start===windowStart?previous:{start:windowStart,requests:0,tokens:0};
-      return (scope.rpm!==undefined&&window.requests+1>scope.rpm)||(scope.tpm!==undefined&&window.tokens+admission.estimatedTokens>scope.tpm)||(scope.concurrency!==undefined&&activeReservations.filter(r=>r.admission.scopes.some(s=>s.id===scope.id)).length>=scope.concurrency);
-    })){
-      response.reasonCode = 'rate_limited';
-      response.admission=admission;
-      response.reasonMessage = 'an applicable subject, pool, service or shared-resource limit is reached';
+    let limitedAdmission:AdmissionSnapshot|undefined;
+    candidates:for(const candidate of batches){
+      for(const quote of admissionOptionsForBatch(workspace,input,candidate)){
+        if(quote.reason){candidateReason=quote.reason;candidateLimits=quote.requestLimits;continue;}
+        eligible++;
+        const a=quote.admission;
+        if(!candidate.accounting&&candidate.availableAmount<a.reservedAmount)continue;
+        const limited=a.scopes.some(scope=>{
+          const previous=this.admissionWindows.get(scope.id),window=previous?.start===windowStart?previous:{start:windowStart,requests:0,tokens:0};
+          return (scope.rpm!==undefined&&window.requests+1>scope.rpm)||(scope.tpm!==undefined&&window.tokens+a.estimatedTokens>scope.tpm)||(scope.concurrency!==undefined&&activeReservations.filter(r=>r.admission.scopes.some(s=>s.id===scope.id)).length>=scope.concurrency);
+        });
+        if(limited){limitedAdmission??=a;continue;}
+        batch=candidate;admission=a;break candidates;
+      }
+    }
+    if (!batch) {
+      response.reasonCode = limitedAdmission?'rate_limited':eligible?'quota_insufficient':batches.length?candidateReason:'no_quota';
+      if(limitedAdmission)response.admission=limitedAdmission;
+      if(response.reasonCode==='request_limit_exceeded')response.requestLimits=candidateLimits;
+      response.reasonMessage = limitedAdmission?'an applicable subject, pool, service or shared-resource limit is reached':admissionDenialMessage(response.reasonCode,response.requestLimits);
       this.authorizationResponsesByRequest.set(input.requestId, response);
       return response;
     }
@@ -482,7 +484,7 @@ export class DemoStore implements ControlPlaneStore {
     if(!reservation||settlement?.status!=='pending_review'||!log)throw new ConflictException('only a pending-review reservation may be reconciled');
     const result=reconciliationCalculation(input,reservation.amount,reservation.admission),batch=this.quotaBatches.get(reservation.batchId)!;
     const release=Number((reservation.amount-result.amount).toFixed(6)),available=Number(((batch.closedAt?batch.closedAmount??0:batch.availableAmount)+release).toFixed(6));
-    if(available<0||available>batch.totalAmount)throw new ConflictException('original quota batch has insufficient funds or invalid balance');
+    if((!batch.accounting&&available<0)||available>batch.totalAmount)throw new ConflictException('original quota batch has insufficient funds or invalid balance');
     if(batch.closedAt)batch.closedAmount=available;else batch.availableAmount=available;
     const response:SettlementResponse={requestId:input.requestId,status:result.billable?'settled':'released',billableState:result.billable?'confirmed':'not_billable',ledgerEntryId:`ledger-${randomUUID()}`};
     this.settlementResponsesByRequest.set(input.requestId,response);this.reconciliationRecords.set(input.requestId,{idempotencyKey:input.idempotencyKey,fingerprint,response});

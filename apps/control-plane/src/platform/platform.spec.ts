@@ -49,6 +49,30 @@ describe('persistent business domain and ledger invariants',()=>{
     expect(saved.verification).toBe('unverified');
   });
 
+  it('keeps service membership exclusive even for closed entries, and releases removed services',async()=>{
+    const entry={definitionId:'definition-test-model',serviceId:'service-local-test',open:false};
+    await expect(command('save.pool',{name:'重复池',entries:[entry]})).rejects.toThrow('已归属');
+    await command('save.pool',{id:'pool-local-test',name:'原池',entries:[entry]});
+    await command('save.pool',{id:'pool-local-test',name:'原池',entries:[]});
+    const created=await command('save.pool',{name:'新池',entries:[entry]});
+    expect(created.entries).toEqual([entry]);
+    await expect(command('save.pool',{id:'pool-local-test',name:'原池',entries:[entry]})).rejects.toThrow('已归属');
+  });
+
+  it('allows multiple services for a model, rejects duplicate pairs and previews every source',async()=>{
+    await repository.transact(async tx=>{
+      tx.state.services.push({...structuredClone(tx.state.services[0]),id:'service-second',name:'第二服务'});
+    });
+    const entries=[{definitionId:'definition-test-model',serviceId:'service-local-test',open:false},
+      {definitionId:'definition-test-model',serviceId:'service-second',open:false}];
+    const c:PlatformCommand={type:'save.pool',idempotencyKey:crypto.randomUUID(),payload:{id:'pool-local-test',name:'多来源池',entries}};
+    const preview=await platform.preview(operator,c);
+    expect((preview.impact as any).modelChanges).toHaveLength(2);
+    const pool=await command(c.type,c.payload);
+    expect(pool.entries).toEqual(entries);
+    await expect(command('save.pool',{...c.payload,entries:[entries[0],entries[0]]})).rejects.toThrow('duplicate service model');
+  });
+
   it('previews without mutation and rejects stale confirmations',async()=>{
     const c:PlatformCommand={type:'project.fund',idempotencyKey:crypto.randomUUID(),payload:{projectId:'unknown',amount:10,expiresAt:future()}};
     const before=await repository.read();const preview=await platform.preview(operator,c);
@@ -105,7 +129,7 @@ describe('persistent business domain and ledger invariants',()=>{
   });
 
   it('keeps application resources independent of owner personal status',async()=>{
-    await openTestPool();const app=await command('save.application',{name:'应用',ownerId:employee,organizationId:'org-demo',range:modelRange});
+    await openTestPool();const app=await command('save.application',{billingMode:'quota',name:'应用',ownerId:employee,organizationId:'org-demo',range:modelRange});
     await command('application.fund',{applicationId:app.id,amount:50,expiresAt:future()});
     const issued=await command('key.issue',{purpose:'application',applicationId:app.id,name:'服务接入'},employee);
     await command('save.member',{id:employee,name:'离职员工',directoryId:'employee',organizationId:'department-engineering',active:false});

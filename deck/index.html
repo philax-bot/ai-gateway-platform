@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>企业 AI 资源运营平台 · 商务介绍</title>
+<link rel="stylesheet" href="theme.css">
+</head>
+<body>
+<main id="viewport" aria-label="商务介绍幻灯片">
+<section class="slide cover dark" id="slide-1" aria-labelledby="title-1">
+  <header class="mast"><span>SIGNAL ATLAS · 商务介绍</span><span class="folio">01 / 21</span></header>
+  <div class="cover-copy"><p class="cover-kicker">企业 AI 资源运营</p><h1 id="title-1">企业 AI<br>资源运营平台</h1><p class="cover-sub">谁能用、能用多少、花了多少、出事谁处理</p></div>
+  <div class="shot cover-art"><div class="shot-source" style="transform:scale(.571) translate(-256px,-72px)"><img src="../docs/product/screenshots/beacon-overview-1440.png" alt="运营工作台：待办与日常运营入口" loading="eager" draggable="false"></div></div>
+  <footer class="footer">核心业务闭环的本地演示 · 客户环境需单独验证</footer>
+</section>
+
+<section class="slide " id="slide-2" aria-labelledby="title-2">
+  <header class="mast"><span>SIGNAL ATLAS · 商务介绍</span><span class="folio">02 / 21</span></header>
+  <h2 id="title-2">真实痛点不在“能不能用 AI”</h2>
+  <div class="content center"><div class="grid two pain"><article class="card"><span class="num">01</span><h3>费用散落在十几张账单</h3><p>各团队自己注册账号、绑卡。<br><span class="consequence">没人说得清哪个部门花了多少。</span></p></article><article class="card"><span class="num">02</span><h3>Key 在群里传来传去</h3><p>多人共用一把接入凭证。<br><span class="consequence">谁在用、离职后还能否用，都难查证。</span></p></article><article class="card"><span class="num">03</span><h3>只有总额度，没有个人额度</h3><p>预算没有分到具体的使用者。<br><span class="consequence">一个项目用光，其他人也受影响。</span></p></article><article class="card"><span class="num">04</span><h3>出了问题，只知道“报错了”</h3><p>故障信息停留在结果层。<br><span class="consequence">分不清余额不足、模型故障还是网络超时。</span></p></article></div></div>
+  <footer class="footer">资料来源：商务通俗介绍 · 常见现状与后果</footer>
+</section>
+
+<section class="slide " id="slide-3" aria-labelledby="title-3">
+  <header class="mast"><span>SIGNAL ATLAS · 商务介绍</span><span class="folio">03 / 21</span></header>
+  <h2 id="title-3">一句话说清它是什么</h2>
+  <div class="content center"><p class="thesis">让企业像管理办公用品领用一样，<br>管理 <em>AI 的使用与费用</em>。</p><div class="grid three roles"><article class="card"><span class="num">01 / 统一入口</span><h3>交换机</h3><p>请求从一处进出，转给对应的模型厂商。</p></article><article class="card"><span class="num">02 / 预付冻结 + 按量结算</span><h3>财务</h3><p>调用前冻结额度，结束后按实际用量结算。</p></article><article class="card"><span class="num">03 / 可追溯，默认不存正文</span><h3>审计</h3><p>留调用元数据，靠请求编号追查问题。</p></article></div></div>
+  <footer class="footer">统一入口、统一额度、统一账本、统一证据</footer>
+</section>
+
+<section class="slide " id="slide-4" aria-labelledby="title-4">
+  <header class="mast"><span>SIGNAL ATLAS · 商务介绍</span><span class="folio">04 / 21</span></header>
+  <h2 id="title-4">一条请求怎么走</h2>
+  <div class="content"><div class="flow"><article class="node"><span class="num">01</span><h3>发起请求</h3><p>员工在网页使用，或应用通过接口接入。</p></article><article class="node"><span class="num">02</span><h3>平台校验</h3><p>检查身份、用途、模型权限与余额。</p></article><article class="node"><span class="num">03</span><h3>冻结额度</h3><p>先预占这次调用所需的额度。</p></article><article class="node"><span class="num">04</span><h3>转发给厂商</h3><p>把请求交给对应的模型服务。</p></article><article class="node"><span class="num">05</span><h3>结算并留记录</h3><p>按实际用量结算，写入调用记录。</p></article></div><p class="band flow-note">冻结在转发之前，结算在返回之后。用量不完整时进入待核对。</p></div>
+  <footer class="footer">流程示意 · 不代表性能、并发或生产容量</footer>
+</section>
+
+<section class="slide " id="slide-5" aria-labelledby="title-5">
+  <header class="mast"><span>SIGNAL ATLAS · 商务介绍</span><span class="folio">05 / 21</span></header>
+  <h2 id="title-5">四个钱包，互不兜底</h2>
+  <div class="content center"><div class="grid four wallets"><article class="card"><span class="num">01</span><h3>个人额度</h3><p>发给员工，供日常使用。</p></article><article class="card"><span class="num">02</span><h3>项目额度</h3><p>发给项目，由项目经理分给成员。</p></article><article class="card"><span class="num">03</span><h3>应用额度</h3><p>发给系统或服务，独立于人员在职状态。</p></article><article class="card"><span class="num">04</span><h3>组织范围发放</h3><p>按本次名单发一批；长期政策另设自动开通规则。</p></article></div><p class="band warning-band">个人额度用完，不会偷偷从项目预算扣。</p></div>
+  <footer class="footer">组织范围发放是批量发放入口；本次名单不等于以后新增人员的长期政策</footer>
+</section>
+
+<section class="slide " id="slide-6" aria-labelledby="title-6">
+  <header class="mast"><span>SIGNAL ATLAS · 商务介绍</span><span class="folio">06 / 21</span></header>
+  <h2 id="title-6">运营：给同事开通</h2>
+  <div class="content"><div class="onboard-grid"><figure><h3 class="label">确认前，先看人数、金额和到期时间</h3><div class="shot" style="width:860px;height:500px"><div class="shot-source" style="transform:scale(.98) translate(-300px,-250px)"><img src="../docs/validation/screenshots-2026-11-02-business-demo/demo-01-onboarding-preview-1440.png" alt="开通预览：本次纳入 2 人，新增额度合计 100 元" loading="eager" draggable="false"></div><span class="dot" style="left:5%;top:44%">1</span><span class="dot" style="left:70%;top:44%">2</span></div><ul class="legend"><li><b>1</b><span><strong>本次纳入 2 人、合计 ¥100.00</strong></span></li><li><b>2</b><span><strong>每人到期时间</strong>逐行列出</span></li></ul></figure><figure><h3 class="label">重复操作：跳过已有权益</h3><div class="shot" style="width:560px;height:360px"><div class="shot-source" style="transform:scale(.65) translate(-300px,-262px)"><img src="../docs/validation/screenshots-2026-11-02-business-demo-live/demo-01-onboarding-preview-1440.png" alt="重复开通预览：已有有效方案权益，不重复发放" loading="eager" draggable="false"></div></div><p class="note">同一份方案再次开通时显示“跳过·已有有效方案权益，不重复发放”：本次纳入 0 人、¥0.00。重复点击不会发两份钱。</p></figure></div></div>
+  <footer class="footer">截图为本地演示 · 本次预览 2 人 / ¥100.00；小图展示重复发放保护</footer>
+</section>
+
+<section class="slide " id="slide-7" aria-labelledby="title-7">
+  <header class="mast"><span>SIGNAL ATLAS · 商务介绍</span><span class="folio">07 / 21</span></header>
+  <h2 id="title-7">员工：打开就能用</h2>
+  <div class="content"><div style="width:max-content;margin:0 auto"><div class="shot" style="width:1040px;height:540px"><div class="shot-source" style="transform:scale(1) translate(-290px,-300px)"><img src="../docs/validation/screenshots-2026-11-02-business-demo-live/demo-02-online-1440.png" alt="个人空间在线使用：模型适用余额、单次上限和回复费用设置" loading="eager" draggable="false"></div><span class="dot" style="left:45%;top:29%">1</span><span class="dot" style="left:32%;top:76%">2</span></div><ul class="legend"><li><b>1</b><span><strong>该模型适用余额与单次调用上限</strong>——发出去之前就知道最多花多少</span></li><li><b>2</b><span><strong>回复长度与费用明细</strong>——可按需限制输出长度</span></li></ul></div></div>
+  <footer class="footer">截图中的余额是演示数据 · 员工可直接在网页使用，无需先配置密钥</footer>
+</section>
+
+<section class="slide " id="slide-8" aria-labelledby="title-8">
+  <header class="mast"><span>SIGNAL ATLAS · 商务介绍</span><span class="folio">08 / 21</span></header>
+  <h2 id="title-8">运营：谁在用、花了多少</h2>
+  <div class="content"><div class="split-evidence"><div class="shot" style="width:920px;height:590px"><div class="shot-source" style="transform:scale(.8) translate(-275px,-125px)"><img src="../docs/validation/screenshots-2026-11-02-business-demo-live/demo-03-usage-1440.png" alt="用量驾驶舱：活跃人员、已结束请求、待核对金额及用户排名" loading="eager" draggable="false"></div></div><aside class="reading"><article><h3>待核对写的是金额待定</h3><p>不是 0 元。未算清的费用单列，不参与已确认费用排名。</p></article><article><h3>排名有明确分母</h3><p>活跃人员以已开通且有效的人为基数；排名只含已识别身份。</p></article><article><h3>按已结束调用统计</h3><p>当前筛选作用于本页所有维度，未知用量单独显示。</p></article></aside></div></div>
+  <footer class="footer">本地演示数据 · 活跃人员 3 / 8，已结束请求 54；不作为生产容量或性能证据</footer>
+</section>
+
+<section class="slide " id="slide-9" aria-labelledby="title-9">
+  <header class="mast"><span>SIGNAL ATLAS · 商务介绍</span><span class="folio">09 / 21</span></header>
+  <h2 id="title-9">点一下名字，看到证据</h2>
+  <div class="content"><div style="width:max-content;margin:0 auto"><div class="shot" style="width:1000px;height:540px"><div class="shot-source" style="transform:scale(.88) translate(-303px,-300px)"><img src="../docs/validation/screenshots-2026-11-02-business-demo-live/demo-04-call-drilldown-1440.png" alt="调用下钻：来源提示、自动带入的人员筛选和请求统计" loading="eager" draggable="false"></div><span class="dot" style="left:70%;top:12%">1</span></div><ul class="legend"><li><b>1</b><span><strong>从驾驶舱带入查询范围</strong>——人员、时间窗自动填好，不用手工拼条件</span></li></ul></div></div>
+  <footer class="footer">当前筛选：林工（演示） · 20 条已结束请求，确认费用 ¥0.0656，待核对 4，用量未知 4</footer>
+</section>
+
+<section class="slide " id="slide-10" aria-labelledby="title-10">
+  <header class="mast"><span>SIGNAL ATLAS · 商务介绍</span><span class="folio">10 / 21</span></header>
+  <h2 id="title-10">账没算清，就说没算清</h2>
+  <div class="content"><div style="width:max-content;margin:0 auto"><div class="shot" style="width:870px;height:420px"><div class="shot-source" style="transform:scale(1.1) translate(-320px,-262px)"><img src="../docs/validation/screenshots-2026-11-02-business-demo-live/demo-05-reconciliation-preview-1440.png" alt="费用待核对预览：原预占、核对后实际费用和原批次余额变化" loading="eager" draggable="false"></div></div></div><div class="money-steps"><div><p>原预占</p><strong>¥0.0246</strong></div><div><p>核对后实际费用</p><strong>¥0.00</strong></div><div><p>原批次余额变化</p><strong>释放 ¥0.0246</strong></div></div></div>
+  <footer class="footer">本地模型替身故障样本 · 此预览未改变业务数据；用量不完整不自动判免费或扣满</footer>
+</section>
+
+<section class="slide " id="slide-11" aria-labelledby="title-11">
+  <header class="mast"><span>SIGNAL ATLAS · 商务介绍</span><span class="folio">11 / 21</span></header>
+  <h2 id="title-11">项目与应用：钱挂在“事”上</h2>
+  <div class="content"><div class="dual-evidence"><figure><h3 class="label">项目：总额度与成员剩余分开看</h3><div class="shot" style="width:866px;height:486px"><div class="shot-source" style="transform:scale(.76) translate(-287px,-291px)"><img src="../docs/validation/screenshots-2026-11-04-project-app-lists/projects-list-1440.png" alt="项目列表：项目状态、经理、总额度与成员剩余" loading="eager" draggable="false"></div></div><figcaption class="caption">项目结束时回收未用余额，保留历史记录。</figcaption></figure><figure><h3 class="label">应用：负责人管理独立接入</h3><div class="shot" style="width:552px;height:486px"><div class="shot-source" style="transform:scale(.8) translate(-286px,-175px)"><img src="../docs/validation/screenshots-2026-11-02-business-demo-live/demo-08-application-owner-1440.png" alt="应用负责人空间：选择应用并查看接入步骤" loading="eager" draggable="false"></div></div><figcaption class="caption">应用使用自己的模型范围与额度。</figcaption></figure></div></div>
+  <footer class="footer">两张图来自不同时间的本地演示 · 项目与应用的额度独立核算</footer>
+</section>
+
+<section class="slide " id="slide-12" aria-labelledby="title-12">
+  <header class="mast"><span>SIGNAL ATLAS · 商务介绍</span><span class="folio">12 / 21</span></header>
+  <h2 id="title-12">模型接入：三类协议，一个入口</h2>
+  <div class="content"><div class="shot" style="width:1080px;height:520px;margin:0 auto"><div class="shot-source" style="transform:scale(.94) translate(-270px,-330px)"><img src="../docs/validation/screenshots-2026-11-02-business-demo/model-verification-1440.png" alt="模型配置：三段步骤、连接验证及逐协议诊断" loading="eager" draggable="false"></div><span class="dot" style="left:2%;top:21%">1</span><span class="dot" style="left:37%;top:42%">2</span></div><ul class="legend"><li><b>1</b><span><strong>登记模型 → 连接与价格 → 开放范围</strong>，三步顺序固定</span></li><li><b>2</b><span><strong>最近一次连接验证：通过 1 / 未通过 2</strong></span></li><li><b>—</b><span>逐协议基础探测：Chat 原生 1/1；Responses 与 Messages 各 0/1。基础通过 ≠ 全部能力已验证</span></li></ul></div>
+  <footer class="footer">内部地址不在裁切范围内 · 基础探测不代表流式、工具和全部功能已验证</footer>
+</section>
+
+<section class="slide " id="slide-13" aria-labelledby="title-13">
+  <header class="mast"><span>SIGNAL ATLAS · 商务介绍</span><span class="folio">13 / 21</span></header>
+  <h2 id="title-13">密钥：只是进门凭证</h2>
+  <div class="content"><div class="shot" style="width:1041px;height:560px;margin:0 auto"><div class="shot-source" style="transform:scale(.9) translate(-283px,-295px)"><img src="../docs/product/screenshots/beacon-keys-1440.png" alt="密钥与接入：脱敏标识、生命周期和批量停用吊销" loading="eager" draggable="false"></div><span class="dot" style="left:66%;top:6%">1</span><span class="dot" style="left:12%;top:56%">2</span><span class="dot" style="left:36%;top:44%">3</span></div><ul class="legend"><li><b>1</b><span><strong>完整值只在签发时显示一次</strong>，事后平台也读不到</span></li><li><b>2</b><span><strong>脱敏标识 + 创建 / 到期 / 最近使用</strong></span></li><li><b>3</b><span><strong>批量停用 / 吊销</strong>，不退还额度</span></li></ul></div>
+  <footer class="footer">一次最多处理 200 把；停用或吊销不退还额度，多把密钥共享同一用途余额</footer>
+</section>
+
+<section class="slide " id="slide-14" aria-labelledby="title-14">
+  <header class="mast"><span>SIGNAL ATLAS · 商务介绍</span><span class="folio">14 / 21</span></header>
+  <h2 id="title-14">安全围栏：先记录，再拦截</h2>
+  <div class="content"><div class="shot" style="width:1080px;height:520px;margin:0 auto"><div class="shot-source" style="transform:scale(.94) translate(-270px,-278px)"><img src="../docs/validation/guardrail-2026-10-30/events-1440.png" alt="安全围栏：拦截策略版本、预置规则和不含正文的安全事件" loading="eager" draggable="false"></div><span class="dot" style="left:31%;top:17%">1</span><span class="dot" style="left:60%;top:34%">2</span><span class="dot" style="left:24%;top:82%">3</span></div><ul class="legend"><li><b>1</b><span><strong>策略状态</strong>：拦截或仅记录，带版本号</span></li><li><b>2</b><span><strong>预置输入规则</strong>：手机号、身份证号、密钥格式</span></li><li><b>3</b><span><strong>只存事件不存正文</strong>：拦截时请求不外发、不扣费</span></li></ul></div>
+  <footer class="footer">本地验证截图 · 命中拦截时，请求不外发、不预占、不扣费；输出内容与自动脱敏不在当前范围</footer>
+</section>
+
+<section class="slide " id="slide-15" aria-labelledby="title-15">
+  <header class="mast"><span>SIGNAL ATLAS · 商务介绍</span><span class="folio">15 / 21</span></header>
+  <h2 id="title-15">观测：没有数据 ≠ 健康</h2>
+  <div class="content center"><p class="thesis" style="margin-bottom:0">证据不足时，明确显示证据不足。</p><div class="grid three status-blocks"><article class="card"><span class="num">01</span><h3>无流量</h3><p>当前窗口没有足够的已结束请求，无法据此判断服务健康。</p></article><article class="card"><span class="num">02</span><h3>样本不足</h3><p>样本数量未达到判定要求，暂不形成健康结论。</p></article><article class="card"><span class="num">03</span><h3>采集失败</h3><p>指标读取失败，需要排查采集链路，不能自动宣布恢复。</p></article></div><p class="observe-line">“我知道了这个故障”与“故障真的恢复了”，分别记录。</p></div>
+  <footer class="footer">配图待补拍，当前版本用示意图 · 不使用旧壳空态截图代表当前健康状态</footer>
+</section>
+
+<section class="slide " id="slide-16" aria-labelledby="title-16">
+  <header class="mast"><span>SIGNAL ATLAS · 商务介绍</span><span class="folio">16 / 21</span></header>
+  <h2 id="title-16">四条工程承诺</h2>
+  <div class="content center"><article class="commitment"><span class="num">01</span><div><h3>权限和钱分开记</h3><p>模型权益与有效额度必须同时成立，加钱不会自动放开新模型。</p></div></article><article class="commitment"><span class="num">02</span><div><h3>默认不存正文</h3><p>只留谁、何时、模型、Token、费用和结果等元数据，靠请求编号追溯。</p></div></article><article class="commitment"><span class="num">03</span><div><h3>只信平台自己的计价与快照</h3><p>平台配置价格并保留下单时的快照，事后调价不影响历史账。</p></div></article><article class="commitment"><span class="num">04</span><div><h3>失败要看得见</h3><p>中断、超时、用量缺失进入待核对，避免把未算清的账记成 0 元。</p></div></article></div>
+  <footer class="footer">工程原则来自商务介绍 · 默认不保存正文，同样适用于安全事件</footer>
+</section>
+
+<section class="slide " id="slide-17" aria-labelledby="title-17">
+  <header class="mast"><span>SIGNAL ATLAS · 商务介绍</span><span class="folio">17 / 21</span></header>
+  <h2 id="title-17">现在到哪一步</h2>
+  <div class="content center"><div class="matrix"><div class="matrix-panel"><h3>已验证</h3><div class="verified"><p>开通与自动开通</p><p>项目 / 应用独立额度</p><p>统一审批</p><p>密钥生命周期</p><p>在线使用与三协议</p><p>调用追溯</p><p>待核对</p><p>监控告警</p><p>安全围栏</p><p>模型目录</p><p>备份恢复</p><p>容器化交付</p></div></div><div class="matrix-panel pending"><h3>待客户环境验证</h3><div class="pending"><p>企业 SSO / 通讯录同步</p><p>内网 HTTPS 与浏览器证书</p><p>生产规模容量与压力表现</p><p>外部通知渠道（邮件 / IM）送达</p></div><p class="matrix-foot">按项目立项验收，<br>需要客户环境的独立证据。</p></div></div></div>
+  <footer class="footer">来源：商务介绍的当前状态 · 本地模型替身及受限真实调用的结果，不能当作生产容量承诺</footer>
+</section>
+
+<section class="slide " id="slide-18" aria-labelledby="title-18">
+  <header class="mast"><span>SIGNAL ATLAS · 商务介绍</span><span class="folio">18 / 21</span></header>
+  <h2 id="title-18">客户最常问的五个问题</h2>
+  <div class="content"><div class="qa"><article><h3>Q　这跟直接用厂商 API 有什么区别？</h3><p>A　平台管理公司里谁能用、用多少、从哪里扣钱，以及问题由谁处理；后面仍接各家模型厂商。</p></article><article><h3>Q　会不会和某家厂商绑死？</h3><p>A　模型、服务和协议都是配置项，可切换模型，也可接自建或私有化模型。</p></article><article><h3>Q　运营能看我的对话内容吗？</h3><p>A　默认不能，也不保存正文。运营看到模型、Token、费用、结果等调用元数据。</p></article><article><h3>Q　员工额度用超了会怎样？</h3><p>A　调用前拒绝并提示额度不足，不静默透支，也不自动从其他用途补扣。</p></article><article><h3>Q　能按部门或职级自动开通吗？</h3><p>A　按组织、人员类别、业务标签等条件配置。启用后默认影响新增或属性变化的人，存量需显式预览并应用。</p></article></div></div>
+  <footer class="footer">自动开通条件为 AND 关系 · 组织范围一次性发放与长期自动开通政策分别配置</footer>
+</section>
+
+<section class="slide dark" id="slide-19" aria-labelledby="title-19">
+  <header class="mast"><span>SIGNAL ATLAS · 商务介绍</span><span class="folio">19 / 21</span></header>
+  <h2 id="title-19">下一步</h2>
+  <div class="content"><div class="close-copy"><h2>预约一次 20 分钟的现场演示</h2><div class="close-rule"></div><p class="contact">联系方式<span class="contact-slot" aria-label="供演示负责人填写联系方式"></span></p></div></div>
+  <footer class="footer">演示可按商务脚本用 15–20 分钟走完 · 客户环境验收范围另行确认</footer>
+</section>
+
+<section class="slide " id="slide-20" aria-labelledby="title-20">
+  <header class="mast"><span>SIGNAL ATLAS · 商务介绍</span><span class="folio">20 / 21</span></header>
+  <h2 id="title-20">附录 A · 界面可切换</h2>
+  <div class="content"><div class="gallery"><figure><h3 class="label">信标</h3><div class="shot" style="width:468px;height:237px"><div class="shot-source" style="transform:scale(.325) translate(0px,-34px)"><img src="../docs/validation/catalog-2026-10-30/shell-beacon-1440.png" alt="信标界面的模型目录" loading="eager" draggable="false"></div></div></figure><figure><h3 class="label">蓝灰</h3><div class="shot" style="width:468px;height:237px"><div class="shot-source" style="transform:scale(.325) translate(0px,-34px)"><img src="../docs/validation/catalog-2026-10-30/shell-azure-1440.png" alt="蓝灰界面的模型目录" loading="eager" draggable="false"></div></div></figure><figure><h3 class="label">经典</h3><div class="shot" style="width:468px;height:237px"><div class="shot-source" style="transform:scale(.325) translate(0px,-34px)"><img src="../docs/validation/catalog-2026-10-30/shell-classic-1440.png" alt="经典界面的模型目录" loading="eager" draggable="false"></div></div></figure><figure><h3 class="label">顶栏</h3><div class="shot" style="width:468px;height:237px"><div class="shot-source" style="transform:scale(.325) translate(0px,-34px)"><img src="../docs/validation/catalog-2026-10-30/shell-next-1440.png" alt="顶栏界面的模型目录" loading="eager" draggable="false"></div></div></figure><figure><h3 class="label">左栏</h3><div class="shot" style="width:468px;height:237px"><div class="shot-source" style="transform:scale(.325) translate(0px,-34px)"><img src="../docs/validation/catalog-2026-10-30/shell-sidebar-1440.png" alt="左栏界面的模型目录" loading="eager" draggable="false"></div></div></figure></div></div>
+  <footer class="footer">同一套业务规则，切换外观不改数据 · 拼图只展示风格，不作为当前模型数量或价格依据</footer>
+</section>
+
+<section class="slide " id="slide-21" aria-labelledby="title-21">
+  <header class="mast"><span>SIGNAL ATLAS · 商务介绍</span><span class="folio">21 / 21</span></header>
+  <h2 id="title-21">附录 B · 移动端可用</h2>
+  <div class="content"><div class="mobile-layout"><figure><h3 class="label">用量驾驶舱</h3><div class="shot mobile" style="width:257px;height:534px"><div class="shot-source" style="transform:scale(.659) translate(0px,-34px)"><img src="../docs/validation/screenshots-2026-11-02-business-demo-live/demo-09-usage-390.png" alt="移动端用量驾驶舱：筛选和统计入口" loading="eager" draggable="false"></div></div></figure><figure><h3 class="label">调用记录</h3><div class="shot mobile" style="width:257px;height:534px"><div class="shot-source" style="transform:scale(.659) translate(0px,-34px)"><img src="../docs/validation/screenshots-2026-11-02-business-demo/calls-mobile-390.png" alt="移动端调用记录：结果、费用和请求编号" loading="eager" draggable="false"></div></div></figure><aside><h3>手机端延续同一套规则</h3><p>运营可查用量，员工可查调用记录。</p><p>统计口径、额度与权限仍按平台规则执行。</p><p class="caption">两张截图分别来自信标与蓝灰界面，保留原始图源。</p></aside></div></div>
+  <footer class="footer">390px 原始截图 · 展示手机端布局，不代表移动端已完成客户环境验收</footer>
+</section>
+<button class="edge prev" aria-label="上一页" tabindex="-1"></button>
+<button class="edge next" aria-label="下一页" tabindex="-1"></button>
+</main>
+<nav id="controls" aria-label="放映控制">
+<button id="back" aria-label="上一页">←</button><span id="counter" aria-live="polite"></span><button id="next" aria-label="下一页">→</button>
+<button id="open-index">目录 G</button><button id="fullscreen">全屏 F</button><button id="print">导出 PDF</button>
+</nav>
+<div id="progress" aria-hidden="true"></div>
+<dialog id="index" aria-labelledby="index-title"><div class="index-head"><h2 id="index-title">页码索引</h2><button id="close-index">关闭 Esc</button></div><div id="index-list"></div></dialog>
+<pre id="selfcheck" aria-live="polite"></pre>
+<script>
+
+const slides=[...document.querySelectorAll('.slide')];
+const viewport=document.querySelector('#viewport');
+const index=document.querySelector('#index');
+const params=new URLSearchParams(location.search);
+let current=0,returnFocus=null;
+function fit(){const scale=Math.min(innerWidth/1600,innerHeight/900);viewport.style.setProperty('--scale',scale);}
+function go(n,update=true){current=Math.max(0,Math.min(slides.length-1,n));slides.forEach((s,i)=>{s.classList.toggle('active',i===current);s.setAttribute('aria-hidden',String(i!==current));});document.querySelector('#counter').textContent=(current+1)+' / '+slides.length;document.querySelector('#progress').style.width=((current+1)/slides.length*100)+'%';document.querySelector('#back').disabled=current===0;document.querySelector('#next').disabled=current===slides.length-1;document.querySelectorAll('.index-item').forEach((b,i)=>b.setAttribute('aria-current',String(i===current)));if(update&&location.hash!=='#'+(current+1))history.replaceState(null,'','#'+(current+1));}
+function fromHash(){const value=Number(location.hash.slice(1));go(Number.isFinite(value)&&value>=1?value-1:0);}
+function openIndex(){returnFocus=document.activeElement;index.showModal();index.querySelector('[aria-current=true]').focus();}
+function closeIndex(){index.close();returnFocus?.focus();}
+async function fullscreen(){try{if(document.fullscreenElement)await document.exitFullscreen();else await document.documentElement.requestFullscreen();}catch{document.querySelector('#fullscreen').textContent='请使用浏览器全屏';}}
+document.querySelector('#index-list').replaceChildren(...slides.map((s,i)=>{const b=document.createElement('button');b.className='index-item';b.dataset.page=String(i);const n=document.createElement('span');n.textContent=String(i+1).padStart(2,'0')+' / '+slides.length;const t=document.createElement('strong');t.textContent=s.querySelector('h1,h2').textContent;b.append(n,t);return b;}));
+document.querySelector('#index-list').addEventListener('click',e=>{const b=e.target.closest('[data-page]');if(b){go(Number(b.dataset.page));closeIndex();}});
+document.querySelector('#close-index').onclick=closeIndex;
+document.querySelector('#open-index').onclick=openIndex;
+document.querySelector('#fullscreen').onclick=fullscreen;
+document.querySelector('#print').onclick=()=>window.print();
+document.querySelector('#back').onclick=()=>go(current-1);
+document.querySelector('#next').onclick=()=>go(current+1);
+document.querySelector('.edge.prev').onclick=()=>go(current-1);
+document.querySelector('.edge.next').onclick=()=>go(current+1);
+viewport.addEventListener('dblclick',e=>{if(!e.target.closest('button'))fullscreen();});
+document.addEventListener('keydown',e=>{if(index.open){if(e.key==='Escape'){e.preventDefault();closeIndex();}return;}if(e.ctrlKey||e.metaKey||e.altKey||e.target.closest('input,textarea,select'))return;const keys=['ArrowRight','ArrowLeft',' ','PageDown','PageUp','Home','End','f','F','g','G'];if(!keys.includes(e.key))return;if(e.target.closest('button')&&(e.key===' '))return;e.preventDefault();if(['ArrowRight',' ','PageDown'].includes(e.key))go(current+1);if(['ArrowLeft','PageUp'].includes(e.key))go(current-1);if(e.key==='Home')go(0);if(e.key==='End')go(slides.length-1);if(e.key.toLowerCase()==='f')fullscreen();if(e.key.toLowerCase()==='g')openIndex();});
+addEventListener('resize',fit);addEventListener('hashchange',fromHash);
+addEventListener('beforeprint',()=>slides.forEach(s=>s.removeAttribute('aria-hidden')));
+addEventListener('afterprint',()=>go(current,false));
+fit();fromHash();
+if(params.has('print')){document.body.classList.add('print-view');slides.forEach(s=>s.removeAttribute('aria-hidden'));}
+async function selfcheck(){
+ document.body.classList.add('checking');
+ await document.fonts.ready;
+ await Promise.all([...document.images].map(im=>im.complete?Promise.resolve():new Promise(r=>{im.addEventListener('load',r,{once:true});im.addEventListener('error',r,{once:true});})));
+ const lines=[];let fails=0;
+ const check=(ok,n,type,detail)=>{lines.push((ok?'PASS':'FAIL')+'  '+String(n).padStart(2,'0')+'  '+type+'  '+detail);if(!ok)fails++;};
+ for(let i=0;i<slides.length;i++){
+  go(i,false);const s=slides[i],n=i+1,c=s.querySelector('.content');
+  if(c)check(c.scrollWidth<=c.clientWidth+1&&c.scrollHeight<=c.clientHeight+1,n,'内容区',c.scrollWidth+'×'+c.scrollHeight+' / '+c.clientWidth+'×'+c.clientHeight);
+  const images=[...s.querySelectorAll('img')];check(images.every(im=>im.naturalWidth>0&&im.alt.trim()),n,'图片',images.length+' 张图片加载及 alt');
+  check(!!s.querySelector('h1,h2')?.textContent.trim()&&!!s.querySelector('.folio')?.textContent.trim(),n,'标题页码','标题与页码非空');
+  const sr=s.getBoundingClientRect();
+  const outside=[...s.querySelectorAll('*')].filter(el=>{if(el.closest('.shot-source'))return false;const r=el.getBoundingClientRect();return r.width>0&&(r.left<sr.left-1||r.right>sr.right+1);});
+  check(!outside.length,n,'画布边界',outside.length?'超出元素 '+outside.map(el=>el.className).join(','):'所有可见内容处于 1600px 画布内，图像按容器裁切');
+  const small=[...s.querySelectorAll('.content *')].filter(el=>[...el.childNodes].some(t=>t.nodeType===3&&t.textContent.trim())&&!el.closest('.mark,.dot,.legend b')&&parseFloat(getComputedStyle(el).fontSize)<15);
+  check(!small.length,n,'正文字号',small.length?'字号不足 '+small.map(el=>el.tagName).join(','):'正文 ≥ 15px，眉标/页脚/图像标注按规范豁免');
+  check(!new RegExp(['lorem','TO'+'DO','X'.repeat(3),'待'+'填'].join('|'),'i').test(s.innerText),n,'文案残留','正文无禁止的占位词');
+  const cr=c?.getBoundingClientRect();const escape=cr?[...c.querySelectorAll('*')].filter(el=>{if(el.closest('.shot-source'))return false;const r=el.getBoundingClientRect();return r.width>0&&(r.left<cr.left-1||r.right>cr.right+1||r.top<cr.top-1||r.bottom>cr.bottom+1);}):[];
+  check(!escape.length,n,'内容边界',escape.length?'越界 '+escape.map(e=>e.className).join(','):'内容与图片容器均在安全区域内');
+ }
+ check(slides.length===21,0,'总页数',slides.length+' 页，19 页正文 + 2 页附录');
+ const pre=document.querySelector('#selfcheck');pre.textContent=lines.join('\n')+'\nRESULT  '+slides.length+' pages / '+lines.length+' checks / '+fails+' failures';pre.dataset.failures=fails;pre.dataset.checks=lines.length;document.body.classList.add('checked');document.documentElement.dataset.selfcheck='done';
+}
+if(params.has('selfcheck'))selfcheck().catch(error=>{document.querySelector('#selfcheck').textContent='FAIL  00  自检运行  '+error.message;document.body.classList.add('checked');document.documentElement.dataset.selfcheck='error';});
+
+</script>
+</body>
+</html>

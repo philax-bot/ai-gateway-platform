@@ -13,6 +13,7 @@ import { createRequire } from 'node:module';
 import { realpath } from 'node:fs/promises';
 import { sep } from 'node:path';
 import { connectionConfig } from './lib/backup.mjs';
+import {checkApplicationBilling} from './check-application-billing.mjs';
 import { checkUsageAnalytics } from './check-usage-analytics.mjs';
 
 /*
@@ -246,6 +247,7 @@ try {
   await login('web-ops', seeded.adminPassword);
   check(await waitFor(`document.body.innerText.includes('运营工作台')`, 15000), 'operator reaches the operations workspace');
 
+  if(!process.argv.includes('--application-billing-only')){
   // Onboarding continuity: selection survives a page switch in the same session.
   await clickNav('为人员开通');
   await waitFor(`document.body.innerText.includes('让同事开始使用 AI')`);
@@ -503,6 +505,8 @@ try {
     await rehearseBusinessDemo({evaluate,waitFor,clickNav,clickExact,setInput,screenshot,login,navigate:url=>cdp.send('Page.navigate',{url}),controlPlaneUrl:cp,webUrl:web,manifest:demo});
     check(cdp.runtimeErrors.length===0,'demo rehearsal has no uncaught browser exceptions');
   }
+  }
+  if(process.argv.includes('--application-billing')||process.argv.includes('--application-billing-only'))await checkApplicationBilling({cp,gateway,web,seeded,cdp,evaluate,waitFor,clickNav,clickExact,setInput,pressKey,setViewport,screenshot,login,check});
   console.log(`PASS ${assertions.length} browser assertions (${postgres?'isolated PostgreSQL':'memory'}; real API/CSV plus fault fixtures)`);
   console.log(`Screenshots: ${screenshotDir}`);
 } catch (error) {

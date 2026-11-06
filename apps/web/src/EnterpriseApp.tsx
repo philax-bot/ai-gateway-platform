@@ -33,7 +33,7 @@ const ledes:Record<string,string>={
   members:'组织决定权限边界，成员状态决定能否登录和接受开通。',
   onboarding:'选择人员和方案，确认金额与到期日后开通。开通不创建密钥，也不迁移已有权益。',
   projects:'项目承载一组成员的共同额度；项目结束时回收未使用余额。',
-  applications:'应用使用独立额度与密钥，适合服务端接入；负责人可自行管理接入凭据。',
+  applications:'应用支持记账与额度两种模式，使用独立 Key 接入；负责人可管理凭据并申请切换模式。',
   keys:'密钥只用于工具接入，本身不增加余额。完整值仅在签发时显示一次。',
   approvals:'按你的审批职责显示申请。批准只表示同意，执行结果单独记录。',
   calls:'每次已结束调用的结果、用量与计费依据。默认不保存、不展示正文。',
@@ -234,7 +234,7 @@ export function EnterpriseApp(){
         {v4Shell&&<div className="page-context" aria-hidden="true"><span>{spaceLabel}</span><span className="page-context-date">{dateLabel}</span></div>}
         <section className="heading"><div><span className="eyebrow">{isOps?'OPERATIONS':'PERSONAL WORKSPACE'}</span><h1>{navLabel(page)}</h1>{v4Shell&&ledes[page]&&<p className="page-lede">{ledes[page]}</p>}</div>{!selfRefreshing&&<button className="ghost" onClick={()=>void refresh()}>刷新数据</button>}</section>{message&&<div className="notice" role="status">{message}</div>}
         {page!=='monitoring'&&d.callDataQuality==='collection_failed'&&<div className="notice warning" role="alert">调用统计暂不可用，费用待核对数量未知。{isOps?<button className="link-button" onClick={()=>navigate('monitoring')}>检查监控采集 →</button>:'请联系企业运营检查采集。'}</div>}
-        {mountedTabs.map(tab=><div key={tab.page} hidden={tab.page!==page} className={desk?'v2-page-enter':''}><WorkspacePages data={d} page={tab.page} targetId={tab.targetId} active={tab.page===page} isOps={isOps} edit={edit} purposeId={purposeId} setPurpose={setPurposeId} setPage={navigate} run={run} refresh={refresh} action={action} detail={(title,content)=>setDetail({title,content})}/></div>)}
+        {mountedTabs.map(tab=><div key={tab.page} data-page={tab.page} hidden={tab.page!==page} className={desk?'v2-page-enter':''}><WorkspacePages data={d} page={tab.page} targetId={tab.targetId} active={tab.page===page} isOps={isOps} edit={edit} purposeId={purposeId} setPurpose={setPurposeId} setPage={navigate} run={run} refresh={refresh} action={action} detail={(title,content)=>setDetail({title,content})}/></div>)}
       </div>
     </main>
     {docked&&<div className={`${v4Shell?'v4-backdrop':'v3-backdrop'} ${menuOpen?'open':''}`} onClick={closeMenu} aria-hidden="true"/>}
@@ -290,6 +290,8 @@ function Impact({pending,data}:{pending:Pending;data:PlatformSnapshot}){
     {!!p.planId&&<div><dt>开通方案</dt><dd>{data.plans.find(plan=>plan.id===p.planId)?.name}</dd></div>}
     {!!p.managerId&&<div><dt>项目经理</dt><dd>{data.members.find(member=>member.id===p.managerId)?.name??String(p.managerId)}</dd></div>}
     {!!p.ownerId&&<div><dt>应用负责人</dt><dd>{data.members.find(member=>member.id===p.ownerId)?.name??String(p.ownerId)}</dd></div>}
+    {!!p.billingMode&&<div><dt>计费模式</dt><dd>{p.billingMode==='accounting'?'记账模式 · 初始 0 元，允许负余额':'额度模式 · 初始 0 元，需发放额度后调用'}</dd></div>}
+    {(p.kind==='application_billing'||data.approvals.some(a=>a.id===p.id&&a.kind==='application_billing'))&&<div><dt>模式切换影响</dt><dd>记账 → 额度；审批执行后生效，原 Key 继续使用。历史负余额保留，新额度单独使用。</dd></div>}
     {!!p.range&&<div><dt>模型范围</dt><dd>{data.pools.find(pool=>pool.id===(p.range as {poolId:string}).poolId)?.name??'所选模型池'} · {(p.range as {mode:string}).mode==='follow'?'跟随池内已开放模型':`仅指定：${(p.range as {definitionIds:string[]}).definitionIds.map(id=>data.definitions.find(definition=>definition.id===id)?.name??id).join('、')}`}</dd></div>}
     {!!p.limits&&<div><dt>本级使用保护</dt><dd>{(p.limits as {mode:string}).mode==='inherit'?'继承企业默认':(p.limits as {mode:string}).mode==='none'?'本级不额外限制，其他适用边界继续生效':Object.entries(p.limits as Record<string,unknown>).filter(([key])=>key!=='mode').map(([key,value])=>`${({rpm:'RPM',tpm:'TPM',concurrency:'并发',maxOutputTokens:'单次输出'} as Record<string,string>)[key]??key} ${String(value)}`).join(' · ')}</dd></div>}
     {impact.grantCount!==undefined&&<><div><dt>拟发放 / 跳过</dt><dd>{String(impact.grantCount)} / {String(impact.excludedCount)}</dd></div><div><dt>本次拟发放总额</dt><dd>{money(Number(impact.totalAmount))}</dd></div></>}

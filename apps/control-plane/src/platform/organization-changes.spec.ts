@@ -48,7 +48,7 @@ describe('organization subtree changes and automatic funding',()=>{
     const parent=await org('可停用部门'),leaf=await org('下级',parent.id),p=await plan('月度');await rule('开通',p.id,parent.id);
     const person=await member('负责人',leaf.id,{password:'local-test-password-only'}),disabled=await member('已停用',leaf.id,{active:false}),key=await command('key.issue',{purpose:'personal',name:'个人密钥'},person.id);
     const auth=new AuthService(repo),session=await auth.login({directoryId:'负责人',password:'local-test-password-only'},'127.0.0.1');
-    const app=await command('save.application',{name:'独立应用',ownerId:person.id,organizationId:leaf.id,range});await command('application.fund',{applicationId:app.id,amount:5,expiresAt:new Date(Date.now()+86400000).toISOString()});
+    const app=await command('save.application',{billingMode:'quota',name:'独立应用',ownerId:person.id,organizationId:leaf.id,range});await command('application.fund',{applicationId:app.id,amount:5,expiresAt:new Date(Date.now()+86400000).toISOString()});
     const appKey=await command('key.issue',{purpose:'application',applicationId:app.id,name:'应用密钥'},person.id),before=await repo.view();
     const impact=(await preview('save.organization',{...parent,active:false})).impact as any;
     expect(impact.organizationChange.members.filter((m:any)=>m.beforeAccess&&!m.afterAccess).map((m:any)=>m.id)).toEqual([person.id]);

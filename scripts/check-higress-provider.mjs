@@ -98,7 +98,7 @@ try{
   const beforeProject=(await state()).quotaBatches.filter(b=>b.purpose==='personal').reduce((s,b)=>s+b.availableAmount,0);
   const projectCall=call({apiKey:projectKey.secret});check((await projectCall.promise).ok,'project request passes through Higress');const projectLog=await waitLog(projectCall.requestId);check(projectLog.purpose==='project'&&projectLog.projectId===project.id,'PostgreSQL records the original project attribution');
   check(Math.abs((await state()).quotaBatches.filter(b=>b.purpose==='personal').reduce((s,b)=>s+b.availableAmount,0)-beforeProject)<1e-9,'project usage does not debit personal funds');
-  const app=await command('save.application',{name:'Provider 应用',ownerId:actor.id,organizationId:'org-demo',range});await command('application.fund',{applicationId:app.id,amount:.05,expiresAt});
+  const app=await command('save.application',{billingMode:'quota',name:'Provider 应用',ownerId:actor.id,organizationId:'org-demo',range});await command('application.fund',{applicationId:app.id,amount:.05,expiresAt});
   const appKey=await command('key.issue',{name:'Provider application',purpose:'application',applicationId:app.id});secrets.push(appKey.secret);
   const appCall=call({apiKey:appKey.secret});check((await appCall.promise).ok,'application request passes through Higress');const appLog=await waitLog(appCall.requestId);check(appLog.purpose==='application'&&appLog.subjectId===app.id,'application usage stays in its own PostgreSQL scope');
   phase='PostgreSQL concurrent budget reservation';

@@ -1,0 +1,64 @@
+{
+  "success": true,
+  "checks": [
+    "service multi-select replaces per-model source selectors",
+    "no unique-source selectors",
+    "1440 no page overflow",
+    "390 no page overflow",
+    "unassigned filter, edit retention, generated mappings, default closed and duplicate-model validation",
+    "keyboard ArrowDown / Enter selection / Escape closes list and restores focus",
+    "selected services 390 no overflow",
+    "azure 1440 no overflow",
+    "azure 390 no overflow",
+    "sidebar 1440 no overflow",
+    "sidebar 390 no overflow",
+    "next 1440 no overflow",
+    "classic 1440 no overflow",
+    "classic 390 no overflow",
+    "no runtime exceptions"
+  ],
+  "warnings": [
+    {
+      "ui": "next",
+      "width": 390,
+      "overflow": {
+        "width": 390,
+        "scrollWidth": 400,
+        "items": [
+          {
+            "tag": "BUTTON",
+            "cls": ""
+          },
+          {
+            "tag": "SPAN",
+            "cls": ""
+          },
+          {
+            "tag": "BUTTON",
+            "cls": ""
+          },
+          {
+            "tag": "svg",
+            "cls": {}
+          },
+          {
+            "tag": "path",
+            "cls": {}
+          },
+          {
+            "tag": "SPAN",
+            "cls": ""
+          },
+          {
+            "tag": "BUTTON",
+            "cls": ""
+          },
+          {
+            "tag": "svg",
+            "cls": {}
+          }
+        ]
+      }
+    }
+  ]
+}

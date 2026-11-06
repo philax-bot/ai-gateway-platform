@@ -45,7 +45,7 @@ export function costForUsage(price:PriceSnapshot,inputTokens:number,outputTokens
   return Number(micros)/1e6;
 }
 
-export function admissionForBatch(state:AdmissionWorkspace|undefined,input:AuthorizeRequest,batch:BatchScope,managedQuote=false):AdmissionResult {
+function admissionForServiceBatch(state:AdmissionWorkspace|undefined,input:AuthorizeRequest,batch:BatchScope,managedQuote=false,serviceId?:string):AdmissionResult {
   const key=state?.keys.find(k=>k.credentialId===input.identity.credentialId);
   if(!state||(!key&&!managedQuote))return {admission:legacyAdmission()};
   if(batch.sourceId!==input.identity.subjectId||batch.purpose!==input.purpose||batch.projectId!==(input.identity.projectId??null))return {reason:'model_not_open'};
@@ -66,7 +66,7 @@ export function admissionForBatch(state:AdmissionWorkspace|undefined,input:Autho
   }
   const definition=state.definitions.find(d=>d.modelId===input.modelId&&d.active);
   const pool=state.pools.find(p=>p.id===range.poolId);
-  const entry=pool?.entries.find(e=>e.definitionId===definition?.id&&e.open&&(range.mode==='follow'||range.definitionIds.includes(e.definitionId)));
+  const entry=pool?.entries.find(e=>e.definitionId===definition?.id&&(!serviceId||e.serviceId===serviceId)&&e.open&&(range.mode==='follow'||range.definitionIds.includes(e.definitionId)));
   const service=state.services.find(s=>s.id===entry?.serviceId&&s.active&&s.verification==='passed');
   const mapping=service?.mappings.find(m=>m.definitionId===definition?.id);
   if(!definition||!pool||!entry||!service||!mapping)return {reason:'service_unavailable'};
@@ -74,7 +74,7 @@ export function admissionForBatch(state:AdmissionWorkspace|undefined,input:Autho
   let price:PriceSnapshot;
   try{
     [mapping.inputPrice!,mapping.outputPrice!,mapping.cachedInputPrice!].forEach(priceUnits);
-    price={version:createHash('sha256').update(JSON.stringify([service.id,service.configVersion,mapping.definitionId,mapping.upstreamModel,mapping.inputPrice,mapping.outputPrice,mapping.cachedInputPrice])).digest('hex').slice(0,24),currency:'CNY',unit:'per_million_tokens',inputPrice:mapping.inputPrice!,outputPrice:mapping.outputPrice!,cachedInputPrice:mapping.cachedInputPrice!};
+    price={version:createHash('sha256').update(JSON.stringify([pool.id,definition.id,mapping.inputPrice,mapping.outputPrice,mapping.cachedInputPrice])).digest('hex').slice(0,24),currency:'CNY',unit:'per_million_tokens',inputPrice:mapping.inputPrice!,outputPrice:mapping.outputPrice!,cachedInputPrice:mapping.cachedInputPrice!};
   }catch{return {reason:'price_unconfigured'};}
   if(input.expectedPriceVersion&&input.expectedPriceVersion!==price.version)return {reason:'policy_stale'};
   const defaults=state.settings.limits;
@@ -109,4 +109,23 @@ export function admissionForBatch(state:AdmissionWorkspace|undefined,input:Autho
   const native=requested==='chat'||service.protocolCapabilities?.configVersion===service.configVersion&&service.protocolCapabilities.mappings[definition.id]?.[requested]?.status==='supported';
   const attributionOrganizationId=input.identity.subjectType==='application'?state.applications.find(app=>app.id===input.identity.subjectId)?.organizationId:state.members.find(member=>member.id===input.identity.subjectId)?.organizationId;
   return {admission:{attributionOrganizationId,...(input.modelProtocol?{protocol:{requested,upstream:native?requested:'chat',mode:native?'native' as const:'adapted' as const}}:{}),kind:'configured',route:{serviceId:service.id,poolId:pool.id,definitionId:definition.id,baseUrl:service.baseUrl,protocolPaths:service.protocolPaths,protocols:service.protocolCapabilities?.configVersion===service.configVersion?service.protocolCapabilities.mappings[definition.id]:undefined,upstreamModel:mapping.upstreamModel,credentialRef:service.credentialRef,maxOutputTokens},price,reservedAmount,estimatedTokens:estimatedInputTokens+maxOutputTokens,scopes}};
+}
+
+/** Stable per-request distribution; replay keeps its reserved route and does not consume another slot. */
+export function admissionOptionsForBatch(state:AdmissionWorkspace|undefined,input:AuthorizeRequest,batch:BatchScope,managedQuote=false):AdmissionResult[]{
+  const range=input.purpose==='personal'?state?.entitlements.find(e=>e.id===batch.entitlementId)?.range
+    :input.purpose==='project'?state?.projects.find(p=>p.id===input.identity.projectId)?.range
+    :state?.applications.find(a=>a.id===input.identity.subjectId)?.range;
+  const definition=state?.definitions.find(d=>d.modelId===input.modelId);
+  const serviceIds=[...new Set(state?.pools.find(p=>p.id===range?.poolId)?.entries.filter(e=>e.definitionId===definition?.id&&e.open).map(e=>e.serviceId)??[])];
+  const rank=(id:string)=>createHash('sha256').update(`${input.requestId}:${id}`).digest('hex');
+  serviceIds.sort((a,b)=>rank(a).localeCompare(rank(b)));
+  if(!serviceIds.length)return [admissionForServiceBatch(state,input,batch,managedQuote)];
+  const options=serviceIds.map(id=>admissionForServiceBatch(state,input,batch,managedQuote,id));
+  const allowed=options.filter(option=>option.admission);
+  return allowed.length?allowed:[options.find(option=>option.reason!=='service_unavailable'&&option.reason!=='policy_stale')??options.find(option=>option.reason==='policy_stale')??options[0]];
+}
+export function admissionForBatch(state:AdmissionWorkspace|undefined,input:AuthorizeRequest,batch:BatchScope,managedQuote=false):AdmissionResult{
+  const options=admissionOptionsForBatch(state,input,batch,managedQuote);
+  return options.find(option=>option.admission)??options[0];
 }

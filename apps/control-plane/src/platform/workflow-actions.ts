@@ -9,6 +9,7 @@ import { applyAutomatic } from './automatic-onboarding';
 import { prepareKeyStatus } from './key-status';
 import { applyRetention,requestedRetention,retentionPolicy } from './retention';
 import { prepareEntitlementMigration } from './entitlement-migration';
+import { applicationBillingMode } from '@ai-gateway/contracts';
 
 export function selectMembers(s:WorkspaceState,p:Record<string,unknown>){
   if(p.memberIds)return strings(p.memberIds,'memberIds').map(memberId=>pick(s.members,memberId,'member'));
@@ -73,13 +74,17 @@ export function prepareApprovalRepair(s:WorkspaceState,actor:Member,a:Approval,p
 
 function submitApproval(tx:WorkspaceTransaction,actor:Member,p:Record<string,unknown>){
   const s=tx.state,kind=String(p.kind) as Approval['kind'];
-  if(!['project_create','project_budget','project_member_quota','personal_open','personal_topup','application_quota'].includes(kind))throw new BadRequestException('invalid approval kind');
+  if(!['project_create','project_budget','project_member_quota','personal_open','personal_topup','application_quota','application_billing'].includes(kind))throw new BadRequestException('invalid approval kind');
   const objectId=p.objectId?String(p.objectId):null;
   if(kind==='project_budget'){const project=manager(s,actor,objectId);if(project.managerId!==actor.id)throw new ForbiddenException('budget requests must come from project manager');}
   if(kind==='project_member_quota'){const project=pick(s.projects,objectId,'project');if(project.status!=='active'||!project.memberIds.includes(actor.id))throw new ForbiddenException('project membership required');}
   if(kind==='personal_topup'){const e=pick(s.entitlements,objectId,'entitlement');if(e.memberId!==actor.id||e.status!=='active'||!valid(e.expiresAt))throw new ForbiddenException('active personal entitlement required');}
-  if(kind==='application_quota'){const app=owner(s,actor,objectId);if(app.ownerId!==actor.id)throw new ForbiddenException('request must come from application owner');}
-  if(s.approvals.some(a=>a.applicantId===actor.id&&a.kind===kind&&a.objectId===objectId&&['pending','approved'].includes(a.status)))throw new ConflictException('an application for this purpose is already pending');
+  if(kind==='application_quota'||kind==='application_billing'){
+    const app=owner(s,actor,objectId);if(app.ownerId!==actor.id)throw new ForbiddenException('request must come from application owner');
+    if(!app.active)throw new ConflictException('application disabled');
+    if((kind==='application_billing')!==(applicationBillingMode(app)==='accounting'))throw new ConflictException('application billing mode does not match request kind');
+  }
+  if(s.approvals.some(a=>a.applicantId===actor.id&&a.kind===kind&&a.objectId===objectId&&(['pending','approved'].includes(a.status)||kind==='application_billing'&&a.status==='failed')))throw new ConflictException('an application for this purpose is already pending');
   const approval:Approval={id:newId('approval'),kind,applicantId:actor.id,objectId,amount:kind==='project_create'?0:amount(p.amount),requestedExpiresAt:expiry(p.expiresAt),scenario:text(p.scenario,'scenario',200),reason:text(p.reason,'reason',2000),proposedManagerId:p.managerId?activeMember(s,String(p.managerId)).id:null,proposedName:kind==='project_create'?text(p.name,'name',100):'',status:'pending',approverId:null,decisionReason:'',approvedAmount:null,approvedExpiresAt:null,execution:null,createdAt:now(),decidedAt:null,effectiveAt:null,failure:null};
   const approvers=s.members.filter(member=>{try{return !!activeMember(s,member.id)&&canApprove(s,member,approval);}catch{return false;}});
   if(!approvers.length)throw new ConflictException('no active responsible approver is configured');
@@ -113,7 +118,15 @@ async function executeApproval(tx:WorkspaceTransaction,actor:Member,a:Approval){
     case 'personal_topup':await topup(tx,pick(s.entitlements,a.objectId,'entitlement'),a.approvedAmount!,expiry(a.approvedExpiresAt));break;
     case 'application_quota':{
       const app=pick(s.applications,a.objectId,'application');if(!app.active||app.ownerId!==a.applicantId)throw new ConflictException('application owner or state changed');
+      if(applicationBillingMode(app)!=='quota')throw new ConflictException('application must use quota mode');
       await grantBatch(tx,app.id,'application',a.approvedAmount!,expiry(a.approvedExpiresAt),availableModels(s,app.range),null,null);break;
+    }
+    case 'application_billing':{
+      const app=pick(s.applications,a.objectId,'application');
+      if(!app.active||app.ownerId!==a.applicantId||applicationBillingMode(app)!=='accounting')throw new ConflictException('application owner, state or billing mode changed');
+      await grantBatch(tx,app.id,'application',a.approvedAmount!,expiry(a.approvedExpiresAt),availableModels(s,app.range),null,null);
+      app.billingMode='quota';
+      s.audit.push({id:newId('audit'),actorId:actor.id,action:'application.billing_changed',objectId:app.id,reason:a.decisionReason,createdAt:now(),detail:{before:'accounting',after:'quota',approvalId:a.id,policy:'historical_accounting_preserved; new_quota_separate'}});break;
     }
   }
 }
@@ -179,6 +192,7 @@ export async function workflowAction(tx:WorkspaceTransaction,actor:Member,type:s
     case 'project.end':return endProject(tx,actor,p.projectId,p.reason);
     case 'application.fund':{
       operator(actor);const app=pick(s.applications,p.applicationId,'application');if(!app.active)throw new ConflictException('application disabled');
+      if(applicationBillingMode(app)!=='quota')throw new ConflictException('accounting application must switch to quota mode through approval before funding');
       return grantBatch(tx,app.id,'application',amount(p.amount),expiry(p.expiresAt),availableModels(s,app.range),null,null);
     }
     case 'approval.submit':return submitApproval(tx,actor,p);

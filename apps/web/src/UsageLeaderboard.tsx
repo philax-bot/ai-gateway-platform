@@ -39,7 +39,7 @@ export function UsageLeaderboard({data,active=true,setPage,edit,targetId}:Props)
     if(!operator)return null;
     if(dimension==='people'){const member=memberOf(row.key);return member?<button className="link-button" onClick={()=>edit.grantPlan(undefined,member.id)}>调整额度</button>:'—';}
     if(dimension==='projects'){const project=projectOf(row.key);return project?<button className="link-button" onClick={()=>edit.fund('project',project)}>补充额度</button>:'—';}
-    if(dimension==='applications'){const application=applicationOf(row.key);return application?<button className="link-button" onClick={()=>edit.fund('application',application)}>追加额度</button>:'—';}
+    if(dimension==='applications'){const application=applicationOf(row.key);return application?application.billingMode==='accounting'?<button className="link-button" onClick={()=>setPage('applications',application.id)}>查看记账</button>:<button className="link-button" onClick={()=>edit.fund('application',application)}>追加额度</button>:'—';}
     return <button className="link-button" onClick={()=>setPage('members')}>成员</button>;
   };
 

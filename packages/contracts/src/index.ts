@@ -12,7 +12,7 @@ export * from './verification.js';
 export * from './usage.js';
 export * from './analytics.js';
 export * from './connection-failure.js';
-export { estimateChatInput,chatCompletionsUrl } from './request.js';
+export { estimateChatInput,estimateProtocolInput,chatCompletionsUrl } from './request.js';
 export type Purpose = 'personal' | 'project' | 'application';
 export type RequestMode = 'chat' | 'embeddings' | 'rerank' | 'image' | 'audio';
 export type Decision = 'allow' | 'deny';

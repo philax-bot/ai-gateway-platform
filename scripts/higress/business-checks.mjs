@@ -101,7 +101,7 @@ export async function runBusinessChecks({id,schema,db,hg,cp,gw,adminCookie,servi
     await command(manager.cookie,'project.members',{projectId:project.id,memberIds:[employee.member.id]});await invoke(projectKey.secret,'restored project membership',{purpose:'project',subjectId:employee.member.id,projectId:project.id});
 
     step('application owner without personal entitlement');
-    const application=(await admin('save.application',{name:'Business 独立应用',ownerId:appOwner.member.id,organizationId:'org-demo',range})).result;subjects.push(application.id);
+    const application=(await admin('save.application',{billingMode:'quota',name:'Business 独立应用',ownerId:appOwner.member.id,organizationId:'org-demo',range})).result;subjects.push(application.id);
     await refused(appOwner.cookie,'key.issue',{name:'owner personal',purpose:'personal'},409,'application ownership does not grant personal access');
     const appApproval=(await command(appOwner.cookie,'approval.submit',{kind:'application_quota',objectId:application.id,amount:.3,expiresAt:future,scenario:'应用接入',reason:'独立应用预算'})).result;
     await admin('approval.decide',{id:appApproval.id,decision:'approve',amount:.25,expiresAt:future,reason:'批准应用额度'});const appExecution=randomUUID();await admin('approval.execute',{id:appApproval.id},appExecution);await admin('approval.execute',{id:appApproval.id},appExecution);

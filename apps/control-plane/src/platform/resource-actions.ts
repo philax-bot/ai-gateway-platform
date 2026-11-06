@@ -1,11 +1,12 @@
 import { BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
 import type { AutoRule, Member, ModelService, Plan,WorkspaceState } from '@ai-gateway/contracts';
 import type { WorkspaceTransaction } from './workspace.repository';
-import { activeMember, expiry, limits, operator, passwordHash, pick, range, strings, text, amount } from './validation';
+import { activeMember, availableModels, expiry, limits, operator, passwordHash, pick, range, strings, text, amount } from './validation';
 import { endProject,grantPlan, manager, matches, newId, owner, publicMember, valid } from './domain';
 import { saveAlertRule } from './monitoring.domain';
 import { applyAutomatic } from './automatic-onboarding';
 import { prepareOrganizationChange } from './organization-changes';
+import { applicationBillingMode, type ApplicationBillingMode } from '@ai-gateway/contracts';
 
 export function memberCandidate(s:WorkspaceState,p:Record<string,unknown>,withPassword=true){
   const existing=p.id?pick(s.members,p.id,'member'):null,directoryId=text(p.directoryId,'directoryId',100);
@@ -92,7 +93,11 @@ export async function resourceAction(tx:WorkspaceTransaction,actor:Member,type:s
         if(e.open===true&&(!definition.active||!service.active||service.verification!=='passed'))throw new ConflictException('only active verified model sources can be opened');
         return {definitionId:definition.id,serviceId:service.id,open:e.open===true};
       });
-      if(new Set(entries.map(e=>e.definitionId)).size!==entries.length)throw new BadRequestException('one service source per model in a pool');
+      if(new Set(entries.map(e=>`${e.serviceId}:${e.definitionId}`)).size!==entries.length)throw new BadRequestException('duplicate service model entry in a pool');
+      for(const serviceId of new Set(entries.map(e=>e.serviceId))){
+        const owner=s.pools.find(pool=>pool.id!==existing?.id&&pool.entries.some(e=>e.serviceId===serviceId));
+        if(owner)throw new ConflictException(`模型服务“${s.services.find(service=>service.id===serviceId)?.name??serviceId}”已归属模型池“${owner.name}”，请先从原池移除。`);
+      }
       const pool={id:existing?.id??newId('pool'),name:text(p.name,'name',100),entries,limits:limits(p.limits)};
       if(existing)Object.assign(existing,pool);else s.pools.push(pool);return pool;
     }
@@ -121,9 +126,13 @@ export async function resourceAction(tx:WorkspaceTransaction,actor:Member,type:s
     }
     case 'save.application':{
       const existing=p.id?owner(s,actor,p.id):null;if(!existing)operator(actor);
+      const billingMode=(p.billingMode??(existing?applicationBillingMode(existing):'accounting')) as ApplicationBillingMode;
+      if(!['accounting','quota'].includes(billingMode))throw new BadRequestException('invalid application billing mode');
+      if(existing&&billingMode!==applicationBillingMode(existing))throw new ConflictException('application billing mode changes require approval');
       if(existing&&!actor.roles.includes('operator')&&(p.range||p.ownerId&&p.ownerId!==existing.ownerId))throw new ForbiddenException('operator required to change application range or owner');
       const appOwner=activeMember(s,text(p.ownerId??existing?.ownerId,'ownerId')),organization=pick(s.organizations,p.organizationId??existing?.organizationId,'organization');
-      const app={id:existing?.id??newId('application'),name:text(p.name,'name',100),description:String(p.description??''),ownerId:appOwner.id,organizationId:organization.id,active:p.active!==false,range:existing&&!p.range?existing.range:range(s,p.range),limits:limits(p.limits)};
+      const app={id:existing?.id??newId('application'),billingMode,name:text(p.name,'name',100),description:String(p.description??''),ownerId:appOwner.id,organizationId:organization.id,active:p.active!==false,range:existing&&!p.range?existing.range:range(s,p.range),limits:limits(p.limits)};
+      if(!existing&&billingMode==='accounting')await tx.grant({id:newId('accounting'),accounting:true,sourceType:'application_wallet',sourceId:app.id,organizationId:s.tenantId,projectId:null,purpose:'application',totalAmount:0,availableAmount:0,modelIds:availableModels(s,app.range),expiresAt:'9999-12-31T23:59:59.999Z',entitlementId:null,sourceBatchId:null});
       if(existing)Object.assign(existing,app);else s.applications.push(app);s.keys.filter(k=>k.subjectId===app.id).forEach(k=>k.ownerId=appOwner.id);return app;
     }
     default:throw new BadRequestException('unknown resource command');

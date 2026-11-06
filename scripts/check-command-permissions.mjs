@@ -14,7 +14,7 @@ export async function checkCommandPermissions({admin,request,state,command,gw}){
   const raw=(cookie,type,payload,idempotencyKey=randomUUID(),preview=false)=>request('/api/v1/platform/'+(preview?'preview':'commands'),{type,payload,idempotencyKey},cookie);
   for(const type of ['save.plan','save.definition','save.alert-rule','settings.update','periodic.run'])check((await raw(first.cookie,type,{name:'拒绝越权预览'},randomUUID(),true)).status===403,`${type} preview requires current operator role`);
   check((await raw(admin,'unknown.command',{},randomUUID(),true)).status===400,'unknown preview commands fail closed');
-  const app=(await command(admin,'save.application',{name:'权限交接验证应用',ownerId:first.value.id,organizationId:'org-demo',range})).result;
+  const app=(await command(admin,'save.application',{billingMode:'quota',name:'权限交接验证应用',ownerId:first.value.id,organizationId:'org-demo',range})).result;
   await command(admin,'application.fund',{applicationId:app.id,amount:3,expiresAt});
   const issueKey=randomUUID(),issue={name:'交接验证密钥',purpose:'application',applicationId:app.id};const issued=(await command(first.cookie,'key.issue',issue,issueKey)).result;
   const replay=await raw(first.cookie,'key.issue',issue,issueKey);check(replay.status===200&&replay.body.replayed&&!replay.body.result.secret,'valid key retry remains successful without plaintext');
@@ -42,7 +42,7 @@ export async function checkCommandPermissions({admin,request,state,command,gw}){
   const preview=await raw(next.cookie,'keys.status',bulk,bulkKey,true);
   check(preview.status===200&&preview.body.impact.changedCount===2&&preview.body.impact.keyChanges.every(k=>k.ownerName==='新责任人'&&k.masked),'bulk preview contains named, masked targets and exact change count');
   check(!JSON.stringify(preview.body).includes(second.secret)&&!JSON.stringify(preview.body).includes('keyHash'),'bulk impact never exposes credentials');
-  const other=(await command(admin,'save.application',{name:'不可混入的应用',ownerId:first.value.id,organizationId:'org-demo',range})).result;
+  const other=(await command(admin,'save.application',{billingMode:'quota',name:'不可混入的应用',ownerId:first.value.id,organizationId:'org-demo',range})).result;
   const foreign=(await command(first.cookie,'key.issue',{name:'其他人的密钥',purpose:'application',applicationId:other.id})).result;
   check((await raw(next.cookie,'keys.status',{...bulk,ids:[targets[0],foreign.key.id]},randomUUID(),true)).status===403,'one inaccessible target rejects the complete bulk preview');
   check((await raw(next.cookie,'keys.status',{...bulk,ids:[targets[0],'missing-key']},randomUUID(),true)).status===404,'one missing target rejects the complete bulk preview');

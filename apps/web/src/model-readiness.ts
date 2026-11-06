@@ -12,7 +12,7 @@ export function entryReadiness(d:PlatformSnapshot,entry:ModelPool['entries'][num
 }
 
 export function availablePlanModels(d:PlatformSnapshot,plan:Plan):string[]{
-  return (d.pools.find(p=>p.id===plan.range.poolId)?.entries??[])
+  return [...new Set((d.pools.find(p=>p.id===plan.range.poolId)?.entries??[])
     .filter(e=>!entryReadiness(d,e)&&(plan.range.mode==='follow'||plan.range.definitionIds.includes(e.definitionId)))
-    .map(e=>d.definitions.find(m=>m.id===e.definitionId)!.name);
+    .map(e=>d.definitions.find(m=>m.id===e.definitionId)!.name))];
 }

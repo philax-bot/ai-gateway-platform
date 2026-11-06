@@ -52,7 +52,7 @@ export async function prepareBusinessDemo({controlPlaneUrl:cp,gatewayUrl,modelUr
   }
   const applications=[];
   for(const [index,name] of [[0,'演示·工单归纳助手'],[1,'演示·知识检索 API']]){
-    const application=await command(`app-${index}`,'save.application',{name,ownerId:members.app.id,organizationId:organizations[1].id,range});
+    const application=await command(`app-${index}`,'save.application',{billingMode:'quota',name,ownerId:members.app.id,organizationId:organizations[1].id,range});
     await command(`app-fund-${index}`,'application.fund',{applicationId:application.id,amount:50,expiresAt});applications.push(application);
   }
   await afterResources();

@@ -22,7 +22,7 @@ export async function checkOperations({admin,employeeCookie,managerCookie,employ
   const keyDetail=await request(`/api/v1/platform/keys/${key.key.id}`,null,employeeCookie);check(keyDetail.status===200&&keyDetail.body.models.some(m=>m.modelId==='test-model')&&keyDetail.body.calls.summary.ended>0,'key details include current models and full scoped call summary');
   check(!JSON.stringify(keyDetail.body).includes(key.secret)&&!JSON.stringify(keyDetail.body).includes('keyHash'),'key detail and history contain no complete secret or hash');
   check((await request(`/api/v1/platform/keys/${key.key.id}`,null,managerCookie)).status===403,'unrelated actor cannot inspect another key');
-  const app=(await command(admin,'save.application',{name:'交接验证应用',ownerId:employee.id,organizationId:'org-demo',range})).result;
+  const app=(await command(admin,'save.application',{billingMode:'quota',name:'交接验证应用',ownerId:employee.id,organizationId:'org-demo',range})).result;
   const application=await request(`/api/v1/platform/applications/${app.id}`,null,employeeCookie);check(application.status===200&&application.body.models.some(m=>m.modelId==='test-model')&&application.body.status==='no_quota','application owner sees current models and unfunded setup step');
   check((await request(`/api/v1/platform/applications/${app.id}`,null,managerCookie)).status===403,'unrelated member cannot read application setup or finance');
   await command(admin,'application.fund',{applicationId:app.id,amount:3,expiresAt});const funded=await request(`/api/v1/platform/applications/${app.id}`,null,employeeCookie);check(funded.body.status==='ready'&&funded.body.availableAmount===3,'application setup reads PostgreSQL-backed original-source funds');

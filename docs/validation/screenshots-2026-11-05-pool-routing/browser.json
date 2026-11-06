@@ -1,0 +1,13 @@
+{
+  "success": true,
+  "checks": [
+    "same-model services survive create transformation and edit round-trip with separate open flags",
+    "no model-uniqueness restriction",
+    "both same-model services selected in shared multi-select",
+    "Escape closes only list and restores focus",
+    "each service has independent model open control",
+    "1440 no page overflow",
+    "390 no page overflow",
+    "no browser runtime exceptions"
+  ]
+}

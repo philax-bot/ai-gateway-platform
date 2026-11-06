@@ -44,8 +44,11 @@ export interface Project {
   id: string; name: string; description: string; managerId: string; applicantId: string; memberIds: string[];
   status: 'active' | 'paused' | 'ended'; range: ModelRange; limits: UsageLimits;
 }
-export interface Application { id: string; name: string; ownerId: string; organizationId: string; description: string; active: boolean; range: ModelRange; limits: UsageLimits }
-export type ApprovalKind = 'project_create' | 'project_budget' | 'project_member_quota' | 'personal_open' | 'personal_topup' | 'application_quota';
+export type ApplicationBillingMode = 'accounting' | 'quota';
+/** Missing mode is a legacy quota application; only new applications default to accounting. */
+export const applicationBillingMode = (app: Pick<Application,'billingMode'>):ApplicationBillingMode => app.billingMode??'quota';
+export interface Application { billingMode?:ApplicationBillingMode; id: string; name: string; ownerId: string; organizationId: string; description: string; active: boolean; range: ModelRange; limits: UsageLimits }
+export type ApprovalKind = 'project_create' | 'project_budget' | 'project_member_quota' | 'personal_open' | 'personal_topup' | 'application_quota' | 'application_billing';
 export interface Approval {
   id: string; kind: ApprovalKind; applicantId: string; objectId: string | null; amount: number; requestedExpiresAt: string;
   scenario: string; reason: string; proposedManagerId: string | null; proposedName: string; status: 'pending' | 'approved' | 'effective' | 'rejected' | 'withdrawn' | 'failed';
@@ -96,6 +99,8 @@ export interface ManagedAgentView {
   };
 }
 export interface BusinessQuotaBatch {
+  /** Zero-origin application ledger; permits negative balances and is never a quota grant. */
+  accounting?:boolean;
   closedAt?:string|null;closedAmount?:number;
   id: string; sourceType: 'personal_batch' | 'project_member_batch' | 'application_wallet'; sourceId: string;
   organizationId: string; projectId: string | null; totalAmount: number; availableAmount: number;
@@ -111,7 +116,7 @@ export interface ProjectDetail {
 export interface ApplicationDetail {
   application:Application;ownerName:string;organizationName:string;poolName:string;
   status:'disabled'|'model_unavailable'|'price_unconfigured'|'no_quota'|'quota_insufficient'|'ready';
-  models:PurposeView['models'];availableAmount:number;batches:BusinessQuotaBatch[];
+  models:PurposeView['models'];availableAmount:number;accountingBalance:number;batches:BusinessQuotaBatch[];
   keys:Omit<ManagedKey,'keyHash'|'onlineSessionHash'>[];calls:import('./calls.js').CallPage;history:AuditEntry[];
 }
 export interface PlatformCommand { type: string; idempotencyKey: string; payload: Record<string, unknown>; expectedRevision?: number; previewToken?: string }

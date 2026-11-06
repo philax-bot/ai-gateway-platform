@@ -49,8 +49,8 @@ function inspectNative(protocol:Exclude<PublicProtocol,'chat'>,body:Obj):Obj {
     parts(array(body.messages,'messages'));
     if(body.system!==undefined)parts(body.system);
   }
-  // Admission uses a serialized projection, not a vision-token estimate for remote images.
-  // The original content is forwarded intact; authoritative upstream usage drives settlement.
+  // This projection is for boundary/guardrail checks only. Admission estimates the
+  // original structured request; upstream forwarding never uses this serialized string.
   const result:Obj={model:body.model,messages:[{role:'user',content:JSON.stringify(body)}]};
   if(body.stream!==undefined)result.stream=boolean(body.stream,'stream');
   const limit=protocol==='responses'?body.max_output_tokens:body.max_tokens;if(limit!==undefined)result.max_tokens=positive(limit,'output token limit');else if(protocol==='messages')fail('max_tokens is required');

@@ -52,9 +52,9 @@ export function range(state:WorkspaceState,value:unknown):ModelRange {
 }
 export function availableModels(state:Pick<WorkspaceState,'pools'|'services'|'definitions'>,r:ModelRange):string[] {
   const pool=state.pools.find(p=>p.id===r.poolId);if(!pool)return [];
-  return pool.entries.filter(e=>e.open&&(r.mode==='follow'||r.definitionIds.includes(e.definitionId)))
+  return [...new Set(pool.entries.filter(e=>e.open&&(r.mode==='follow'||r.definitionIds.includes(e.definitionId)))
     .filter(e=>state.services.some(s=>s.id===e.serviceId&&s.active&&s.verification==='passed'&&s.mappings.some(m=>m.definitionId===e.definitionId)))
-    .flatMap(e=>state.definitions.filter(d=>d.id===e.definitionId&&d.active).map(d=>d.modelId));
+    .flatMap(e=>state.definitions.filter(d=>d.id===e.definitionId&&d.active).map(d=>d.modelId)))];
 }
 export function passwordHash(password:string):string {
   if(password.length<12||password.length>256)throw new BadRequestException('password must contain 12 to 256 characters');

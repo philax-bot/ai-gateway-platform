@@ -11,7 +11,7 @@ import { businessDenial } from '../platform/domain';
 import { DemoStore } from './demo.store';
 import type { DemoCredential, QuotaSnapshot, StartVerificationInput, VerificationPageQuery } from './control-plane.store';
 import { authorizationFingerprint, checkSettlementScope, reconciliationCalculation, RESERVATION_AMOUNT, retryLinkAllowed, sameIdentity, settlementAmount, type RetryTarget } from './accounting';
-import { admissionForBatch, admissionDenialMessage, publicLogAdmission } from './admission';
+import { admissionOptionsForBatch, admissionDenialMessage, publicLogAdmission } from './admission';
 import { callVisible, type CallScope } from './call-query';
 import { queryPostgresCalls, type CallRow } from './postgres-call-query';
 import { queryPostgresUsage } from './postgres-call-analytics';
@@ -151,38 +151,40 @@ export class PostgresStore extends DemoStore implements OnModuleDestroy {
       } else if((response.guardrail=admissionGuardrail(workspace.rows[0]?.payload?.guardrail,input)??undefined)?.action==='block'){
         response.reasonCode='safety_policy_violation';response.reasonMessage='输入可能包含受限制的信息，已按企业安全策略阻止发送。请修改后重试。';
       } else {
-        const values = [input.purpose,input.identity.subjectId,input.identity.organizationId ?? null,input.identity.projectId ?? null,JSON.stringify([input.modelId])];
-        const scope = 'purpose=$1 and source_id=$2 and organization_id is not distinct from $3 and project_id is not distinct from $4 and model_ids @> $5::jsonb and expires_at > now() and closed_at is null';
+        const accounting=input.purpose==='application'&&workspace.rows[0]?.payload?.applications?.find((a:{id:string})=>a.id===input.identity.subjectId)?.billingMode==='accounting';
+        const values = [input.purpose,input.identity.subjectId,input.identity.organizationId ?? null,input.identity.projectId ?? null,JSON.stringify([input.modelId]),accounting];
+        const scope = 'purpose=$1 and source_id=$2 and organization_id is not distinct from $3 and project_id is not distinct from $4 and model_ids @> $5::jsonb and expires_at > now() and closed_at is null and accounting=$6';
         const batches = await client.query(`select * from quota_batches where ${scope} order by expires_at,id for update`, values);
         let b:Record<string,any>|undefined,admission:AdmissionSnapshot|undefined,eligible=0;
         let candidateReason:AuthorizeResponse['reasonCode']='no_quota';
         let candidateLimits:AuthorizeResponse['requestLimits'];
+        const choices:{batch:Record<string,any>;admission:AdmissionSnapshot}[]=[];
         for(const candidate of batches.rows){
-          const quote=admissionForBatch(workspace.rows[0]?.payload as AdmissionWorkspace|undefined,input,{sourceId:candidate.source_id,purpose:candidate.purpose,projectId:candidate.project_id,entitlementId:candidate.entitlement_id});
-          if(quote.reason){candidateReason=quote.reason;candidateLimits=quote.requestLimits;continue;}eligible++;
-          if(Number(candidate.available_amount)>=quote.admission.reservedAmount){b=candidate;admission=quote.admission;break;}
+          for(const quote of admissionOptionsForBatch(workspace.rows[0]?.payload as AdmissionWorkspace|undefined,input,{sourceId:candidate.source_id,purpose:candidate.purpose,projectId:candidate.project_id,entitlementId:candidate.entitlement_id})){
+            if(quote.reason){candidateReason=quote.reason;candidateLimits=quote.requestLimits;continue;}eligible++;
+            if(candidate.accounting||Number(candidate.available_amount)>=quote.admission.reservedAmount)choices.push({batch:candidate,admission:quote.admission});
+          }
         }
+        // Lock the union once, in the existing canonical order, before checking any route.
+        const candidateScopeIds=[...new Set(choices.flatMap(choice=>choice.admission.scopes.map(scope=>scope.id)))];
+        await this.lock(client,candidateScopeIds.map(id=>`limit:${id}`));
+        const windowResult=await client.query("select date_trunc('minute',clock_timestamp()) as start,clock_timestamp() as now");
+        const windowStart=windowResult.rows[0].start as Date;
+        const limits=await client.query(`select s.id,coalesce(w.requests,0) as requests,coalesce(w.tokens,0) as tokens,
+          (select count(*)::int from reservation_limit_scopes r where r.scope_id=s.id and r.active=true and r.expires_at>clock_timestamp()) as active
+          from unnest($1::text[]) s(id) left join admission_windows w on w.scope_id=s.id and w.window_start=$2`,[candidateScopeIds,windowStart]);
+        const selected=choices.find(choice=>!choice.admission.scopes.some(scope=>{
+          const row=limits.rows.find(row=>row.id===scope.id)!;
+          return (scope.rpm!==undefined&&Number(row.requests)+1>scope.rpm)||(scope.tpm!==undefined&&Number(row.tokens)+choice.admission.estimatedTokens>scope.tpm)||(scope.concurrency!==undefined&&Number(row.active)>=scope.concurrency);
+        }));
+        b=selected?.batch;admission=selected?.admission;
         if (!b) {
-          response.reasonCode = eligible?'quota_insufficient':batches.rowCount?candidateReason:'no_quota';
+          response.reasonCode = choices.length?'rate_limited':eligible?'quota_insufficient':batches.rowCount?candidateReason:'no_quota';
+          if(choices.length)response.admission=choices[0].admission;
           if(response.reasonCode==='request_limit_exceeded')response.requestLimits=candidateLimits;
-          response.reasonMessage=admissionDenialMessage(response.reasonCode,response.requestLimits);
+          response.reasonMessage=choices.length?'an applicable subject, pool, service or shared-resource limit is reached':admissionDenialMessage(response.reasonCode,response.requestLimits);
         } else {
           const a=admission!;
-          await this.lock(client,a.scopes.map(scope=>`limit:${scope.id}`));
-          const windowResult=await client.query("select date_trunc('minute',clock_timestamp()) as start,clock_timestamp() as now");
-          const windowStart=windowResult.rows[0].start as Date;
-          const limits=await client.query(`select s.id,coalesce(w.requests,0) as requests,coalesce(w.tokens,0) as tokens,
-            (select count(*)::int from reservation_limit_scopes r where r.scope_id=s.id and r.active=true and r.expires_at>clock_timestamp()) as active
-            from unnest($1::text[]) s(id) left join admission_windows w on w.scope_id=s.id and w.window_start=$2`,[a.scopes.map(scope=>scope.id),windowStart]);
-          const limited=a.scopes.some(scope=>{
-            const row=limits.rows.find(row=>row.id===scope.id)!;
-            return (scope.rpm!==undefined&&Number(row.requests)+1>scope.rpm)||(scope.tpm!==undefined&&Number(row.tokens)+a.estimatedTokens>scope.tpm)||(scope.concurrency!==undefined&&Number(row.active)>=scope.concurrency);
-          });
-          if(limited){
-            response.reasonCode='rate_limited';response.reasonMessage='an applicable subject, pool, service or shared-resource limit is reached';
-            response.admission=a;await this.saveAuthorization(client,input,response,fingerprint);
-            await client.query('commit');return response;
-          }
           await client.query('update quota_batches set available_amount=available_amount-$1 where id=$2', [a.reservedAmount,b.id]);
           const reservationId = `reservation-${randomUUID()}`; const expiresAt = new Date(windowResult.rows[0].now.getTime()+300000).toISOString();
           response.decision = 'allow';response.admission=a; response.reservation = { reservationId,sourceType:b.source_type,sourceId:b.id,reservedAmount:a.reservedAmount,currency:'CNY',expiresAt };
@@ -399,7 +401,7 @@ export class PostgresStore extends DemoStore implements OnModuleDestroy {
     const updated=await client.query(`update quota_batches set
       available_amount=available_amount+case when closed_at is null then $1::numeric else 0 end,
       closed_amount=closed_amount+case when closed_at is not null then $1::numeric else 0 end
-      where id=$2 and (case when closed_at is null then available_amount else closed_amount end)+$1>=0
+      where id=$2 and (accounting or (case when closed_at is null then available_amount else closed_amount end)+$1>=0)
       and available_amount+closed_amount+$1<=total_amount returning id`,[release,r.batch_id]);
     if(!updated.rowCount)throw new ConflictException('original quota batch has insufficient funds or invalid balance');
     const response:SettlementResponse={requestId:input.requestId,status:result.billable?'settled':'released',billableState:result.billable?'confirmed':'not_billable',ledgerEntryId:`ledger-${randomUUID()}`};

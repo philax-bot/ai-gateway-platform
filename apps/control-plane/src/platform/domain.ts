@@ -4,6 +4,7 @@ import type { Approval, AuthorizeRequest, AutoRule, BusinessQuotaBatch, Entitlem
 import type { WorkspaceTransaction } from './workspace.repository';
 import { activeMember, availableModels, now, pick } from './validation';
 import type {AdmissionWorkspace} from '../store/admission-policy-lock';
+import { applicationBillingMode } from '@ai-gateway/contracts';
 
 export const newId=(prefix:string)=>`${prefix}-${randomUUID()}`;
 export const valid=(date:string|null)=>date===null||Date.parse(date)>Date.now();
@@ -123,7 +124,7 @@ export async function syncResources(tx:WorkspaceTransaction){
     let models:string[]|null=null;
     if(batch.entitlementId){const e=s.entitlements.find(e=>e.id===batch.entitlementId);models=e&&e.status==='active'&&valid(e.expiresAt)?availableModels(s,e.range):[];}
     if(batch.projectId&&s.projects.some(p=>p.id===batch.projectId)){const p=s.projects.find(p=>p.id===batch.projectId)!;models=p.status==='active'?availableModels(s,p.range):[];}
-    if(batch.purpose==='application'){const app=s.applications.find(a=>a.id===batch.sourceId);if(app)models=app.active?availableModels(s,app.range):[];}
+    if(batch.purpose==='application'){const app=s.applications.find(a=>a.id===batch.sourceId);if(app)models=app.active&&(applicationBillingMode(app)==='accounting')===!!batch.accounting?availableModels(s,app.range):[];}
     if(models)await tx.updateBatchModels(batch.id,models);
   }
   for(const key of s.keys){

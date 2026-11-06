@@ -11,7 +11,7 @@ describe('command retries respect current responsibility without repeating busin
   async function execute(command:PlatformCommand,actor=operator){const preview=await platform.preview(actor,command);return platform.execute(actor,{...command,previewToken:preview.previewToken});}
   async function save(type:string,payload:Record<string,unknown>,actor=operator){return (await execute(input(type,payload),actor)).result as any;}
   beforeEach(async()=>{const store=new DemoStore();repository=new WorkspaceRepository(store);await repository.initialize();platform=new PlatformService(repository,store);await repository.transact(async tx=>{tx.state.services[0].verification='passed';tx.state.pools[0].entries[0].open=true;});next=await save('save.member',{directoryId:'responsibility-next',name:'新责任人',organizationId:'org-demo'});});
-  async function app(){return save('save.application',{name:'交接应用',ownerId:employee,organizationId:'org-demo',range});}
+  async function app(){return save('save.application',{billingMode:'quota',name:'交接应用',ownerId:employee,organizationId:'org-demo',range});}
   async function project(){return save('save.project',{name:'交接项目',managerId:employee,range});}
 
   it('does not return an old application key response after ownership moves',async()=>{

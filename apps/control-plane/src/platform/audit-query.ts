@@ -7,7 +7,7 @@ const actionNames:Record<string,string>={
   'save.definition':'保存模型定义','save.service':'保存模型服务','service.verify':'验证模型连接','save.pool':'调整模型池','save.plan':'保存开通方案','save.rule':'保存自动开通规则',
   'auto.apply':'为现有成员应用规则','distribution.execute':'执行开通或发放','entitlement.grant':'授予使用权益','entitlement.stop':'停止后续发放','entitlement.revoke':'撤销使用权益','quota.monthly_grant':'发放月度额度',
   'save.project':'保存项目','project.members':'调整项目成员','project.fund':'发放项目预算','project.allocate':'分配项目成员额度','project.end':'结束项目','project.closed':'记录项目回收',
-  'save.application':'保存应用','application.fund':'发放应用额度','approval.submit':'提交申请','approval.withdraw':'撤回申请','approval.decide':'处理审批','approval.execute':'执行已批准事项','approval.repair':'修正执行参数','approval.execution_repaired':'记录审批修正','approval.execution_failed':'记录审批执行失败',
+  'save.application':'保存应用','application.fund':'发放应用额度','application.billing_changed':'切换应用计费模式','approval.submit':'提交申请','approval.withdraw':'撤回申请','approval.decide':'处理审批','approval.execute':'执行已批准事项','approval.repair':'修正执行参数','approval.execution_repaired':'记录审批修正','approval.execution_failed':'记录审批执行失败',
   'key.issue':'签发密钥','key.status':'调整密钥状态','keys.status':'批量调整密钥','settings.update':'调整企业设置','settings.retention':'调整保留策略','retention.run':'清理运行辅助记录','notification.read':'读取站内通知','periodic.run':'检查周期发放','usage.reconcile':'核对调用费用',
   'save.alert-rule':'保存告警规则','alert.ack':'知晓告警','alert.opened':'触发业务告警','alert.recovered':'恢复业务告警','alert.collection_opened':'记录采集故障','alert.collection_recovered':'记录采集恢复',
 };

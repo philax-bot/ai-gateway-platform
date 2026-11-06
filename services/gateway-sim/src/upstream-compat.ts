@@ -10,7 +10,7 @@ export function adaptUpstreamChatRequest(target: URL, request: Record<string, un
       if (message.role !== 'developer' && message.role !== 'system') return message;
       // DeepSeek accepts system instructions as a string, including instructions
       // sent by OpenAI clients as an array of text parts.
-      const content = Array.isArray(message.content)
+      const content = Array.isArray(message.content) && message.content.every(part => part?.type === 'text' && typeof part.text === 'string')
         ? message.content.map((part: { text: string }) => part.text).join('\n')
         : message.content;
       return { ...message, role: 'system', content };

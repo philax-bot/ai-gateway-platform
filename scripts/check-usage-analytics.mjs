@@ -31,7 +31,7 @@ export async function checkUsageAnalytics({database,schema,controlPlaneUrl:cp,se
   const range={poolId:state.pools[0].id,mode:'follow',definitionIds:[]};
   const project=await command('save.project',{name:'聚合受管项目',managerId:manager.id,range});
   const otherProject=await command('save.project',{name:'聚合其他项目',managerId:state.actor.id,range});
-  const application=await command('save.application',{name:'聚合经理应用',ownerId:manager.id,organizationId:'department-engineering',range});
+  const application=await command('save.application',{billingMode:'quota',name:'聚合经理应用',ownerId:manager.id,organizationId:'department-engineering',range});
   const managerCookie=await login('usage-manager',password),employeeCookie=await login('web-employee',seeded.employeePassword);
   const window={from:'2020-10-31T15:00:00.000Z',to:'2020-11-01T17:00:00.000Z'};
   let sequence=0;

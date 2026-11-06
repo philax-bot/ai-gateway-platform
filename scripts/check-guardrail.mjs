@@ -41,7 +41,7 @@ try{
   const range={poolId:pool.id,mode:'follow',definitionIds:[]};const plan=await command('save.plan',{name:'浏览器办公方案',range,amount:.2,cadence:'monthly',quotaDays:30,entitlementDays:365});
   const accounts={operator:admin};for(const [role,name]of [['employee','审核新员工'],['manager','审核项目经理'],['owner','审核应用负责人']]){const member=await command('save.member',{name,directoryId:'web-'+role,password,organizationId:'department-engineering',category:'employee',roles:['employee'],tags:[]});accounts[role]={directoryId:'web-'+role,password,name,id:member.id};}
   const project=await command('save.project',{name:'浏览器验收项目',managerId:accounts.manager.id,range});await command('project.members',{projectId:project.id,memberIds:[accounts.employee.id]});
-  const application=await command('save.application',{name:'浏览器验收应用',ownerId:accounts.owner.id,organizationId:'org-demo',range});
+  const application=await command('save.application',{billingMode:'quota',name:'浏览器验收应用',ownerId:accounts.owner.id,organizationId:'org-demo',range});
   const session={id,directory,schema,web,control:cp,gateway,accounts,planId:plan.id,projectId:project.id,applicationId:application.id};
   await writeFile(resolve(directory,'session.json'),JSON.stringify(session,null,2));
   const check=(condition,label)=>{assert.ok(condition,label);report.checks.push(label);};

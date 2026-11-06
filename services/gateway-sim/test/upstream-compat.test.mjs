@@ -4,6 +4,14 @@ import { adaptUpstreamChatRequest } from '../dist/upstream-compat.js';
 
 const deepseek = new URL('https://api.deepseek.com/v1');
 
+test('DeepSeek adaptation preserves image parts in user and instruction messages', () => {
+  const content=[{type:'text',text:'Inspect this.'},{type:'image_url',image_url:{url:'data:image/png;base64,fixture'}}];
+  const request={messages:[{role:'developer',content},{role:'user',content}]};
+  const result=adaptUpstreamChatRequest(deepseek,request);
+  assert.deepEqual(result.messages,[{role:'system',content},{role:'user',content}]);
+  assert.deepEqual(request.messages[0],{role:'developer',content});
+});
+
 test('a generic reasoning client can send developer instructions through a DeepSeek route', () => {
   const request = {
     model: 'private-logical-model',

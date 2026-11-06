@@ -77,6 +77,8 @@ Web 构建使用 `VITE_CONTROL_PLANE_URL`、`VITE_GATEWAY_URL` 提供浏览器�
 
 模型标识使用平台模型目录中的“对外模型标识”。工具文档中的 Base URL 填到 `/v1`（例如 `http://127.0.0.1:4000/v1`）。
 
+Chat Completions 支持文本和 `image_url` 输入块（远程 URL 或 Base64 data URL），包括 Pi `read` 工具之后追加的图片消息。图片原样转发，由上游校验图片格式及模型能力，网关不会下载远程图片或将图片降级成文本；音视频仍需独立计量适配。网关 JSON 正文上限为 20 MiB（含 Base64 与完整历史）；准入采用通用 BPE 文本分词加 25% 余量与 256 tokens 封装余量，每张图片另预留 8192 tokens，可能触发上下文或额度限制，最终结算采用上游真实 usage。模型端、Higress 和入口代理可能有自己的大小限制。
+
 上游路由为 DeepSeek 官方 `api.deepseek.com` 时，网关会将 OpenAI 客户端发送的 `developer` 消息转换为 `system`，将系统消息的文本数组合并为字符串，并将已通过准入的 `max_completion_tokens` 转换为 `max_tokens`。Pi 等工具无需为此额外配置供应商兼容参数；输出上限仍须满足平台使用保护。适配依据服务的真实上游地址，其他供应商的消息角色和参数保持原协议；工具历史、思考内容与流式用量继续透传。
 
 连接阶段的偶发失败（DNS/连接超时）只允许**一次**有界重试，且仅在明确未发出任何请求字节时进行；已开始的响应、取消和超时不会被重试，因此不会重复计费。连接验证的超时可用 `UPSTREAM_VALIDATION_TIMEOUT_MS`（1000–120000，默认 20000）调整。
@@ -87,7 +89,7 @@ Web 构建使用 `VITE_CONTROL_PLANE_URL`、`VITE_GATEWAY_URL` 提供浏览器�
 
 `UPSTREAM_TIMEOUT_MS` 保留为总时限，默认 600000；首字节等待 `UPSTREAM_FIRST_BYTE_TIMEOUT_MS` 默认 120000；响应空闲 `UPSTREAM_IDLE_TIMEOUT_MS` 默认 60000。均为 100–3600000 毫秒整数，非法值在监听与创建日记前拒绝启动。正文任意字节（含 SSE 注释、reasoning 与工具增量）重置空闲预算，不延长总预算。超时记录具体阶段，未知用量继续进入待核对。停机排空与容器宽限见 [容器手册](CONTAINER-RUNBOOK.md)。
 
-`request_limit_exceeded` 的响应增加 `error.details.requestLimits`：请求输出、允许输出、输入估算、模型上下文和限制来源；不暴露上游地址、资源 ID 或凭据引用。报价接口与两种存储使用相同诊断；已保存的拒绝在同键重放时保持原证据。价格未知与额度不足使用各自文案，不再统称无有效额度。输入量仍是保守传输字节估算，不宣称等于模型 tokenizer。
+`request_limit_exceeded` 的响应增加 `error.details.requestLimits`：请求输出、允许输出、输入估算、模型上下文和限制来源；不暴露上游地址、资源 ID 或凭据引用。报价接口与两种存储使用相同诊断；已保存的拒绝在同键重放时保持原证据。价格未知与额度不足使用各自文案，不再统称无有效额度。三协议直接从原始结构化输入估算，不重复序列化 Messages/Responses，不将图片 Base64 当作文本。文本采用 cl100k_base 通用 BPE 加余量，图片为固定预留；均不是特定上游的精确 tokenizer 或用量上界，大图及不同模型可能超过预留，最终结算仍依上游 usage。
 
 用量解析兼容 OpenAI `prompt_tokens_details.cached_tokens` 和 DeepSeek `prompt_cache_hit_tokens`；两者并存且矛盾时不确认费用。推理 token 已包含在输出总量中，不重复叠加；无效的最终 SSE 用量不退回早先的累计样本。
 

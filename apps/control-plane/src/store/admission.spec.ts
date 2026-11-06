@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { AuthorizeRequest, Entitlement, Plan, SettlementRequest } from '@ai-gateway/contracts';
 import { initialWorkspace } from '../platform/seed';
 import { DemoStore } from './demo.store';
-import { costForUsage,UPSTREAM_MAX_OUTPUT_TOKENS } from './admission';
+import { admissionForBatch,costForUsage,UPSTREAM_MAX_OUTPUT_TOKENS } from './admission';
 import { WorkspaceRepository } from '../platform/workspace.repository';
 import { PlatformService } from '../platform/platform.service';
 import {aggregateUsage} from './call-analytics';
@@ -21,6 +21,61 @@ function configured(){
   return {store,state,batch,request};
 }
 describe('trusted admission and immutable billing',()=>{
+  function addSource(state:ReturnType<typeof configured>['state']){
+    const source={...structuredClone(state.services[0]),id:'service-second',name:'第二来源',limits:{mode:'custom' as const,concurrency:1}};
+    state.services.push(source);state.services[0].limits={mode:'custom',concurrency:1};
+    state.settings.limits={mode:'none'};
+    state.pools[0].entries.push({...state.pools[0].entries[0],serviceId:source.id});
+    return source;
+  }
+  it('uses both independent service slots concurrently, rejects only when both fill, and preserves replay',async()=>{
+    const {store,state,request,batch}=configured();addSource(state);
+    const inputs=[request(),request(),request()];
+    const results=await Promise.all(inputs.map(input=>store.authorize(input)));
+    expect(results.map(r=>r.decision)).toEqual(['allow','allow','deny']);
+    expect(new Set(results.slice(0,2).map(r=>r.admission!.route!.serviceId)).size).toBe(2);
+    expect(results[2].reasonCode).toBe('rate_limited');
+    expect(batch.availableAmount).toBe(9.9984);
+    const replay=await store.authorize(inputs[0]);
+    expect(replay.replayed).toBe(true);expect(replay.admission).toEqual(results[0].admission);
+    expect(batch.availableAmount).toBe(9.9984);
+    await store.settle({requestId:inputs[0].requestId,idempotencyKey:crypto.randomUUID(),reservationId:results[0].reservation!.reservationId,outcome:'upstream_error',inputTokens:0,outputTokens:0,usageFinal:true,completedAt:new Date().toISOString()});
+    const next=await store.authorize(request());expect(next.decision).toBe('allow');expect(next.admission!.route!.serviceId).toBe(results[0].admission!.route!.serviceId);
+  });
+  it('distributes sequential independent requests and skips disabled, closed and unpriced sources',()=>{
+    const {state,request,batch}=configured(),source=addSource(state);
+    const routes=Array.from({length:100},(_,i)=>admissionForBatch(state,request({requestId:`route-${i}`}),batch).admission!.route!.serviceId);
+    const count=routes.filter(id=>id===source.id).length;expect(count).toBeGreaterThan(25);expect(count).toBeLessThan(75);
+    for(const mode of ['disabled','unverified','closed','unpriced']){
+      source.active=mode!=='disabled';source.verification=mode==='unverified'?'unverified':'passed';state.pools[0].entries[1].open=mode!=='closed';source.mappings[0].inputPrice=mode==='unpriced'?null:2;
+      for(let i=0;i<10;i++)expect(admissionForBatch(state,request(),batch).admission!.route!.serviceId).toBe(state.services[0].id);
+    }
+  });
+  it.each(['rpm','tpm','concurrency'] as const)('uses spare service capacity for %s while respecting pool and shared caps',async metric=>{
+    const {store,state,request}=configured(),source=addSource(state);
+    for(const s of [state.services[0],source])s.limits={mode:'custom',[metric]:metric==='tpm'?300:1};
+    expect((await store.authorize(request())).decision).toBe('allow');
+    expect((await store.authorize(request())).decision).toBe('allow');
+    expect((await store.authorize(request())).reasonCode).toBe('rate_limited');
+    const other=configured();addSource(other.state);other.state.pools[0].limits={mode:'custom',concurrency:1};
+    expect((await other.store.authorize(other.request())).decision).toBe('allow');expect((await other.store.authorize(other.request())).reasonCode).toBe('rate_limited');
+    const shared=configured(),second=addSource(shared.state);shared.state.services[0].sharedCapacityId=second.sharedCapacityId='same-hardware';shared.state.settings.limits={mode:'custom',concurrency:1};
+    // Common subject/pool scopes are explicitly unbounded; only shared capacity inherits the enterprise cap.
+    shared.state.members.find(m=>m.id===shared.request().identity.subjectId)!.limits={mode:'none'};shared.state.pools[0].limits={mode:'none'};shared.state.entitlements[0].planSnapshot.limits={mode:'none'};
+    expect((await shared.store.authorize(shared.request())).decision).toBe('allow');expect((await shared.store.authorize(shared.request())).reasonCode).toBe('rate_limited');
+  });
+  it('allows same-price quote fallback but never changes a pinned tariff',async()=>{
+    const {store,state,request,batch}=configured(),source=addSource(state);
+    const quoted=admissionForBatch(state,request(),batch).admission!;
+    const first=await store.authorize(request({expectedPriceVersion:quoted.price!.version}));
+    const second=await store.authorize(request({expectedPriceVersion:quoted.price!.version}));
+    expect(first.decision).toBe('allow');expect(second.decision).toBe('allow');
+    expect(first.admission!.route!.serviceId).not.toBe(second.admission!.route!.serviceId);
+    const changed=configured(),expensive=addSource(changed.state);expensive.mappings[0].inputPrice=99;
+    const cheapVersion=admissionForBatch({...changed.state,services:changed.state.services.filter(s=>s.id!==expensive.id)},changed.request(),changed.batch).admission!.price!.version;
+    const a=await changed.store.authorize(changed.request({expectedPriceVersion:cheapVersion}));expect(a.admission!.price!.inputPrice).toBe(2);
+    expect((await changed.store.authorize(changed.request({expectedPriceVersion:cheapVersion}))).reasonCode).toBe('rate_limited');
+  });
   it('freezes directory organization for analytics without changing tenant identity or retry scope',async()=>{
     const {store,state,request}=configured(),input=request(),member=state.members.find(member=>member.id===input.identity.subjectId)!;
     const original=member.organizationId,authorized=await store.authorize(input);

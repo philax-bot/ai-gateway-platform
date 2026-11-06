@@ -101,7 +101,7 @@ export class PlatformService {
     const protections:{name:string;limits:UsageLimits}[]=[{name:'企业默认',limits:s.settings.limits}];
     if(key.purpose==='application'){
       const app=pick(s.applications,key.subjectId,'application');sourceActive=app.active;models=sourceActive?availableModels(s,app.range):[];
-      append(app.name,app.range,app.limits,null,null,batches.filter(b=>b.purpose==='application'&&b.sourceId===app.id));protections.push({name:'应用整体',limits:app.limits});
+      append(`${app.name} · ${app.billingMode==='accounting'?'记账模式（允许负余额）':'额度模式'}`,app.range,app.limits,null,null,batches.filter(b=>b.purpose==='application'&&b.sourceId===app.id&&!b.closedAt&&!!b.accounting===(app.billingMode==='accounting')));protections.push({name:'应用整体',limits:app.limits});
     }else{
       const member=pick(s.members,key.subjectId,'member');try{activeMember(s,member.id);}catch{sourceActive=false;}
       protections.push({name:'人员总保护',limits:member.limits??{mode:'inherit'}});models=memberModels(s,member.id,key.projectId);
@@ -125,16 +125,16 @@ export class PlatformService {
 
   async applicationDetail(actorId:string,id:string):Promise<ApplicationDetail>{
     const {state:s,batches}=await this.repository.view(),actor=activeMember(s,actorId),application=owner(s,actor,id);
-    const appBatches=batches.filter(b=>b.sourceId===id&&b.purpose==='application'),effective=appBatches.filter(b=>valid(b.expiresAt)&&!b.closedAt),keys=s.keys.filter(k=>!k.internal&&k.purpose==='application'&&k.subjectId===id);
+    const appBatches=batches.filter(b=>b.sourceId===id&&b.purpose==='application'),accounting=application.billingMode==='accounting',effective=appBatches.filter(b=>valid(b.expiresAt)&&!b.closedAt&&!!b.accounting===accounting),keys=s.keys.filter(k=>!k.internal&&k.purpose==='application'&&k.subjectId===id);
     const models=availableModels(s,application.range).map(modelId=>{
       const usable=effective.filter(b=>b.modelIds.includes(modelId)),availableAmount=Number(usable.reduce((sum,b)=>sum+b.availableAmount,0).toFixed(6));
       const quote=admissionForBatch(s,{requestId:'view',idempotencyKey:'view-only',identity:{credentialId:'view-only',subjectType:'application',subjectId:id,organizationId:s.tenantId,projectId:null},purpose:'application',modelId,mode:'chat',estimatedInputTokens:0,maxOutputTokens:1,policyVersion:'view'},{sourceId:id,purpose:'application',projectId:null},true);
-      const status:PurposeView['models'][number]['status']=!quote.admission?quote.reason==='price_unconfigured'?'price_unconfigured':'model_unavailable':!usable.length?'no_quota':usable.some(b=>b.availableAmount>=quote.admission!.reservedAmount)?'ready':'quota_insufficient';
+      const status:PurposeView['models'][number]['status']=!quote.admission?quote.reason==='price_unconfigured'?'price_unconfigured':'model_unavailable':!usable.length?'no_quota':accounting||usable.some(b=>b.availableAmount>=quote.admission!.reservedAmount)?'ready':'quota_insufficient';
       return {modelId,name:s.definitions.find(d=>d.modelId===modelId)?.name??modelId,availableAmount,largestBatchAmount:Math.max(0,...usable.map(b=>b.availableAmount)),status};
     });
     const status:ApplicationDetail['status']=!application.active?'disabled':!models.length?'model_unavailable':models.some(m=>m.status==='ready')?'ready':models.some(m=>m.status==='quota_insufficient')?'quota_insufficient':models.some(m=>m.status==='price_unconfigured')?'price_unconfigured':models.every(m=>m.status==='model_unavailable')?'model_unavailable':'no_quota';
     const ids=new Set([id,...keys.map(k=>k.id)]),calls=await this.store.queryCalls({subjectId:id,purpose:'application',limit:10},this.callScope(s,actorId));
-    return {application,ownerName:s.members.find(m=>m.id===application.ownerId)?.name??application.ownerId,organizationName:s.organizations.find(o=>o.id===application.organizationId)?.name??application.organizationId,poolName:s.pools.find(p=>p.id===application.range.poolId)?.name??application.range.poolId,status,models,availableAmount:Number(effective.filter(b=>b.modelIds.some(id=>models.some(m=>m.modelId===id))).reduce((sum,b)=>sum+b.availableAmount,0).toFixed(6)),batches:appBatches,keys:keys.map(publicKey),calls,history:s.audit.filter(a=>a.objectId&&ids.has(a.objectId))};
+    return {application,ownerName:s.members.find(m=>m.id===application.ownerId)?.name??application.ownerId,organizationName:s.organizations.find(o=>o.id===application.organizationId)?.name??application.organizationId,poolName:s.pools.find(p=>p.id===application.range.poolId)?.name??application.range.poolId,status,models,availableAmount:Number(effective.filter(b=>b.modelIds.some(id=>models.some(m=>m.modelId===id))).reduce((sum,b)=>sum+b.availableAmount,0).toFixed(6)),accountingBalance:Number(appBatches.filter(b=>b.accounting).reduce((sum,b)=>sum+b.availableAmount,0).toFixed(6)),batches:appBatches,keys:keys.map(publicKey),calls,history:s.audit.filter(a=>a.objectId&&ids.has(a.objectId))};
   }
 
   async retentionReport(actorId:string){const state=await this.repository.read();operator(activeMember(state,actorId));return prepareRetention(state).report;}
@@ -223,8 +223,8 @@ export class PlatformService {
     if(c.type==='save.pool'){
       impact.related={plans:s.plans.filter(plan=>plan.range.poolId===p.id).map(plan=>plan.id),entitlements:s.entitlements.filter(e=>e.range.poolId===p.id).map(e=>e.memberId),projects:s.projects.filter(project=>project.range.poolId===p.id).map(project=>project.id),applications:s.applications.filter(app=>app.range.poolId===p.id).map(app=>app.id)};
       const before=s.pools.find(pool=>pool.id===p.id)?.entries??[],after=Array.isArray(p.entries)?p.entries as {definitionId:string;serviceId:string;open:boolean}[]:[];
-      impact.modelChanges=[...new Set([...before.map(e=>e.definitionId),...after.map(e=>e.definitionId)])].map(definitionId=>{
-        const previous=before.find(e=>e.definitionId===definitionId),next=after.find(e=>e.definitionId===definitionId);
+      impact.modelChanges=[...new Set([...before.map(e=>`${e.serviceId}:${e.definitionId}`),...after.map(e=>`${e.serviceId}:${e.definitionId}`)])].map(key=>{
+        const previous=before.find(e=>`${e.serviceId}:${e.definitionId}`===key),next=after.find(e=>`${e.serviceId}:${e.definitionId}`===key),definitionId=(next??previous)!.definitionId;
         const describe=(entry:typeof previous)=>!entry?'未加入':`${entry.open?'已开放':'未开放'} · ${s.services.find(service=>service.id===entry.serviceId)?.name??entry.serviceId}`;
         return {name:s.definitions.find(d=>d.id===definitionId)?.name??definitionId,before:describe(previous),after:describe(next)};
       });
@@ -388,7 +388,7 @@ export class PlatformService {
     if(typeof payload.model!=='string'||!Array.isArray(payload.messages))throw new BadRequestException('model and messages are required');
     const requestedOutput=payload.max_completion_tokens??payload.max_tokens;
     if(requestedOutput!==undefined&&(typeof requestedOutput!=='number'||!Number.isSafeInteger(requestedOutput)||requestedOutput<1))throw new BadRequestException('output token limit must be a positive integer');
-    const request:AuthorizeRequest={requestId:'quote',idempotencyKey:'quote-only',identity:{subjectType:'employee',subjectId:actorId,credentialId:'quote-only',organizationId:s.tenantId,projectId:payload.purpose==='project'?String(payload.projectId):null},purpose:payload.purpose,modelId:payload.model,mode:'chat',policyVersion:'quote',estimatedInputTokens:estimateChatInput(payload),maxOutputTokens:requestedOutput as number|undefined};
+    const request:AuthorizeRequest={requestId:randomUUID(),idempotencyKey:'quote-only',identity:{subjectType:'employee',subjectId:actorId,credentialId:'quote-only',organizationId:s.tenantId,projectId:payload.purpose==='project'?String(payload.projectId):null},purpose:payload.purpose,modelId:payload.model,mode:'chat',policyVersion:'quote',estimatedInputTokens:estimateChatInput(payload),maxOutputTokens:requestedOutput as number|undefined};
     const candidates=batches.filter(b=>b.sourceId===actorId&&b.purpose===request.purpose&&b.projectId===request.identity.projectId&&Date.parse(b.expiresAt)>Date.now()&&b.modelIds.includes(request.modelId));
     let reason:ReasonCode='no_quota',eligible=0;
     let requestLimits:RequestLimitDiagnostic|undefined;

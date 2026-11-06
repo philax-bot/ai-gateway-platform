@@ -9,7 +9,7 @@ export class LiveBudget {
   reserve(body){
     const max=body.max_completion_tokens??body.max_tokens;
     assert.ok(Number.isSafeInteger(max)&&max>=1&&max<=this.maxOutputTokens,`live output must be explicitly bounded to ${this.maxOutputTokens} tokens`);
-    const upper=(estimateChatInput(body)*Math.max(this.price.inputPrice,this.price.cachedInputPrice)+max*this.price.outputPrice)/1e6;
+    const upper=(Math.max(estimateChatInput(body),Buffer.byteLength(JSON.stringify(body)))*Math.max(this.price.inputPrice,this.price.cachedInputPrice)+max*this.price.outputPrice)/1e6;
     assert.ok(Number.isFinite(upper)&&upper>=0,'live price estimate must be finite');
     assert.ok(this.attempts<this.maxRequests&&this.upper+upper<=this.maxAmount,'live request or configured-price budget exhausted');
     this.attempts++;this.upper+=upper;return upper;
