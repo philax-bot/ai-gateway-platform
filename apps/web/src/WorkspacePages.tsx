@@ -18,6 +18,8 @@ import { Projects } from './Projects';
 import { Applications } from './Applications';
 import {ModelCatalog} from './ModelCatalog';
 import { ModelSetup } from './ModelSetup';
+import {ModelPools} from './ModelPools';
+import {ModelCapacity} from './ModelCapacity';
 import {RetentionSettings} from './RetentionSettings';
 import {OperationAudit} from './OperationAudit';
 import { EmployeeHome, EnableColleague, OperationsHome } from './TaskHome';
@@ -46,6 +48,8 @@ export function WorkspacePages({data:d,page,targetId,active=true,isOps,edit,purp
     case 'overview':return <OperationsHome data={d} setPage={setPage}/>;
     case 'home':return <EmployeeHome data={d} purposeId={purposeId} setPurpose={setPurpose} setPage={setPage} edit={edit}/>;
     case 'models':return <ModelSetup data={d} edit={edit} setPage={setPage} refresh={refresh} detail={detail}/>;
+    case 'pools':return <ModelPools data={d} edit={edit} setPage={setPage}/>;
+    case 'capacity':return <ModelCapacity data={d} edit={edit} setPage={setPage}/>;
     case 'members':return <>
       <Panel title="组织结构" actions={<button className="ghost" onClick={()=>edit.organization()}>创建组织</button>}><p className="secondary">移动或停用前，先核对所有下级人员、访问变化与自动发放影响。</p><Table headers={['组织路径','人员（含下级）','有效状态','操作']} rows={d.organizations.map(o=>{const tree=organizationTree(d.organizations,o.id);return [organizationPath(d.organizations,o.id),d.members.filter(m=>tree.has(m.organizationId)).length,organizationEnabled(d.organizations,o.id)?'启用':o.active?'上级停用，当前不可用':'本组织已停用',<button className="link-button" onClick={()=>edit.organization(o)}>编辑与影响预览</button>];})}/></Panel>
       <Panel title="成员目录" actions={<><button className="ghost" onClick={()=>edit.importMembers()}>导入成员</button><button className="primary" onClick={()=>edit.member()}>创建成员</button></>}><Table headers={['姓名','主要组织','类别','有效期 / 状态','业务标签','操作']} rows={d.members.map(m=>[<>{m.name}<small className="cell-help">登录账号 {m.directoryId}</small></>,organizationPath(d.organizations,m.organizationId),m.category==='contractor'?'外部协作':'员工',<>{!m.active?'成员停用':m.validUntil&&Date.parse(m.validUntil)<=Date.now()?'人员已到期':!organizationEnabled(d.organizations,m.organizationId)?'组织停用，当前不可用':'启用'}<small className="cell-help">{date(m.validUntil)}</small></>,m.tags?.join('、')||'—',<div className="inline-actions"><button onClick={()=>edit.member(m)}>编辑</button><button onClick={()=>edit.grantPlan(undefined,m.id)}>开通方案</button></div>])}/></Panel>
@@ -88,7 +92,7 @@ export function WorkspacePages({data:d,page,targetId,active=true,isOps,edit,purp
     case 'calls':return <CallExplorer key="calls" data={d} kind="calls" reconcile={edit.reconcile} detail={detail} active={active} targetId={targetId} setPage={setPage}/>;
     case 'settings':if(!admin)return <Panel title="设置权限已变化"><p>当前账号已无运营设置权限，请返回首页继续处理自己的任务。</p><button className="primary" onClick={()=>setPage('home')}>返回首页</button></Panel>;return <>
       <Panel title="企业信息与默认模型池" actions={<><button className="ghost" onClick={()=>edit.workspaceName()}>调整企业名称</button><button className="primary" onClick={()=>edit.defaults()}>调整默认池</button></>}><dl className="detail-list"><div><dt>企业名称</dt><dd>{d.settings.name}</dd></div><div><dt>时区</dt><dd>Asia/Shanghai</dd></div><div><dt>个人默认池</dt><dd>{poolName(d.settings.personalDefaultPoolId??'未设置')}</dd></div><div><dt>项目默认池</dt><dd>{poolName(d.settings.projectDefaultPoolId??'未设置')}</dd></div></dl></Panel>
-      <Panel title="默认使用保护" actions={<button className="primary" onClick={()=>edit.defaultLimits()}>调整保护</button>}><p>{limitDescription(d.settings.limits)}</p><p className="secondary">默认值用于产品准入保护，不代表已验证的模型容量。变更影响后续新请求；已预占请求按原快照结算。</p></Panel>
+      <Panel title="默认使用保护" actions={<button className="ghost" onClick={()=>setPage('capacity')}>前往容量与保护</button>}><p>{limitDescription(d.settings.limits)}</p><p className="secondary">默认值用于产品准入保护，不代表已验证的模型容量。统一在容量与保护中调整，变更影响后续新请求；已预占请求按原快照结算。</p></Panel>
       <RetentionSettings data={d} edit={edit} run={run}/>
       <OperationAudit data={d} detail={detail}/>
     </>;

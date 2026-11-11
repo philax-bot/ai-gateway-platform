@@ -39,7 +39,7 @@ export function navIcon(id: string): IconName {
   return ({
     overview: 'home', usage:'chart', leaderboard:'signal', 'cockpit-light':'chart', 'cockpit-tech':'signal', 'cockpit-beacon':'grid', home: 'home', onboarding: 'userPlus', online: 'spark', agent:'spark',
     quota: 'wallet', approvals: 'inbox', projects: 'folder', applications: 'grid',
-    catalog:'chip', models: 'chip', members: 'users', keys: 'key', monitoring: 'activity',
+    catalog:'chip', models: 'chip', pools:'grid', capacity:'sliders', members: 'users', keys: 'key', monitoring: 'activity',
     safety:'checklist', calls: 'list', reviews: 'checklist', settings: 'sliders', notifications: 'bell',
   } as Record<string, IconName>)[id] ?? 'grid';
 }
@@ -75,6 +75,7 @@ export interface V2HeaderProps {
   page: string;
   primary: string[];
   secondary: string[];
+  modelManagement?: string[];
   secondaryLabel: string;
   labels: Record<string, string>;
   unread: number;
@@ -87,7 +88,7 @@ export interface V2HeaderProps {
   onLogout: () => void;
 }
 
-export function V2Header({ actorName, workspaceName, admin, isOps, page, primary, secondary, secondaryLabel, labels, unread, mode, onModeChange, onNavigate, onSwitchSpace, onSearch, onNotifications, onLogout }: V2HeaderProps) {
+export function V2Header({ actorName, workspaceName, admin, isOps, page, primary, secondary, modelManagement=[], secondaryLabel, labels, unread, mode, onModeChange, onNavigate, onSwitchSpace, onSearch, onNotifications, onLogout }: V2HeaderProps) {
   const initial = Array.from(actorName.trim())[0] ?? '·';
   return <header className="v2-header">
     <div className="v2-header-top">
@@ -117,6 +118,7 @@ export function V2Header({ actorName, workspaceName, admin, isOps, page, primary
         </div> : <span className="v2-space-static">个人空间</span>}
         <span className="v2-org">企业 · {workspaceName}</span>
       </div>
+      {modelManagement.length>0&&<nav className="v2-secondary" aria-label="模型管理"><span className="v2-secondary-label" aria-hidden="true">模型管理</span>{modelManagement.map(item=><button type="button" key={item} className={page===item?'active':''} aria-current={page===item?'page':undefined} onClick={()=>onNavigate(item)}>{labels[item]}</button>)}</nav>}
       <nav className="v2-secondary" aria-label={secondaryLabel}>
         <span className="v2-secondary-label" aria-hidden="true">{secondaryLabel}</span>
         {secondary.map(item => <button type="button" key={item} className={page === item ? 'active' : ''} aria-current={page === item ? 'page' : undefined} onClick={() => onNavigate(item)}>{labels[item]}</button>)}

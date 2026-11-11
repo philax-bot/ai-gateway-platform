@@ -85,7 +85,7 @@ function ApplicationTask({id,data:d,edit,setPage,detail,isOps,onBack}:Omit<Props
   const pending=d.approvals.find(p=>p.kind.startsWith('application_')&&p.objectId===a.id&&['pending','approved','failed'].includes(p.status));
   const title=status==='disabled'?'应用已暂停':modelBlocked?'先处理模型配置':quotaBlocked?(pending?'额度申请正在处理中':'先准备应用额度'):!key?accounting?'记账模式已就绪，签发 Key 即可接入':'模型和额度已准备好，下一步签发密钥':'下一步：把应用接入工具或系统';
   const description=status==='disabled'?'暂停期间不接受新调用，原密钥、额度和历史保留。':status==='price_unconfigured'?'当前模型尚未确认完整价格，追加额度无法解决。请由运营确认模型服务价格。':status==='model_unavailable'?'当前范围没有可用模型。请由运营检查应用范围、服务连接和开放状态。':quotaBlocked?(pending?'查看申请当前节点和处理意见，生效后即可继续接入。':'应用使用独立额度，不能使用负责人的个人余额或项目额度。'):'使用支持 OpenAI Chat Completions 的工具，填写服务地址、已保存的完整密钥和模型标识，先发一条简短请求。';
-  const primary=()=>status==='disabled'?isOps&&edit.application(a):modelBlocked?isOps&&setPage('models'):quotaBlocked?pending?setPage('approvals',pending.id):isOps?edit.fund('application',a):edit.request('application_quota',a.id):!key?edit.key('application',a.id):setGuide(true);
+  const primary=()=>status==='disabled'?isOps&&edit.application(a):modelBlocked?isOps&&setPage(status==='price_unconfigured'?'models':'pools'):quotaBlocked?pending?setPage('approvals',pending.id):isOps?edit.fund('application',a):edit.request('application_quota',a.id):!key?edit.key('application',a.id):setGuide(true);
   return <>{back}
     <Panel title={a.name} eyebrow="应用" actions={<Status value={a.active?'active':'disabled'}/>}>
       <p className="secondary">负责人：{value.ownerName} · {value.organizationName} · {accounting?'记账模式':'额度模式'}</p>{accounting&&<p className="notice">初始 0 元，按实际费用记为负余额，不因余额不足拦截调用。模型范围、价格、安全策略和调用保护继续生效。</p>}{a.description&&<p>{a.description}</p>}

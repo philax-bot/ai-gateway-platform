@@ -62,6 +62,7 @@ interface SidebarProps {
   page: string;
   primary: NavEntry[];
   secondary: NavEntry[];
+  modelManagement?: NavEntry[];
   secondaryLabel: string;
   badges: Record<string, number>;
   mode: UiDesign;
@@ -72,7 +73,7 @@ interface SidebarProps {
   drawer?: boolean;
 }
 
-export function V4Sidebar({ workspaceName, isOps, page, primary, secondary, secondaryLabel, badges, mode, onModeChange, onNavigate, open, onClose, drawer }: SidebarProps) {
+export function V4Sidebar({ workspaceName, isOps, page, primary, secondary, modelManagement=[], secondaryLabel, badges, mode, onModeChange, onNavigate, open, onClose, drawer }: SidebarProps) {
   const closeRef = useRef<HTMLButtonElement>(null);
   useEffect(() => { if (open) closeRef.current?.focus(); }, [open]);
   const go = (id: string) => { onNavigate(id); onClose(); };
@@ -97,6 +98,7 @@ export function V4Sidebar({ workspaceName, isOps, page, primary, secondary, seco
     </div>
     <div className="v4-nav-label">{isOps ? '运营空间' : '个人空间'}</div>
     <nav className="v4-nav" aria-label="主导航">{primary.map(item)}</nav>
+    {modelManagement.length>0&&<><div className="v4-nav-label">模型管理</div><nav className="v4-nav" aria-label="模型管理">{modelManagement.map(item)}</nav></>}
     <div className="v4-nav-label">{secondaryLabel}</div>
     <nav className="v4-nav" aria-label={secondaryLabel}>{secondary.map(item)}</nav>
     <div className="v4-sidebar-footer">

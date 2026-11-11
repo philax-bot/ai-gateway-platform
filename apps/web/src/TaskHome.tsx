@@ -19,7 +19,7 @@ export function OperationsHome({data:d,setPage}:Pick<PageProps,'data'|'setPage'>
   const attention=pending+failed+(d.pendingReviewCount??0);
   /* 口径：只统计本人有权处理的审批；待核对数量来自费用采集，采集失败时为未知，不显示为 0。 */
   const entitled=new Set(d.entitlements.filter(e=>e.status==='active'&&Date.parse(e.expiresAt)>Date.now()).map(e=>e.memberId)).size;
-  const blocked=!hasService?{title:'先接通一个可用模型',body:'验证模型连接并确认价格后，才能开放给同事使用。',label:'配置并验证模型',page:'models'}:!hasOpenPool?{title:'模型已接通，下一步开放使用范围',body:'选择允许同事使用的模型，保存到模型池。',label:'开放模型',page:'models'}:!usablePlans.length?{title:'还需要一份人员开通方案',body:'把可用模型和每人额度保存为方案，开通时直接选用。',label:'设置开通方案',page:'onboarding'}:null;
+  const blocked=!hasService?{title:'先接通一个可用模型',body:'验证模型连接并确认价格后，才能开放给同事使用。',label:'配置并验证模型',page:'models'}:!hasOpenPool?{title:'模型已接通，下一步开放使用范围',body:'选择允许同事使用的模型，保存到模型池。',label:'开放模型',page:'pools'}:!usablePlans.length?{title:'还需要一份人员开通方案',body:'把可用模型和每人额度保存为方案，开通时直接选用。',label:'设置开通方案',page:'onboarding'}:null;
   return <>
     <Panel title="需要你处理"><div className="task-inbox">{[
       {count:pending,title:'申请待审批',body:'查看申请人的用途，决定是否批准。',page:'approvals'},

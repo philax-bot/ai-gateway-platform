@@ -15,6 +15,7 @@ import { sep } from 'node:path';
 import { connectionConfig } from './lib/backup.mjs';
 import {checkApplicationBilling} from './check-application-billing.mjs';
 import { checkUsageAnalytics } from './check-usage-analytics.mjs';
+import {checkModelManagement} from './check-model-management-web.mjs';
 
 /*
  * Browser regression for the tracing/migration/verification changes.
@@ -247,22 +248,21 @@ try {
   await login('web-ops', seeded.adminPassword);
   check(await waitFor(`document.body.innerText.includes('运营工作台')`, 15000), 'operator reaches the operations workspace');
 
-  if(!process.argv.includes('--application-billing-only')){
+  if(!process.argv.includes('--model-management-only')&&!process.argv.includes('--application-billing-only')){
   // Onboarding continuity: selection survives a page switch in the same session.
   await clickNav('为人员开通');
   await waitFor(`document.body.innerText.includes('让同事开始使用 AI')`);
   const selected = await evaluate(`(()=>{const row=[...document.querySelectorAll('.person-row')].find(node=>node.textContent.includes('回归员工'));if(!row)return false;row.querySelector('input[type=checkbox]').click();return true;})()`);
   check(selected, 'onboarding person row is selectable');
   await waitFor(`document.body.innerText.includes('已选 1 人')`);
-  await clickNav('模型配置');
+  await clickNav('模型服务');
   await clickNav('为人员开通');
   check(await waitFor(`document.body.innerText.includes('已选 1 人')`, 8000), 'onboarding selection survives a page switch');
   await screenshot('onboarding-continuity-1440.png');
 
   // Verification via UI, then the run detail modal.
-  await clickNav('模型配置');
-  await waitFor(`document.body.innerText.includes('管理已有配置')`);
-  await evaluate(`(()=>{[...document.querySelectorAll('summary')].find(node=>node.textContent.includes('管理已有配置'))?.click();return true;})()`);
+  await clickNav('模型服务');
+  await waitFor(`document.body.innerText.includes('首次接入引导')`);
   await waitFor(`[...document.querySelectorAll('#v4-sidebar')].length>=0`);
   check(await clickExact('验证连接'), 'model service verify action is present');
   check(await waitFor(`document.body.innerText.includes('最近一次连接验证')`, 20000), 'verification result is shown with its metering notice');
@@ -506,6 +506,8 @@ try {
     check(cdp.runtimeErrors.length===0,'demo rehearsal has no uncaught browser exceptions');
   }
   }
+  if(process.argv.includes('--model-management-only'))await checkModelManagement({cp,web,seeded,cdp,evaluate,waitFor,clickExact,setInput,pressKey,setViewport,screenshot,login,check});
+  if(process.argv.includes('--model-management-only')){await mkdir(screenshotDir,{recursive:true});await writeFile(resolve(screenshotDir,'browser.json'),JSON.stringify({checkedAt:new Date().toISOString(),storage:postgres?'isolated-postgres':'memory',assertionCount:assertions.length,assertions,uncaughtErrors:cdp.runtimeErrors},null,2)+'\n');}
   if(process.argv.includes('--application-billing')||process.argv.includes('--application-billing-only'))await checkApplicationBilling({cp,gateway,web,seeded,cdp,evaluate,waitFor,clickNav,clickExact,setInput,pressKey,setViewport,screenshot,login,check});
   console.log(`PASS ${assertions.length} browser assertions (${postgres?'isolated PostgreSQL':'memory'}; real API/CSV plus fault fixtures)`);
   console.log(`Screenshots: ${screenshotDir}`);

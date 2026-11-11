@@ -2,7 +2,7 @@ import {useState} from 'react';
 import type {ModelService,VerificationRun,VerificationRunPage} from '@ai-gateway/contracts';
 import {summarizeVerification,modelProtocols} from '@ai-gateway/contracts';
 import {api} from './client';
-import {date,money,Panel,Status,Table,Tabs} from './components';
+import {date,money,Panel,Status,Table} from './components';
 import {entryReadiness} from './model-readiness';
 import type {PageProps} from './WorkspacePages';
 
@@ -12,7 +12,7 @@ export function ModelSetup({data:d,edit,setPage,refresh,detail}:Pick<PageProps,'
   const services=d.services.filter(s=>s.active&&s.mappings.some(m=>definitions.some(def=>def.id===m.definitionId)));
   const priced=services.filter(s=>s.verification==='passed'&&s.mappings.some(m=>definitions.some(def=>def.id===m.definitionId)&&[m.inputPrice,m.outputPrice,m.cachedInputPrice].every(p=>p!==null)));
   const opened=new Set(d.pools.flatMap(p=>p.entries.filter(e=>!entryReadiness(d,e)).map(e=>e.definitionId)));
-  const incomplete=services.find(s=>s.verification==='passed'),unverified=services.find(s=>s.verification!=='passed');
+  const incomplete=services.find(s=>s.verification==='passed'&&s.mappings.some(m=>definitions.some(def=>def.id===m.definitionId)&&[m.inputPrice,m.outputPrice,m.cachedInputPrice].some(p=>p===null))),unverified=services.find(s=>s.verification!=='passed');
   const step=!definitions.length?0:!priced.length?1:!opened.size?2:3;
   const service=unverified??incomplete;
   const existingPool=d.pools.find(p=>p.entries.some(e=>priced.some(s=>s.id===e.serviceId)))??d.pools[0];
@@ -66,26 +66,24 @@ export function ModelSetup({data:d,edit,setPage,refresh,detail}:Pick<PageProps,'
   const primary=()=>step===0?edit.definition(d.definitions[0]):step===1?incomplete?edit.service(incomplete):unverified?void verify(unverified.id):edit.service(undefined,definitions[0]?.id):step===2?edit.pool(existingPool):setPage('onboarding');
   const label=step===0?d.definitions.length?'启用已有模型':'登记第一个模型':step===1?incomplete?'确认模型价格':unverified?'验证模型连接':'连接模型服务':step===2?existingPool?'调整并开放模型':'创建模型池并开放':'下一步：为人员开通';
   const modelName=(id:string)=>d.definitions.find(m=>m.id===id)?.name??id;
-  const limitDescription=(value:typeof d.settings.limits)=>value.mode==='none'?'本级不额外限制':value.mode==='inherit'?'继承企业默认保护':[['RPM',value.rpm],['TPM',value.tpm],['并发',value.concurrency],['单次输出',value.maxOutputTokens]].filter(([,v])=>v!==undefined).map(([label,v])=>`${label} ${v}`).join(' · ')||'本级未设置数值';
+  if(!d.actor.roles.includes('operator'))return <Panel title="模型服务"><p role="alert">模型服务仅供运营管理。</p><button className="ghost" onClick={()=>setPage('home')}>返回首页</button></Panel>;
   return <>
+    <details className="disclosure" open={step<3||undefined}><summary>首次接入引导 · {step<3?'尚未完成':'已接通并开放'}</summary>
     <section className="panel task-hero"><span className="eyebrow">模型准备</span><h2>{titles[step]}</h2><p>{descriptions[step]}</p>
       <ol className="journey-steps" aria-label="模型准备进度">{['登记模型','连接与价格','开放使用范围'].map((s,i)=><li key={s} aria-current={step===i?'step':undefined}>{step>i?'✓':i+1} {s}</li>)}</ol>
       <div className="actions"><button className="primary" disabled={!!checking} onClick={primary}>{checking?'正在验证…':label}</button>{step===0&&!!d.definitions.length&&<button className="ghost" onClick={()=>edit.definition()}>登记新模型</button>}{step===1&&!incomplete&&unverified&&<button className="ghost" disabled={!!checking} onClick={()=>edit.service(unverified)}>修改服务配置</button>}{step===3&&<button className="ghost" onClick={()=>edit.service()}>接入另一个模型服务</button>}</div>
       {step===1&&service&&<p className="secondary">当前服务：{(incomplete??service).name} · {connectionStatus((incomplete??service).verification)}</p>}
     </section>
+    </details>
     {failure&&<div className="notice danger" role="alert"><strong>模型连接尚未确认可用</strong><p>配置已保留。修改后可以重新验证。</p><button className="ghost" onClick={()=>{setError(null);edit.service(d.services.find(s=>s.id===failure.id));}}>修改本次服务配置</button><details><summary>查看验证详情</summary><p>{failure.message}</p></details></div>}
     {lastRun&&<div className={`notice ${lastRun.state==='completed'&&summarizeVerification(lastRun).failed===0?'':'warning'}`} role="status"><strong>最近一次连接验证</strong><p>{runText(lastRun)}。诊断流量由平台承担内部成本，不扣人员、项目或应用额度，也不计入员工调用统计。</p><button className="link-button" onClick={()=>showRun(lastRun)}>查看逐协议诊断</button></div>}
-    <details className="disclosure"><summary>管理已有配置 · {d.definitions.length} 个模型 / {d.services.length} 个服务 / {d.pools.length} 个池</summary>
-      <Tabs labels={['模型服务','模型目录','开放范围','容量与保护']}>
-        <Panel title="模型服务" actions={<button className="primary" onClick={()=>edit.service()}>接入模型服务</button>}><Table headers={['服务','连接状态','价格确认','操作']} rows={d.services.map(s=>[<>{s.name}<small className="cell-help">{s.baseUrl}</small></>,<>{connectionStatus(s.active?s.verification:'disabled')}<small className="cell-help">{s.verificationMessage}</small><small className="cell-help">{s.protocolCapabilities?.configVersion===s.configVersion?modelProtocols.map(p=>`${p==='chat'?'Chat':p==='responses'?'Responses':'Messages'} 原生基础通过 ${s.mappings.filter(m=>s.protocolCapabilities?.mappings[m.definitionId]?.[p]?.status==='supported').length}/${s.mappings.length}`).join(' · '):'三协议未探测：Responses / Messages 暂经 Chat 适配'}</small></>,`${s.mappings.filter(m=>[m.inputPrice,m.outputPrice,m.cachedInputPrice].every(p=>p!==null)).length} / ${s.mappings.length} 个模型`,<div className="inline-actions"><button disabled={!!checking} onClick={()=>edit.service(s)}>编辑服务与价格</button><button disabled={!!checking||!s.active} onClick={()=>void verify(s.id)}>{checking===s.id?'正在验证…':'验证连接'}</button><button disabled={!!checking} onClick={()=>void history(s.id)}>验证记录</button></div>])} empty="还没有模型服务，请先完成上方当前步骤。"/></Panel>
-        <Panel title="模型目录" actions={<button className="primary" onClick={()=>edit.definition()}>登记模型</button>}><Table headers={['模型','对外标识','单次上下文','状态','操作']} rows={d.definitions.map(m=>[m.name,<code>{m.modelId}</code>,m.contextTokens,m.active?'启用':'停用',<button className="link-button" onClick={()=>edit.definition(m)}>编辑</button>])}/></Panel>
-        <Panel title="模型池与开放范围" actions={<><button className="ghost" onClick={()=>edit.defaults()}>设置默认池</button><button className="primary" onClick={()=>edit.pool()}>创建模型池</button></>}><Table headers={['模型池','模型与当前可用性','操作']} rows={d.pools.map(p=>[p.name,<div className="cell-list">{p.entries.length?p.entries.map(e=><span key={`${e.serviceId}:${e.definitionId}`}>{modelName(e.definitionId)} · {d.services.find(s=>s.id===e.serviceId)?.name??e.serviceId} · {entryReadiness(d,e)??'已接通并开放'}</span>):'尚未加入模型'}</div>,<button className="link-button" onClick={()=>edit.pool(p)}>调整并预览</button>])}/></Panel>
-        <Panel title="限流概览"><p className="secondary">每个模型服务只归属一个模型池；使用同一共享容量标识的服务共同受容量保护，池上限不会增加算力。</p><Table headers={['对象范围','对象','配置来源与上限','共享关系']} rows={[
-          ['企业默认','所有继承对象',limitDescription(d.settings.limits),'按各边界分别计数'],
-          ...d.services.flatMap(s=>[['模型服务',s.name,limitDescription(s.limits),s.sharedCapacityId??'独立登记服务'],...s.mappings.map(m=>['服务模型',`${s.name} / ${modelName(m.definitionId)}`,limitDescription(m.limits),'共享所属服务上限'])]),
-          ...d.pools.map(p=>['模型池',p.name,limitDescription(p.limits),'不增加来源服务容量']),
-        ]}/></Panel>
-      </Tabs>
-    </details>
+    <Panel title="模型服务" actions={<button className="primary" onClick={()=>edit.service()}>接入模型服务</button>}>
+      <p className="secondary">在这里管理连接、模型映射与价格。验证通过且价格完整后，前往模型池开放使用。</p>
+      <Table headers={['服务 / 提供模型','连接状态','价格确认','归属模型池','操作']} rows={d.services.map(s=>{
+        const pool=d.pools.find(p=>p.entries.some(e=>e.serviceId===s.id));
+        return [<>{s.name}<small className="cell-help">{s.baseUrl}</small><small className="cell-help">{s.mappings.map(m=>modelName(m.definitionId)).join('、')}</small></>,<>{connectionStatus(s.active?s.verification:'disabled')}<small className="cell-help">{s.verificationMessage}</small><small className="cell-help">{s.protocolCapabilities?.configVersion===s.configVersion?modelProtocols.map(p=>`${p==='chat'?'Chat':p==='responses'?'Responses':'Messages'} 原生基础通过 ${s.mappings.filter(m=>s.protocolCapabilities?.mappings[m.definitionId]?.[p]?.status==='supported').length}/${s.mappings.length}`).join(' · '):'三协议未探测：Responses / Messages 暂经 Chat 适配'}</small></>,`${s.mappings.filter(m=>[m.inputPrice,m.outputPrice,m.cachedInputPrice].every(p=>p!==null)).length} / ${s.mappings.length} 个模型`,pool?<button className="link-button" onClick={()=>edit.pool(pool)}>{pool.name}</button>:<button className="link-button" onClick={()=>setPage('pools')}>未入池 · 前往模型池</button>,<div className="inline-actions"><button disabled={!!checking} onClick={()=>edit.service(s)}>编辑服务与价格</button><button disabled={!!checking||!s.active} title={!s.active?'请先启用服务':undefined} onClick={()=>void verify(s.id)}>{checking===s.id?'正在验证…':'验证连接'}</button><button disabled={!!checking} onClick={()=>void history(s.id)}>验证记录</button></div>];
+      })} empty="还没有模型服务。请先登记模型，再接入并验证服务。"/>
+      <div className="actions"><button className="ghost" onClick={()=>setPage('catalog')}>查看模型目录</button><button className="ghost" onClick={()=>setPage('pools')}>管理模型池与开放范围</button><button className="ghost" onClick={()=>setPage('capacity')}>查看容量与保护</button></div>
+    </Panel>
   </>;
 }

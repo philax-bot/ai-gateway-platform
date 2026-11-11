@@ -691,6 +691,7 @@ html[data-ui="next"] .login-panel .secondary { margin-top: 18px; }
 @media (max-width: 520px) {
   .v2-brand-text { display: none; }
   .v2-actions { margin-left: auto; }
+  html[data-ui="next"][data-layout="next"] .v2-actions { flex: 1 1 0; min-width: 0; flex-wrap: wrap; justify-content: flex-end; }
   .v2-search { min-height: 34px; padding: 0 10px; }
   .v2-header-sub { flex-wrap: wrap; gap: 8px; }
   .v2-secondary { flex-basis: 100%; }

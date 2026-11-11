@@ -57,6 +57,7 @@ interface SidebarProps {
   page: string;
   primary: NavEntry[];
   secondary: NavEntry[];
+  modelManagement?: NavEntry[];
   secondaryLabel: string;
   mode: UiDesign;
   onModeChange: (mode: UiDesign) => void;
@@ -66,7 +67,7 @@ interface SidebarProps {
   drawer?: boolean;
 }
 
-export function V3Sidebar({ workspaceName, isOps, page, primary, secondary, secondaryLabel, mode, onModeChange, onNavigate, open, onClose, drawer }: SidebarProps) {
+export function V3Sidebar({ workspaceName, isOps, page, primary, secondary, modelManagement=[], secondaryLabel, mode, onModeChange, onNavigate, open, onClose, drawer }: SidebarProps) {
   const closeRef = useRef<HTMLButtonElement>(null);
   useEffect(() => { if (open) closeRef.current?.focus(); }, [open]);
   const go = (id: string) => { onNavigate(id); onClose(); };
@@ -85,6 +86,7 @@ export function V3Sidebar({ workspaceName, isOps, page, primary, secondary, seco
     </div>
     <div className="v3-nav-label">{isOps ? '运营' : '个人'}</div>
     <nav className="v3-nav" aria-label="主导航">{primary.map(item)}</nav>
+    {modelManagement.length>0&&<><div className="v3-nav-label">模型管理</div><nav className="v3-nav" aria-label="模型管理">{modelManagement.map(item)}</nav></>}
     <div className="v3-nav-label">{secondaryLabel}</div>
     <nav className="v3-nav" aria-label={secondaryLabel}>{secondary.map(item)}</nav>
     <div className="v3-sidebar-footer">
