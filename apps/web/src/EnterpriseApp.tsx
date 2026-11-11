@@ -14,10 +14,12 @@ import { responsible } from './ApprovalCenter';
 import { AlertWatcher } from './AlertWatcher';
 import { KeyDetails } from './KeyManager';
 import {LocalOctopConnect} from './LocalOctopConnect';
+import {PersonalHeader} from './PersonalHeader';
+import type {OnlineModelRequest} from './Online';
 import { OrganizationImpact } from './OrganizationImpact';
 import {RetentionCountsView,retentionTotal} from './RetentionSettings';
 
-const labels:Record<string,string>={overview:'运营工作台',usage:'用量驾驶舱',leaderboard:'排行榜',
+const labels:Record<string,string>={available:'可用模型',overview:'运营工作台',usage:'用量驾驶舱',leaderboard:'排行榜',
   'cockpit-light':'浅色驾驶舱','cockpit-tech':'深蓝驾驶舱','cockpit-beacon':'大屏驾驶舱',models:'模型服务',pools:'模型池',capacity:'容量与保护',catalog:'模型目录',members:'组织与成员',onboarding:'为人员开通',projects:'项目',applications:'应用',keys:'密钥与接入',approvals:'申请与审批',calls:'调用记录',reviews:'费用核对',monitoring:'运行监控',safety:'安全围栏',settings:'企业设置',home:'开始使用',quota:'我的额度',online:'在线使用',agent:'在线 Agent',notifications:'通知'};
 /* One line per page: what this page is for and what the numbers mean. Shown under
    the page title so an operator does not have to read the panel text to orient. */
@@ -44,6 +46,7 @@ const ledes:Record<string,string>={
   monitoring:'服务健康、上游连通与采集状态。没有流量不代表健康。',
   settings:'企业名称、默认模型池、默认使用保护与数据保留。变更只影响后续请求。',
   home:'你当前可用的模型与额度。在线使用不需要先创建密钥。',
+  available:'按用途了解模型能力与关键参数，选择适合任务的模型开始使用。',
   quota:'按用途查看额度来源、剩余金额，以及一次调用能使用的上限。',
   agent:'用个人额度完成多步任务，并在调用记录中追溯费用。',
   online:'直接发起一次调用，结果与费用可在调用记录中追溯到同一请求编号。',
@@ -56,6 +59,7 @@ export function EnterpriseApp(){
   const [data,setData]=useState<PlatformSnapshot|null>(null),[loading,setLoading]=useState(true),[setup,setSetup]=useState(false),[setupTokenRequired,setSetupTokenRequired]=useState(false);
   const [page,setPage]=useState('home'),[operations,setOperations]=useState(false),[message,setMessage]=useState('');
   const [targetId,setTargetId]=useState<string|null>(null);
+  const [onlineModelRequest,setOnlineModelRequest]=useState<OnlineModelRequest>();
   const [openTabs,setOpenTabs]=useState<OpenTab[]>([]),[menuOpen,setMenuOpen]=useState(false),[narrow,setNarrow]=useState(false);
   const scrollPositions=useRef<Record<string,number>>({});
   const menuButtonRef=useRef<HTMLButtonElement>(null);
@@ -66,6 +70,7 @@ export function EnterpriseApp(){
     return()=>query.removeEventListener('change',sync);
   },[]);
   function navigate(value:string,id?:string){
+    if(value==='quota'&&id)setPurposeId(id==='personal'||data?.entitlements.some(e=>e.id===id)?'personal':data?.purposes.some(p=>p.id===id)?id:'personal');
     scrollPositions.current[page]=window.scrollY;
     setPage(value);setTargetId(id??null);
     setOpenTabs(tabs=>{
@@ -78,13 +83,13 @@ export function EnterpriseApp(){
   const [uiMode,setUiMode]=useUiDesign(),[paletteOpen,setPaletteOpen]=useState(false);
   const sidebar=uiMode==='sidebar',next=uiMode==='next',azure=uiMode==='azure',beacon=uiMode==='beacon',v4Shell=azure||beacon,docked=sidebar||v4Shell,desk=next||docked;
   useEffect(()=>{
-    if(!desk||menuOpen||editor||pending||detail||secret)return;
+    if((!desk&&operations)||!data||menuOpen||editor||pending||detail||secret)return;
     const openPalette=(event:KeyboardEvent)=>{
       if((event.metaKey||event.ctrlKey)&&event.key.toLowerCase()==='k'){event.preventDefault();setPaletteOpen(open=>!open);}
     };
     window.addEventListener('keydown',openPalette);
     return()=>window.removeEventListener('keydown',openPalette);
-  },[desk,menuOpen,editor,pending,detail,secret]);
+  },[desk,operations,data,menuOpen,editor,pending,detail,secret]);
   useEffect(()=>{
     if(!menuOpen)return;
     const overflow=document.body.style.overflow;
@@ -117,7 +122,7 @@ export function EnterpriseApp(){
     const adminNow=data.actor.roles.includes('operator'),opsNow=operations&&adminNow;
     const valid=opsNow
       ?['overview','usage','leaderboard','cockpit-light','cockpit-tech','cockpit-beacon','onboarding','approvals','projects','applications','catalog','models','pools','capacity','members','keys','monitoring','safety','calls','reviews','settings','notifications']
-      :['home','online','agent','quota','approvals','keys','calls','projects','applications','notifications',...(adminNow||data.projects.some(project=>project.managerId===data.actor.id&&project.status==='active')?['leaderboard']:[])];
+      :['home','available','online','agent','quota','approvals','keys','calls','projects','applications','notifications',...(adminNow||data.projects.some(project=>project.managerId===data.actor.id&&project.status==='active')?['leaderboard']:[])];
     setOpenTabs(tabs=>{
       const pinned=opsNow?'overview':'home';
       const filtered=tabs.filter(tab=>valid.includes(tab.page));
@@ -127,12 +132,12 @@ export function EnterpriseApp(){
     });
   },[data,operations,page,targetId]);
   function resetSession(){
-    scrollPositions.current={};
+    scrollPositions.current={};setOnlineModelRequest(undefined);
     setData(null);setEditor(null);setSecret(null);setDetail(null);setPurposeId('personal');setOperations(false);setPaletteOpen(false);setMenuOpen(false);setOpenTabs([]);setPage('home');setTargetId(null);setMessage('');
     setPending(previous=>{previous?.resolve(null);return null;});
   }
   async function refresh(isCurrent:()=>boolean=()=>true){
-    try{const snapshot=await loadWorkspace();if(!isCurrent())return false;setData(snapshot);if(!data&&snapshot.actor.roles.includes('operator')){setOperations(true);setPage('overview');}return true;}
+    try{const snapshot=await loadWorkspace();if(!isCurrent())return false;setData(snapshot);setMessage('');if(!data&&snapshot.actor.roles.includes('operator')){setOperations(true);setPage('overview');}return true;}
     catch(error){
       if(!isCurrent())return false;
       if(error instanceof ApiError&&(error.status===401||error.status===403)){
@@ -175,14 +180,14 @@ export function EnterpriseApp(){
   if(!data)return <><ReviewBanner/><DesignSwitch mode={uiMode} onChange={setUiMode} className="login-design-switch"/><Login setup={setup} tokenRequired={setupTokenRequired} message={message} modern={desk} onInitialized={()=>{setSetup(false);setSetupTokenRequired(false);}} onDone={async()=>{setSetup(false);setMessage('');await refresh();}}/></>;
   const d=data,admin=d.actor.roles.includes('operator'),isOps=operations&&admin,edit=makeEditors(d,run,setEditor);
   const managesProjects=d.actor.roles.includes('operator')||d.projects.some(p=>p.managerId===d.actor.id&&p.status==='active');
-  const navigation=isOps?['overview','usage','leaderboard','cockpit-light','cockpit-tech','cockpit-beacon','onboarding','approvals','projects','applications']:[...(managesProjects?['leaderboard']:[]),'home','online','agent','quota','approvals'];
+  const navigation=isOps?['overview','usage','leaderboard','cockpit-light','cockpit-tech','cockpit-beacon','onboarding','approvals','projects','applications']:['home','available','online','agent','quota'];
   const modelManagement=isOps?['catalog','models','pools','capacity']:[];
-  const secondary=isOps?['members','keys','monitoring','safety','calls','reviews','settings']:['keys','calls','projects',...(d.applications.length?['applications']:[])];
+  const secondary=isOps?['members','keys','monitoring','safety','calls','reviews','settings']:['approvals','keys','calls','projects',...(d.applications.length?['applications']:[]),...(managesProjects?['leaderboard']:[])];
   const navLabel=(item:string)=>!isOps&&item==='leaderboard'?'项目用量':!isOps&&!admin&&!d.projects.some(p=>p.managerId===d.actor.id)&&item==='approvals'?'我的申请':labels[item];
   const navItem=(item:string)=><button key={item} className={`nav-link ${page===item?'active':''}`} aria-current={page===item?'page':undefined} onClick={()=>navigate(item)}>{navLabel(item)}</button>;
   const secondaryLabel=isOps?'配置与排查':'工具与协作';
   const primaryEntries:NavEntry[]=navigation.map(id=>({id,label:navLabel(id)}));
-  const secondaryEntries:NavEntry[]=secondary.map(id=>({id,label:labels[id]}));
+  const secondaryEntries:NavEntry[]=secondary.map(id=>({id,label:navLabel(id)}));
   const modelEntries:NavEntry[]=modelManagement.map(id=>({id,label:labels[id]}));
   const pinnedPage=isOps?'overview':'home';
   const paletteItems:PaletteItem[]=[...navigation.map(id=>({id,label:navLabel(id),group:isOps?'运营空间':'个人空间',icon:navIcon(id)})),...modelManagement.map(id=>({id,label:labels[id],group:'模型管理',icon:navIcon(id)})),...secondary.map(id=>({id,label:labels[id],group:secondaryLabel,icon:navIcon(id)})),{id:'notifications',label:labels.notifications,group:'工具',icon:'bell'}];
@@ -212,12 +217,12 @@ export function EnterpriseApp(){
   };
   const changeUiMode=(value:UiDesign)=>{setPaletteOpen(false);setMenuOpen(false);setUiMode(value);};
   const today=new Date(),dateLabel=`${today.getFullYear()}.${String(today.getMonth()+1).padStart(2,'0')}.${String(today.getDate()).padStart(2,'0')} · ${today.toLocaleDateString('zh-CN',{weekday:'short'})}`;
-  const selfRefreshing=['calls','reviews','monitoring','safety','usage','leaderboard','cockpit-light','cockpit-tech','cockpit-beacon'].includes(page);
-  const mountedTabs=!desk?[{page,targetId}]:openTabs.some(tab=>tab.page===page)?openTabs:[...openTabs,{page,targetId}];
+  const selfRefreshing=['available','calls','reviews','monitoring','safety','usage','leaderboard','cockpit-light','cockpit-tech','cockpit-beacon'].includes(page);
+  const mountedTabs=isOps&&!desk?[{page,targetId}]:openTabs.some(tab=>tab.page===page)?openTabs:[...openTabs,{page,targetId}];
   const confirmationTitle=pending?.command.type==='retention.run'?'核对本次清理范围':pending?.command.type==='settings.retention'?'核对保留策略':pending?.command.type==='settings.update'?'核对企业设置':pending?.command.type==='distribution.execute'?String(pending.preview.impact.title):pending?.command.type==='keys.status'?`核对批量${pending.command.payload.status==='revoked'?'吊销':'停用'}名单`:pending?actions[pending.command.type]??'确认本次操作':'';
   const confirmationLabel=pending?.command.type==='retention.run'?`确认清理 ${retentionTotal((pending.preview.impact.retention as RetentionReport).eligible)} 条`:pending?.command.type==='settings.retention'?'确认保存策略':pending?.command.type==='settings.update'?'确认保存设置':pending?.command.type==='keys.status'?`确认${pending.command.payload.status==='revoked'?'吊销':'停用'} ${Number(pending.preview.impact.changedCount)} 把`:pending?.command.type==='save.organization'?Number(pending.preview.impact.totalAmount)>0?'确认调整并发放':'确认调整':'确认执行';
-  return <><ReviewBanner/><div className={`shell ${next?'shell-next':''} ${sidebar?'shell-sidebar':''}`}>
-    {v4Shell?<>
+  return <><ReviewBanner/><div className={`shell ${next?'shell-next':''} ${sidebar?'shell-sidebar':''} ${!isOps?'shell-personal':''}`}>
+    {!isOps?<PersonalHeader actorName={d.actor.name} workspaceName={d.settings.name} admin={admin} page={page} unread={unread} primary={primaryEntries} secondary={secondaryEntries} mode={uiMode} onModeChange={changeUiMode} onNavigate={navigate} onOperations={()=>switchSpace(true)} onLogout={logout} onSearch={()=>setPaletteOpen(true)}/>:v4Shell?<>
       <V4TopBar actorName={d.actor.name} admin={admin} isOps={isOps} notificationsActive={page==='notifications'} unread={unread} mode={uiMode} onModeChange={changeUiMode} onNavigateHome={()=>navigate(isOps?'overview':'home')} onSwitchSpace={switchSpace} onSearch={()=>setPaletteOpen(true)} onNotifications={()=>navigate('notifications')} onLogout={logout} menuOpen={menuOpen} onMenu={()=>setMenuOpen(true)} menuButtonRef={menuButtonRef} covered={narrow&&menuOpen}/>
       <V4Sidebar workspaceName={d.settings.name} isOps={isOps} page={page} primary={primaryEntries} modelManagement={modelEntries} secondary={secondaryEntries} secondaryLabel={secondaryLabel} badges={navBadges} mode={uiMode} onModeChange={changeUiMode} onNavigate={navigate} open={menuOpen} onClose={closeMenu} drawer={narrow}/>
     </>
@@ -231,14 +236,14 @@ export function EnterpriseApp(){
     <nav aria-label="主导航">{navigation.map(navItem)}{modelManagement.length>0&&<details className="nav-group" open><summary>模型管理</summary><div>{modelManagement.map(navItem)}</div></details>}<details className="nav-group" key={isOps?'ops':'personal'} open={secondary.includes(page)||undefined}><summary>{isOps?'配置与排查':'工具与协作'}</summary><div>{secondary.map(navItem)}</div></details></nav>
   </aside>}
     <main className="main" inert={docked&&menuOpen?true:undefined}>
-      {v4Shell?<V4PageTabs tabs={openTabs} page={page} labelFor={navLabel} pinnedPage={pinnedPage} onActivate={activateTab} onClose={closeTab}/>:sidebar&&<V3TabBar tabs={openTabs} page={page} labelFor={navLabel} pinnedPage={pinnedPage} onActivate={activateTab} onClose={closeTab}/>}
-      {!desk&&<div className="top"><span>{d.settings.name} / {isOps?'运营空间':'个人空间'}</span><div className="inline-actions"><DesignSwitch mode={uiMode} onChange={changeUiMode}/><button onClick={()=>navigate('notifications')}>通知 {unread||''}</button><span>{d.actor.name}</span><button onClick={logout}>退出登录</button></div></div>}
+      {isOps&&(v4Shell?<V4PageTabs tabs={openTabs} page={page} labelFor={navLabel} pinnedPage={pinnedPage} onActivate={activateTab} onClose={closeTab}/>:sidebar&&<V3TabBar tabs={openTabs} page={page} labelFor={navLabel} pinnedPage={pinnedPage} onActivate={activateTab} onClose={closeTab}/>)}
+      {isOps&&!desk&&<div className="top"><span>{d.settings.name} / 运营空间</span><div className="inline-actions"><DesignSwitch mode={uiMode} onChange={changeUiMode}/><button onClick={()=>navigate('notifications')}>通知 {unread||''}</button><span>{d.actor.name}</span><button onClick={logout}>退出登录</button></div></div>}
       <div className={`page ${next?'v2-page':''}`}>
         {next&&<div className="v2-scope" aria-hidden="true"><span>{isOps?'运营空间':'个人空间'}</span><span className="v2-scope-sep">/</span><b>{labels[page]}</b><span className="v2-scope-date">{dateLabel}</span></div>}
         {v4Shell&&<div className="page-context" aria-hidden="true"><span>{spaceLabel}</span><span className="page-context-date">{dateLabel}</span></div>}
         <section className="heading"><div><span className="eyebrow">{isOps?'OPERATIONS':'PERSONAL WORKSPACE'}</span><h1>{navLabel(page)}</h1>{v4Shell&&ledes[page]&&<p className="page-lede">{ledes[page]}</p>}</div>{!selfRefreshing&&<button className="ghost" onClick={()=>void refresh()}>刷新数据</button>}</section>{message&&<div className="notice" role="status">{message}</div>}
         {page!=='monitoring'&&d.callDataQuality==='collection_failed'&&<div className="notice warning" role="alert">调用统计暂不可用，费用待核对数量未知。{isOps?<button className="link-button" onClick={()=>navigate('monitoring')}>检查监控采集 →</button>:'请联系企业运营检查采集。'}</div>}
-        {mountedTabs.map(tab=><div key={tab.page} data-page={tab.page} hidden={tab.page!==page} className={desk?'v2-page-enter':''}><WorkspacePages data={d} page={tab.page} targetId={tab.targetId} active={tab.page===page} isOps={isOps} edit={edit} purposeId={purposeId} setPurpose={setPurposeId} setPage={navigate} run={run} refresh={refresh} action={action} detail={(title,content)=>setDetail({title,content})}/></div>)}
+        {mountedTabs.map(tab=><div key={tab.page} data-page={tab.page} hidden={tab.page!==page} className={desk?'v2-page-enter':''}><WorkspacePages data={d} page={tab.page} targetId={tab.targetId} active={tab.page===page} isOps={isOps} edit={edit} purposeId={purposeId} setPurpose={setPurposeId} setPage={navigate} onlineModelRequest={onlineModelRequest} onUseModel={(purposeId,modelId)=>{setPurposeId(purposeId);setOnlineModelRequest({purposeId,modelId,requestId:crypto.randomUUID()});navigate('online');}} run={run} refresh={refresh} action={action} detail={(title,content)=>setDetail({title,content})}/></div>)}
       </div>
     </main>
     {docked&&<div className={`${v4Shell?'v4-backdrop':'v3-backdrop'} ${menuOpen?'open':''}`} onClick={closeMenu} aria-hidden="true"/>}
@@ -247,7 +252,7 @@ export function EnterpriseApp(){
     {pending&&<Modal title={confirmationTitle} onClose={()=>{if(!busy){pending.resolve(null);setPending(null);}}} footer={<><button className="ghost" disabled={busy} onClick={()=>{pending.resolve(null);setPending(null);}}>返回修改</button><button className="primary" disabled={busy} onClick={()=>void confirm()}>{busy?'正在执行…':confirmationLabel}</button></>}><Impact pending={pending} data={d}/></Modal>}
     {secret&&<Modal title="请保存完整密钥" onClose={()=>setSecret(null)} footer={<button className="primary" onClick={()=>{const keyId=secret.keyId;setSecret(null);if(keyId)setDetail({title:'编程工具接入',content:<KeyDetails keyId={keyId} data={d} guideOnly/>});}}>我已保存，查看接入指引</button>}><div className="notice warning">仅本次显示，关闭后无法再次读取。请保存到受控的凭据管理工具。</div><label className="form-field" htmlFor="issued-api-key">完整密钥<PasswordInput id="issued-api-key" value={secret.value} onChange={()=>{}} readOnly autoComplete="off"/></label>{secret.keyId&&<LocalOctopConnect keyId={secret.keyId} issuedSecret={secret.value} canImport={d.keys.some(k=>k.id===secret.keyId&&k.ownerId===d.actor.id&&k.status==='active')}/>}</Modal>}
     {detail&&<Modal title={detail.title} onClose={()=>setDetail(null)}>{typeof detail.content==='function'?detail.content(d,edit):detail.content}</Modal>}
-    {desk&&<CommandPalette open={paletteOpen} items={paletteItems} onClose={()=>setPaletteOpen(false)} onSelect={navigate}/>}
+    {(desk||!isOps)&&<CommandPalette open={paletteOpen} items={paletteItems} onClose={()=>setPaletteOpen(false)} onSelect={navigate}/>}
   </div></>;
 }
 

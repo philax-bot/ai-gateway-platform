@@ -6,7 +6,7 @@ import { endProject,grantPlan, manager, matches, newId, owner, publicMember, val
 import { saveAlertRule } from './monitoring.domain';
 import { applyAutomatic } from './automatic-onboarding';
 import { prepareOrganizationChange } from './organization-changes';
-import { applicationBillingMode, type ApplicationBillingMode } from '@ai-gateway/contracts';
+import { applicationBillingMode, MODEL_CAPABILITIES, type ModelCapability, type ApplicationBillingMode } from '@ai-gateway/contracts';
 
 export function memberCandidate(s:WorkspaceState,p:Record<string,unknown>,withPassword=true){
   const existing=p.id?pick(s.members,p.id,'member'):null,directoryId=text(p.directoryId,'directoryId',100);
@@ -55,7 +55,13 @@ export async function resourceAction(tx:WorkspaceTransaction,actor:Member,type:s
       const existing=p.id?pick(s.definitions,p.id,'model definition'):null;
       const modelId=text(p.modelId,'modelId',120);if(s.definitions.some(d=>d.modelId===modelId&&d.id!==existing?.id))throw new ConflictException('model identifier already exists');
       const contextTokens=Number(p.contextTokens);if(!Number.isSafeInteger(contextTokens)||contextTokens<=0)throw new BadRequestException('contextTokens must be a positive integer');
-      const definition={id:existing?.id??newId('model'),name:text(p.name,'name',100),modelId,contextTokens,description:String(p.description??''),active:p.active!==false};
+      const vendor=p.vendor===undefined?existing?.vendor:p.vendor===null||p.vendor===''?undefined:text(p.vendor,'vendor',100);
+      const capabilities=p.capabilities===undefined?existing?.capabilities:strings(p.capabilities,'capabilities');
+      if(capabilities?.some(value=>!Object.prototype.hasOwnProperty.call(MODEL_CAPABILITIES,value)))throw new BadRequestException('invalid capabilities');
+      const rawMaxOutput=p.maxOutputTokens===undefined?existing?.maxOutputTokens:p.maxOutputTokens;
+      const maxOutputTokens=rawMaxOutput===null||rawMaxOutput===''?undefined:rawMaxOutput;
+      if(maxOutputTokens!==undefined&&(!Number.isSafeInteger(maxOutputTokens)||Number(maxOutputTokens)<1||Number(maxOutputTokens)>contextTokens))throw new BadRequestException('maxOutputTokens must be a positive integer within contextTokens');
+      const definition={id:existing?.id??newId('model'),name:text(p.name,'name',100),modelId,contextTokens,description:String(p.description??''),active:p.active!==false,vendor,capabilities:capabilities as ModelCapability[]|undefined,maxOutputTokens:maxOutputTokens as number|undefined};
       if(existing)Object.assign(existing,definition);else s.definitions.push(definition);return definition;
     }
     case 'save.service':{

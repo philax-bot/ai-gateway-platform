@@ -36,6 +36,7 @@ export function Icon({ name, size = 18 }: { name: IconName; size?: number }) {
 }
 
 export function navIcon(id: string): IconName {
+  if(id==='available')return 'chip';
   return ({
     overview: 'home', usage:'chart', leaderboard:'signal', 'cockpit-light':'chart', 'cockpit-tech':'signal', 'cockpit-beacon':'grid', home: 'home', onboarding: 'userPlus', online: 'spark', agent:'spark',
     quota: 'wallet', approvals: 'inbox', projects: 'folder', applications: 'grid',

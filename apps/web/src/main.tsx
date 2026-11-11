@@ -9,6 +9,7 @@ import './design-v4.css';
 import './design-v5.css';
 import './analytics.css';
 import './cockpit-demo.css';
+import './model-discovery.css';
 
 applyUiDesign(readUiDesign());
 

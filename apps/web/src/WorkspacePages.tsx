@@ -4,7 +4,8 @@ import { api } from './client';
 import { batchAppliesToMember,batchModelNames,batchSourceName,fundingSourceSummary,fundingSources,purposeBatches } from './quota-view';
 import { date, money, Panel, Status, Table } from './components';
 import { makeEditors, type RunCommand } from './editors';
-import { Online, purposeLabels } from './Online';
+import { Online, purposeLabels, type OnlineModelRequest } from './Online';
+import {AvailableModels} from './AvailableModels';
 import {AgentWorkspace} from './AgentWorkspace';
 import {SafetyGuardrail} from './SafetyGuardrail';
 import { CallExplorer } from './CallExplorer';
@@ -27,14 +28,15 @@ import { organizationEnabled,organizationPath,organizationTree } from './organiz
 
 export { approvalLabels } from './ApprovalCenter';
 export type DetailContent=ReactNode|((data:PlatformSnapshot,edit:ReturnType<typeof makeEditors>)=>ReactNode);
-export interface PageProps {data:PlatformSnapshot;page:string;targetId?:string|null;active?:boolean;isOps:boolean;edit:ReturnType<typeof makeEditors>;purposeId:string;setPurpose:(value:string)=>void;setPage:(value:string,id?:string)=>void;run:RunCommand;refresh:()=>Promise<boolean>;action:(work:()=>Promise<unknown>)=>void;detail:(title:string,content:DetailContent)=>void}
-export function WorkspacePages({data:d,page,targetId,active=true,isOps,edit,purposeId,setPurpose,setPage,run,refresh,action,detail}:PageProps){
+export interface PageProps {data:PlatformSnapshot;page:string;targetId?:string|null;active?:boolean;isOps:boolean;edit:ReturnType<typeof makeEditors>;purposeId:string;setPurpose:(value:string)=>void;setPage:(value:string,id?:string)=>void;onlineModelRequest?:OnlineModelRequest;onUseModel:(purposeId:string,modelId:string)=>void;run:RunCommand;refresh:()=>Promise<boolean>;action:(work:()=>Promise<unknown>)=>void;detail:(title:string,content:DetailContent)=>void}
+export function WorkspacePages({data:d,page,targetId,active=true,isOps,edit,purposeId,setPurpose,setPage,onlineModelRequest,onUseModel,run,refresh,action,detail}:PageProps){
   const admin=d.actor.roles.includes('operator'),memberName=(id:string)=>d.members.find(m=>m.id===id)?.name??id;
   const poolName=(id:string)=>d.pools.find(p=>p.id===id)?.name??id;
   const limitDescription=(value:PlatformSnapshot['settings']['limits'])=>value.mode==='none'?'本级不额外限制':value.mode==='inherit'?'继承企业默认保护':[['RPM',value.rpm],['TPM',value.tpm],['并发',value.concurrency],['单次输出',value.maxOutputTokens]].filter(([,v])=>v!==undefined).map(([label,v])=>`${label} ${v}`).join(' · ')||'本级未设置数值';
   const purpose=d.purposes.find(p=>p.id===purposeId)??d.purposes[0];
   const selector=<label className="purpose-select">使用用途 <select value={purpose.id} onChange={e=>setPurpose(e.target.value)}>{d.purposes.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></label>;
   switch(page){
+    case 'available':return <AvailableModels data={d} purposeId={purposeId} setPurpose={setPurpose} setPage={setPage} refresh={refresh} detail={detail} onUseModel={onUseModel}/>;
     case 'catalog':return <ModelCatalog data={d} edit={edit} setPage={setPage} refresh={refresh} detail={detail}/>;
     case 'safety':return <SafetyGuardrail data={d} run={run} active={active}/>;
     case 'agent':return <AgentWorkspace refreshWorkspace={refresh} setPage={setPage}/>;
@@ -86,7 +88,7 @@ export function WorkspacePages({data:d,page,targetId,active=true,isOps,edit,purp
         <Panel title="可用模型"><Table headers={['模型','状态','支持来源']} rows={modelRows} empty="当前没有可用的已开放模型，请先查看模型权益。"/><p className="secondary">同一来源被多个模型共用时，调用任一模型都从该来源扣费；金额以“额度来源与批次”为准。</p></Panel>
       </>;
     }
-    case 'online':return <Online data={d} purposeId={purpose.id} onPurpose={setPurpose} refresh={refresh}/>;
+    case 'online':return <Online data={d} purposeId={purpose.id} onPurpose={setPurpose} refresh={refresh} modelRequest={onlineModelRequest}/>;
     case 'keys':return <KeyManager data={d} isOps={isOps} edit={edit} detail={detail}/>;
     case 'approvals':return <ApprovalCenter data={d} edit={edit} run={run} setPage={setPage} targetId={targetId}/>;
     case 'calls':return <CallExplorer key="calls" data={d} kind="calls" reconcile={edit.reconcile} detail={detail} active={active} targetId={targetId} setPage={setPage}/>;

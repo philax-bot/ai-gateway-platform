@@ -16,6 +16,7 @@ import { connectionConfig } from './lib/backup.mjs';
 import {checkApplicationBilling} from './check-application-billing.mjs';
 import { checkUsageAnalytics } from './check-usage-analytics.mjs';
 import {checkModelManagement} from './check-model-management-web.mjs';
+import {checkModelDiscovery} from './check-model-discovery-web.mjs';
 
 /*
  * Browser regression for the tracing/migration/verification changes.
@@ -69,6 +70,7 @@ async function ready(url, child) {
   throw new Error(`service did not become ready: ${url}`);
 }
 async function stopAll() {
+  try { await cdp?.send('Browser.close'); } catch { /* the automation-owned browser may already be closed */ }
   try { await cdp?.close(); } catch { /* ignore */ }
   for (const child of [...children].reverse()) {
     if (child.exitCode === null && child.signalCode === null) {
@@ -83,7 +85,7 @@ async function stopAll() {
   if(tempDir){
     const physical=await realpath(tempDir),runtime=await realpath(resolve(root,'.runtime'));
     assert.ok(runtime.startsWith((await realpath(root))+sep)&&physical.startsWith(runtime+sep)&&/^web-check-[a-f0-9-]{36}$/.test(physical.split(/[\\/]/).at(-1)),'only remove the owned web-check directory inside this workspace');
-    await rm(physical,{recursive:true,force:true});
+    await rm(physical,{recursive:true,force:true,maxRetries:10,retryDelay:200});
   }
 }
 
@@ -111,14 +113,15 @@ async function screenshot(name) {
 }
 const clickExact = text => evaluate(`(()=>{const el=[...document.querySelectorAll('button,a,summary')].find(node=>node.textContent.replace(/\\s+/g,' ').trim()===${JSON.stringify(text)});if(!el)return false;el.click();return true;})()`);
 const clickNav = async label => {
-  const clicked = await evaluate(`(()=>{const el=[...document.querySelectorAll('#v4-sidebar nav button')].find(node=>node.textContent.replace(/\\s+/g,' ').trim().includes(${JSON.stringify(label)}));if(!el)return false;el.click();return true;})()`);
+  const clicked = await evaluate(`(()=>{const el=[...document.querySelectorAll('#v4-sidebar nav button,.personal-header nav button,dialog .personal-mobile-nav button')].find(node=>node.textContent.trim().includes(${JSON.stringify(label)}));if(!el)return false;const more=el.closest('details');if(more)more.open=true;el.click();return true;})()`);
   check(clicked, `navigation target exists: ${label}`);
   await pause(400);
 };
 const setInput = (selector, value, tag = 'HTMLInputElement') => evaluate(`(()=>{const el=document.querySelector(${JSON.stringify(selector)});if(!el)return false;const setter=Object.getOwnPropertyDescriptor(${tag}.prototype,'value').set;setter.call(el,${JSON.stringify(value)});el.dispatchEvent(new Event('input',{bubbles:true}));return true;})()`);
 const pressKey = async (key, code = key) => {
-  await cdp.send('Input.dispatchKeyEvent', { type: 'keyDown', key, code, windowsVirtualKeyCode: key === 'Escape' ? 27 : key === 'Tab' ? 9 : 0 });
-  await cdp.send('Input.dispatchKeyEvent', { type: 'keyUp', key, code, windowsVirtualKeyCode: key === 'Escape' ? 27 : key === 'Tab' ? 9 : 0 });
+  const virtualKey=key==='Escape'?27:key==='Tab'?9:key==='Enter'?13:key===' '?32:0;
+  await cdp.send('Input.dispatchKeyEvent', { type: 'keyDown', key, code, windowsVirtualKeyCode: virtualKey, ...(key==='Enter'?{text:'\r',unmodifiedText:'\r'}:key===' '?{text:' ',unmodifiedText:' '}:{}) });
+  await cdp.send('Input.dispatchKeyEvent', { type: 'keyUp', key, code, windowsVirtualKeyCode: virtualKey });
   await pause(120);
 };
 async function login(loginName, password) {
@@ -248,7 +251,7 @@ try {
   await login('web-ops', seeded.adminPassword);
   check(await waitFor(`document.body.innerText.includes('运营工作台')`, 15000), 'operator reaches the operations workspace');
 
-  if(!process.argv.includes('--model-management-only')&&!process.argv.includes('--application-billing-only')){
+  if(!process.argv.includes('--model-discovery-only')&&!process.argv.includes('--model-management-only')&&!process.argv.includes('--application-billing-only')){
   // Onboarding continuity: selection survives a page switch in the same session.
   await clickNav('为人员开通');
   await waitFor(`document.body.innerText.includes('让同事开始使用 AI')`);
@@ -472,7 +475,7 @@ try {
     check(designs.filter(d=>d[1]==='true').length === 1 && designs.find(d=>d[1]==='true')[0] === label, `shell ${mode} marks only ${label} as pressed`);
   }
   await cdp.send('Page.navigate', { url: `${web}/?ui=azure` });
-  await waitFor(`document.body.innerText.includes('调用记录')`, 15000);
+  await waitFor(`!!document.querySelector('.personal-header')`, 15000);
   await clickNav('调用记录');
 
   // Horizontal overflow at the documented widths.
@@ -485,16 +488,16 @@ try {
 
   // Mobile drawer focus trap and Escape return.
   await setViewport(390, 844);
-  await waitFor(`!!document.querySelector('.v4-menu-button')`);
-  await evaluate(`document.querySelector('.v4-menu-button').click()`);
-  await waitFor(`document.querySelector('#v4-sidebar')?.getAttribute('role')==='dialog'`);
-  check(await evaluate(`document.querySelector('#v4-sidebar').contains(document.activeElement)`), 'mobile drawer moves focus inside');
-  await evaluate(`(()=>{window.dispatchEvent(new KeyboardEvent('keydown',{key:'Tab',bubbles:true}));return true;})()`);
-  check(await evaluate(`document.querySelector('#v4-sidebar').contains(document.activeElement)`), 'Tab stays inside the mobile drawer');
-  await evaluate(`(()=>{window.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));return true;})()`);
-  await waitFor(`document.querySelector('#v4-sidebar')?.getAttribute('role')!=='dialog'`, 5000);
+  await waitFor(`!!document.querySelector('.personal-menu-button')`);
+  await evaluate(`document.querySelector('.personal-menu-button').focus();document.querySelector('.personal-menu-button').click()`);
+  await waitFor(`!!document.querySelector('dialog[open] .personal-mobile-nav')`);
+  check(await evaluate(`document.querySelector('dialog[open]').contains(document.activeElement)`), 'mobile menu moves focus inside');
+  await pressKey('Tab');
+  check(await evaluate(`document.querySelector('dialog[open]').contains(document.activeElement)`), 'Tab stays inside the mobile menu');
+  await pressKey('Escape');
+  await waitFor(`!document.querySelector('dialog[open]')`, 5000);
   await pause(120);
-  check(await evaluate(`document.activeElement?.classList.contains('v4-menu-button')`), 'Escape closes the drawer and returns focus to the menu button');
+  check(await evaluate(`document.activeElement?.classList.contains('personal-menu-button')`), 'Escape closes the menu and returns focus to the menu button');
   await screenshot('calls-mobile-390.png');
 
   check(cdp.runtimeErrors.length === 0, `no uncaught browser exceptions (${cdp.runtimeErrors.join(' | ')})`);
@@ -506,9 +509,10 @@ try {
     check(cdp.runtimeErrors.length===0,'demo rehearsal has no uncaught browser exceptions');
   }
   }
+  if(process.argv.includes('--model-discovery-only'))await checkModelDiscovery({cp,web,seeded,cdp,evaluate,waitFor,clickExact,setInput,pressKey,setViewport,screenshot,login,check});
   if(process.argv.includes('--model-management-only'))await checkModelManagement({cp,web,seeded,cdp,evaluate,waitFor,clickExact,setInput,pressKey,setViewport,screenshot,login,check});
-  if(process.argv.includes('--model-management-only')){await mkdir(screenshotDir,{recursive:true});await writeFile(resolve(screenshotDir,'browser.json'),JSON.stringify({checkedAt:new Date().toISOString(),storage:postgres?'isolated-postgres':'memory',assertionCount:assertions.length,assertions,uncaughtErrors:cdp.runtimeErrors},null,2)+'\n');}
   if(process.argv.includes('--application-billing')||process.argv.includes('--application-billing-only'))await checkApplicationBilling({cp,gateway,web,seeded,cdp,evaluate,waitFor,clickNav,clickExact,setInput,pressKey,setViewport,screenshot,login,check});
+  if(process.argv.includes('--model-discovery-only')||process.argv.includes('--model-management-only')){await mkdir(screenshotDir,{recursive:true});await writeFile(resolve(screenshotDir,'browser.json'),JSON.stringify({checkedAt:new Date().toISOString(),storage:postgres?'isolated-postgres':'memory',assertionCount:assertions.length,assertions,uncaughtErrors:cdp.runtimeErrors},null,2)+'\n');}
   console.log(`PASS ${assertions.length} browser assertions (${postgres?'isolated PostgreSQL':'memory'}; real API/CSV plus fault fixtures)`);
   console.log(`Screenshots: ${screenshotDir}`);
 } catch (error) {

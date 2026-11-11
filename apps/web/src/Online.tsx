@@ -6,15 +6,25 @@ import { fundingSourceSummary,fundingSources } from './quota-view';
 export const purposeLabels:Record<string,string>={not_open:'未开通模型',model_unavailable:'模型暂不可用',price_unconfigured:'价格未确认',no_quota:'无有效额度',quota_insufficient:'额度不足',ready:'可使用'};
 interface Quote {decision:'allow'|'deny';reasonCode:string;sourceName?:string;reservedAmount?:number;price?:PriceSnapshot;estimatedInputTokens?:number;maxOutputTokens?:number}
 
-export function Online({data,purposeId,onPurpose,refresh}:{data:PlatformSnapshot;purposeId:string;onPurpose:(value:string)=>void;refresh:()=>Promise<boolean>}){
+export interface OnlineModelRequest {purposeId:string;modelId:string;requestId:string}
+export function Online({data,purposeId,onPurpose,refresh,modelRequest}:{data:PlatformSnapshot;purposeId:string;onPurpose:(value:string)=>void;refresh:()=>Promise<boolean>;modelRequest?:OnlineModelRequest}){
   const purpose=data.purposes.find(p=>p.id===purposeId)??data.purposes[0];
   const [model,setModel]=useState(''),[input,setInput]=useState(''),[reply,setReply]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState('');
   const [maxOutput,setMaxOutput]=useState(String(data.settings.limits.maxOutputTokens??4096)),[quote,setQuote]=useState<Quote|null>(null);
+  const lastPurpose=useRef<string|undefined>(undefined),consumedRequest=useRef<string|undefined>(undefined);
   const abort=useRef<AbortController|null>(null),selected=purpose.models.find(m=>m.modelId===model);
   const selectedSources=selected?fundingSources(data,purpose,selected.modelId):[],sourceNames=fundingSourceSummary(selectedSources);
   const sharedNames=selected?[...new Set(selectedSources.flatMap(source=>source.batch.modelIds.filter(id=>id!==selected.modelId).map(id=>data.definitions.find(d=>d.modelId===id)?.name??id)))]:[];
   useEffect(()=>()=>abort.current?.abort(),[]);
-  useEffect(()=>{setModel(purpose.models.find(m=>m.status==='ready')?.modelId??'');setQuote(null);setError('');},[purpose.id]);
+  useEffect(()=>{
+    if(busy)return;
+    const requested=modelRequest?.purposeId===purpose.id&&modelRequest.requestId!==consumedRequest.current;
+    if(requested||lastPurpose.current!==purpose.id){
+      setModel(requested?modelRequest.modelId:purpose.models.find(m=>m.status==='ready')?.modelId??'');setQuote(null);setError('');
+      lastPurpose.current=purpose.id;
+      if(requested)consumedRequest.current=modelRequest.requestId;
+    }
+  },[purpose.id,modelRequest?.requestId,busy]);
   useEffect(()=>{
     let cancelled=false;setQuote(null);
     if(!model||!Number.isSafeInteger(Number(maxOutput))||Number(maxOutput)<1)return;

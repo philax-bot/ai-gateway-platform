@@ -50,6 +50,14 @@ export class PlatformService {
       view.availableAmount=Number(applicable.filter(b=>b.modelIds.some(model=>modelIds.includes(model))).reduce((sum,b)=>sum+b.availableAmount,0).toFixed(6));
       const hasEntitlement=view.projectId?true:s.entitlements.some(e=>e.memberId===actor.id&&e.status==='active'&&valid(e.expiresAt));
       view.status=!hasEntitlement?'not_open':!view.models.length?'model_unavailable':view.models.some(m=>m.status==='ready')?'ready':view.models.some(m=>m.status==='quota_insufficient')?'quota_insufficient':view.models.some(m=>m.status==='price_unconfigured')?'price_unconfigured':view.models.every(m=>m.status==='model_unavailable')?'model_unavailable':'no_quota';
+      // Discovery does not change operational models, balances or admission rules.
+      const ranges=view.projectId?s.projects.filter(p=>p.id===view.projectId&&p.status==='active'&&p.memberIds.includes(actor.id)).map(p=>p.range):s.entitlements.filter(e=>e.memberId===actor.id&&e.status==='active'&&valid(e.expiresAt)).map(e=>e.range);
+      const definitionIds=new Set(ranges.flatMap(r=>s.pools.find(p=>p.id===r.poolId)?.entries.filter(e=>e.open&&(r.mode==='follow'||r.definitionIds.includes(e.definitionId))).map(e=>e.definitionId)??[]));
+      view.catalogModels=s.definitions.filter(d=>definitionIds.has(d.id)).map(d=>view.models.find(m=>m.modelId===d.modelId)??{
+        modelId:d.modelId,name:d.name,status:'model_unavailable' as const,
+        availableAmount:Number(applicable.filter(b=>b.modelIds.includes(d.modelId)).reduce((sum,b)=>sum+b.availableAmount,0).toFixed(6)),
+        largestBatchAmount:Math.max(0,...applicable.filter(b=>b.modelIds.includes(d.modelId)).map(b=>b.availableAmount)),
+      });
     }
     // Statistics may fail independently of identity and the authoritative quota ledgers.
     // Keep the workspace reachable for recovery, while explicitly marking all call data unknown.
@@ -57,7 +65,7 @@ export class PlatformService {
     try{calls=await this.store.queryCalls({limit:200},this.callScope(s,actorId));}catch{/* no database details in the public snapshot */}
     return {revision:s.revision,actor:publicMember(actor),settings:s.settings,pendingReviewCount:calls?.summary.pendingReview??null,callDataQuality:calls?'collected' as const:'collection_failed' as const,
       organizations:s.organizations,members:s.members.filter(m=>admin||peers.has(m.id)).map(m=>admin||m.id===actor.id?publicMember(m):{id:m.id,name:m.name,organizationId:m.organizationId,active:m.active,roles:m.roles}),
-      definitions:admin?s.definitions:s.definitions.filter(d=>purposes.some(p=>p.models.some(m=>m.modelId===d.modelId))),
+      definitions:admin?s.definitions:s.definitions.filter(d=>purposes.some(p=>(p.catalogModels??p.models).some(m=>m.modelId===d.modelId))),
       services:admin?s.services:[],pools:admin?s.pools:[],plans:admin?s.plans:[],rules:admin?s.rules:[],
       entitlements:s.entitlements.filter(e=>admin||e.memberId===actor.id).map(e=>({...e,futureGrantStatus:futureGrantStatus(s,e)})),projects,applications,
       approvals:s.approvals.filter(a=>admin||a.applicantId===actor.id||canApprove(s,actor,a)),

@@ -14,7 +14,13 @@ export interface Member {
   id: string; name: string; directoryId: string; organizationId: string; category: 'employee' | 'contractor';
   tags: string[]; roles: Role[]; active: boolean; validUntil: string | null; sponsorId: string | null; passwordHash?: string;
 }
-export interface ModelDefinition { id: string; name: string; modelId: string; contextTokens: number; description: string; active: boolean }
+export const MODEL_CAPABILITIES = {text:'文本',vision:'图片理解',tools:'工具调用',streaming:'流式输出'} as const;
+export type ModelCapability = keyof typeof MODEL_CAPABILITIES;
+export interface ModelDefinition {
+  id: string; name: string; modelId: string; contextTokens: number; description: string; active: boolean;
+  /** Operator-maintained discovery metadata, not admission limits or automatic verification. */
+  vendor?:string; capabilities?:ModelCapability[]; maxOutputTokens?:number;
+}
 export interface UsageLimits { mode: 'inherit' | 'none' | 'custom'; rpm?: number; tpm?: number; concurrency?: number; maxOutputTokens?: number }
 export interface ServiceModel {
   definitionId: string; upstreamModel: string; inputPrice: number | null; outputPrice: number | null;
@@ -145,6 +151,8 @@ export interface PurposeView {
   id: string; name: string; purpose: 'personal'|'project'; projectId: string|null;
   status: 'not_open'|'model_unavailable'|'price_unconfigured'|'no_quota'|'quota_insufficient'|'ready'; availableAmount: number;
   models: {modelId:string;name:string;availableAmount:number;largestBatchAmount:number;status:'model_unavailable'|'price_unconfigured'|'no_quota'|'quota_insufficient'|'ready'}[];
+  /** Discovery retains in-range models whose source is temporarily unavailable. */
+  catalogModels?:PurposeView['models'];
 }
 export interface PlatformSnapshot {
   pendingReviewCount:number|null;callDataQuality:'collected'|'collection_failed';
