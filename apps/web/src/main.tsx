@@ -9,7 +9,10 @@ import './design-v4.css';
 import './design-v5.css';
 import './analytics.css';
 import './cockpit-demo.css';
+import './workflow.css';
 import './model-discovery.css';
+import './provider-picker.css';
+import './person-picker.css';
 
 applyUiDesign(readUiDesign());
 

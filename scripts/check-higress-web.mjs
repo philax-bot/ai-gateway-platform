@@ -41,8 +41,8 @@ try{
   const pool=await command('save.pool',{id:'pool-local-test',name:'浏览器验收模型池',entries:[{definitionId:service.mappings[0].definitionId,serviceId:service.id,open:true}]});
   const range={poolId:pool.id,mode:'follow',definitionIds:[]};const plan=await command('save.plan',{name:'浏览器办公方案',range,amount:.2,cadence:'monthly',quotaDays:30,entitlementDays:365});
   const accounts={operator:admin};for(const [role,name]of [['employee','审核新员工'],['manager','审核项目经理'],['owner','审核应用负责人']]){const member=await command('save.member',{name,directoryId:'web-'+role,password,organizationId:'department-engineering',category:'employee',roles:['employee'],tags:[]});accounts[role]={directoryId:'web-'+role,password,name,id:member.id};}
-  const project=await command('save.project',{name:'浏览器验收项目',managerId:accounts.manager.id,range});await command('project.members',{projectId:project.id,memberIds:[accounts.employee.id]});
-  const application=await command('save.application',{billingMode:'quota',name:'浏览器验收应用',ownerId:accounts.owner.id,organizationId:'org-demo',range});
+  const project=await command('save.project',{initialAmount:1,validity:'permanent',name:'浏览器验收项目',managerId:accounts.manager.id,range});await command('project.members',{projectId:project.id,memberIds:[accounts.employee.id]});
+  const application=await command('save.application',{initialAmount:1,validity:'permanent',billingMode:'quota',name:'浏览器验收应用',ownerId:accounts.owner.id,organizationId:'org-demo',range});
   const webProcess=start('apps/web/node_modules/vite/bin/vite.js',['--host','127.0.0.1','--port',String(webPort),'--strictPort'],{VITE_CONTROL_PLANE_URL:cp,VITE_GATEWAY_URL:gateway,VITE_REVIEW_MODE:'true',VITE_REVIEW_STORAGE:'postgres'},resolve(root,'apps/web'));await ready(web,webProcess);
   const session={id,directory,web: web+'/?ui=beacon',control:cp,gateway,schema,accounts,planId:plan.id,projectId:project.id,applicationId:application.id};await writeFile(resolve(directory,'session.json'),JSON.stringify(session,null,2));console.log(JSON.stringify({ready:true,directory,web:session.web}));
   let finish;

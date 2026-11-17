@@ -1,0 +1,64 @@
+import {useEffect,useId,useRef,useState} from 'react';
+import {createPortal} from 'react-dom';
+import type {PersonOrganization,PersonOrganizationPage,PersonPage,PersonQuery,PersonSummary} from '@ai-gateway/contracts';
+import {api} from './client';
+import {Modal} from './components';
+import {PersonIdentity,personLabel} from './person-identity';
+
+export type PersonSource=Pick<PersonQuery,'scope'|'projectId'|'excludeIds'>;
+export interface PersonPickerProps {id?:string;label:string;value:string[];onChange:(ids:string[],people:PersonSummary[])=>void;multiple?:boolean;source:PersonSource;initialPeople?:PersonSummary[];required?:boolean;disabled?:boolean}
+function useDebounced(value:string){const [result,setResult]=useState(value);useEffect(()=>{const timer=setTimeout(()=>setResult(value),200);return()=>clearTimeout(timer);},[value]);return result;}
+function OrganizationNode({node,source,selected,onSelect}:{node:PersonOrganization;source:PersonSource;selected:string;onSelect:(node:PersonOrganization)=>void}){
+  const [expanded,setExpanded]=useState(false);
+  return <li><div className="person-org-node">{node.hasChildren?<button type="button" className="person-org-expand" aria-label={`${expanded?'收起':'展开'}${node.name}`} aria-expanded={expanded} onClick={()=>setExpanded(v=>!v)}>{expanded?'−':'+'}</button>:<span className="person-org-spacer"/>}<button type="button" className="person-org-name" aria-pressed={selected===node.id} title={node.path} onClick={()=>onSelect(node)}>{node.name}{!node.active?' · 已停用':''}</button></div>{expanded&&<OrganizationBranch source={source} parentId={node.id} selected={selected} onSelect={onSelect}/>}</li>;
+}
+function OrganizationBranch({source,parentId=null,query='',selected,onSelect}:{source:PersonSource;parentId?:string|null;query?:string;selected:string;onSelect:(node:PersonOrganization)=>void}){
+  const [data,setData]=useState<PersonOrganizationPage|null>(null),[error,setError]=useState(''),[page,setPage]=useState(1),[retry,setRetry]=useState(0),key=JSON.stringify(source);
+  useEffect(()=>setPage(1),[query,key]);
+  useEffect(()=>{let current=true;setData(null);setError('');api<PersonOrganizationPage>('/api/v1/platform/people/organizations',{...source,parentId,query,page,pageSize:30}).then(value=>{if(current)setData(value);}).catch(e=>{if(current)setError(e.message);});return()=>{current=false;};},[key,parentId,query,page,retry]);
+  if(error)return <p className="notice danger" role="alert">组织读取失败：{error}<button type="button" className="link-button" onClick={()=>setRetry(v=>v+1)}>重试</button></p>;
+  if(!data)return <p className="secondary" role="status">正在读取组织…</p>;
+  return <><ul className="person-org-tree">{data.items.map(node=>query?<li key={node.id}><button type="button" className="person-org-name" aria-pressed={selected===node.id} onClick={()=>onSelect(node)}>{node.path}</button></li>:<OrganizationNode key={node.id} node={node} source={source} selected={selected} onSelect={onSelect}/>)}</ul>{!data.total&&<p className="secondary">没有匹配组织</p>}{data.total>30&&<div className="person-picker-pages"><button type="button" disabled={page===1} onClick={()=>setPage(v=>v-1)}>上一页组织</button><small>{page} / {Math.ceil(data.total/30)}</small><button type="button" disabled={page*30>=data.total} onClick={()=>setPage(v=>v+1)}>下一页组织</button></div>}</>;
+}
+export function PersonPicker({id,label,value,onChange,multiple=false,source,initialPeople=[],required=false,disabled=false}:PersonPickerProps){
+  const generatedId=useId(),controlId=id??generatedId,trigger=useRef<HTMLButtonElement>(null),generation=useRef(0);
+  const [open,setOpen]=useState(false),[draft,setDraft]=useState<string[]>([]),[cache,setCache]=useState<Record<string,PersonSummary>>(()=>Object.fromEntries(initialPeople.map(p=>[p.id,p])));
+  const [query,setQuery]=useState(''),[organizationQuery,setOrganizationQuery]=useState(''),[organizationId,setOrganizationId]=useState(''),[organizationName,setOrganizationName]=useState('全部组织'),[includeChildren,setIncludeChildren]=useState(true),[category,setCategory]=useState('');
+  const [page,setPage]=useState(1),[data,setData]=useState<PersonPage|null>(null),[error,setError]=useState(''),[lookupError,setLookupError]=useState(''),[busy,setBusy]=useState(false),[invalid,setInvalid]=useState(false),[retry,setRetry]=useState(0),[mobileTab,setMobileTab]=useState('people');
+  const search=useDebounced(query),organizationSearch=useDebounced(organizationQuery),sourceKey=JSON.stringify(source),valueKey=JSON.stringify(value);
+  useEffect(()=>()=>{generation.current++;},[]);
+  function merge(people:PersonSummary[]){setCache(previous=>({...previous,...Object.fromEntries(people.map(p=>[p.id,p]))}));}
+  useEffect(()=>{
+    let current=true;if(!value.length){setLookupError('');return;}
+    api<PersonPage>('/api/v1/platform/people/query',{...source,ids:value}).then(result=>{if(!current)return;merge(result.items);setLookupError('');const found=new Set(result.items.map(p=>p.id));merge(value.filter(id=>!found.has(id)).map(id=>({id,name:'人员已不存在或不可见',directoryId:'',organizationId:'',organizationPath:'请移除后重新选择',category:'employee',active:false,validUntil:null,selectable:false,unavailableReason:'人员已不存在或不可见'})));}).catch(e=>{if(current)setLookupError(e.message);});
+    return()=>{current=false;};
+  },[sourceKey,valueKey,open,retry]);
+  useEffect(()=>{if(!open)return;let current=true;setData(null);setError('');api<PersonPage>('/api/v1/platform/people/query',{...source,query:search,organizationId:organizationId||undefined,includeChildren,category:category||undefined,page,pageSize:40}).then(result=>{if(current){setData(result);merge(result.items);}}).catch(e=>{if(current)setError(e.message);});return()=>{current=false;};},[open,sourceKey,search,organizationId,includeChildren,category,page,retry]);
+  function close(){generation.current++;setOpen(false);setBusy(false);}
+  function show(){if(disabled)return;generation.current++;setDraft([...value]);setInvalid(false);setQuery('');setOrganizationQuery('');setOrganizationId('');setOrganizationName('全部组织');setCategory('');setPage(1);setMobileTab('people');setError('');setOpen(true);}
+  function toggle(person:PersonSummary){if(!person.selectable)return;setDraft(previous=>!multiple?[person.id]:previous.includes(person.id)?previous.filter(id=>id!==person.id):previous.length>=1000?previous:[...previous,person.id]);}
+  async function confirm(){
+    if(required&&!draft.length)return;const attempt=++generation.current;setBusy(true);setError('');
+    try{const result=draft.length?await api<PersonPage>('/api/v1/platform/people/query',{...source,ids:draft}):{items:[]};if(attempt!==generation.current)return;merge(result.items);const byId=new Map(result.items.map(p=>[p.id,p]));if(draft.some(id=>!byId.get(id)?.selectable))throw new Error('已选人员状态或可选范围已变化，请移除不可用人员后重选。');onChange([...draft],draft.map(id=>byId.get(id)!));setOpen(false);setInvalid(false);}
+    catch(e){if(attempt===generation.current)setError(e instanceof Error?e.message:'人员核对失败，请重试。');}finally{if(attempt===generation.current)setBusy(false);}
+  }
+  const pending=draft.filter(id=>!cache[id]?.selectable),pageEligible=data?.items.filter(p=>p.selectable)??[];
+  const selectOrganization=(node:PersonOrganization)=>{setOrganizationId(node.id);setOrganizationName(node.path);setPage(1);setMobileTab('people');};
+  return <div className="person-picker-field">
+    <button id={controlId} ref={trigger} type="button" className="person-picker-trigger" disabled={disabled} aria-label={label} aria-haspopup="dialog" aria-expanded={open} aria-invalid={invalid||undefined} aria-required={required||undefined} onClick={show}><span>{value.length?<>{value.slice(0,2).map(id=><span className="person-picker-chip" key={id}>{cache[id]?personLabel(cache[id]):'正在读取身份…'}</span>)}{value.length>2&&<span>共 {value.length} 人</span>}</>:<span className="secondary">{multiple?'选择人员，可多选':'选择人员'}</span>}</span><span aria-hidden="true">⌄</span></button>
+    {required&&<input className="sr-only" aria-hidden="true" tabIndex={-1} value={value.length?'selected':''} required onChange={()=>{}} onInvalid={event=>{event.preventDefault();setInvalid(true);trigger.current?.focus();}}/>}
+    {invalid&&<small role="alert">请先选择人员。</small>}{lookupError&&<small role="alert">已选身份读取失败，当前选择保留。<button type="button" className="link-button" onClick={()=>setRetry(v=>v+1)}>重试</button></small>}
+    {open&&createPortal(<Modal title={label} className="person-picker-modal" onClose={close} footer={<><span className="person-picker-footer-count" role="status">已选 {draft.length} 人{multiple?' · 最多 1000 人':''}</span><button type="button" className="ghost" onClick={close}>取消选择</button><button type="button" className="primary" disabled={busy||required&&!draft.length||pending.length>0} onClick={()=>void confirm()}>{busy?'正在核对…':'确认选择'}</button></>}>
+      <p className="secondary">按姓名、登录账号或组织路径查找。切换组织、搜索和分页会保留已选人员；确认后回填原表单。</p>
+      <div className="person-picker-mobile-tabs" role="tablist" aria-label="人员选择区域">{[['organizations','组织'],['people','人员'],['selected',`已选 ${draft.length}`]].map(([key,text])=><button key={key} type="button" role="tab" aria-selected={mobileTab===key} onClick={()=>setMobileTab(key)}>{text}</button>)}</div>
+      <div className="person-picker-grid" data-mobile-tab={mobileTab}>
+        <section className="person-picker-pane person-picker-organizations"><h3>组织架构</h3><label className="person-picker-search">搜索组织<input value={organizationQuery} onChange={e=>setOrganizationQuery(e.target.value)} placeholder="组织名称或路径"/></label><button type="button" className="person-org-name" aria-pressed={!organizationId} onClick={()=>{setOrganizationId('');setOrganizationName('全部组织');setPage(1);setMobileTab('people');}}>全部可见组织</button><nav aria-label="组织架构"><OrganizationBranch source={source} query={organizationSearch} selected={organizationId} onSelect={selectOrganization}/></nav></section>
+        <section className="person-picker-pane person-picker-people"><h3>选择人员</h3><label className="person-picker-search">搜索姓名、账号或组织<input autoFocus value={query} onChange={e=>{setQuery(e.target.value);setPage(1);}} placeholder="例如：张三、zhangsan01"/></label><p className="person-picker-current-org">当前：{organizationName}</p><div className="person-picker-filters"><label className="key-check"><input type="checkbox" checked={includeChildren} onChange={e=>{setIncludeChildren(e.target.checked);setPage(1);}}/>包含下级组织</label><label>类别<select value={category} onChange={e=>{setCategory(e.target.value);setPage(1);}}><option value="">全部类别</option><option value="employee">员工</option><option value="contractor">外部协作</option></select></label></div>
+          {multiple&&<div className="person-picker-list-tools"><span>{data?`共 ${data.total} 人`:error?'查询未完成':'正在查询…'}</span><button type="button" className="link-button" disabled={!pageEligible.length||busy} onClick={()=>setDraft(previous=>[...new Set([...previous,...pageEligible.map(p=>p.id)])].slice(0,1000))}>全选当前页</button></div>}
+          {error?<div className="notice danger" role="alert">{error}<button type="button" className="link-button" onClick={()=>setRetry(v=>v+1)}>重试查询</button></div>:!data?<p role="status">正在查询人员…</p>:<><div className="person-list person-picker-results">{data.items.map(person=><label key={person.id} className={`person-row person-picker-row ${draft.includes(person.id)?'selected':''}`}><input type={multiple?'checkbox':'radio'} name={controlId} aria-label={`选择 ${personLabel(person)}`} disabled={!person.selectable||busy||multiple&&!draft.includes(person.id)&&draft.length>=1000} checked={draft.includes(person.id)} onChange={()=>toggle(person)}/><PersonIdentity person={person}/></label>)}{!data.total&&<p className="person-empty">没有匹配人员。请调整搜索、组织或类别。</p>}</div><div className="person-picker-pages"><button type="button" disabled={page===1} onClick={()=>setPage(v=>v-1)}>上一页</button><small>第 {page} / {Math.max(1,Math.ceil(data.total/40))} 页</small><button type="button" disabled={page*40>=data.total} onClick={()=>setPage(v=>v+1)}>下一页</button></div></>}
+        </section>
+        <section className="person-picker-pane person-picker-selected"><div className="section-head"><h3>已选 {draft.length} 人</h3><button type="button" className="link-button" disabled={!draft.length||busy} onClick={()=>setDraft([])}>清空已选</button></div>{!draft.length&&<p className="secondary">尚未选择人员</p>}<div className="person-picker-selected-list">{draft.map(id=><div key={id} className="person-picker-selected-row"><PersonIdentity person={cache[id]??{name:'正在读取身份…',organizationPath:'请稍候'}}/><button type="button" className="icon-button" disabled={busy} aria-label={`移除 ${personLabel(cache[id])}`} onClick={()=>setDraft(previous=>previous.filter(value=>value!==id))}>×</button></div>)}</div>{pending.length>0&&<p className="notice warning" role="status">有 {pending.length} 位人员不可用或仍在读取，请核对后移除或重新选择。</p>}</section>
+      </div>
+    </Modal>,document.body)}
+  </div>;
+}

@@ -1,12 +1,13 @@
 import { BadRequestException } from '@nestjs/common';
 import type { CallLog, UsageAnalytics, UsageAnalyticsQuery, UsageBucket, UsageTotals } from '@ai-gateway/contracts';
 import { callVisible, type CallScope } from './call-query';
+import { costForUsage } from './admission';
 
 const DAY = 24*60*60*1000;
 const MAX_WINDOW_DAYS = 93;
 const purposes = ['personal','project','application'];
 
-export interface NormalizedUsageQuery { from:string; to:string; organizationId?:string; modelId?:string; purpose?:UsageAnalyticsQuery['purpose'] }
+export interface NormalizedUsageQuery { from:string; to:string; organizationId?:string; modelId?:string; projectId?:string; applicationId?:string; serviceId?:string; purpose?:UsageAnalyticsQuery['purpose'] }
 
 /**
  * The window is resolved here, not by the caller, so the page, the endpoint and
@@ -15,7 +16,7 @@ export interface NormalizedUsageQuery { from:string; to:string; organizationId?:
 export function normalizeUsageQuery(raw:UsageAnalyticsQuery|undefined,now=new Date(),timezone='Asia/Shanghai'):NormalizedUsageQuery{
   if(raw!==undefined&&(typeof raw!=='object'||raw===null||Array.isArray(raw)))throw new BadRequestException('invalid usage query');
   const input:UsageAnalyticsQuery=raw??{};
-  for(const key of Object.keys(input))if(!['from','to','organizationId','modelId','purpose'].includes(key))throw new BadRequestException(`unknown usage query field ${key}`);
+  for(const key of Object.keys(input))if(!['from','to','organizationId','modelId','projectId','applicationId','serviceId','purpose'].includes(key))throw new BadRequestException(`unknown usage query field ${key}`);
   const parse=(key:'from'|'to')=>{
     const value=input[key];if(value===undefined||value==='')return null;
     if(typeof value!=='string'||value.length>64||!/^\d{4}-\d\d-\d\dT/.test(value)||!Number.isFinite(Date.parse(value)))throw new BadRequestException(`invalid ${key}`);
@@ -24,14 +25,14 @@ export function normalizeUsageQuery(raw:UsageAnalyticsQuery|undefined,now=new Da
   const to=parse('to')??now.toISOString(),from=parse('from')??monthStart(to,timezone);
   if(from>=to)throw new BadRequestException('from must be before to');
   if(Date.parse(to)-Date.parse(from)>MAX_WINDOW_DAYS*DAY)throw new BadRequestException(`window must be ${MAX_WINDOW_DAYS} days or less`);
-  const text=(key:'organizationId'|'modelId')=>{
+  const text=(key:'organizationId'|'modelId'|'projectId'|'applicationId'|'serviceId')=>{
     const value=input[key];if(value===undefined||value==='')return undefined;
     if(typeof value!=='string'||value.length>160)throw new BadRequestException(`invalid ${key}`);
     return value;
   };
   const rawPurpose:unknown=(input as Record<string,unknown>).purpose;
   if(rawPurpose!==undefined&&rawPurpose!==''&&(typeof rawPurpose!=='string'||!purposes.includes(rawPurpose)))throw new BadRequestException('invalid purpose');
-  return {from,to,organizationId:text('organizationId'),modelId:text('modelId'),purpose:(rawPurpose as UsageAnalyticsQuery['purpose'])||undefined};
+  return {from,to,organizationId:text('organizationId'),modelId:text('modelId'),projectId:text('projectId'),applicationId:text('applicationId'),serviceId:text('serviceId'),purpose:(rawPurpose as UsageAnalyticsQuery['purpose'])||undefined};
 }
 
 function zoneOffset(instant:number,timezone:string){
@@ -56,9 +57,25 @@ export function dayKey(iso:string,timezone:string):string{
 }
 
 type Acc = Omit<UsageBucket,'key'|'lastActiveAt'> & {lastActiveAt:string|null};
+export const emptyCost=()=>({comparableRequests:0,knownAmount:0,unknownRequests:0,comparableBilledAmount:0,comparableCostAmount:0,differenceAmount:0});
 const empty=():Acc=>({requests:0,unknownUsage:0,inputTokens:0,outputTokens:0,cachedInputTokens:0,confirmedAmount:0,pendingReview:0,pendingAmount:0,errors:0,forwarded:0,upstreamFailures:0,lastActiveAt:null});
 
+export function callCost(call:CallLog):number|null{
+  if(call.forwarded===false)return 0;
+  if(call.forwarded!==true||call.usageFinal!==true||!call.admission?.costPrice)return null;
+  try{return costForUsage(call.admission.costPrice,call.inputTokens,call.outputTokens,call.cachedInputTokens,call.meteredUsage??undefined);}catch{return null;}
+}
+
 function add(acc:Acc,call:CallLog){
+  if(acc.cost){
+    const amount=callCost(call);
+    if(amount===null)acc.cost.unknownRequests++;
+    else{
+      acc.cost.knownAmount+=amount;
+      if(call.billableState==='confirmed'){acc.cost.comparableRequests++;acc.cost.comparableBilledAmount+=call.actualAmount;acc.cost.comparableCostAmount+=amount;}
+      acc.cost.differenceAmount=acc.cost.comparableBilledAmount-acc.cost.comparableCostAmount;
+    }
+  }
   acc.requests++;
   if(call.usageFinal!==true)acc.unknownUsage++;
   else{acc.inputTokens+=call.inputTokens;acc.outputTokens+=call.outputTokens;acc.cachedInputTokens+=call.cachedInputTokens;}
@@ -70,7 +87,7 @@ function add(acc:Acc,call:CallLog){
 }
 
 const round=(value:number)=>Number(value.toFixed(6));
-const bucket=(key:string,acc:Acc):UsageBucket=>({key,...acc,confirmedAmount:round(acc.confirmedAmount),pendingAmount:round(acc.pendingAmount)});
+const bucket=(key:string,acc:Acc):UsageBucket=>({key,...acc,...(acc.cost?{cost:Object.fromEntries(Object.entries(acc.cost).map(([key,value])=>[key,round(value)])) as NonNullable<UsageBucket['cost']>}:{}),confirmedAmount:round(acc.confirmedAmount),pendingAmount:round(acc.pendingAmount)});
 const byMoney=(a:UsageBucket,b:UsageBucket)=>b.confirmedAmount-a.confirmedAmount||b.requests-a.requests||a.key.localeCompare(b.key);
 
 /**
@@ -79,8 +96,9 @@ const byMoney=(a:UsageBucket,b:UsageBucket)=>b.confirmedAmount-a.confirmedAmount
  */
 export function aggregateUsage(rows:CallLog[],input:UsageAnalyticsQuery|undefined,scope:CallScope,timezone:string):UsageAnalytics{
   const query=normalizeUsageQuery(input,new Date(),timezone),from=Date.parse(query.from),to=Date.parse(query.to);
-  const totals:Acc=empty(),groups={people:new Map<string,Acc>(),applications:new Map<string,Acc>(),projects:new Map<string,Acc>(),models:new Map<string,Acc>(),organizations:new Map<string,Acc>(),days:new Map<string,Acc>()};
-  const push=(map:Map<string,Acc>,key:string,call:CallLog)=>{const acc=map.get(key)??empty();add(acc,call);map.set(key,acc);};
+  const create=():Acc=>({...empty(),...(scope===null?{cost:emptyCost()}:{})});
+  const totals:Acc=create(),groups={people:new Map<string,Acc>(),applications:new Map<string,Acc>(),projects:new Map<string,Acc>(),models:new Map<string,Acc>(),services:new Map<string,Acc>(),organizations:new Map<string,Acc>(),days:new Map<string,Acc>()};
+  const push=(map:Map<string,Acc>,key:string,call:CallLog)=>{const acc=map.get(key)??create();add(acc,call);map.set(key,acc);};
   for(const call of rows){
     const organizationId=call.admission?.attributionOrganizationId??call.organizationId;
     const at=Date.parse(call.completedAt);
@@ -89,10 +107,14 @@ export function aggregateUsage(rows:CallLog[],input:UsageAnalyticsQuery|undefine
     if(query.modelId&&call.modelId!==query.modelId)continue;
     if(query.organizationId&&organizationId!==query.organizationId)continue;
     if(query.purpose&&call.purpose!==query.purpose)continue;
+    if(query.projectId&&call.projectId!==query.projectId)continue;
+    if(query.applicationId&&(call.subjectType!=='application'||call.subjectId!==query.applicationId))continue;
+    if(query.serviceId&&call.admission?.route?.serviceId!==query.serviceId)continue;
     add(totals,call);
     push(call.subjectType==='employee'?groups.people:groups.applications,call.subjectId,call);
     push(groups.projects,call.projectId??'',call);
     push(groups.models,call.modelId,call);
+    push(groups.services,call.admission?.route?.serviceId??'',call);
     push(groups.organizations,organizationId??'',call);
     push(groups.days,dayKey(call.completedAt,timezone),call);
   }
@@ -104,6 +126,7 @@ export function aggregateUsage(rows:CallLog[],input:UsageAnalyticsQuery|undefine
     applications:[...groups.applications].map(([key,acc])=>bucket(key,acc)).sort(byMoney),
     projects:[...groups.projects].map(([key,acc])=>bucket(key,acc)).sort(byMoney),
     models:[...groups.models].map(([key,acc])=>bucket(key,acc)).sort(byMoney),
+    services:[...groups.services].map(([key,acc])=>bucket(key,acc)).sort(byMoney),
     organizations:[...groups.organizations].map(([key,acc])=>bucket(key,acc)).sort(byMoney),
     days:[...groups.days].map(([key,acc])=>bucket(key,acc)).sort((a,b)=>a.key.localeCompare(b.key)),
     collectedAt:new Date().toISOString(),

@@ -83,11 +83,11 @@ describe('persistent business domain and ledger invariants',()=>{
 
   it('keeps project funding, allocation and consumption as distinct money movements',async()=>{
     await openTestPool();
-    const project=await command('save.project',{name:'项目',managerId:employee,range:modelRange});
-    expect((await repository.view()).budgets).toHaveLength(0);
+    const project=await command('save.project',{initialAmount:1,validity:'permanent',name:'项目',managerId:employee,range:modelRange});
+    expect((await repository.view()).budgets).toHaveLength(1);
     const budget=await command('project.fund',{projectId:project.id,amount:20,expiresAt:future()});
     const allocated=await command('project.allocate',{projectId:project.id,memberId:employee,sourceBatchId:budget.id,amount:8},employee);
-    const view=await repository.view();expect(view.budgets[0].availableAmount).toBe(12);
+    const view=await repository.view();expect(view.budgets.find(b=>b.id===budget.id)!.availableAmount).toBe(12);
     expect(allocated.availableAmount).toBe(8);expect(allocated.expiresAt).toBe(budget.expiresAt);expect(allocated.sourceBatchId).toBe(budget.id);
     expect(ledger.quotaBatches.get('personal-batch-demo-001')!.availableAmount).toBe(10);
     const before=await repository.view();
@@ -129,7 +129,7 @@ describe('persistent business domain and ledger invariants',()=>{
   });
 
   it('keeps application resources independent of owner personal status',async()=>{
-    await openTestPool();const app=await command('save.application',{billingMode:'quota',name:'应用',ownerId:employee,organizationId:'org-demo',range:modelRange});
+    await openTestPool();const app=await command('save.application',{initialAmount:1,validity:'permanent',billingMode:'quota',name:'应用',ownerId:employee,organizationId:'org-demo',range:modelRange});
     await command('application.fund',{applicationId:app.id,amount:50,expiresAt:future()});
     const issued=await command('key.issue',{purpose:'application',applicationId:app.id,name:'服务接入'},employee);
     await command('save.member',{id:employee,name:'离职员工',directoryId:'employee',organizationId:'department-engineering',active:false});
@@ -148,7 +148,7 @@ describe('persistent business domain and ledger invariants',()=>{
     await ledger.settle({requestId:input.requestId,idempotencyKey:crypto.randomUUID(),reservationId:admitted.reservation!.reservationId,outcome:'partial',usageFinal:false,inputTokens:0,outputTokens:0,completedAt:new Date().toISOString()});
     const batch=[...ledger.quotaBatches.values()].find(b=>b.entitlementId)!;expect(batch.availableAmount).toBe(9.999704);
     const c:PlatformCommand={type:'usage.reconcile',idempotencyKey:crypto.randomUUID(),payload:{requestId:input.requestId,mode:'confirm_usage',inputTokens:13,outputTokens:14,cachedInputTokens:4,reason:'已核对上游用量记录'}};
-    await expect(platform.preview(employee,c)).rejects.toThrow('operator');
+    await expect(platform.preview(employee,c)).rejects.toMatchObject({status:403});
     const preview=await platform.preview(operator,c);c.previewToken=preview.previewToken;
     const result=await platform.execute(operator,c);expect(result.result).toMatchObject({status:'settled'});
     expect(batch.availableAmount).toBe(9.999938);expect((await ledger.getCall(input.requestId))!.actualAmount).toBe(0.000062);

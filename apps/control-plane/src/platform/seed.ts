@@ -16,7 +16,7 @@ export function initialWorkspace(): WorkspaceState {
     ],
     definitions: [{ id: 'definition-test-model', name: '本地测试模型', modelId: 'test-model', contextTokens: 32768, description: '仅用于本地业务验收，不执行真实推理', active: true }],
     services: [{ id: 'service-local-test', name: '本地测试服务', baseUrl: 'http://127.0.0.1:4010', credentialRef: null, active: true,
-      mappings: [{ definitionId: 'definition-test-model', upstreamModel: 'test-model', inputPrice: 0, outputPrice: 0, cachedInputPrice: 0, limits: { mode: 'inherit' } }],
+      mappings: [{ definitionId: 'definition-test-model', upstreamModel: 'test-model', inputPrice: 0, outputPrice: 0, cachedInputPrice: 0, costPrice: { inputPrice: 0, outputPrice: 0, cachedInputPrice: 0 }, limits: { mode: 'inherit' } }],
       verification: 'unverified', verificationMessage: '尚未运行真实连接验证', verifiedAt: null, configVersion: 1, limits: { mode: 'inherit' }, sharedCapacityId: null }],
     pools: [{ id: 'pool-local-test', name: '本地测试模型池', entries: [{ definitionId: 'definition-test-model', serviceId: 'service-local-test', open: false }], limits: { mode: 'inherit' } }],
     plans: [], entitlements: [], rules: [], projects: [], applications: [], approvals: [], keys: [], distributions: [], notifications: [], audit: [], sessions: [], operations: {},

@@ -14,8 +14,8 @@ describe('project financial closeout and member scope',()=>{
   beforeEach(async()=>{
     store=new DemoStore();repo=new WorkspaceRepository(store);await repo.initialize();platform=new PlatformService(repo,store);
     await repo.transact(async tx=>{tx.state.services[0].verification='passed';Object.assign(tx.state.services[0].mappings[0],{inputPrice:2,outputPrice:3,cachedInputPrice:0.5});tx.state.pools[0].entries[0].open=true;});
-    project=await command('save.project',{name:'结束回收项目',managerId:operator,range});await command('project.members',{projectId:project.id,memberIds:[employee]});
-    budget=await command('project.fund',{projectId:project.id,amount:20,expiresAt:future()});batch=await command('project.allocate',{projectId:project.id,sourceBatchId:budget.id,memberId:employee,amount:8});
+    project=await command('save.project',{initialAmount:20,expiresAt:future(),name:'结束回收项目',managerId:operator,range});await command('project.members',{projectId:project.id,memberIds:[employee]});
+    budget=(await repo.view()).budgets.find(b=>b.projectId===project.id)!;batch=await command('project.allocate',{projectId:project.id,sourceBatchId:budget.id,memberId:employee,amount:8});
     key=await command('key.issue',{purpose:'project',projectId:project.id,name:'项目凭据'},employee);
   });
   it('retires only unused balances, keeps admitted work valid, and routes later releases into closeout',async()=>{

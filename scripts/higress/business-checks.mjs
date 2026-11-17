@@ -39,7 +39,7 @@ export async function runBusinessChecks({id,schema,db,hg,cp,gw,adminCookie,servi
     const member=(await admin('save.member',{name:'Business '+name,directoryId,password,organizationId:'department-engineering',category:'employee',roles:['employee'],tags:[]})).result;
     const login=await request('','/api/v1/auth/login',{directoryId,password});assert.equal(login.status,200);assert.ok(login.cookie);secrets.push(login.cookie);subjects.push(member.id);result.actors.push({id:member.id,role:name});return {member,cookie:login.cookie,login:()=>request('','/api/v1/auth/login',{directoryId,password})};
   }
-  async function money(){return (await db.query(`select id,source_id,purpose,project_id,total_amount,available_amount,closed_amount from "${schema}".quota_batches where source_id=any($1::text[]) order by id`,[subjects])).rows;}
+  async function money(){return (await db.query(`select id,source_id,purpose,project_id,total_amount,available_amount,closed_amount,returned_amount from "${schema}".quota_batches where source_id=any($1::text[]) order by id`,[subjects])).rows;}
   const fixtures=()=>fetch(hg.model+'/_poc/requests').then(r=>r.json());
   async function invoke(secret,label,{allow=true,purpose,subjectId,projectId=null}={}){
     const requestId=`business-${randomUUID()}`,before=await money(),attempt=call({apiKey:secret,requestId}),response=await attempt.promise;
@@ -55,7 +55,8 @@ export async function runBusinessChecks({id,schema,db,hg,cp,gw,adminCookie,servi
     verify(response.status===200,label+' completes through the gateway');const log=await waitLog(requestId);successes.push(requestId);
     verify(log.usageFinal&&log.billableState==='confirmed'&&Math.round(log.actualAmount*1e6)===132,label+' settles fixture usage at the original configured price');
     verify(log.purpose===purpose&&log.subjectId===subjectId&&log.projectId===projectId,label+' retains the correct business owner and purpose');
-    const after=await money(),source=before.find(b=>b.id===log.admission.batchId)??before.find(b=>b.source_id===subjectId&&b.purpose===purpose&&b.project_id===projectId);
+    const reservation=(await db.query(`select batch_id from "${schema}".reservations where request_id=$1`,[requestId])).rows[0];
+    const after=await money(),source=before.find(b=>b.id===reservation?.batch_id);
     assert.ok(source,label+' must have a matching original funding batch');
     verify(after.every(b=>Math.round((Number(before.find(old=>old.id===b.id).available_amount)-Number(b.available_amount))*1e6)===(b.id===source.id?132:0)),label+' spends only its original scoped batch');
     Object.assign(entry,{purpose:log.purpose,subjectId:log.subjectId,projectId:log.projectId,batchId:source.id,amount:log.actualAmount,billableState:log.billableState});return entry;
@@ -64,7 +65,9 @@ export async function runBusinessChecks({id,schema,db,hg,cp,gw,adminCookie,servi
   try{
     step('operator onboarding and first online use');
     const employee=await person('employee'),manager=await person('manager'),appOwner=await person('application-owner'),peer=await person('peer');
-    const range={poolId:(await admin('save.pool',{name:'Business 验收模型池',entries:[{definitionId:service.mappings[0].definitionId,serviceId:service.id,open:true}]})).result.id,mode:'follow',definitionIds:[]};
+    const pool=(await state()).pools.find(pool=>pool.entries.some(entry=>entry.serviceId===service.id&&entry.definitionId===service.mappings[0].definitionId&&entry.open));
+    assert.ok(pool,'business fixture uses the verified service in its existing pool');
+    const range={poolId:pool.id,mode:'follow',definitionIds:[]};
     const plan=(await admin('save.plan',{name:'Business 月度办公方案',range,amount:.2,cadence:'monthly',quotaDays:30,entitlementDays:365})).result;
     await refused(employee.cookie,'key.issue',{name:'未开通',purpose:'personal'},409,'unopened employee cannot issue an authorized personal Key');
     await refused(employee.cookie,'save.plan',{name:'unauthorized'},403,'employee cannot operate enterprise plans');
@@ -84,7 +87,7 @@ export async function runBusinessChecks({id,schema,db,hg,cp,gw,adminCookie,servi
     await invoke(personalKey.secret,'personal API request',{purpose:'personal',subjectId:employee.member.id});
 
     step('manager approval and project funding isolation');
-    const project=(await admin('save.project',{name:'Business 项目',managerId:manager.member.id,range})).result;
+    const project=(await admin('save.project',{initialAmount:1,validity:'permanent',name:'Business 项目',managerId:manager.member.id,range})).result;
     await command(manager.cookie,'project.members',{projectId:project.id,memberIds:[employee.member.id,peer.member.id]});
     const projectBudget=(await admin('project.fund',{projectId:project.id,amount:.5,expiresAt:future})).result;
     const peerKey=await issue(peer.cookie,{name:'Business 未分配项目成员',purpose:'project',projectId:project.id});await invoke(peerKey.secret,'membership without allocation',{allow:false});
@@ -98,14 +101,17 @@ export async function runBusinessChecks({id,schema,db,hg,cp,gw,adminCookie,servi
     const projectKey=await issue(employee.cookie,{name:'Business 项目 Key',purpose:'project',projectId:project.id});
     await invoke(projectKey.secret,'project member request',{purpose:'project',subjectId:employee.member.id,projectId:project.id});
     await command(manager.cookie,'project.members',{projectId:project.id,removeMemberIds:[employee.member.id]});await invoke(projectKey.secret,'removed project member old Key',{allow:false});
-    await command(manager.cookie,'project.members',{projectId:project.id,memberIds:[employee.member.id]});await invoke(projectKey.secret,'restored project membership',{purpose:'project',subjectId:employee.member.id,projectId:project.id});
+    await command(manager.cookie,'project.members',{projectId:project.id,memberIds:[employee.member.id]});await invoke(projectKey.secret,'rejoined member requires new allocation and key activation',{allow:false});
+    await command(manager.cookie,'project.allocate',{projectId:project.id,memberId:employee.member.id,sourceBatchId:projectBudget.id,amount:.05});
+    await command(employee.cookie,'key.status',{id:projectKey.key.id,status:'active',reason:'成员重新加入并获得新分配后恢复项目接入'});
 
     step('application owner without personal entitlement');
-    const application=(await admin('save.application',{billingMode:'quota',name:'Business 独立应用',ownerId:appOwner.member.id,organizationId:'org-demo',range})).result;subjects.push(application.id);
+    const application=(await admin('save.application',{initialAmount:1,validity:'permanent',billingMode:'quota',name:'Business 独立应用',ownerId:appOwner.member.id,organizationId:'org-demo',range})).result;subjects.push(application.id);
     await refused(appOwner.cookie,'key.issue',{name:'owner personal',purpose:'personal'},409,'application ownership does not grant personal access');
     const appApproval=(await command(appOwner.cookie,'approval.submit',{kind:'application_quota',objectId:application.id,amount:.3,expiresAt:future,scenario:'应用接入',reason:'独立应用预算'})).result;
     await admin('approval.decide',{id:appApproval.id,decision:'approve',amount:.25,expiresAt:future,reason:'批准应用额度'});const appExecution=randomUUID();await admin('approval.execute',{id:appApproval.id},appExecution);await admin('approval.execute',{id:appApproval.id},appExecution);
-    verify((await state()).quotaBatches.filter(b=>b.sourceId===application.id).length===1,'repeated application approval execution funds the application only once');
+    const applicationBatches=(await state()).quotaBatches.filter(b=>b.sourceId===application.id);
+    verify(applicationBatches.length===2&&applicationBatches.filter(b=>b.totalAmount===.25).length===1&&applicationBatches.reduce((sum,b)=>sum+b.totalAmount,0)===1.25,'repeated application approval execution adds one grant beside the initial batch');
     await refused(employee.cookie,'key.issue',{name:'foreign application',purpose:'application',applicationId:application.id},403,'another employee cannot issue an application Key');
     const appKey=await issue(appOwner.cookie,{name:'Business 应用 Key',purpose:'application',applicationId:application.id});
     const appCall=await invoke(appKey.secret,'application request',{purpose:'application',subjectId:application.id});
@@ -148,7 +154,8 @@ export async function runBusinessChecks({id,schema,db,hg,cp,gw,adminCookie,servi
   verify(seen.every(r=>r.model==='physical-model'&&r.hopCredentialPresent===false),'actual physical-model mapping and private-hop credential removal hold for all business roles');
   verify(result.ledger.length===successes.length&&result.ledger.every(row=>row.entries===1&&successes.includes(row.request_id)),'permitted calls have exactly one settlement and denied calls have none');
   const initialMicros=result.batches.reduce((s,b)=>s+Math.round(Number(b.total_amount)*1e6),0),availableMicros=result.batches.reduce((s,b)=>s+Math.round(Number(b.available_amount)*1e6),0),confirmedMicros=result.calls.filter(c=>c.billable_state==='confirmed').reduce((s,c)=>s+Math.round(Number(c.actual_amount)*1e6),0);
-  result.accounting={initialMicros,availableMicros,confirmedMicros,expectedConfirmedMicros:successes.length*132};verify(initialMicros-availableMicros===confirmedMicros&&confirmedMicros===successes.length*132,'all business subjects conserve their original funds with exact fixture prices');
+  const closedMicros=result.batches.reduce((sum,batch)=>sum+Math.round(Number(batch.closed_amount)*1e6),0),returnedMicros=result.batches.reduce((sum,batch)=>sum+Math.round(Number(batch.returned_amount)*1e6),0);
+  result.accounting={initialMicros,availableMicros,closedMicros,returnedMicros,confirmedMicros,expectedConfirmedMicros:successes.length*132};verify(initialMicros-availableMicros-closedMicros-returnedMicros===confirmedMicros&&confirmedMicros===successes.length*132,'all business subjects conserve original funds, recovered and returned balances, and exact fixture prices');
   const counters=(await db.query(`select (select count(*) from "${schema}".reservations where request_id=any($1::text[]) and finalized=false) as unfinished,(select count(*) from "${schema}".reservation_limit_scopes s join "${schema}".reservations r on r.reservation_id=s.reservation_id where r.request_id=any($1::text[]) and s.active=true) as active`,[result.requests.map(r=>r.requestId)])).rows[0];result.counters=counters;verify(Number(counters.unfinished)===0&&Number(counters.active)===0,'business flows leave no unfinished reservations or concurrency slots');
   let access='';for(let attempt=0;attempt<10;attempt++){access=(await hg.run(['exec',hg.name+'-gateway','tail','-c','200000','/var/log/higress/gateway.log'])).out;if(successes.every(id=>access.includes(id)))break;await pause(300);}
   verify(successes.every(id=>access.includes(id))&&denied.every(id=>!access.includes(id)),'actual Higress logs contain allowed calls and no admission-denied business calls');result.phase='complete';result.completed=true;

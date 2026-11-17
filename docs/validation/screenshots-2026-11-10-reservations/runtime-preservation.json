@@ -1,0 +1,33 @@
+{
+  "before": {
+    "schema": "agp_review_20bea9e2970a4e7d98eb12ca16e81692",
+    "config": "ef73e57b8600663eaead36aa618f6a3193041bb007c91c40d00993184d3aa151",
+    "funds": "dbc023da09cd92b0ee21b5a69773f1528c71ec3d6ce25a736e80f7392803f840",
+    "calls": 248,
+    "migrations": 17
+  },
+  "after": {
+    "schema": "agp_review_20bea9e2970a4e7d98eb12ca16e81692",
+    "config": "ef73e57b8600663eaead36aa618f6a3193041bb007c91c40d00993184d3aa151",
+    "funds": "dbc023da09cd92b0ee21b5a69773f1528c71ec3d6ce25a736e80f7392803f840",
+    "calls": 248,
+    "migrations": 17
+  },
+  "health": {
+    "status": "ok",
+    "dataPlane": "higress",
+    "outbox": {
+      "queued": 0,
+      "blocked": 0,
+      "active": 0,
+      "oldestQueuedAgeMs": 0,
+      "oldestBlockedAgeMs": 0,
+      "retryAttempts": 0,
+      "authorizing": 0,
+      "authorizationPending": 0,
+      "authorizationBlocked": 0,
+      "writePending": 0
+    }
+  },
+  "upstreamCalls": 0
+}

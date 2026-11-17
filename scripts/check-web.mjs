@@ -1,10 +1,18 @@
+import {checkPersonPicker} from './check-person-picker-web.mjs';
+import {choosePerson} from './lib/person-picker-ui.mjs';
+import {checkKeyPackages} from './check-key-packages-web.mjs';
+import {checkOnboardingPlans} from './check-onboarding-plans-web.mjs';
+import {checkOperationsV2Web} from './check-operations-v2-web.mjs';
+import {checkProviderOnboarding} from './check-provider-onboarding-web.mjs';
+import {checkMultimodalWeb} from './check-multimodal-web.mjs';
+import {checkObservabilityWeb} from './check-observability-web.mjs';
 import assert from 'node:assert/strict';
 import {connectCdp} from './lib/browser-cdp.mjs';
 import {prepareBusinessDemo} from './lib/business-demo.mjs';
 import {rehearseBusinessDemo} from './lib/demo-rehearsal.mjs';
 import { spawn } from 'node:child_process';
 import { createServer } from 'node:net';
-import { randomUUID } from 'node:crypto';
+import { randomUUID,randomBytes } from 'node:crypto';
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -13,10 +21,13 @@ import { createRequire } from 'node:module';
 import { realpath } from 'node:fs/promises';
 import { sep } from 'node:path';
 import { connectionConfig } from './lib/backup.mjs';
+import {checkQuotaP0} from './check-quota-p0.mjs';
 import {checkApplicationBilling} from './check-application-billing.mjs';
+import {checkApprovalExperience} from './check-approval-experience.mjs';
 import { checkUsageAnalytics } from './check-usage-analytics.mjs';
 import {checkModelManagement} from './check-model-management-web.mjs';
 import {checkModelDiscovery} from './check-model-discovery-web.mjs';
+import {checkBillingReports} from './check-billing-reports.mjs';
 
 /*
  * Browser regression for the tracing/migration/verification changes.
@@ -31,7 +42,7 @@ let chrome, cdp, tempDir, debugPort;
 const postgres=process.argv.includes('--postgres');
 let database,schema;
 const assertions = [];
-const screenshotDir = resolve(root, process.env.WEB_CHECK_SCREENSHOT_DIR || 'docs/validation/screenshots-2026-10-23');
+const screenshotDir = resolve(root, process.env.WEB_CHECK_SCREENSHOT_DIR || (process.argv.includes('--operations-v2-only')?'docs/validation/screenshots-2026-11-12-operations-v2':process.argv.includes('--multimodal-only')?'docs/validation/screenshots-2026-11-12-multimodal':'docs/validation/screenshots-2026-10-23'));
 const check = (value, message) => { assert.ok(value, message); assertions.push(message); };
 
 const CHROME = process.env.CHROME_PATH
@@ -46,7 +57,7 @@ async function freePort() {
   return port;
 }
 function start(file, args = [], env = {}, cwd = root) {
-  const baseEnv = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('UPSTREAM_') && !key.startsWith('VITE_')));
+  const baseEnv = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('PLATFORM_CREDENTIAL_')&&!key.startsWith('NOTIFICATION_')&&!key.startsWith('UPSTREAM_') && !key.startsWith('VITE_')));
   const child = spawn(file === process.execPath ? process.execPath : file, file === process.execPath ? args : args, {
     cwd, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'],
     env: { ...baseEnv, PLATFORM_MODE: 'development', DATABASE_URL: '', DATABASE_SCHEMA: '', REDIS_URL: '', STORE_MODE: 'memory',
@@ -204,17 +215,20 @@ try {
   }
 
   const modelProcess = spawnNode('postman/mocks/test-model/default.js', { PORT: String(modelPort) });
-  const control = spawnNode('apps/control-plane/dist/main.js', { ...dbEnv, PORT: String(cpPort), WEB_ORIGIN: web });
-  const gatewayProcess = spawnNode('services/gateway-sim/dist/server.js', { PORT: String(gatewayPort), CONTROL_PLANE_URL: cp, MODEL_URL: model, WEB_ORIGIN: web, GATEWAY_JOURNAL_DIR: resolve(tempDir, 'journal') });
+  const controlEnvironment={...dbEnv,PLATFORM_CREDENTIAL_ENCRYPTION_KEY:randomBytes(32).toString('base64'),NOTIFICATION_TEST_KEY:'operations-local-webhook-signing-key-2026',PORT:String(cpPort),WEB_ORIGIN:web};
+  let control=spawnNode('apps/control-plane/dist/main.js',controlEnvironment);
+  let gatewayProcess = spawnNode('services/gateway-sim/dist/server.js', { PORT: String(gatewayPort), CONTROL_PLANE_URL: cp, MODEL_URL: model, WEB_ORIGIN: web, GATEWAY_JOURNAL_DIR: resolve(tempDir, 'journal') });
   await Promise.all([ready(`${model}/health`, modelProcess), ready(`${cp}/health`, control), ready(`${gateway}/health`, gatewayProcess)]);
 
+  const restartControlPlane=async()=>{const old=control;old.kill();await new Promise(resolve=>old.exitCode!==null?resolve():old.once('exit',resolve));control=spawnNode('apps/control-plane/dist/main.js',controlEnvironment);await ready(cp+'/health',control);};
+  const restartGateway=async()=>{const old=gatewayProcess;old.kill();await new Promise(r=>old.exitCode!==null?r():old.once('exit',r));gatewayProcess=spawnNode('services/gateway-sim/dist/server.js',{PORT:String(gatewayPort),CONTROL_PLANE_URL:cp,MODEL_URL:model,WEB_ORIGIN:web,GATEWAY_JOURNAL_DIR:resolve(tempDir,'journal')});await ready(gateway+'/health',gatewayProcess);};
   const employeePassword = 'Web-check-employee-2026!';
   const seeded = await seed(cp, gateway, model, employeePassword);
-  if(postgres)await checkUsageAnalytics({database,schema,controlPlaneUrl:cp,seeded});
+  if(postgres&&!process.argv.includes('--person-picker-only')&&!process.argv.includes('--key-packages-only')&&!process.argv.includes('--onboarding-plans-only')&&!process.argv.includes('--provider-onboarding-only')&&!process.argv.includes('--operations-v2-only')&&!process.argv.includes('--multimodal-only')&&!process.argv.includes('--observability-only'))await checkUsageAnalytics({database,schema,controlPlaneUrl:cp,seeded});
 
   // Build the web bundle for this isolated environment so it never points at a shared review instance.
   const vite = resolve(root, 'apps/web/node_modules/vite/bin/vite.js');
-  const webEnv = { VITE_CONTROL_PLANE_URL: cp, VITE_GATEWAY_URL: gateway, VITE_REVIEW_MODE: 'true', VITE_REVIEW_STORAGE: 'memory' };
+  const webEnv = { VITE_CONTROL_PLANE_URL: cp, VITE_GATEWAY_URL: gateway, VITE_REVIEW_MODE: 'true', VITE_REVIEW_STORAGE: postgres?'postgres':'memory' };
   const build = spawn(process.execPath, [vite, 'build', '--outDir', resolve(tempDir, 'web'), '--emptyOutDir'], {
     cwd: resolve(root, 'apps/web'), windowsHide: true, stdio: 'inherit',
     env: { ...Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('VITE_'))), ...webEnv },
@@ -251,11 +265,12 @@ try {
   await login('web-ops', seeded.adminPassword);
   check(await waitFor(`document.body.innerText.includes('运营工作台')`, 15000), 'operator reaches the operations workspace');
 
-  if(!process.argv.includes('--model-discovery-only')&&!process.argv.includes('--model-management-only')&&!process.argv.includes('--application-billing-only')){
+  if(!process.argv.includes('--person-picker-only')&&!process.argv.includes('--key-packages-only')&&!process.argv.includes('--onboarding-plans-only')&&!process.argv.includes('--provider-onboarding-only')&&!process.argv.includes('--operations-v2-only')&&!process.argv.includes('--multimodal-only')&&!process.argv.includes('--observability-only')&&!process.argv.includes('--model-discovery-only')&&!process.argv.includes('--model-management-only')&&!process.argv.includes('--quota-p0-only')&&!process.argv.includes('--application-billing-only')&&!process.argv.includes('--approvals-only')&&!process.argv.includes('--billing-reports-only')){
   // Onboarding continuity: selection survives a page switch in the same session.
   await clickNav('为人员开通');
   await waitFor(`document.body.innerText.includes('让同事开始使用 AI')`);
-  const selected = await evaluate(`(()=>{const row=[...document.querySelectorAll('.person-row')].find(node=>node.textContent.includes('回归员工'));if(!row)return false;row.querySelector('input[type=checkbox]').click();return true;})()`);
+  await choosePerson({evaluate,waitFor},'选择开通人员',{directoryId:'web-employee'});
+  const selected = true;
   check(selected, 'onboarding person row is selectable');
   await waitFor(`document.body.innerText.includes('已选 1 人')`);
   await clickNav('模型服务');
@@ -327,16 +342,18 @@ try {
     finally{URL.createObjectURL=create;document.removeEventListener('click',prevent,true);}
   })()`);
   check(typeof csvText==='string'&&csvText.charCodeAt(0)===0xfeff,'CSV is exported from the actual page with a UTF-8 BOM');
-  const csvRows=csvText.slice(1).trim().split('\r\n').map(line=>line.split(','));
-  check(csvRows.every(row=>row.length===15),'real CSV has 15 columns on every row');
-  const total=csvRows.find(row=>row[0]==='合计');
-  check(Number(total?.[3])===liveReport.totals.requests&&Number(total?.[8])===liveReport.totals.confirmedAmount,'CSV total matches the real analytics response');
-  for(const labels of [['人员','应用'],['项目'],['模型'],['组织'],['自然日']]){
+  const parseCsv=text=>{const rows=[];let row=[],cell='',quoted=false;for(let i=0;i<text.length;i++){const c=text[i];if(c==='"'){if(quoted&&text[i+1]==='"'){cell+='"';i++;}else quoted=!quoted;}else if(c===','&&!quoted){row.push(cell);cell='';}else if(c==='\n'&&!quoted){row.push(cell.replace(/\r$/,''));rows.push(row);row=[];cell='';}else cell+=c;}row.push(cell);rows.push(row);return rows;};
+  const allCsvRows=parseCsv(csvText.slice(1)),headerIndex=allCsvRows.findIndex(row=>row[0]==='维度'),csvRows=allCsvRows.slice(headerIndex),header=csvRows[0];
+  const requestsIndex=header.indexOf('请求数'),moneyIndex=header.indexOf('已确认计费（元）');
+  check(headerIndex>0&&header.includes('成本未知记录'),'CSV includes metadata and independent cost columns');
+  check(csvRows.every(row=>row.length===header.length),'CSV data rows have consistent columns');
+  const total=csvRows.find(row=>row[0]==='汇总');
+  check(Number(total?.[requestsIndex])===liveReport.totals.requests&&Number(total?.[moneyIndex])===liveReport.totals.confirmedAmount,'CSV total matches real analytics');
+  for(const labels of [['人员','应用'],['项目'],['模型'],['组织'],['逐日'],['服务来源']]){
     const rows=csvRows.slice(1).filter(row=>labels.includes(row[0]));
-    check(rows.reduce((sum,row)=>sum+Number(row[3]),0)===liveReport.totals.requests,`real CSV requests close for ${labels.join('/')}`);
-    check(Math.abs(rows.reduce((sum,row)=>sum+Number(row[8]),0)-liveReport.totals.confirmedAmount)<0.0000001,`real CSV money closes for ${labels.join('/')}`);
+    check(rows.reduce((sum,row)=>sum+Number(row[requestsIndex]),0)===liveReport.totals.requests,`CSV requests close for ${labels.join('/')}`);
+    check(Math.abs(rows.reduce((sum,row)=>sum+Number(row[moneyIndex]),0)-liveReport.totals.confirmedAmount)<0.0000001,`CSV money closes for ${labels.join('/')}`);
   }
-  check(await evaluate(`Number(document.querySelector('.cockpit-rank-foot b:last-child').textContent.replace(/[^0-9.-]/g,''))===window.__usageLiveReport.totals.confirmedAmount`),'real cockpit total matches HTTP and CSV');
   await screenshot('usage-live-1440.png');
   await setViewport(390, 844);
   await pause(300);
@@ -366,7 +383,7 @@ try {
     const person=bucket(${JSON.stringify(seeded.employeeId)},1),historical=bucket('usage-missing-person',999);
     window.__usageFixture={from:new Date(Date.now()-7*86400000).toISOString(),to:new Date().toISOString(),timezone:'Asia/Shanghai',
       totals:{...bucket('',1000),requests:2,activePeople:2,activeApplications:0},people:[historical,person],
-      applications:[],projects:[],models:[],organizations:[],days:[],collectedAt:new Date().toISOString()};
+      applications:[],projects:[],models:[],services:[],organizations:[],days:[],collectedAt:new Date().toISOString()};
     window.__usageMode='success';
     window.fetch=async(input,init)=>{
       const url=String(input instanceof Request?input.url:input);
@@ -479,11 +496,19 @@ try {
   await clickNav('调用记录');
 
   // Horizontal overflow at the documented widths.
-  for (const width of [320, 360, 736, 1024, 1440]) {
+  for (const width of [320, 360, 736, 901, 920, 960, 1024, 1180, 1181, 1440]) {
     await setViewport(width, width <= 760 ? 844 : 1000);
     await pause(250);
     const overflow = await evaluate('document.documentElement.scrollWidth - document.documentElement.clientWidth');
     check(overflow <= 0, `no page-level horizontal overflow at ${width}px (${overflow})`);
+    if(width===1024){
+      await evaluate(`document.querySelector('.personal-menu-button').focus();document.querySelector('.personal-menu-button').click()`);
+      await waitFor(`!!document.querySelector('dialog[open] .personal-mobile-nav')`);
+      check(await evaluate(`document.querySelector('dialog[open]').innerText.includes('多模态工作台')&&document.querySelector('dialog[open]').innerText.includes('视频任务中心')`),'tablet menu retains multimodal and video navigation');
+      await pressKey('Tab');check(await evaluate(`document.querySelector('dialog[open]').contains(document.activeElement)`),'tablet menu keeps keyboard focus');
+      await pressKey('Escape');await waitFor(`!document.querySelector('dialog[open]')`);
+      check(await evaluate(`document.activeElement===document.querySelector('.personal-menu-button')`),'tablet menu Escape restores focus');
+    }
   }
 
   // Mobile drawer focus trap and Escape return.
@@ -509,10 +534,20 @@ try {
     check(cdp.runtimeErrors.length===0,'demo rehearsal has no uncaught browser exceptions');
   }
   }
+  if(process.argv.includes('--person-picker-only'))await checkPersonPicker({cp,web,seeded,cdp,evaluate,waitFor,pressKey,setViewport,screenshot,check});
+  if(process.argv.includes('--key-packages-only'))await checkKeyPackages({cp,gateway,model,web,cdp,evaluate,waitFor,pressKey,setViewport,screenshot,check,database,schema});
+  if(process.argv.includes('--onboarding-plans-only'))await checkOnboardingPlans({cp,model,web,seeded,cdp,evaluate,waitFor,pressKey,setViewport,screenshot,check});
+  if(process.argv.includes('--provider-onboarding-only'))await checkProviderOnboarding({cp,gateway,model,web,seeded,cdp,evaluate,waitFor,clickNav,clickExact,setInput,pressKey,setViewport,screenshot,login,check});
+  if(process.argv.includes('--operations-v2-only'))await checkOperationsV2Web({cp,gateway,model,web,seeded,cdp,evaluate,waitFor,clickNav,clickExact,setInput,pressKey,setViewport,screenshot,login,check,restartGateway,database,schema,tempDir,restartControlPlane});
+  if(process.argv.includes('--multimodal-only'))await checkMultimodalWeb({cp,gateway,model,web,seeded,cdp,evaluate,waitFor,clickExact,setInput,pressKey,setViewport,screenshot,check,restartGateway});
+  if(process.argv.includes('--observability-only'))await checkObservabilityWeb({cp,gateway,web,seeded,cdp,evaluate,waitFor,clickNav,clickExact,setInput,pressKey,setViewport,screenshot,login,check});
+  if(process.argv.includes('--billing-reports-only'))await checkBillingReports({cp,gateway,web,seeded,cdp,evaluate,waitFor,clickNav,clickExact,setInput,pressKey,setViewport,screenshot,login,check});
   if(process.argv.includes('--model-discovery-only'))await checkModelDiscovery({cp,web,seeded,cdp,evaluate,waitFor,clickExact,setInput,pressKey,setViewport,screenshot,login,check});
   if(process.argv.includes('--model-management-only'))await checkModelManagement({cp,web,seeded,cdp,evaluate,waitFor,clickExact,setInput,pressKey,setViewport,screenshot,login,check});
   if(process.argv.includes('--application-billing')||process.argv.includes('--application-billing-only'))await checkApplicationBilling({cp,gateway,web,seeded,cdp,evaluate,waitFor,clickNav,clickExact,setInput,pressKey,setViewport,screenshot,login,check});
-  if(process.argv.includes('--model-discovery-only')||process.argv.includes('--model-management-only')){await mkdir(screenshotDir,{recursive:true});await writeFile(resolve(screenshotDir,'browser.json'),JSON.stringify({checkedAt:new Date().toISOString(),storage:postgres?'isolated-postgres':'memory',assertionCount:assertions.length,assertions,uncaughtErrors:cdp.runtimeErrors},null,2)+'\n');}
+  if(process.argv.includes('--approvals-only'))await checkApprovalExperience({cp,web,seeded,cdp,evaluate,waitFor,clickNav,clickExact,setInput,pressKey,setViewport,screenshot,login,check});
+  if(process.argv.includes('--quota-p0-only'))await checkQuotaP0({cp,gateway,web,seeded,cdp,evaluate,waitFor,clickNav,clickExact,setInput,pressKey,setViewport,screenshot,login,check});
+  await mkdir(screenshotDir,{recursive:true});await writeFile(resolve(screenshotDir,'browser.json'),JSON.stringify({checkedAt:new Date().toISOString(),storage:postgres?'isolated-postgres':'memory',assertionCount:assertions.length,assertions,uncaughtErrors:cdp.runtimeErrors},null,2)+'\n');
   console.log(`PASS ${assertions.length} browser assertions (${postgres?'isolated PostgreSQL':'memory'}; real API/CSV plus fault fixtures)`);
   console.log(`Screenshots: ${screenshotDir}`);
 } catch (error) {
@@ -520,6 +555,9 @@ try {
     if (cdp) {
       const body = await cdp.evaluate('document.body.innerText.slice(0,1500)');
       if (body) console.error(`Page text at failure:\n${body}`);
+      const dialogs=await cdp.evaluate(`[...document.querySelectorAll('dialog[open]')].map(dialog=>dialog.innerText).join('\\n')`);
+      if(dialogs)console.error(`Open dialogs at failure:\n${dialogs}`);
+      if(cdp.runtimeErrors.length)console.error(`Browser exceptions:\n${cdp.runtimeErrors.join('\n')}`);
       await screenshot('failure.png');
     }
   } catch { /* keep the original failure */ }

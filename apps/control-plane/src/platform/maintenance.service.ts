@@ -32,7 +32,7 @@ export class MaintenanceService implements OnApplicationBootstrap,OnModuleDestro
         const reservations=await this.store.listExpiredReservations();expired=reservations.length;
         for(const reservation of reservations)await this.store.settle({...reservation,idempotencyKey:`${reservation.requestId}:lease-expired`,outcome:'partial',usageFinal:false,inputTokens:0,outputTokens:0,cachedInputTokens:0,actualAmount:0,completedAt:new Date().toISOString()});
       }catch(error){failure=error;}
-      try{await this.monitoring?.evaluate();}catch(error){failure??=error;}
+      try{await this.monitoring?.evaluate();await this.monitoring?.deliverNotifications?.();}catch(error){failure??=error;}
       try{if(retentionDue(await this.repository.readMaintenance()))await this.repository.transact(async tx=>scheduledRetention(tx.state),{incrementRevision:false,runtimeOnly:true,diagnosticContext:'retention'});}catch(error){failure??=error;}
       if(failure)throw failure;
       this.state.lastSuccessAt=new Date().toISOString();this.state.error=null;

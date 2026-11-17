@@ -33,13 +33,16 @@ export function canApprove(s:WorkspaceState,actor:Member,a:Approval):boolean {
   if(a.applicantId===actor.id)return false;
   if(a.kind==='project_member_quota'){
     const p=s.projects.find(p=>p.id===a.objectId);
-    if(p&&p.managerId!==a.applicantId)return p.managerId===actor.id;
+    if(p&&p.managerId!==a.applicantId){
+      // An unavailable manager must not strand existing member requests.
+      try{activeMember(s,p.managerId);return p.managerId===actor.id;}catch{/* operators take over */}
+    }
   }
   return actor.roles.includes('operator');
 }
-export function memberModels(s:Pick<WorkspaceState,'projects'|'entitlements'|'pools'|'services'|'definitions'>,memberId:string,projectId:string|null=null):string[]{
+export function memberModels(s:Pick<WorkspaceState,'projects'|'entitlements'|'pools'|'services'|'definitions'>,memberId:string,projectId:string|null=null,entitlementIds?:readonly string[]):string[]{
   if(projectId){const p=s.projects.find(p=>p.id===projectId&&p.status==='active'&&p.memberIds.includes(memberId));return p?availableModels(s,p.range):[];}
-  return [...new Set(s.entitlements.filter(e=>e.memberId===memberId&&e.status==='active'&&valid(e.expiresAt)).flatMap(e=>availableModels(s,e.range)))];
+  return [...new Set(s.entitlements.filter(e=>e.memberId===memberId&&e.status==='active'&&valid(e.expiresAt)&&(entitlementIds===undefined||entitlementIds.includes(e.id))).flatMap(e=>availableModels(s,e.range)))];
 }
 export function businessDenial(s:AdmissionWorkspace,input:AuthorizeRequest):ReasonCode|null {
   const key=s.keys.find(k=>k.credentialId===input.identity.credentialId);
@@ -53,7 +56,7 @@ export function businessDenial(s:AdmissionWorkspace,input:AuthorizeRequest):Reas
   if(key.subjectType==='employee'){try{activeMember(s,key.subjectId);}catch{return 'subject_disabled';}}
   else if(!s.applications.some(a=>a.id===key.subjectId&&a.active))return 'subject_disabled';
   if(key.projectId&&!s.projects.some(p=>p.id===key.projectId&&p.status==='active'&&p.memberIds.includes(key.subjectId)))return 'credential_invalid';
-  const models=key.subjectType==='employee'?memberModels(s,key.subjectId,key.projectId):availableModels(s,pick(s.applications,key.subjectId,'application').range);
+  const models=key.subjectType==='employee'?memberModels(s,key.subjectId,key.projectId,key.entitlementIds):availableModels(s,pick(s.applications,key.subjectId,'application').range);
   return models.includes(input.modelId)?null:'model_not_open';
 }
 export function matches(s:Pick<WorkspaceState,'organizations'>,member:Member,rule:AutoRule){
@@ -121,6 +124,7 @@ export async function allocate(tx:WorkspaceTransaction,projectId:string,memberId
 export async function syncResources(tx:WorkspaceTransaction){
   const s=tx.state;
   for(const batch of await tx.batches()){
+    if(batch.closedAt){await tx.updateBatchModels(batch.id,[]);continue;}
     let models:string[]|null=null;
     if(batch.entitlementId){const e=s.entitlements.find(e=>e.id===batch.entitlementId);models=e&&e.status==='active'&&valid(e.expiresAt)?availableModels(s,e.range):[];}
     if(batch.projectId&&s.projects.some(p=>p.id===batch.projectId)){const p=s.projects.find(p=>p.id===batch.projectId)!;models=p.status==='active'?availableModels(s,p.range):[];}
@@ -130,7 +134,7 @@ export async function syncResources(tx:WorkspaceTransaction){
   for(const key of s.keys){
     let active=key.status==='active'&&valid(key.expiresAt),models:string[]=[];
     if(key.internal)active=active&&!!key.onlineSessionHash;
-    if(key.subjectType==='employee'){try{activeMember(s,key.subjectId);}catch{active=false;}models=memberModels(s,key.subjectId,key.projectId);}
+    if(key.subjectType==='employee'){try{activeMember(s,key.subjectId);}catch{active=false;}models=memberModels(s,key.subjectId,key.projectId,key.entitlementIds);}
     else {const app=s.applications.find(a=>a.id===key.subjectId);active=active&&!!app?.active;models=app?availableModels(s,app.range):[];}
     await tx.saveCredential({credentialId:key.credentialId,apiKey:`sha256:${key.keyHash}`,identity:{credentialId:key.credentialId,subjectType:key.subjectType,subjectId:key.subjectId,organizationId:s.tenantId,projectId:key.projectId},purpose:key.purpose,active,modelIds:models});
   }

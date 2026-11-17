@@ -1,0 +1,81 @@
+{
+  "checkedAt": "2026-11-11T15:03:27.117Z",
+  "scope": "isolated PostgreSQL, local model fixture only",
+  "assertions": [
+    "upstream cost is independently editable in the contracted service form",
+    "partial cost input is rejected before confirmation",
+    "model multiplier uses the standard numeric editor",
+    "multiplier editor fits at 390",
+    "multiplier persists through the real preview and save",
+    "real local gateway settles at the configured model multiplier",
+    "actual log preserves independent cost and billing snapshots",
+    "zero multiplier settles as a confirmed free business call",
+    "previous calendar month works as an empty-state preset",
+    "period shortcut preserves the model filter",
+    "cost report fits at 390",
+    "period picker reaches DateField with Tab",
+    "report DateField Escape restores focus",
+    "actual Excel export contains metadata and eight complete dimensions",
+    "Excel exports independent cost and comparable difference",
+    "Excel money is numeric",
+    "Excel preserves the applied filter",
+    "Excel formula-like model names remain typed text",
+    "CSV neutralizes formula-like model names",
+    "historical unknown costs coexist with known new costs",
+    "azure cost report has no overflow at 1440",
+    "azure cost report has no overflow at 390",
+    "sidebar cost report has no overflow at 1440",
+    "sidebar cost report has no overflow at 390",
+    "next cost report has no overflow at 1440",
+    "next cost report has no overflow at 390",
+    "classic cost report has no overflow at 1440",
+    "classic cost report has no overflow at 390",
+    "beacon cost report has no overflow at 1440",
+    "beacon cost report has no overflow at 390",
+    "employee HTTP responses contain no cost or multiplier metadata",
+    "related-call HTTP response also removes internal pricing",
+    "billing reports and Excel export have no uncaught browser errors"
+  ],
+  "uncaughtErrors": [],
+  "charged": {
+    "inputTokens": 13,
+    "outputTokens": 14,
+    "cachedInputTokens": 0,
+    "actualAmount": 0.000136,
+    "price": {
+      "unit": "per_million_tokens",
+      "billing": {
+        "base": {
+          "inputPrice": 2,
+          "outputPrice": 3,
+          "cachedInputPrice": 0.5
+        },
+        "multiplier": 2
+      },
+      "version": "d8e7439728899f7a52944489",
+      "currency": "CNY",
+      "inputPrice": 4,
+      "outputPrice": 6,
+      "cachedInputPrice": 1
+    },
+    "costPrice": {
+      "unit": "per_million_tokens",
+      "version": "d41deb098ed2d5af0006e9f0",
+      "currency": "CNY",
+      "inputPrice": 1,
+      "outputPrice": 2,
+      "cachedInputPrice": 0.1
+    }
+  },
+  "free": {
+    "actualAmount": 0,
+    "costPrice": {
+      "unit": "per_million_tokens",
+      "version": "d41deb098ed2d5af0006e9f0",
+      "currency": "CNY",
+      "inputPrice": 1,
+      "outputPrice": 2,
+      "cachedInputPrice": 0.1
+    }
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "scope": "existing local pnpm dev workspace; form checks only; no price writes or model requests",
+  "checks": [
+    "beacon: all three token costs are required and expanded",
+    "beacon: empty costs block submit and focus the missing field",
+    "beacon: keyboard reaches the next cost field",
+    "beacon: explicit zero costs pass native validation",
+    "beacon: desktop has no page overflow",
+    "beacon: mobile has no page overflow",
+    "beacon: mobile pricing dialog stays within viewport",
+    "azure: all three token costs are required and expanded",
+    "azure: empty costs block submit and focus the missing field",
+    "azure: keyboard reaches the next cost field",
+    "azure: explicit zero costs pass native validation",
+    "azure: desktop has no page overflow",
+    "sidebar: all three token costs are required and expanded",
+    "sidebar: empty costs block submit and focus the missing field",
+    "sidebar: keyboard reaches the next cost field",
+    "sidebar: explicit zero costs pass native validation",
+    "sidebar: desktop has no page overflow",
+    "next: all three token costs are required and expanded",
+    "next: empty costs block submit and focus the missing field",
+    "next: keyboard reaches the next cost field",
+    "next: explicit zero costs pass native validation",
+    "next: desktop has no page overflow",
+    "classic: all three token costs are required and expanded",
+    "classic: empty costs block submit and focus the missing field",
+    "classic: keyboard reaches the next cost field",
+    "classic: explicit zero costs pass native validation",
+    "classic: desktop has no page overflow",
+    "no uncaught browser exceptions"
+  ]
+}

@@ -13,7 +13,7 @@ export class PolicyService {
     authorizationFingerprint(input);
     const response=await this.store.authorize(input);
     const route=response.admission?.route;
-    if(response.decision==='allow'&&route&&this.higress?.enabled)route.transport=await this.higress.transport(route);
+    if(response.decision==='allow'&&route&&(route.kind??'chat')==='chat'&&this.higress?.enabled)route.transport=await this.higress.transport(route);
     return response;
   }
 

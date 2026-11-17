@@ -1,7 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import type { PlatformSnapshot, UsageAnalytics, UsageAnalyticsQuery, UsageBucket } from '@ai-gateway/contracts';
 import { api } from './client';
+import { usagePeriods, usagePeriodWindow, reportLocalTime, reportIsoTime, type UsagePeriod } from '@ai-gateway/contracts';
+import { exportUsageCsv, exportUsageExcel } from './usage-export';
+export { exportUsageCsv } from './usage-export';
 import { DateField } from './date-field';
+import { useNarrow } from './components';
 
 /* Shared plumbing for 用量驾驶舱 and 排行榜: one query, one filter bar, one CSV
    writer, one set of number formatters. Two pages, one definition of "this window". */
@@ -14,8 +18,8 @@ export const usageMetricSwitch:[UsageMetric,string][]=[['cost','费用'],['token
 export const usageFacts='按已结束调用统计，默认本月至今';
 
 /* DateField speaks local `YYYY-MM-DDTHH:mm`; the endpoint speaks ISO timestamps. */
-export const toLocal=(value:Date)=>new Date(value.getTime()-value.getTimezoneOffset()*60000).toISOString().slice(0,16);
-const toIso=(value:string)=>value?new Date(value).toISOString():undefined;
+export const toLocal=reportLocalTime;
+const toIso=reportIsoTime;
 
 export const metricValue=(row:UsageBucket,metric:UsageMetric)=>metric==='cost'?row.confirmedAmount:metric==='tokens'?row.inputTokens+row.outputTokens:row.requests;
 export const metricText=(row:UsageBucket,metric:UsageMetric)=>metric==='cost'?money(row.confirmedAmount):metric==='tokens'?`${((row.inputTokens+row.outputTokens)/1000000).toFixed(2)}M`:row.requests.toLocaleString('zh-CN');
@@ -62,6 +66,7 @@ export interface UsageNames {
   project:(id:string)=>string;
   organization:(id:string)=>string;
   model:(id:string)=>string;
+  service:(id:string)=>string;
   subject:(id:string)=>string;
 }
 export function usageNames(data:PlatformSnapshot):UsageNames{
@@ -69,6 +74,7 @@ export function usageNames(data:PlatformSnapshot):UsageNames{
   const application=(id:string)=>data.applications.find(item=>item.id===id)?.name;
   return {
     member,application,
+    service:(id:string)=>data.services.find(item=>item.id===id)?.name??(id||'未选定 / 历史未知'),
     project:(id:string)=>data.projects.find(item=>item.id===id)?.name??(id?'未匹配项目':'未归属项目'),
     organization:(id:string)=>data.organizations.find(item=>item.id===id)?.name??(id?'未匹配组织':'未归属组织'),
     model:(id:string)=>data.definitions.find(item=>item.modelId===id)?.name??id,
@@ -76,7 +82,7 @@ export function usageNames(data:PlatformSnapshot):UsageNames{
   };
 }
 
-const filterDefaults={from:'',to:'',organizationId:'',modelId:'',purpose:''};
+const filterDefaults={from:'',to:'',organizationId:'',modelId:'',purpose:'',projectId:'',applicationId:'',serviceId:''};
 export type UsageFilters=typeof filterDefaults;
 
 export interface UsageQuery {
@@ -91,10 +97,12 @@ export interface UsageQuery {
   search:()=>void;
   clear:()=>void;
   /** 快捷窗口：null = 本月至今（服务端默认），数字 = 最近 N 天。 */
-  range:(days:number|null)=>void;
+  period:UsagePeriod|'custom';
+  range:(period:UsagePeriod|'custom')=>void;
 }
 export function useUsageQuery(active:boolean):UsageQuery{
   const [filters,setFilters]=useState(filterDefaults);
+  const [period,setPeriod]=useState<UsagePeriod|'custom'>('month');
   const [query,setQuery]=useState<UsageAnalyticsQuery>({});
   const resolved=useRef<{query:UsageAnalyticsQuery;value:UsageAnalyticsQuery}|null>(null);
   const [report,setReport]=useState<UsageAnalytics|null>(null),[error,setError]=useState(''),[busy,setBusy]=useState(false),[notice,setNotice]=useState('');
@@ -118,64 +126,59 @@ export function useUsageQuery(active:boolean):UsageQuery{
   return {
     appliedQuery:query,
     filters,
-    filter:(key,value)=>setFilters(previous=>({...previous,[key]:value})),
+    filter:(key,value)=>{if(key==='from'||key==='to')setPeriod('custom');setFilters(previous=>({...previous,[key]:value}));},
     report,error,busy,notice,setNotice,
     search(){
       setReport(null);
-      const from=toIso(filters.from),to=toIso(filters.to);
+      const {from,to}=period==='custom'?{from:toIso(filters.from),to:toIso(filters.to)}:usagePeriodWindow(period);
+      if(period!=='custom'&&from&&to)setFilters(previous=>({...previous,from:toLocal(new Date(from)),to:toLocal(new Date(to))}));
       if((filters.from&&!from)||(filters.to&&!to)){setError('请选择完整的统计时间段。');return;}
       if(from&&to&&from>=to){setError('起始时间必须早于截止时间。');return;}
       setError('');setNotice('');
-      setQuery({from,to,organizationId:filters.organizationId||undefined,modelId:filters.modelId||undefined,purpose:(filters.purpose||undefined) as UsageAnalyticsQuery['purpose']});
+      setQuery({...Object.fromEntries(Object.entries(filters).filter(([key,value])=>key!=='from'&&key!=='to'&&!!value)),from,to} as UsageAnalyticsQuery);
     },
-    clear(){setFilters(filterDefaults);setError('');setNotice('');setQuery({});},
-    range(days){
-      setNotice('');setError('');
-      if(days===null){setFilters(filterDefaults);setQuery({});return;}
-      const to=new Date(),from=new Date(to.getTime()-days*86400000);
-      setFilters({...filterDefaults,from:toLocal(from),to:toLocal(to)});
-      setQuery({from:from.toISOString(),to:to.toISOString()});
+    clear(){setPeriod('month');setFilters(filterDefaults);setError('');setNotice('');setQuery({});},
+    period,
+    range(next){
+      if(next==='custom'){setPeriod('custom');return;}
+      const window=usagePeriodWindow(next);
+      setPeriod(next);setNotice('');setError('');
+      setFilters(previous=>({...previous,from:toLocal(new Date(window.from)),to:toLocal(new Date(window.to))}));
+      const rest=Object.fromEntries(Object.entries(filters).filter(([key,value])=>key!=='from'&&key!=='to'&&!!value));
+      setQuery({...rest,...window} as UsageAnalyticsQuery);
     },
   };
-}
-
-/** 导出当前窗口的全部维度：长表 + 一个「维度」列，未知金额留空而不是写 0。 */
-export function exportUsageCsv(report:UsageAnalytics,names:UsageNames){
-  const rows:string[][]=[['维度','主体','主体标识','请求数','未知用量记录','输入Token','输出Token','缓存输入Token','已确认费用','待核对记录','待核对金额','异常','已转发','上游故障','最近活跃']];
-  const amountCell=(value:number)=>value>0?String(Number(value.toFixed(6))):'0';
-  const push=(label:string,key:string,row:UsageBucket,display:string)=>rows.push([label,display,key,String(row.requests),String(row.unknownUsage),String(row.inputTokens),String(row.outputTokens),String(row.cachedInputTokens),
-    amountCell(row.confirmedAmount),String(row.pendingReview),row.pendingReview===0?'0':(row.pendingAmount>0?amountCell(row.pendingAmount):''),String(row.errors),String(row.forwarded),String(row.upstreamFailures),row.lastActiveAt??'']);
-  for(const row of report.people)push('人员',row.key,row,names.subject(row.key));
-  for(const row of report.applications)push('应用',row.key,row,names.application(row.key)??'未识别应用');
-  for(const row of report.projects)push('项目',row.key,row,names.project(row.key));
-  for(const row of report.models)push('模型',row.key,row,names.model(row.key));
-  for(const row of report.organizations)push('组织',row.key,row,names.organization(row.key));
-  for(const row of report.days)push('自然日',row.key,row,row.key);
-  push('合计','',{...emptyBucket,...report.totals},'全部');
-  const csv=rows.map(cells=>cells.map(cell=>/[",\r\n]/.test(cell)?`"${cell.replaceAll('"','""')}"`:cell).join(',')).join('\r\n');
-  const url=URL.createObjectURL(new Blob([`\ufeff${csv}`],{type:'text/csv;charset=utf-8'}));
-  const windowDays=calendarDays(report.from,report.to,report.timezone);
-  const anchor=document.createElement('a');anchor.href=url;anchor.download=`用量驾驶舱-${windowDays[0]??report.from.slice(0,10)}-${windowDays.at(-1)??report.to.slice(0,10)}.csv`;
-  document.body.append(anchor);anchor.click();anchor.remove();URL.revokeObjectURL(url);
-  return `已导出 ${rows.length-1} 行 CSV（窗口 ${windowDays[0]} 至 ${windowDays.at(-1)}，按 ${report.timezone} 切分）。`;
 }
 
 /** 两个页面共用的筛选区：默认窗口由服务端给出，CSV 导出跟随当前窗口。 */
 export function UsageFilterBar({data,state,names}:{data:PlatformSnapshot;state:UsageQuery;names:UsageNames}){
   const {filters,filter,report,busy,notice,setNotice}=state;
+  const [exporting,setExporting]=useState(false);
+  const narrow=useNarrow(),[filtersOpen,setFiltersOpen]=useState(false);
+  const download=async()=>{if(!report)return;setExporting(true);try{setNotice(await exportUsageExcel(report,names,state.appliedQuery));}catch{setNotice('Excel 导出失败，请重试或使用 CSV。');}finally{setExporting(false);}};
   return <>
     <form className="call-filters call-filter-form" aria-label="用量统计范围" onSubmit={event=>{event.preventDefault();state.search();}}>
       <div className="filter-primary">
+        <label>常用时间<select aria-label="常用时间" value={state.period} disabled={busy} onChange={event=>{state.range(event.target.value as UsagePeriod|'custom');if(event.target.value==='custom')setFiltersOpen(true);}}>{usagePeriods.map(([id,label])=><option key={id} value={id}>{label}</option>)}<option value="custom">自定义</option></select></label>
+      </div>
+      {narrow&&<button type="button" className="ghost" aria-expanded={filtersOpen} onClick={()=>setFiltersOpen(value=>!value)}>时间与对象筛选</button>}
+      <div hidden={narrow&&!filtersOpen}><div className="filter-primary">
         <label>完成时间从<DateField value={filters.from} onChange={value=>filter('from',value)} mode="datetime" compact placeholder="默认本月 1 日 00:00"/></label>
         <label>完成时间至<DateField value={filters.to} onChange={value=>filter('to',value)} mode="datetime" compact placeholder="默认当前时间"/></label>
         <label>组织<select value={filters.organizationId} onChange={event=>filter('organizationId',event.target.value)}><option value="">全部组织</option>{data.organizations.map(organization=><option key={organization.id} value={organization.id}>{organization.name}</option>)}</select></label>
         <label>模型<select value={filters.modelId} onChange={event=>filter('modelId',event.target.value)}><option value="">全部模型</option>{data.definitions.map(definition=><option key={definition.id} value={definition.modelId}>{definition.name}</option>)}</select></label>
         <label>用途<select value={filters.purpose} onChange={event=>filter('purpose',event.target.value)}><option value="">全部用途</option><option value="personal">个人</option><option value="project">项目成员</option><option value="application">独立应用</option></select></label>
       </div>
+      <details className="disclosure"><summary>项目、应用与服务来源</summary><div className="filter-more">
+        <label>项目<select value={filters.projectId} onChange={e=>filter('projectId',e.target.value)}><option value="">全部项目</option>{data.projects.map(item=><option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+        <label>应用<select value={filters.applicationId} onChange={e=>filter('applicationId',e.target.value)}><option value="">全部应用</option>{data.applications.map(item=><option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+        {data.actor.roles.includes('operator')&&<label>服务来源<select value={filters.serviceId} onChange={e=>filter('serviceId',e.target.value)}><option value="">全部服务</option>{data.services.map(item=><option key={item.id} value={item.id}>{item.name}</option>)}</select></label>}
+      </div></details></div>
       <div className="filter-actions">
         <span className="filter-state">{usageFacts} · 筛选作用于本页所有维度</span>
         <button type="button" className="ghost" disabled={busy} onClick={state.clear}>清除筛选</button>
-        <button type="button" className="ghost" disabled={!report||busy||!!state.error} onClick={()=>{if(report&&!busy&&!state.error)setNotice(exportUsageCsv(report,names));}}>导出 CSV</button>
+        <button type="button" className="ghost" disabled={!report||busy||!!state.error} onClick={()=>{if(report&&!busy&&!state.error)setNotice(exportUsageCsv(report,names,state.appliedQuery));}}>导出 CSV</button>
+        <button type="button" className="ghost" disabled={!report||busy||exporting||!!state.error} onClick={()=>void download()}>{exporting?'正在导出…':'导出 Excel'}</button>
         <button className="primary" disabled={busy}>{busy?'查询中…':'查询'}</button>
       </div>
     </form>

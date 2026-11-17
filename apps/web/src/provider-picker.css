@@ -1,0 +1,33 @@
+/* Provider identity + provider picker. Shared pattern, semantic tokens only,
+   inherited by every shell (azure / sidebar / next / classic / beacon). */
+.provider-mark { display: inline-grid; place-items: center; flex: 0 0 auto; width: 34px; height: 34px; border-radius: 9px; font-size: 12px; font-weight: 700; letter-spacing: .02em; }
+
+.provider-cell-name { display: flex; align-items: flex-start; gap: 10px; min-width: 0; }
+.provider-cell-name > span:last-child { display: flex; flex-direction: column; min-width: 0; gap: 2px; }
+.provider-kinds { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+
+.provider-picker-search { width: 100%; margin: 4px 0 12px; }
+.provider-picker-scope { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 12px; }
+.provider-picker-scope-option { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 4px 12px; border: 1px solid var(--line); border-radius: 999px; background: transparent; color: var(--muted); font-size: 12.5px; }
+.provider-picker-scope-option > span { color: inherit; font-variant-numeric: tabular-nums; opacity: .7; }
+.provider-picker-scope-option:hover { border-color: var(--action); color: var(--text); }
+.provider-picker-scope-option.is-active { border-color: var(--action); background: var(--tint, var(--surface2)); color: var(--action); font-weight: 600; }
+.provider-picker-section { margin: 16px 0 8px; font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+.provider-picker-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+
+.provider-card { display: flex; align-items: center; gap: 12px; min-width: 0; width: 100%; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius-control, 10px); background: var(--surface); color: var(--text); text-align: left; cursor: pointer; }
+.provider-card.is-wide { margin-bottom: 4px; }
+.provider-card:hover:not(:disabled) { border-color: var(--action); background: var(--tint, var(--surface2)); }
+.provider-card:focus-visible { outline: 2px solid var(--action); outline-offset: 2px; }
+.provider-card:disabled { background: var(--surface2); color: var(--muted); cursor: not-allowed; }
+.provider-card-mark { display: grid; place-items: center; flex: 0 0 auto; width: 40px; height: 40px; border-radius: 10px; font-size: 13px; font-weight: 700; letter-spacing: .02em; }
+.provider-card-text { display: flex; flex-direction: column; min-width: 0; gap: 2px; }
+.provider-card-text strong { font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
+.provider-card-text small { color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+.provider-card:disabled .provider-card-mark { filter: grayscale(1); }
+.provider-card-flag { margin-left: auto; flex: 0 0 auto; }
+
+@media (max-width: 760px) {
+  .provider-picker-grid { grid-template-columns: minmax(0, 1fr); }
+  .provider-cell-name { gap: 8px; }
+}

@@ -1,0 +1,31 @@
+{
+  "assertions": [
+    "click 登录",
+    "navigate 模型配置",
+    "click 模型目录",
+    "click 登记模型",
+    "model estimate is an optional standard numeric field",
+    "keyboard reaches the model estimate",
+    "no page overflow model editor 1440",
+    "no page overflow model editor 390",
+    "click 登录",
+    "navigate 在线使用",
+    "existing funded purpose is available",
+    "click 回复长度与费用明细",
+    "online output cap starts omitted",
+    "quote separates estimate, cap and top-up",
+    "no page overflow online 1440",
+    "no page overflow online 390",
+    "existing shell selectable azure",
+    "no page overflow azure 1440",
+    "existing shell selectable sidebar",
+    "no page overflow sidebar 1440",
+    "existing shell selectable next",
+    "no page overflow next 1440",
+    "existing shell selectable classic",
+    "no page overflow classic 1440",
+    "no browser runtime errors"
+  ],
+  "upstreamCalls": 0,
+  "savedBusinessChanges": 0
+}

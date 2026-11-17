@@ -22,7 +22,8 @@ export class LocalOctopImportService implements OnModuleDestroy {
     const key=await this.key(ownerId,String(body.keyId),hash(session));if(hash(String(body.apiKey))!==key.keyHash)throw new UnauthorizedException('API key does not match');
     const detail=await this.platform.keyDetail(ownerId,key.id);if(!detail.sourceActive||!detail.models.length)throw new ConflictException('key has no available models');
     const definitions=(await this.repository.read()).definitions;
-    const models:ImportPayload['models']=detail.models.map(m=>{const definition=definitions.find(d=>d.modelId===m.modelId);if(!definition)throw new ConflictException('model access changed');return {id:m.modelId,name:m.name,enabled:true,input:['text'],api_mode:'chat_completions',api_fallback:'none',context_window:definition.contextTokens,max_input_tokens:definition.contextTokens};});
+    const models:ImportPayload['models']=detail.models.filter(m=>(definitions.find(d=>d.modelId===m.modelId)?.kind??'chat')==='chat').map(m=>{const definition=definitions.find(d=>d.modelId===m.modelId);if(!definition)throw new ConflictException('model access changed');return {id:m.modelId,name:m.name,enabled:true,input:['text'],api_mode:'chat_completions',api_fallback:'none',context_window:definition.contextTokens,max_input_tokens:definition.contextTokens};});
+    if(!models.length)throw new ConflictException('key has no available chat models');
     const configured=process.env.PUBLIC_GATEWAY_URL;if(!configured&&process.env.PLATFORM_MODE==='production')throw new ServiceUnavailableException('PUBLIC_GATEWAY_URL is required');
     let endpoint:URL;try{endpoint=new URL(configured??'http://127.0.0.1:4000');}catch{throw new ServiceUnavailableException('invalid PUBLIC_GATEWAY_URL');}
     if(endpoint.username||endpoint.password||endpoint.search||endpoint.hash||!(endpoint.protocol==='https:'||endpoint.protocol==='http:'&&['127.0.0.1','localhost','[::1]'].includes(endpoint.hostname)))throw new ServiceUnavailableException('PUBLIC_GATEWAY_URL must use HTTPS or loopback HTTP');
@@ -39,7 +40,7 @@ export class LocalOctopImportService implements OnModuleDestroy {
     const record=[...this.handoffs.values()].find(r=>r.ticketHash===hash(String(body.ticket)));
     if(!record||record.status!=='pending'||record.expiresAt<=Date.now())throw new GoneException('import expired or already used');
     record.status='claimed';record.ticketHash='';const payload=record.payload;record.payload=null;
-    try{await this.key(record.ownerId,record.keyId,record.sessionHash);const current=await this.platform.keyDetail(record.ownerId,record.keyId);if(!current.sourceActive||payload!.models.some(m=>!current.models.some(c=>c.modelId===m.id)))throw new ConflictException('model access changed');}
+    try{await this.key(record.ownerId,record.keyId,record.sessionHash);const current=await this.platform.keyDetail(record.ownerId,record.keyId),definitions=(await this.repository.read()).definitions;if(!current.sourceActive||payload!.models.some(m=>!current.models.some(c=>c.modelId===m.id)||((definitions.find(d=>d.modelId===m.id)?.kind??'chat')!=='chat')))throw new ConflictException('model access changed');}
     catch{record.status='failed';throw new GoneException('platform login or key access changed; create a new import');}
     const receipt=randomBytes(32).toString('base64url');record.receiptHash=hash(receipt);return {id:record.id,receipt,expiresAt:new Date(record.expiresAt).toISOString(),config:payload};
   }

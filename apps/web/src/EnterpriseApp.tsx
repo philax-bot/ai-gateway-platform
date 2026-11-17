@@ -1,16 +1,21 @@
+import {memberIdentity,memberLabel} from './person-identity';
+import {hasPermission,hasOperationsAccess} from '@ai-gateway/contracts';
+import {operationsPages,operationsLanding} from './operations-access';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import type { EntitlementMigrationPreview, OrganizationChangeImpact, PlatformCommand, PlatformSnapshot,RetentionCounts,RetentionReport } from '@ai-gateway/contracts';
 import { api, ApiError, executeCommand, loadWorkspace, previewCommand, type Preview } from './client';
-import { date, Modal, money, Status, Table, type Editor } from './components';
+import {ChangeSummary, date, Modal, money, Status, Table, type Editor } from './components';
 import { PasswordInput } from './password-field';
 import { CommandPalette, DesignSwitch, SignalMark, V2Header, navIcon, type PaletteItem } from './v2';
 import { V3PlatformBar, V3Sidebar, V3TabBar, type NavEntry, type OpenTab } from './v3';
 import { V4PageTabs, V4Sidebar, V4TopBar } from './v4';
 import { useUiDesign, type UiDesign } from './ui-mode';
 import { EditorFlow } from './EditorFlow';
+import { ProviderPicker } from './ProviderPicker';
 import { makeEditors } from './editors';
 import { WorkspacePages, type DetailContent } from './WorkspacePages';
 import { responsible } from './ApprovalCenter';
+import {approvalFormContext} from './approval-presentation';
 import { AlertWatcher } from './AlertWatcher';
 import { KeyDetails } from './KeyManager';
 import {LocalOctopConnect} from './LocalOctopConnect';
@@ -20,7 +25,7 @@ import { OrganizationImpact } from './OrganizationImpact';
 import {RetentionCountsView,retentionTotal} from './RetentionSettings';
 
 const labels:Record<string,string>={available:'可用模型',overview:'运营工作台',usage:'用量驾驶舱',leaderboard:'排行榜',
-  'cockpit-light':'浅色驾驶舱','cockpit-tech':'深蓝驾驶舱','cockpit-beacon':'大屏驾驶舱',models:'模型服务',pools:'模型池',capacity:'容量与保护',catalog:'模型目录',members:'组织与成员',onboarding:'为人员开通',projects:'项目',applications:'应用',keys:'密钥与接入',approvals:'申请与审批',calls:'调用记录',reviews:'费用核对',monitoring:'运行监控',safety:'安全围栏',settings:'企业设置',home:'开始使用',quota:'我的额度',online:'在线使用',agent:'在线 Agent',notifications:'通知'};
+  'cockpit-light':'浅色驾驶舱','cockpit-tech':'深蓝驾驶舱','cockpit-beacon':'大屏驾驶舱',providers:'供应商',models:'模型服务',pools:'模型池',capacity:'容量与保护',catalog:'模型目录',members:'组织与成员',onboarding:'为人员开通',plans:'开通方案',projects:'项目',applications:'应用',keys:'密钥与接入',approvals:'申请与审批',calls:'调用记录',reviews:'费用核对',monitoring:'运行监控',safety:'安全围栏',settings:'企业设置',home:'开始使用',quota:'我的额度',online:'在线使用',multimodal:'多模态工作台','media-tasks':'视频任务中心',agent:'在线 Agent',notifications:'通知'};
 /* One line per page: what this page is for and what the numbers mean. Shown under
    the page title so an operator does not have to read the panel text to orient. */
 const ledes:Record<string,string>={
@@ -31,11 +36,13 @@ const ledes:Record<string,string>={
   'cockpit-tech':'三版驾驶舱并列演示之二：深蓝底 + 青色霓虹，切角指标卡与发光排名条，适合大屏投放。',
   'cockpit-beacon':'三版驾驶舱并列演示之三：信标大屏版，深墨主数值带只出现一次，2×3 面板承载分布与趋势。',
   catalog:'查看已登记模型的来源、配置价格和开放范围，按需进入原配置流程。',
+  providers:'按供应商接入模型服务，配置协议适配与能力类型。',
   models:'接入上游服务，管理模型映射、价格与连接验证。通过验证并确认价格后，在模型池中开放使用。',
   pools:'组合模型服务并管理开放范围。一个池可纳入多个服务，变更前先预览关联影响。',
   capacity:'查看各边界的保护配置、继承来源与共享关系，按对应对象调整请求上限。',
   members:'组织决定权限边界，成员状态决定能否登录和接受开通。',
   onboarding:'选择人员和方案，确认金额与到期日后开通。开通不创建密钥，也不迁移已有权益。',
+  plans:'管理开通方案的模型池、额度、周期与有效期。保存方案后可为人员选用，已有权益按授予时版本保留。',
   projects:'项目承载一组成员的共同额度；项目结束时回收未使用余额。',
   applications:'应用支持记账与额度两种模式，使用独立 Key 接入；负责人可管理凭据并申请切换模式。',
   keys:'密钥只用于工具接入，本身不增加余额。完整值仅在签发时显示一次。',
@@ -52,7 +59,7 @@ const ledes:Record<string,string>={
   online:'直接发起一次调用，结果与费用可在调用记录中追溯到同一请求编号。',
   notifications:'审批结果、额度变化与运行告警的通知，可在原页面打开对应对象。',
 };
-const actions:Record<string,string>={'guardrail.update':'保存输入安全策略','save.organization':'保存组织','save.definition':'保存模型定义','approval.repair':'修正执行参数','save.rule':'保存开通规则','auto.apply':'应用规则到现有成员','import.members':'导入成员','save.pool':'确认模型池范围','project.fund':'发放项目总额度','project.allocate':'分配项目成员额度','application.fund':'发放应用额度','distribution.execute':'批量开通','key.status':'调整密钥状态','key.issue':'签发用途密钥','save.member':'保存成员','save.service':'保存模型服务','save.project':'保存项目','save.application':'保存应用','save.plan':'保存个人方案','approval.decide':'处理审批','approval.execute':'执行已批准事项'};
+const actions:Record<string,string>={'project.reclaim':'回收项目预算','project.return':'退回成员额度','project.extend':'延长项目额度','application.reclaim':'回收应用额度','application.extend':'延长应用额度','guardrail.update':'保存输入安全策略','save.organization':'保存组织','save.definition':'保存模型定义','approval.repair':'修正执行参数','approval.close':'关闭未生效申请','save.rule':'保存开通规则','auto.apply':'应用规则到现有成员','import.members':'导入成员','save.pool':'确认模型池范围','project.fund':'发放项目总额度','project.allocate':'分配项目成员额度','application.fund':'发放应用额度','distribution.execute':'批量开通','key.status':'调整密钥状态','key.issue':'签发用途密钥','save.member':'保存成员','save.service':'保存模型服务','save.project':'保存项目','save.application':'保存应用','save.plan':'保存个人方案','approval.decide':'处理审批','approval.execute':'执行已批准事项'};
 type Pending={command:PlatformCommand;preview:Preview;resolve:(value:unknown|null)=>void;reject:(error:unknown)=>void};
 
 export function EnterpriseApp(){
@@ -70,6 +77,7 @@ export function EnterpriseApp(){
     return()=>query.removeEventListener('change',sync);
   },[]);
   function navigate(value:string,id?:string){
+    if(operations&&value==='multimodal')setOperations(false);
     if(value==='quota'&&id)setPurposeId(id==='personal'||data?.entitlements.some(e=>e.id===id)?'personal':data?.purposes.some(p=>p.id===id)?id:'personal');
     scrollPositions.current[page]=window.scrollY;
     setPage(value);setTargetId(id??null);
@@ -78,9 +86,14 @@ export function EnterpriseApp(){
       return tabs.some(tab=>tab.page===value)?tabs.map(tab=>tab.page===value?entry:tab):[...tabs,entry].slice(-12);
     });
   }
-  const [editor,setEditor]=useState<Editor|null>(null),[pending,setPending]=useState<Pending|null>(null),[busy,setBusy]=useState(false);
+  const [editor,setEditor]=useState<Editor|null>(null),[providerPick,setProviderPick]=useState<{onPick:(providerId:string)=>void}|null>(null),[pending,setPending]=useState<Pending|null>(null),[busy,setBusy]=useState(false);
   const [detail,setDetail]=useState<{title:string;content:DetailContent}|null>(null),[secret,setSecret]=useState<{value:string;keyId:string|null}|null>(null),[purposeId,setPurposeId]=useState('personal');
   const [uiMode,setUiMode]=useUiDesign(),[paletteOpen,setPaletteOpen]=useState(false);
+  const messageRef=useRef<HTMLDivElement>(null),revealMessage=useRef(false);
+  const [messageAction,setMessageAction]=useState<{label:string;page:string}|null>(null);
+  useEffect(()=>{
+    if(revealMessage.current&&message&&!editor&&!pending&&!detail&&!secret&&messageRef.current){messageRef.current.scrollIntoView({block:'center',behavior:'instant'});revealMessage.current=false;}
+  },[message,editor,pending,detail,secret]);
   const sidebar=uiMode==='sidebar',next=uiMode==='next',azure=uiMode==='azure',beacon=uiMode==='beacon',v4Shell=azure||beacon,docked=sidebar||v4Shell,desk=next||docked;
   useEffect(()=>{
     if((!desk&&operations)||!data||menuOpen||editor||pending||detail||secret)return;
@@ -119,25 +132,26 @@ export function EnterpriseApp(){
   },[page]);
   useEffect(()=>{
     if(!data)return;
-    const adminNow=data.actor.roles.includes('operator'),opsNow=operations&&adminNow;
+    const adminNow=hasOperationsAccess(data.actor),opsNow=operations&&adminNow;
     const valid=opsNow
-      ?['overview','usage','leaderboard','cockpit-light','cockpit-tech','cockpit-beacon','onboarding','approvals','projects','applications','catalog','models','pools','capacity','members','keys','monitoring','safety','calls','reviews','settings','notifications']
-      :['home','available','online','agent','quota','approvals','keys','calls','projects','applications','notifications',...(adminNow||data.projects.some(project=>project.managerId===data.actor.id&&project.status==='active')?['leaderboard']:[])];
+      ?Object.values(operationsPages(data.actor)).flat().concat('notifications')
+      :['home','available','online','multimodal','media-tasks','agent','quota','approvals','keys','calls','projects','applications','notifications',...(adminNow||data.projects.some(project=>project.managerId===data.actor.id&&project.status==='active')?['leaderboard']:[])];
     setOpenTabs(tabs=>{
-      const pinned=opsNow?'overview':'home';
+      const pinned=opsNow?operationsLanding(data.actor):'home';
+      if(!valid.includes(page)){setPage(pinned);setTargetId(null);}
       const filtered=tabs.filter(tab=>valid.includes(tab.page));
       let updated=filtered.some(tab=>tab.page===pinned)?filtered:[{page:pinned,targetId:null},...filtered];
-      if(!updated.some(tab=>tab.page===page))updated=[...updated,{page,targetId}];
+      if(valid.includes(page)&&!updated.some(tab=>tab.page===page))updated=[...updated,{page,targetId}];
       return updated.length===tabs.length&&updated.every((tab,index)=>tab.page===tabs[index]?.page&&tab.targetId===tabs[index]?.targetId)?tabs:updated;
     });
   },[data,operations,page,targetId]);
   function resetSession(){
     scrollPositions.current={};setOnlineModelRequest(undefined);
-    setData(null);setEditor(null);setSecret(null);setDetail(null);setPurposeId('personal');setOperations(false);setPaletteOpen(false);setMenuOpen(false);setOpenTabs([]);setPage('home');setTargetId(null);setMessage('');
+    setData(null);setEditor(null);setSecret(null);setDetail(null);setPurposeId('personal');setOperations(false);setPaletteOpen(false);setMenuOpen(false);setOpenTabs([]);setPage('home');setTargetId(null);setMessage('');setMessageAction(null);
     setPending(previous=>{previous?.resolve(null);return null;});
   }
   async function refresh(isCurrent:()=>boolean=()=>true){
-    try{const snapshot=await loadWorkspace();if(!isCurrent())return false;setData(snapshot);setMessage('');if(!data&&snapshot.actor.roles.includes('operator')){setOperations(true);setPage('overview');}return true;}
+    try{const snapshot=await loadWorkspace();if(!isCurrent())return false;setData(snapshot);setMessage('');setMessageAction(null);if(!data&&hasOperationsAccess(snapshot.actor)){setOperations(true);setPage(operationsLanding(snapshot.actor));}return true;}
     catch(error){
       if(!isCurrent())return false;
       if(error instanceof ApiError&&(error.status===401||error.status===403)){
@@ -154,12 +168,22 @@ export function EnterpriseApp(){
       if(result.result&&typeof result.result==='object'&&'secret'in result.result){const issued=result.result as {secret:string;key?:{id?:string}};setSecret({value:String(issued.secret),keyId:issued.key?.id??null});}
       if(command.type==='retention.run'){
         const outcome=result.result as {removed:RetentionCounts};setMessage(`清理已完成：移除 ${retentionTotal(outcome.removed)} 条运行辅助记录，业务凭证与资金保留。`);
-      }else if(command.type==='settings.retention')setMessage('保留策略已保存。实际执行方式和最近结果可在下方查看。');
+      }else if(command.type==='save.service'){
+        const service=result.result as {name:string;verification:string};
+        setMessage(`模型服务“${service.name}”保存成功。${service.verification==='passed'?'当前连接验证仍有效。':'下一步请到“模型服务”验证连接，验证通过后再加入模型池开放使用。'}`);
+        setMessageAction({label:service.verification==='passed'?'查看模型服务':'前往验证连接',page:'models'});
+      }else if(command.type==='save.provider')setMessage('供应商保存成功，可以从对应行接入服务。');
+      else if(command.type==='credential.save')setMessage('上游凭据保存成功，可在模型服务中选择；轮换后的关联服务需要重新验证。');
+      else if(command.type==='settings.retention')setMessage('保留策略已保存。实际执行方式和最近结果可在下方查看。');
       else if(command.type==='settings.update')setMessage('企业设置已保存。');
       else if(command.type==='keys.status'){
         const outcome=result.result as {changedCount:number;skippedCount:number};
         setMessage(`批量${command.payload.status==='revoked'?'吊销':'停用'}已完成：变更 ${outcome.changedCount} 把，跳过 ${outcome.skippedCount} 把。`);
-      }else setMessage(`${actions[command.type]??'操作'}已完成`);return result.result;
+      }else if(command.type==='approval.execute')setMessage('申请已生效，实际结果已记录。');
+      else if(command.type==='approval.decide')setMessage(command.payload.decision==='reject'?'申请已驳回，原因已通知申请人。':'已批准，正在尝试执行生效。');
+      else if(command.type==='approval.submit')setMessage('申请已提交，可在“我的申请”查看进度。');
+      else if(command.type==='approval.close')setMessage('申请已关闭，未发放额度；原记录保留。');
+      else setMessage(`${actions[command.type]??'操作'}已完成`);revealMessage.current=true;return result.result;
     }catch(error){await refresh();setMessage(error instanceof Error?error.message:'操作失败');throw error;}
   }
   async function run(type:string,payload:Record<string,unknown>,confirm=true):Promise<unknown|null>{
@@ -178,18 +202,19 @@ export function EnterpriseApp(){
   const action=(work:()=>Promise<unknown>)=>void work().catch(error=>setMessage(error instanceof Error?error.message:'操作失败'));
   if(loading)return <div className="loading-state">正在连接企业工作空间…</div>;
   if(!data)return <><ReviewBanner/><DesignSwitch mode={uiMode} onChange={setUiMode} className="login-design-switch"/><Login setup={setup} tokenRequired={setupTokenRequired} message={message} modern={desk} onInitialized={()=>{setSetup(false);setSetupTokenRequired(false);}} onDone={async()=>{setSetup(false);setMessage('');await refresh();}}/></>;
-  const d=data,admin=d.actor.roles.includes('operator'),isOps=operations&&admin,edit=makeEditors(d,run,setEditor);
+  const d=data,admin=hasOperationsAccess(d.actor),isOps=operations&&admin,edit=makeEditors(d,run,setEditor,onPick=>setProviderPick({onPick}));
   const managesProjects=d.actor.roles.includes('operator')||d.projects.some(p=>p.managerId===d.actor.id&&p.status==='active');
-  const navigation=isOps?['overview','usage','leaderboard','cockpit-light','cockpit-tech','cockpit-beacon','onboarding','approvals','projects','applications']:['home','available','online','agent','quota'];
-  const modelManagement=isOps?['catalog','models','pools','capacity']:[];
-  const secondary=isOps?['members','keys','monitoring','safety','calls','reviews','settings']:['approvals','keys','calls','projects',...(d.applications.length?['applications']:[]),...(managesProjects?['leaderboard']:[])];
+  const availablePages=operationsPages(d.actor);
+  const navigation=isOps?availablePages.primary:['home','available','online','multimodal','media-tasks','agent','quota'];
+  const modelManagement=isOps?availablePages.models:[];
+  const secondary=isOps?availablePages.secondary:['approvals','keys','calls','projects',...(d.applications.length?['applications']:[]),...(managesProjects?['leaderboard']:[])];
   const navLabel=(item:string)=>!isOps&&item==='leaderboard'?'项目用量':!isOps&&!admin&&!d.projects.some(p=>p.managerId===d.actor.id)&&item==='approvals'?'我的申请':labels[item];
   const navItem=(item:string)=><button key={item} className={`nav-link ${page===item?'active':''}`} aria-current={page===item?'page':undefined} onClick={()=>navigate(item)}>{navLabel(item)}</button>;
   const secondaryLabel=isOps?'配置与排查':'工具与协作';
   const primaryEntries:NavEntry[]=navigation.map(id=>({id,label:navLabel(id)}));
   const secondaryEntries:NavEntry[]=secondary.map(id=>({id,label:navLabel(id)}));
   const modelEntries:NavEntry[]=modelManagement.map(id=>({id,label:labels[id]}));
-  const pinnedPage=isOps?'overview':'home';
+  const pinnedPage=isOps?operationsLanding(d.actor):'home';
   const paletteItems:PaletteItem[]=[...navigation.map(id=>({id,label:navLabel(id),group:isOps?'运营空间':'个人空间',icon:navIcon(id)})),...modelManagement.map(id=>({id,label:labels[id],group:'模型管理',icon:navIcon(id)})),...secondary.map(id=>({id,label:labels[id],group:secondaryLabel,icon:navIcon(id)})),{id:'notifications',label:labels.notifications,group:'工具',icon:'bell'}];
   const unread=d.notifications.filter(n=>!n.readAt).length;
   /* Left-menu attention badges: only counts the current actor can act on. */
@@ -213,17 +238,17 @@ export function EnterpriseApp(){
   const switchSpace=(nextOperations:boolean)=>{
     setMenuOpen(false);
     if(nextOperations===operations)return;
-    setOperations(nextOperations);setOpenTabs([]);setPage(nextOperations?'overview':'home');setTargetId(null);
+    setOperations(nextOperations);setOpenTabs([]);setPage(nextOperations?operationsLanding(d.actor):'home');setTargetId(null);
   };
   const changeUiMode=(value:UiDesign)=>{setPaletteOpen(false);setMenuOpen(false);setUiMode(value);};
   const today=new Date(),dateLabel=`${today.getFullYear()}.${String(today.getMonth()+1).padStart(2,'0')}.${String(today.getDate()).padStart(2,'0')} · ${today.toLocaleDateString('zh-CN',{weekday:'short'})}`;
   const selfRefreshing=['available','calls','reviews','monitoring','safety','usage','leaderboard','cockpit-light','cockpit-tech','cockpit-beacon'].includes(page);
   const mountedTabs=isOps&&!desk?[{page,targetId}]:openTabs.some(tab=>tab.page===page)?openTabs:[...openTabs,{page,targetId}];
-  const confirmationTitle=pending?.command.type==='retention.run'?'核对本次清理范围':pending?.command.type==='settings.retention'?'核对保留策略':pending?.command.type==='settings.update'?'核对企业设置':pending?.command.type==='distribution.execute'?String(pending.preview.impact.title):pending?.command.type==='keys.status'?`核对批量${pending.command.payload.status==='revoked'?'吊销':'停用'}名单`:pending?actions[pending.command.type]??'确认本次操作':'';
-  const confirmationLabel=pending?.command.type==='retention.run'?`确认清理 ${retentionTotal((pending.preview.impact.retention as RetentionReport).eligible)} 条`:pending?.command.type==='settings.retention'?'确认保存策略':pending?.command.type==='settings.update'?'确认保存设置':pending?.command.type==='keys.status'?`确认${pending.command.payload.status==='revoked'?'吊销':'停用'} ${Number(pending.preview.impact.changedCount)} 把`:pending?.command.type==='save.organization'?Number(pending.preview.impact.totalAmount)>0?'确认调整并发放':'确认调整':'确认执行';
+  const confirmationTitle=pending?.command.type==='approval.decide'?(pending.command.payload.decision==='approve'?'核对批准与生效影响':'核对驳回结果'):pending?.command.type==='approval.submit'?'核对本次申请':pending?.command.type==='retention.run'?'核对本次清理范围':pending?.command.type==='settings.retention'?'核对保留策略':pending?.command.type==='settings.update'?'核对企业设置':pending?.command.type==='distribution.execute'?String(pending.preview.impact.title):pending?.command.type==='keys.status'?`核对批量${pending.command.payload.status==='revoked'?'吊销':'停用'}名单`:pending?actions[pending.command.type]??'确认本次操作':'';
+  const confirmationLabel=pending?.command.type==='approval.close'?'确认关闭申请':pending?.command.type==='approval.submit'?'确认提交申请':pending?.command.type==='approval.decide'?(pending.command.payload.decision==='approve'?'批准并生效':'确认驳回'):pending?.command.type==='retention.run'?`确认清理 ${retentionTotal((pending.preview.impact.retention as RetentionReport).eligible)} 条`:pending?.command.type==='settings.retention'?'确认保存策略':pending?.command.type==='settings.update'?'确认保存设置':pending?.command.type==='keys.status'?`确认${pending.command.payload.status==='revoked'?'吊销':'停用'} ${Number(pending.preview.impact.changedCount)} 把`:pending?.command.type==='save.organization'?Number(pending.preview.impact.totalAmount)>0?'确认调整并发放':'确认调整':'确认执行';
   return <><ReviewBanner/><div className={`shell ${next?'shell-next':''} ${sidebar?'shell-sidebar':''} ${!isOps?'shell-personal':''}`}>
     {!isOps?<PersonalHeader actorName={d.actor.name} workspaceName={d.settings.name} admin={admin} page={page} unread={unread} primary={primaryEntries} secondary={secondaryEntries} mode={uiMode} onModeChange={changeUiMode} onNavigate={navigate} onOperations={()=>switchSpace(true)} onLogout={logout} onSearch={()=>setPaletteOpen(true)}/>:v4Shell?<>
-      <V4TopBar actorName={d.actor.name} admin={admin} isOps={isOps} notificationsActive={page==='notifications'} unread={unread} mode={uiMode} onModeChange={changeUiMode} onNavigateHome={()=>navigate(isOps?'overview':'home')} onSwitchSpace={switchSpace} onSearch={()=>setPaletteOpen(true)} onNotifications={()=>navigate('notifications')} onLogout={logout} menuOpen={menuOpen} onMenu={()=>setMenuOpen(true)} menuButtonRef={menuButtonRef} covered={narrow&&menuOpen}/>
+      <V4TopBar actorName={d.actor.name} admin={admin} isOps={isOps} notificationsActive={page==='notifications'} unread={unread} mode={uiMode} onModeChange={changeUiMode} onNavigateHome={()=>navigate(isOps?operationsLanding(d.actor):'home')} onSwitchSpace={switchSpace} onSearch={()=>setPaletteOpen(true)} onNotifications={()=>navigate('notifications')} onLogout={logout} menuOpen={menuOpen} onMenu={()=>setMenuOpen(true)} menuButtonRef={menuButtonRef} covered={narrow&&menuOpen}/>
       <V4Sidebar workspaceName={d.settings.name} isOps={isOps} page={page} primary={primaryEntries} modelManagement={modelEntries} secondary={secondaryEntries} secondaryLabel={secondaryLabel} badges={navBadges} mode={uiMode} onModeChange={changeUiMode} onNavigate={navigate} open={menuOpen} onClose={closeMenu} drawer={narrow}/>
     </>
     :sidebar?<>
@@ -241,15 +266,16 @@ export function EnterpriseApp(){
       <div className={`page ${next?'v2-page':''}`}>
         {next&&<div className="v2-scope" aria-hidden="true"><span>{isOps?'运营空间':'个人空间'}</span><span className="v2-scope-sep">/</span><b>{labels[page]}</b><span className="v2-scope-date">{dateLabel}</span></div>}
         {v4Shell&&<div className="page-context" aria-hidden="true"><span>{spaceLabel}</span><span className="page-context-date">{dateLabel}</span></div>}
-        <section className="heading"><div><span className="eyebrow">{isOps?'OPERATIONS':'PERSONAL WORKSPACE'}</span><h1>{navLabel(page)}</h1>{v4Shell&&ledes[page]&&<p className="page-lede">{ledes[page]}</p>}</div>{!selfRefreshing&&<button className="ghost" onClick={()=>void refresh()}>刷新数据</button>}</section>{message&&<div className="notice" role="status">{message}</div>}
+        <section className="heading"><div><span className="eyebrow">{isOps?'OPERATIONS':'PERSONAL WORKSPACE'}</span><h1>{navLabel(page)}</h1>{v4Shell&&ledes[page]&&<p className="page-lede">{ledes[page]}</p>}</div>{!selfRefreshing&&<button className="ghost" onClick={()=>void refresh()}>刷新数据</button>}</section>{message&&<div ref={messageRef} className="notice" role="status">{message}{messageAction&&<button className="link-button" onClick={()=>navigate(messageAction.page)}>{messageAction.label}</button>}</div>}
         {page!=='monitoring'&&d.callDataQuality==='collection_failed'&&<div className="notice warning" role="alert">调用统计暂不可用，费用待核对数量未知。{isOps?<button className="link-button" onClick={()=>navigate('monitoring')}>检查监控采集 →</button>:'请联系企业运营检查采集。'}</div>}
-        {mountedTabs.map(tab=><div key={tab.page} data-page={tab.page} hidden={tab.page!==page} className={desk?'v2-page-enter':''}><WorkspacePages data={d} page={tab.page} targetId={tab.targetId} active={tab.page===page} isOps={isOps} edit={edit} purposeId={purposeId} setPurpose={setPurposeId} setPage={navigate} onlineModelRequest={onlineModelRequest} onUseModel={(purposeId,modelId)=>{setPurposeId(purposeId);setOnlineModelRequest({purposeId,modelId,requestId:crypto.randomUUID()});navigate('online');}} run={run} refresh={refresh} action={action} detail={(title,content)=>setDetail({title,content})}/></div>)}
+        {mountedTabs.map(tab=><div key={tab.page} data-page={tab.page} hidden={tab.page!==page} className={desk?'v2-page-enter':''}><WorkspacePages data={d} page={tab.page} targetId={tab.targetId} active={tab.page===page} isOps={isOps} edit={edit} purposeId={purposeId} setPurpose={setPurposeId} setPage={navigate} onlineModelRequest={onlineModelRequest} onUseModel={(purposeId,modelId)=>{setPurposeId(purposeId);setOnlineModelRequest({purposeId,modelId,requestId:crypto.randomUUID()});navigate((d.definitions.find(model=>model.modelId===modelId)?.kind??'chat')==='chat'?'online':'multimodal');}} run={run} refresh={refresh} action={action} detail={(title,content)=>setDetail({title,content})}/></div>)}
       </div>
     </main>
     {docked&&<div className={`${v4Shell?'v4-backdrop':'v3-backdrop'} ${menuOpen?'open':''}`} onClick={closeMenu} aria-hidden="true"/>}
-    <AlertWatcher enabled={isOps&&['overview','monitoring'].includes(page)&&!editor&&!pending&&!detail&&!secret} run={run} onOpen={()=>{setOperations(true);setPage('monitoring');}}/>
+    <AlertWatcher enabled={isOps&&hasPermission(d.actor,'monitoring.write')&&['overview','monitoring'].includes(page)&&!editor&&!pending&&!detail&&!secret} run={run} onOpen={()=>{setOperations(true);setPage('monitoring');}}/>
     {editor&&<EditorFlow key={editor.title} editor={editor} data={d} run={run} refresh={refresh} onClose={()=>setEditor(null)}/>}
-    {pending&&<Modal title={confirmationTitle} onClose={()=>{if(!busy){pending.resolve(null);setPending(null);}}} footer={<><button className="ghost" disabled={busy} onClick={()=>{pending.resolve(null);setPending(null);}}>返回修改</button><button className="primary" disabled={busy} onClick={()=>void confirm()}>{busy?'正在执行…':confirmationLabel}</button></>}><Impact pending={pending} data={d}/></Modal>}
+    {providerPick&&<ProviderPicker data={d} onClose={()=>setProviderPick(null)} onPick={providerId=>{const pick=providerPick.onPick;setProviderPick(null);pick(providerId);}}/>}
+    {pending&&<Modal title={confirmationTitle} onClose={()=>{if(!busy){pending.resolve(null);setPending(null);}}} footer={<><button className="ghost" disabled={busy} onClick={()=>{pending.resolve(null);setPending(null);}}>返回修改</button><button className={(['approval.close','project.reclaim','project.return','application.reclaim','project.end'].includes(pending.command.type)||pending.command.type==='project.members'&&Array.isArray(pending.command.payload.removeMemberIds)&&pending.command.payload.removeMemberIds.length>0||pending.command.payload.handoffKeys==='revoke'&&(pending.preview.impact.objectChange as {ownerChanged?:boolean}|undefined)?.ownerChanged)?'danger-button':'primary'} disabled={busy} onClick={()=>void confirm()}>{busy?'正在执行…':confirmationLabel}</button></>}><Impact pending={pending} data={d}/></Modal>}
     {secret&&<Modal title="请保存完整密钥" onClose={()=>setSecret(null)} footer={<button className="primary" onClick={()=>{const keyId=secret.keyId;setSecret(null);if(keyId)setDetail({title:'编程工具接入',content:<KeyDetails keyId={keyId} data={d} guideOnly/>});}}>我已保存，查看接入指引</button>}><div className="notice warning">仅本次显示，关闭后无法再次读取。请保存到受控的凭据管理工具。</div><label className="form-field" htmlFor="issued-api-key">完整密钥<PasswordInput id="issued-api-key" value={secret.value} onChange={()=>{}} readOnly autoComplete="off"/></label>{secret.keyId&&<LocalOctopConnect keyId={secret.keyId} issuedSecret={secret.value} canImport={d.keys.some(k=>k.id===secret.keyId&&k.ownerId===d.actor.id&&k.status==='active')}/>}</Modal>}
     {detail&&<Modal title={detail.title} onClose={()=>setDetail(null)}>{typeof detail.content==='function'?detail.content(d,edit):detail.content}</Modal>}
     {(desk||!isOps)&&<CommandPalette open={paletteOpen} items={paletteItems} onClose={()=>setPaletteOpen(false)} onSelect={navigate}/>}
@@ -260,6 +286,15 @@ function ReviewBanner(){return import.meta.env.VITE_REVIEW_MODE==='true'?<div cl
 
 function Impact({pending,data}:{pending:Pending;data:PlatformSnapshot}){
   const p=pending.command.payload,impact=pending.preview.impact;
+
+  if(pending.command.type==='approval.close')return <><ChangeSummary label="关闭影响" beforeLabel="当前" afterLabel="关闭后" items={[{label:'申请',before:<Status value={data.approvals.find(a=>a.id===p.id)?.status??'approved'}/>,after:'已关闭 · 不再执行'},{label:'额度',before:'本单未发放',after:'现有余额保持不变'}]}/><p className="request-reason">关闭原因：{String(p.reason)}</p><p className="secondary">原申请、审批与失败记录保留。关闭后可重新申请。</p></>;
+  if(pending.command.type==='approval.submit'||pending.command.type==='approval.decide'){
+    const approval=data.approvals.find(a=>a.id===p.id),kind=(p.kind??approval?.kind) as import('@ai-gateway/contracts').ApprovalKind;
+    if(p.decision==='reject')return <><ChangeSummary label="驳回影响" beforeLabel="当前" afterLabel="处理后" items={[{label:'申请',before:'待审批',after:'已驳回 · 未发放额度'}]}/><p className="request-reason">驳回原因：{String(p.reason)}</p></>;
+    const values:import('./components').FormValues=Object.fromEntries(Object.entries(p).map(([key,value])=>[key,key==='expiresAt'?date(String(value)):String(value??'')]));
+    if(p.range){const range=p.range as import('@ai-gateway/contracts').ModelRange;Object.assign(values,{poolId:range.poolId,rangeMode:range.mode,definitionIds:range.definitionIds});}
+    return <>{approvalFormContext(data,kind,String(p.objectId??approval?.objectId??'')||undefined,values,approval,false,true)}<div className="workflow-facts"><span>使用场景 <strong>{String(approval?.scenario??p.scenario)}</strong></span></div><p className="request-reason">{String(p.reason)}</p></>;
+  }
   if(pending.command.type==='guardrail.update'){
     const before=impact.before as import('@ai-gateway/contracts').GuardrailPolicy,after=impact.after as import('@ai-gateway/contracts').GuardrailPolicy,modes={off:'关闭',observe:'仅记录',block:'拦截'};const range=(p:typeof after)=>p.modelIds===null?'全部模型（含新增）':p.modelIds.map(id=>data.definitions.find(d=>d.modelId===id)?.name??id).join('、');
     return <><dl className="detail-list"><div><dt>处理模式</dt><dd>{modes[before.mode]} → {modes[after.mode]}</dd></div><div><dt>模型范围</dt><dd>{range(before)} → {range(after)}</dd></div><div><dt>规则数量</dt><dd>{before.presets.length+before.words.length} → {after.presets.length+after.words.length}</dd></div><div><dt>策略版本</dt><dd>{before.version} → {after.version}</dd></div></dl><p className="notice warning">{after.mode==='off'?'保存后停止对新请求检查输入。':after.mode==='observe'?'命中只记录，内容仍会发送给模型。':'命中后拒绝发送，不创建预占、不扣费。'}仅影响后续准入，历史费用和已准入调用保留。</p><p className="request-reason">变更原因：{String(p.reason)}</p></>;
@@ -290,23 +325,29 @@ function Impact({pending,data}:{pending:Pending;data:PlatformSnapshot}){
       <p className="secondary">确认后整批事务更新，并逐人写入审计；方案、人员或职责变化后需要重新预览。已准入请求继续按原路由、价格与资金批次结算。</p>
     </>;
   }
-  if(pending.command.type==='key.issue')return <><p>即将为 <strong>{p.purpose==='application'?data.applications.find(a=>a.id===p.applicationId)?.name:p.purpose==='project'?data.projects.find(v=>v.id===p.projectId)?.name:data.actor.name}</strong> 签发一把密钥。</p><dl className="detail-list"><div><dt>密钥名称</dt><dd>{String(p.name)}</dd></div><div><dt>扣费用途</dt><dd>{p.purpose==='application'?'独立应用':p.purpose==='project'?'项目成员':'个人日常办公'}</dd></div><div><dt>到期时间</dt><dd>{date(String(p.expiresAt))}</dd></div></dl><p className="notice warning">完整值只在签发后展示一次，请保存到受控的凭据管理工具。该密钥使用当前用途的额度和限制。</p></>;
-  const executionDescription=(input:unknown)=>{const value=(input??{}) as {planId?:string;managerId?:string;range?:{poolId:string;mode:string;definitionIds:string[]};sourceBatchId?:string};return [value.planId?`开通方案：${data.plans.find(plan=>plan.id===value.planId)?.name??value.planId}`:'',value.managerId?`经理：${data.members.find(m=>m.id===value.managerId)?.name??value.managerId}`:'',value.range?`模型池：${data.pools.find(pool=>pool.id===value.range?.poolId)?.name??value.range.poolId} · ${value.range.mode==='follow'?'跟随池':'指定模型'}`:'',value.sourceBatchId?`预算批次：${value.sourceBatchId}`:''].filter(Boolean).join('；')||'无额外参数';};
-  if(pending.command.type==='distribution.execute'&&Array.isArray(impact.members))return <><p>方案：<strong>{String(impact.planName??'已有方案额度追加')}</strong></p><div className="project-summary"><div>本次纳入<strong>{Number(impact.grantCount)} 人</strong></div><div>新增额度合计<strong>{money(Number(impact.totalAmount))}</strong></div></div><Table headers={['人员','本次结果','新增金额','到期时间','说明']} rows={(impact.members as {name:string;included:boolean;amount:number;expiresAt:string;reason:string}[]).map(m=>[m.name,m.included?'纳入本次':'跳过',money(m.amount),m.included?date(m.expiresAt):'—',m.reason||'—'])}/><p className="secondary">请核对人员、金额和到期日。确认后执行；跳过的人员不会新增额度。</p></>;
+  if(pending.command.type==='key.issue')return <><p>即将为 <strong>{p.purpose==='application'?data.applications.find(a=>a.id===p.applicationId)?.name:p.purpose==='project'?data.projects.find(v=>v.id===p.projectId)?.name:data.actor.name}</strong> 签发一把密钥。</p><dl className="detail-list"><div><dt>密钥名称</dt><dd>{String(p.name)}</dd></div><div><dt>扣费用途</dt><dd>{p.purpose==='application'?'独立应用':p.purpose==='project'?'项目成员':'个人日常办公'}</dd></div>{p.purpose==='personal'&&<div><dt>套餐范围</dt><dd>{Array.isArray(p.entitlementIds)?`仅指定：${p.entitlementIds.map(id=>data.entitlements.find(e=>e.id===id)?.planSnapshot.name??'已失效套餐').join('、')}`:'全部有效套餐（含后续新开通套餐）'}</dd></div>}<div><dt>到期时间</dt><dd>{date(String(p.expiresAt))}</dd></div></dl><p className="notice warning">完整值只在签发后展示一次，请保存到受控的凭据管理工具。该密钥只使用确认范围内的模型池、额度和限制。</p></>;
+  const executionDescription=(input:unknown)=>{const value=(input??{}) as {planId?:string;managerId?:string;range?:{poolId:string;mode:string;definitionIds:string[]};sourceBatchId?:string};return [value.planId?`开通方案：${data.plans.find(plan=>plan.id===value.planId)?.name??value.planId}`:'',value.managerId?`经理：${memberLabel(data,value.managerId)}`:'',value.range?`模型池：${data.pools.find(pool=>pool.id===value.range?.poolId)?.name??value.range.poolId} · ${value.range.mode==='follow'?'跟随池':'指定模型'}`:'',value.sourceBatchId?`预算批次：${value.sourceBatchId}`:''].filter(Boolean).join('；')||'无额外参数';};
+  if(pending.command.type==='distribution.execute'&&Array.isArray(impact.members))return <><p>方案：<strong>{String(impact.planName??'已有方案额度追加')}</strong></p><div className="project-summary"><div>本次纳入<strong>{Number(impact.grantCount)} 人</strong></div><div>新增额度合计<strong>{money(Number(impact.totalAmount))}</strong></div></div><Table headers={['人员','本次结果','新增金额','到期时间','说明']} rows={(impact.members as {id:string;name:string;included:boolean;amount:number;expiresAt:string;reason:string}[]).map(m=>[memberIdentity(data,m.id),m.included?'纳入本次':'跳过',money(m.amount),m.included?date(m.expiresAt):'—',m.reason||'—'])}/><p className="secondary">请核对人员、金额和到期日。确认后执行；跳过的人员不会新增额度。</p></>;
   return <><p>确认对象、范围、金额和期限后执行。此预览未改变业务数据。</p><dl className="detail-list">
     {!!p.name&&<div><dt>名称</dt><dd>{String(p.name)}</dd></div>}{p.amount!==undefined&&<div><dt>金额</dt><dd>{money(Number(p.amount))}</dd></div>}{!!p.expiresAt&&<div><dt>到期时间</dt><dd>{date(String(p.expiresAt))}</dd></div>}
-    {!!p.projectId&&<div><dt>项目</dt><dd>{data.projects.find(project=>project.id===p.projectId)?.name??String(p.projectId)}</dd></div>}{!!p.memberId&&<div><dt>成员</dt><dd>{data.members.find(member=>member.id===p.memberId)?.name}</dd></div>}
+    {!!p.projectId&&<div><dt>项目</dt><dd>{data.projects.find(project=>project.id===p.projectId)?.name??String(p.projectId)}</dd></div>}{!!p.memberId&&<div><dt>成员</dt><dd>{memberIdentity(data,String(p.memberId))}</dd></div>}
     {!!p.planId&&<div><dt>开通方案</dt><dd>{data.plans.find(plan=>plan.id===p.planId)?.name}</dd></div>}
-    {!!p.managerId&&<div><dt>项目经理</dt><dd>{data.members.find(member=>member.id===p.managerId)?.name??String(p.managerId)}</dd></div>}
-    {!!p.ownerId&&<div><dt>应用负责人</dt><dd>{data.members.find(member=>member.id===p.ownerId)?.name??String(p.ownerId)}</dd></div>}
-    {!!p.billingMode&&<div><dt>计费模式</dt><dd>{p.billingMode==='accounting'?'记账模式 · 初始 0 元，允许负余额':'额度模式 · 初始 0 元，需发放额度后调用'}</dd></div>}
+    {!!p.managerId&&<div><dt>项目经理</dt><dd>{memberIdentity(data,String(p.managerId))}</dd></div>}
+    {!!p.sponsorId&&<div><dt>内部责任人</dt><dd>{memberIdentity(data,String(p.sponsorId))}</dd></div>}
+    {!!p.ownerId&&<div><dt>应用负责人</dt><dd>{memberIdentity(data,String(p.ownerId))}</dd></div>}
+    {!!impact.billingChange&&<div><dt>计费倍率</dt><dd>×{String((impact.billingChange as {before:number}).before)} → ×{String((impact.billingChange as {after:number}).after)} · 仅影响新请求，历史与在途请求按原快照</dd></div>}
+    {!!p.billingMode&&<div><dt>计费模式</dt><dd>{p.billingMode==='accounting'?'记账模式 · 初始 0 元，允许负余额':'额度模式 · 创建时发放填写的初始额度'}</dd></div>}
     {(p.kind==='application_billing'||data.approvals.some(a=>a.id===p.id&&a.kind==='application_billing'))&&<div><dt>模式切换影响</dt><dd>记账 → 额度；审批执行后生效，原 Key 继续使用。历史负余额保留，新额度单独使用。</dd></div>}
     {!!p.range&&<div><dt>模型范围</dt><dd>{data.pools.find(pool=>pool.id===(p.range as {poolId:string}).poolId)?.name??'所选模型池'} · {(p.range as {mode:string}).mode==='follow'?'跟随池内已开放模型':`仅指定：${(p.range as {definitionIds:string[]}).definitionIds.map(id=>data.definitions.find(definition=>definition.id===id)?.name??id).join('、')}`}</dd></div>}
     {!!p.limits&&<div><dt>本级使用保护</dt><dd>{(p.limits as {mode:string}).mode==='inherit'?'继承企业默认':(p.limits as {mode:string}).mode==='none'?'本级不额外限制，其他适用边界继续生效':Object.entries(p.limits as Record<string,unknown>).filter(([key])=>key!=='mode').map(([key,value])=>`${({rpm:'RPM',tpm:'TPM',concurrency:'并发',maxOutputTokens:'单次输出'} as Record<string,string>)[key]??key} ${String(value)}`).join(' · ')}</dd></div>}
     {impact.grantCount!==undefined&&<><div><dt>拟发放 / 跳过</dt><dd>{String(impact.grantCount)} / {String(impact.excludedCount)}</dd></div><div><dt>本次拟发放总额</dt><dd>{money(Number(impact.totalAmount))}</dd></div></>}
     {!!p.reason&&<div><dt>处理说明</dt><dd>{String(p.reason)}</dd></div>}
     {impact.originalHold!==undefined&&<><div><dt>原预占</dt><dd>{money(Number(impact.originalHold))}</dd></div><div><dt>核对后实际费用</dt><dd>{money(Number(impact.amount))}</dd></div><div><dt>原批次余额变化</dt><dd>{Number(impact.balanceChange)>=0?'释放':'补扣'} {money(Math.abs(Number(impact.balanceChange)))}</dd></div></>}
-  </dl>{Array.isArray(impact.members)&&<><p className="secondary">{String(impact.scopeDescription??'本次名单')} · 方案 {String(impact.planName??'')}</p><Table headers={['成员','本次结果','金额','到期日','说明']} rows={(impact.members as {id:string;name:string;included:boolean;amount:number;expiresAt:string;reason:string}[]).map(m=>[m.name,m.included?'纳入':'跳过 / 排除',money(m.amount),m.included?date(m.expiresAt):'—',m.reason||'—'])}/></>}
+  </dl>{Array.isArray(impact.members)&&<><p className="secondary">{String(impact.scopeDescription??'本次名单')} · 方案 {String(impact.planName??'')}</p><Table headers={['成员','本次结果','金额','到期日','说明']} rows={(impact.members as {id:string;name:string;included:boolean;amount:number;expiresAt:string;reason:string}[]).map(m=>[memberIdentity(data,m.id),m.included?'纳入':'跳过 / 排除',money(m.amount),m.included?date(m.expiresAt):'—',m.reason||'—'])}/></>}
+    {!!impact.initialGrant&&(()=>{const g=impact.initialGrant as {amount:number;expiresAt?:string;destination:string};return <p className="notice">初始额度 {money(g.amount)} → {g.destination}{g.expiresAt?` · ${date(g.expiresAt)}`:''}。创建与授额一起生效。</p>;})()}
+    {!!impact.quotaChange&&(()=>{const q=impact.quotaChange as {title:string;objectName:string;batchId:string;amount:number;availableAmount:number;remainingAmount:number;beforeExpiresAt:string;expiresAt:string;destination:string;affectedMembers:number};return <><h3>{q.title} · {q.objectName}</h3><Table headers={['批次','当前可调整','本次金额','调整后','期限变化']} rows={[[q.batchId,money(q.availableAmount),money(q.amount),money(q.remainingAmount),`${date(q.beforeExpiresAt)} → ${date(q.expiresAt)}`]]}/><p>{q.destination}。{q.affectedMembers?`同步调整 ${q.affectedMembers} 个成员额度批次。`:''}执行时重新检查可用余额；已预占金额不会提前退回。</p></>;})()}
+    {!!impact.objectChange&&(()=>{const c=impact.objectChange as {beforeOwner:string;afterOwner:string;ownerChanged:boolean;beforeState:string;afterState:string;keys:{name:string;masked:string;status:string}[];pending:string[];modelChange:boolean;beforeModels:string[];afterModels:string[];handoffKeys:string;project:boolean};return <><h3>对象变更影响</h3><p>负责人：{c.beforeOwner} → {c.afterOwner} · 状态：{c.beforeState} → {c.afterState}。{c.modelChange?'模型范围将改变，影响现有凭证的新调用。':''}余额及期限保持原规则，暂停不延期。</p>{c.ownerChanged&&<p className="notice warning">{c.project?'原经理保留成员身份，新经理接管管理职责。':c.handoffKeys==='revoke'?'交接时吊销现有密钥，请由新负责人重新签发。':'现有密钥继续有效，旧负责人保存的完整密钥仍可能调用。'}未完成申请 {c.pending.length} 项，生效前重新检查职责；不适用申请应关闭并重新提交。</p>}{c.modelChange&&<Table headers={['模型范围','变更前','变更后']} rows={[["当前可用模型",c.beforeModels.join('、')||'无',c.afterModels.join('、')||'无']]}/>}
+      {(c.ownerChanged||c.modelChange||c.beforeState!==c.afterState)&&<Table headers={['受影响密钥','标识','状态']} rows={c.keys.map(k=>[k.name,k.masked,k.status])} empty="没有现有密钥"/>}</>;})()}
     {!!impact.organizationChange&&<OrganizationImpact change={impact.organizationChange as OrganizationChangeImpact}/>}
     {Array.isArray(impact.memberChanges)&&<Table headers={['成员','登录账号','变更','组织','状态']} rows={(impact.memberChanges as {id:string;name:string;directoryId:string;kind:string;organizationId:string;active:boolean}[]).map(m=>[m.name,m.directoryId,m.kind,data.organizations.find(o=>o.id===m.organizationId)?.name,m.active?'启用':'停用'])}/>}
     {Array.isArray(impact.automaticGrants)&&<><p>命中结果 {impact.automaticGrants.length} 条 · 本次拟发放总额 {money(Number(impact.totalAmount??0))}</p>{!!impact.ruleApplication&&<p className="secondary">{String(impact.ruleApplication)}</p>}<Table headers={['成员','方案 / 版本','命中规则','结果 / 原因','金额','预计到期']} rows={(impact.automaticGrants as {memberName:string;planName:string;planVersion:number;conditions:{name:string}[];status:string;reason:string;amount:number;expiresAt:string}[]).map(m=>[m.memberName,`${m.planName} · v${m.planVersion}`,m.conditions.map(r=>r.name).join('、'),`${m.status==='granted'?'可开通':m.status==='failed'?'失败':'跳过'}${m.reason?` · ${m.reason}`:''}`,money(m.amount),m.status==='granted'?date(m.expiresAt):'—'])}/></>}
@@ -314,9 +355,10 @@ function Impact({pending,data}:{pending:Pending;data:PlatformSnapshot}){
     {Array.isArray(impact.resumedFutureGrants)&&impact.resumedFutureGrants.length>0&&<div className="notice">恢复未来周期发放：{(impact.resumedFutureGrants as {memberId:string;planName:string}[]).map(e=>`${data.members.find(m=>m.id===e.memberId)?.name??e.memberId} / ${e.planName}`).join('、')}。同一周期仍只发放一次。</div>}
     {!!impact.approvalBefore&&!!impact.approvalAfter&&<Table headers={['修正项','原批准值','修正后']} rows={(()=>{const before=impact.approvalBefore as {approvedAmount:number;approvedExpiresAt:string;execution:unknown;approverId:string},after=impact.approvalAfter as typeof before;return [['批准金额',money(before.approvedAmount),money(after.approvedAmount)],['批准期限',date(before.approvedExpiresAt),date(after.approvedExpiresAt)],['执行方案',executionDescription(before.execution),executionDescription(after.execution)],['批准人',data.members.find(m=>m.id===before.approverId)?.name??before.approverId,data.members.find(m=>m.id===after.approverId)?.name??after.approverId]];})()}/>}
     {!!impact.projectClosing&&(()=>{const closing=impact.projectClosing as {name:string;memberCount:number;keyCount:number;memberAmount:number;budgetAmount:number;totalAmount:number};return <><h3>结束项目：{closing.name}</h3><p>影响 {closing.memberCount} 名项目成员、{closing.keyCount} 把项目密钥。结束后不再接受新调用或分配，不能重新启用项目。</p><Table headers={['预览时未使用余额','金额']} rows={[["项目未分配预算",money(closing.budgetAmount)],["成员未使用余额",money(closing.memberAmount)],["合计拟回收",money(closing.totalAmount)]]}/><p className="notice warning">金额按执行时实际余额回收至结束记录，不转入其他用途。已预占资金单独保留，后续结算或核对释放的金额也进入回收记录。原批次和消费历史保留。</p></>;})()}
-    {!!impact.projectMemberChanges&&(()=>{const changes=impact.projectMemberChanges as {projectName:string;added:string[];removed:string[]};return <><h3>{changes.projectName} · 成员关系变更</h3><p>添加：{changes.added.join('、')||'无'}；移出：{changes.removed.join('、')||'无'}。</p><p className="secondary">添加不发放额度。移出后阻止该用途新调用，原批次与历史保留；重新加入仍受原期限约束，结束项目时统一回收未使用余额。</p></>;})()}
+    {!!impact.projectMemberChanges&&(()=>{const changes=impact.projectMemberChanges as {projectName:string;added:string[];removed:string[];closingAmount:number};return <><h3>{changes.projectName} · 成员关系变更</h3><p>添加：{(Array.isArray(p.memberIds)?p.memberIds.map(id=>memberIdentity(data,String(id))):changes.added).join('；')||'无'}；移出：{(Array.isArray(p.removeMemberIds)?p.removeMemberIds.map(id=>memberIdentity(data,String(id))):changes.removed).join('；')||'无'}。</p><p className="secondary">添加不发放额度。移出将关闭原额度并停用项目密钥，当前 {money(changes.closingAmount)} 及在途请求后续释放余额进入待退回记录；可退回原预算，重新加入需重新分配。</p></>;})()}
     {Array.isArray(p.mappings)&&<Table headers={['模型','上游标识','输入 / 输出 / 缓存输入价格（元/百万 Token）']} rows={(p.mappings as {definitionId:string;upstreamModel:string;inputPrice:number|null;outputPrice:number|null;cachedInputPrice:number|null}[]).map(m=>[data.definitions.find(definition=>definition.id===m.definitionId)?.name??m.definitionId,m.upstreamModel,[m.inputPrice,m.outputPrice,m.cachedInputPrice].map(value=>value===null||value===undefined?'未知':String(value)).join(' / ')])}/>}
     {Array.isArray(impact.modelChanges)&&<Table headers={['模型','当前状态与来源','确认后状态与来源']} rows={(impact.modelChanges as {name:string;before:string;after:string}[]).map(change=>[change.name,change.before,change.after])}/>}
+    {Array.isArray(impact.servicePricing)&&<><Table headers={['模型 / 倍率','计费基准价：原 → 新','上游成本价：原 → 新','新请求计费价']} rows={(impact.servicePricing as {name:string;multiplier:number;beforeBase:string;afterBase:string;beforeCost:string;afterCost:string;effective:string}[]).map(row=>[`${row.name} · ×${row.multiplier}`,`${row.beforeBase} → ${row.afterBase}`,`${row.beforeCost} → ${row.afterCost}`,row.effective])}/><p className="secondary">Token 项目依次为输入 / 输出 / 缓存输入，单位元 / 百万 Token；其他项目按标注单位计价。新请求使用保存后的价格，已准入调用和历史账不重算。</p></>}
     {!!impact.related&&<p className="secondary">关联对象：{Object.entries(impact.related as Record<string,unknown[]>).map(([key,value])=>`${({plans:'方案',entitlements:'人员权益',projects:'项目',applications:'应用',members:'成员',children:'下级组织'} as Record<string,string>)[key]??key} ${value.length}`).join(' · ')}</p>}
     <p className="secondary">历史调用与审计保留；资金与模型范围分别追溯。其他配置变化后需要重新预览。</p></>;
 }

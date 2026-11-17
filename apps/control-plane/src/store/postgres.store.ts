@@ -1,3 +1,6 @@
+import {postgresRouteObservations} from './postgres-route-observations';
+import {jobReceipt,jobUpdate,applyJobReceipt,applyJobUpdate,claimJobCancellation} from './media-jobs';
+import {rankRoutes,recordRoutingOutcome,type RouteObservation} from './pool-routing';
 import {guardrailPolicy,type SafetyQuery,type SafetyEvent} from '@ai-gateway/contracts';
 import {admissionGuardrail,safetyQuery,safetyCursor} from './guardrail';
 import { ConflictException, Injectable, OnModuleDestroy } from '@nestjs/common';
@@ -10,15 +13,16 @@ import type { AdmissionSnapshot, AuthorizeRequest, AuthorizeResponse, CallLog, C
 import { businessDenial } from '../platform/domain';
 import { DemoStore } from './demo.store';
 import type { DemoCredential, QuotaSnapshot, StartVerificationInput, VerificationPageQuery } from './control-plane.store';
-import { authorizationFingerprint, checkSettlementScope, reconciliationCalculation, RESERVATION_AMOUNT, retryLinkAllowed, sameIdentity, settlementAmount, type RetryTarget } from './accounting';
+import { scopedAuthorizationKey,scopedSettlementKey,sameAuthorizationScope,authorizationFingerprint, checkSettlementScope, reconciliationCalculation, RESERVATION_AMOUNT, retryLinkAllowed, sameIdentity, settlementAmount, type RetryTarget } from './accounting';
 import { admissionOptionsForBatch, admissionDenialMessage, publicLogAdmission } from './admission';
-import { callVisible, type CallScope } from './call-query';
+import { callVisible,decodeCursor, type CallScope } from './call-query';
 import { queryPostgresCalls, type CallRow } from './postgres-call-query';
 import { queryPostgresUsage } from './postgres-call-analytics';
 import { databaseSchema,runtimeMode } from '@ai-gateway/contracts';
 import { applyMigrations,loadMigrations } from './migrations';
 import { hotPathDiagnostics } from './hot-path-diagnostics';
 import { ADMISSION_POLICY_SQL,lockAdmissionPolicy,type AdmissionWorkspace } from './admission-policy-lock';
+import {validateGatewayTrace,traceQuery} from './gateway-traces';
 
 interface VerificationRow {
   id:string; operator_id:string; service_id:string; service_name:string; config_version:number; state:VerificationRun['state'];
@@ -118,17 +122,19 @@ export class PostgresStore extends DemoStore implements OnModuleDestroy {
   }
 
   async authorize(input: AuthorizeRequest): Promise<AuthorizeResponse> {
-    const fingerprint = authorizationFingerprint(input);
+    const fingerprint = authorizationFingerprint(input),originalKey=input.idempotencyKey;input={...input,idempotencyKey:scopedAuthorizationKey(input)};
     const trace=hotPathDiagnostics.start('authorize');
     const raw=await this.pool.connect().catch(error=>{trace.finish(true);throw error;});
     const client=trace.acquired(raw);let failed=false;
     try {
       await client.query('begin isolation level read committed');
       await this.lock(client, [`authorize-key:${input.idempotencyKey}`, `authorize-request:${input.requestId}`]);
-      const previous = await client.query('select * from authorization_records where idempotency_key=$1 or request_id=$2', [input.idempotencyKey,input.requestId]);
+      const found=await client.query('select * from authorization_records where idempotency_key=$1 or request_id=$2 or idempotency_key=$3',[input.idempotencyKey,input.requestId,originalKey]);
+      const rows=found.rows.filter(r=>r.idempotency_key===input.idempotencyKey||r.request_id===input.requestId||sameAuthorizationScope(r.fingerprint,fingerprint));
+      const previous={rowCount:rows.length,rows};
       if (previous.rowCount) {
         const r = previous.rows[0];
-        if (r.idempotency_key !== input.idempotencyKey || r.fingerprint !== fingerprint) throw new ConflictException('authorization key or request ID was reused with different input');
+        if (![input.idempotencyKey,originalKey].includes(r.idempotency_key) || r.fingerprint !== fingerprint) throw new ConflictException('authorization key or request ID was reused with different input');
         await client.query('commit');
         return { ...(r.response as AuthorizeResponse), replayed: true };
       }
@@ -162,7 +168,7 @@ export class PostgresStore extends DemoStore implements OnModuleDestroy {
         for(const candidate of batches.rows){
           for(const quote of admissionOptionsForBatch(workspace.rows[0]?.payload as AdmissionWorkspace|undefined,input,{sourceId:candidate.source_id,purpose:candidate.purpose,projectId:candidate.project_id,entitlementId:candidate.entitlement_id})){
             if(quote.reason){candidateReason=quote.reason;candidateLimits=quote.requestLimits;continue;}eligible++;
-            if(candidate.accounting||Number(candidate.available_amount)>=quote.admission.reservedAmount)choices.push({batch:candidate,admission:quote.admission});
+            choices.push({batch:candidate,admission:quote.admission});
           }
         }
         // Lock the union once, in the existing canonical order, before checking any route.
@@ -173,13 +179,27 @@ export class PostgresStore extends DemoStore implements OnModuleDestroy {
         const limits=await client.query(`select s.id,coalesce(w.requests,0) as requests,coalesce(w.tokens,0) as tokens,
           (select count(*)::int from reservation_limit_scopes r where r.scope_id=s.id and r.active=true and r.expires_at>clock_timestamp()) as active
           from unnest($1::text[]) s(id) left join admission_windows w on w.scope_id=s.id and w.window_start=$2`,[candidateScopeIds,windowStart]);
-        const selected=choices.find(choice=>!choice.admission.scopes.some(scope=>{
-          const row=limits.rows.find(row=>row.id===scope.id)!;
-          return (scope.rpm!==undefined&&Number(row.requests)+1>scope.rpm)||(scope.tpm!==undefined&&Number(row.tokens)+choice.admission.estimatedTokens>scope.tpm)||(scope.concurrency!==undefined&&Number(row.active)>=scope.concurrency);
-        }));
+        const routingState=workspace.rows[0]?.payload as AdmissionWorkspace|undefined;
+        let observations:RouteObservation[]=[];
+        if(routingState?.pools.some(p=>p.routing&&(p.routing.strategy==='latency'||p.routing.failureThreshold>0))){
+          const ids=[...new Set(choices.map(c=>c.admission.route?.serviceId).filter(Boolean))];
+          observations=await postgresRouteObservations(client,ids as string[]);
+        }
+        const ranked=rankRoutes(choices,routingState??{pools:[]},limits.rows.map(r=>({id:r.id,requests:Number(r.requests),tokens:Number(r.tokens),active:Number(r.active)})),observations,input.requestId,windowResult.rows[0].now.getTime());
+        const funded=choices.filter(choice=>choice.batch.accounting||Number(choice.batch.available_amount)>=choice.admission.reservedAmount);
+        const cooling=funded.length>0&&!ranked.some(choice=>funded.includes(choice));
+        const selected=ranked.find(choice=>{
+          if(!funded.includes(choice)){recordRoutingOutcome(choice.admission,'quota_insufficient');return false;}
+          const blocked=choice.admission.scopes.filter(scope=>{
+            const row=limits.rows.find(row=>row.id===scope.id)!;
+            return (scope.rpm!==undefined&&Number(row.requests)+1>scope.rpm)||(scope.tpm!==undefined&&Number(row.tokens)+choice.admission.estimatedTokens>scope.tpm)||(scope.concurrency!==undefined&&Number(row.active)>=scope.concurrency);
+          });
+          if(blocked.length){recordRoutingOutcome(choice.admission,'capacity',blocked.map(scope=>scope.id));return false;}
+          recordRoutingOutcome(choice.admission,'selected');return true;
+        });
         b=selected?.batch;admission=selected?.admission;
         if (!b) {
-          response.reasonCode = choices.length?'rate_limited':eligible?'quota_insufficient':batches.rowCount?candidateReason:'no_quota';
+          response.reasonCode = cooling?'service_unavailable':funded.length?'rate_limited':eligible?'quota_insufficient':batches.rowCount?candidateReason:'no_quota';
           if(choices.length)response.admission=choices[0].admission;
           if(response.reasonCode==='request_limit_exceeded')response.requestLimits=candidateLimits;
           response.reasonMessage=choices.length?'an applicable subject, pool, service or shared-resource limit is reached':admissionDenialMessage(response.reasonCode,response.requestLimits);
@@ -204,32 +224,44 @@ export class PostgresStore extends DemoStore implements OnModuleDestroy {
 
   async settle(input: SettlementRequest): Promise<SettlementResponse> {
     settlementAmount(input, RESERVATION_AMOUNT);
+    // Scope caller-selected settlement keys after resolving the reservation identity.
     const trace=hotPathDiagnostics.start('settle');
     const raw=await this.pool.connect().catch(error=>{trace.finish(true);throw error;});
     const client=trace.acquired(raw);let failed=false;
     try {
       await client.query('begin');
-      await this.lock(client, [`settle-key:${input.idempotencyKey}`, `settle-request:${input.requestId}`]);
+      await this.lock(client, [`settle-request:${input.requestId}`]);
       const result = await client.query('select * from reservations where request_id=$1 for update', [input.requestId]);
       const r = result.rows[0];
       if (!r || r.reservation_id !== input.reservationId) throw new ConflictException('reservation does not match request');
       checkSettlementScope(input, { identity:r.identity,purpose:r.purpose,modelId:r.model_id });
+      input={...input,idempotencyKey:scopedSettlementKey(input,r.identity,r.purpose)};await this.lock(client,[`settle-key:${input.idempotencyKey}`]);
       const previous = await client.query('select * from settlement_records where request_id=$1 or idempotency_key=$2', [input.requestId,input.idempotencyKey]);
       if (previous.rows.some((p) => p.request_id !== input.requestId)) throw new ConflictException('settlement key belongs to another request');
       if (previous.rowCount) {
         const known=settlementAmount(input,Number(r.amount),r.admission);
         if(previous.rows[0].response?.status==='pending_review'&&previous.rows[0].idempotency_key===`${input.requestId}:lease-expired`&&input.usageFinal===true&&input.inputTokens!==undefined&&input.outputTokens!==undefined&&!known.pending&&(known.billable||(input.outcome==='rejected_before_upstream'&&input.forwarded===false))){
-          const recovered=await this.reconcileWithinBusinessTransaction({requestId:input.requestId,idempotencyKey:`${input.idempotencyKey}:recovered-final`,actorId:'system:data-plane-recovery',reason:known.billable?'迟到的完整上游用量，按原预占价格自动核对':'数据面持久化记录确认未转发，释放原预占',mode:known.billable?'confirm_usage':'release_hold',inputTokens:input.inputTokens,outputTokens:input.outputTokens,cachedInputTokens:input.cachedInputTokens,actualAmount:input.actualAmount},client);
-          const scopes=await client.query('select scope_id from reservation_limit_scopes where reservation_id=$1',[r.reservation_id]);await this.lock(client,scopes.rows.map(scope=>`limit:${scope.scope_id}`));
-          await client.query(`update admission_windows w set tokens=greatest(0,w.tokens-(r.estimated_tokens-$2::bigint-$3::bigint)) from reservation_limit_scopes r where r.reservation_id=$1 and w.scope_id=r.scope_id and w.window_start=r.window_start`,[r.reservation_id,input.inputTokens,input.outputTokens]);
+          const recovered=await this.reconcileWithinBusinessTransaction({requestId:input.requestId,idempotencyKey:`${input.idempotencyKey}:recovered-final`,actorId:'system:data-plane-recovery',reason:known.billable?'迟到的完整上游用量，按原预占价格自动核对':'数据面持久化记录确认未转发，释放原预占',mode:known.billable?'confirm_usage':'release_hold',meteredUsage:input.meteredUsage,inputTokens:input.inputTokens,outputTokens:input.outputTokens,cachedInputTokens:input.cachedInputTokens,actualAmount:input.actualAmount},client);
+          if(!known.billable){const scopes=await client.query('select scope_id from reservation_limit_scopes where reservation_id=$1',[r.reservation_id]);await this.lock(client,scopes.rows.map(scope=>`limit:${scope.scope_id}`));await client.query(`update admission_windows w set tokens=greatest(0,w.tokens-(r.estimated_tokens-$2::bigint-$3::bigint)) from reservation_limit_scopes r where r.reservation_id=$1 and w.scope_id=r.scope_id and w.window_start=r.window_start`,[r.reservation_id,input.inputTokens,input.outputTokens]);}
           await client.query('update call_logs set outcome=$1,completed_at=$2,latency_ms=$3,forwarded=coalesce($5,forwarded),usage_final=true,error_code=coalesce($6,error_code) where request_id=$4',[input.outcome,input.completedAt,Math.max(0,Math.min(2147483647,Date.parse(input.completedAt)-r.created_at.getTime())),input.requestId,input.forwarded??null,input.errorCode??null]);await client.query('commit');return recovered;
         }
         await client.query('commit');
         return { ...(previous.rows[0].response as SettlementResponse),status:'already_finalized' };
       }
       if (r.finalized) throw new ConflictException('finalized reservation has no settlement record');
-      const { amount, pending, billable } = settlementAmount(input, Number(r.amount),r.admission as AdmissionSnapshot|null);
-      if (!pending) await client.query('update quota_batches set available_amount=available_amount+case when closed_at is null then $1::numeric else 0 end,closed_amount=closed_amount+case when closed_at is not null then $1::numeric else 0 end where id=$2', [Number(r.amount)-amount,r.batch_id]);
+      const calculated=settlementAmount(input,Number(r.amount),r.admission as AdmissionSnapshot|null,true);
+      const {amount,billable}=calculated;let pending=calculated.pending;
+      if(!pending){
+        const release=Number((Number(r.amount)-amount).toFixed(6));
+        // Conditional UPDATE is the funding lock: concurrent completions cannot
+        // spend the same available balance or debit another purpose/batch.
+        const funded=await client.query(`update quota_batches set
+          available_amount=available_amount+case when closed_at is null then $1::numeric else 0 end,
+          closed_amount=closed_amount+case when closed_at is not null then $1::numeric else 0 end
+          where id=$2 and ((accounting and closed_at is null) or (case when closed_at is null then available_amount else closed_amount end)+$1>=0)
+          returning id`,[release,r.batch_id]);
+        if(!funded.rowCount)pending=true;
+      }
       await client.query('update reservations set finalized=true where reservation_id=$1', [r.reservation_id]);
       const response: SettlementResponse = pending
         ? { requestId:input.requestId,status:'pending_review',billableState:'pending_review',ledgerEntryId:null }
@@ -245,6 +277,7 @@ export class PostgresStore extends DemoStore implements OnModuleDestroy {
       await client.query('insert into settlement_records(request_id,idempotency_key,response) values($1,$2,$3)', [input.requestId,input.idempotencyKey,response]);
       await client.query(`insert into call_logs(request_id,started_at,completed_at,subject_type,subject_id,credential_id,purpose,model_id,outcome,input_tokens,output_tokens,cached_input_tokens,actual_amount,billable_state,reservation_id,project_id,admission,organization_id,latency_ms,usage_final,forwarded,upstream_request_id,retry_of_request_id,ttft_ms,error_code)
         values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25)`, [input.requestId,r.created_at,input.completedAt,r.identity.subjectType,r.identity.subjectId,r.identity.credentialId,r.purpose,r.model_id,input.outcome,input.inputTokens??0,input.outputTokens??0,input.cachedInputTokens??0,amount,response.billableState,r.reservation_id,r.identity.projectId??null,r.admission,r.identity.organizationId??null,Math.max(0,Math.min(2147483647,Date.parse(input.completedAt)-r.created_at.getTime())),input.usageFinal!==false&&input.inputTokens!==undefined&&input.outputTokens!==undefined,input.forwarded??(input.outcome==='rejected_before_upstream'?false:null),input.upstreamRequestId??null,r.retry_of_request_id??null,input.ttftMs??null,input.errorCode??null]);
+      if(input.meteredUsage)await client.query('update call_logs set metered_usage=$2 where request_id=$1',[input.requestId,JSON.stringify(input.meteredUsage)]);
       await client.query("update call_logs set safety=(select response->'guardrail' from authorization_records where request_id=$1) where request_id=$1",[input.requestId]);
       await client.query('commit'); return response;
     } catch (error) { failed=true;await client.query('rollback'); throw error; } finally { trace.finish(failed);raw.release(); }
@@ -256,7 +289,7 @@ export class PostgresStore extends DemoStore implements OnModuleDestroy {
     const raw=await this.pool.connect().catch(error=>{trace.finish(true);throw error;});
     const client=trace.acquired(raw);let failed=false;
     try{
-      const result=await client.query('select * from credentials where (api_key=$1 or api_key=$2) and active=true',[apiKey,`sha256:${createHash('sha256').update(apiKey).digest('hex')}`]);
+      const result=await client.query("select * from credentials where (api_key=$1 or api_key=$2) and active=true and not exists(select 1 from platform_workspace w cross join lateral jsonb_array_elements(w.payload->'keys') k where k->>'credentialId'=credentials.credential_id and (k->>'status'<>'active' or (k->>'expiresAt')::timestamptz<=clock_timestamp()))",[apiKey,`sha256:${createHash('sha256').update(apiKey).digest('hex')}`]);
       const r=result.rows[0];return r?{credentialId:r.credential_id,identity:r.identity,purpose:r.purpose,modelIds:parseModelIds(r.model_ids)}:null;
     }catch(error){failed=true;throw error;}finally{trace.finish(failed);raw.release();}
   }
@@ -308,7 +341,88 @@ export class PostgresStore extends DemoStore implements OnModuleDestroy {
       catch(error){failed=true;await client.query('rollback');throw error;}finally{trace.finish(failed);}
     }).catch(error=>{trace.finish(true);throw error;});
   }
-  private mapCall(r:CallRow):CallLog{return {safety:r.safety??null,requestId:r.request_id,upstreamRequestId:r.upstream_request_id??null,retryOfRequestId:r.retry_of_request_id??null,startedAt:r.started_at.toISOString(),completedAt:r.completed_at.toISOString(),subjectType:r.subject_type,subjectId:r.subject_id,credentialId:r.credential_id,purpose:r.purpose,projectId:r.project_id,modelId:r.model_id,outcome:r.outcome,inputTokens:r.input_tokens,outputTokens:r.output_tokens,cachedInputTokens:r.cached_input_tokens,actualAmount:Number(r.actual_amount),billableState:r.billable_state,reservationId:r.reservation_id,admission:publicLogAdmission(r.admission as AdmissionSnapshot|null),organizationId:r.organization_id,errorCode:r.error_code,latencyMs:r.latency_ms,usageFinal:r.usage_final??undefined,forwarded:r.forwarded??null,ttftMs:r.ttft_ms??null};}
+  private mapCall(r:CallRow):CallLog{return {meteredUsage:r.metered_usage??null,safety:r.safety??null,requestId:r.request_id,upstreamRequestId:r.upstream_request_id??null,retryOfRequestId:r.retry_of_request_id??null,startedAt:r.started_at.toISOString(),completedAt:r.completed_at.toISOString(),subjectType:r.subject_type,subjectId:r.subject_id,credentialId:r.credential_id,purpose:r.purpose,projectId:r.project_id,modelId:r.model_id,outcome:r.outcome,inputTokens:r.input_tokens,outputTokens:r.output_tokens,cachedInputTokens:r.cached_input_tokens,actualAmount:Number(r.actual_amount),billableState:r.billable_state,reservationId:r.reservation_id,admission:publicLogAdmission(r.admission as AdmissionSnapshot|null),organizationId:r.organization_id,errorCode:r.error_code,latencyMs:r.latency_ms,usageFinal:r.usage_final??undefined,forwarded:r.forwarded??null,ttftMs:r.ttft_ms??null};}
+  async createMediaJob(input:{id:string;requestId:string;reservationId:string}):Promise<import('@ai-gateway/contracts').MediaJob>{
+    return this.withClient(async client=>{await client.query('begin');try{
+      const old=await client.query('select payload from model_media_jobs where request_id=$1',[input.requestId]);if(old.rowCount){await client.query('commit');return old.rows[0].payload;}
+      const r=(await client.query('select * from reservations where request_id=$1 and reservation_id=$2 and finalized=false for update',[input.requestId,input.reservationId])).rows[0];if(!r||r.admission?.route?.kind!=='video')throw new ConflictException('active video reservation required');
+      const at=new Date().toISOString(),job:import('@ai-gateway/contracts').MediaJob={id:input.id,requestId:input.requestId,reservationId:input.reservationId,identity:r.identity,purpose:r.purpose,modelId:r.model_id,callbackChannelId:r.admission.callbackChannelId??null,route:r.admission.route,status:'submitting',upstreamId:null,createdAt:at,updatedAt:at,meterUnit:r.admission.price?.meter?.unit,estimatedUnits:r.admission.meterEstimate?.quantity??null,result:null,errorCode:null,settled:false};
+      await client.query('insert into model_media_jobs(id,request_id,payload) values($1,$2,$3)',[job.id,job.requestId,JSON.stringify(job)]);await client.query('commit');return job;
+    }catch(error){await client.query('rollback');throw error;}});
+  }
+  async findMediaJob(requestId:string):Promise<import('@ai-gateway/contracts').MediaJob|null>{return (await this.pool.query('select payload from model_media_jobs where request_id=$1',[requestId])).rows[0]?.payload??null;}
+  async getMediaJob(id:string):Promise<import('@ai-gateway/contracts').MediaJob|null>{const row=(await this.pool.query("select j.payload,r.finalized,s.response->>'status' as reservation_status from model_media_jobs j left join reservations r using(request_id) left join settlement_records s using(request_id) where j.id=$1",[id])).rows[0];return row?{...row.payload,reservationFinalized:row.finalized,reservationStatus:row.reservation_status??undefined}:null;}
+  override async listMediaJobs(limit:number,cursor:string|undefined,scope:CallScope):Promise<import('@ai-gateway/contracts').MediaJob[]>{
+    const before=cursor?decodeCursor(cursor):null;
+    const result=await this.pool.query(`select j.payload,r.finalized,s.response->>'status' as reservation_status
+      from model_media_jobs j left join reservations r using(request_id) left join settlement_records s using(request_id)
+      where ($1::boolean or j.payload->'identity'->>'subjectType'='employee' and j.payload->'identity'->>'subjectId'=$2 or j.payload->'identity'->>'subjectType'='application' and j.payload->'identity'->>'subjectId'=any($3::text[]))
+      and ($4::text is null or (j.payload->>'createdAt',j.id::text)<($4,$5))
+      order by j.payload->>'createdAt' desc,j.id desc limit $6`,[scope===null,scope?.employeeId??null,scope?.applicationIds??[],before?.[0]??null,before?.[1]??null,limit]);
+    return result.rows.map(row=>({...row.payload,reservationFinalized:row.finalized,reservationStatus:row.reservation_status??undefined}));
+  }
+  override async pendingMediaCallbacks(activeChannelIds?:string[]):Promise<import('@ai-gateway/contracts').MediaJob[]>{
+    return (await this.pool.query("select payload from model_media_jobs where payload->>'callbackChannelId' is not null and coalesce(payload->>'callbackQueued','false')='false' and payload->>'finishedAt' is not null and payload->>'settled'='true' and ($1::text[] is null or payload->>'callbackChannelId'=any($1::text[])) order by updated_at limit 100",[activeChannelIds??null])).rows.map(row=>row.payload);
+  }
+  override async markMediaCallbacksQueued(ids:string[]){await this.pool.query("update model_media_jobs set payload=jsonb_set(payload,'{callbackQueued}','true'::jsonb) where id::text=any($1::text[])",[ids]);}
+  async claimMediaJobs(workerId:string):Promise<import('@ai-gateway/contracts').MediaJob[]>{
+    return (await this.pool.query(`with claimed as(select id from model_media_jobs where payload->>'settled'='false' and (lease_until is null or lease_until<now()) order by updated_at limit 4 for update skip locked)
+      update model_media_jobs j set lease_until=now()+interval '30 seconds',lease_owner=$1 from claimed c where j.id=c.id returning j.payload`,[workerId])).rows.map(r=>r.payload);
+  }
+  private async mutateMediaJob<T>(id:string,change:(job:import('@ai-gateway/contracts').MediaJob|null)=>{changed:boolean;value:T}){return this.withClient(async client=>{await client.query('begin');try{const row=(await client.query('select payload from model_media_jobs where id=$1 for update',[id])).rows[0];const result=change(row?.payload??null);if(result.changed)await client.query('update model_media_jobs set payload=$2,updated_at=now(),lease_until=null where id=$1',[id,JSON.stringify(row.payload)]);await client.query('commit');return result.value;}catch(error){await client.query('rollback');throw error;}});}
+  async mediaJobReceipt(raw:import('@ai-gateway/contracts').MediaJobReceipt){const v=jobReceipt(raw);return this.mutateMediaJob(v.id,job=>{if(!job)throw new ConflictException('job unavailable');return {changed:applyJobReceipt(job,v),value:{recorded:true}};});}
+  async updateMediaJob(raw:import('@ai-gateway/contracts').MediaJobUpdate){const v=jobUpdate(raw);return this.mutateMediaJob(v.id,job=>{if(!job)throw new ConflictException('job unavailable');const recorded=applyJobUpdate(job,v);return {changed:recorded,value:{recorded}};});}
+  async claimMediaCancellation(id:string,token:string){return this.mutateMediaJob(id,job=>{const claimed=!!job&&claimJobCancellation(job,token);return {changed:claimed,value:{claimed,job}};});}
+  async recordGatewayTrace(raw:import('@ai-gateway/contracts').GatewayRequestTrace){
+    const row=validateGatewayTrace(raw);
+    await this.pool.query(`insert into gateway_request_traces(attempt_id,request_id,trace_id,started_at,revision,payload) values($1,$2,$3,$4,$5,$6)
+      on conflict(attempt_id) do update set revision=excluded.revision,payload=excluded.payload
+      where gateway_request_traces.revision<excluded.revision and gateway_request_traces.payload->>'completedAt' is null
+      and gateway_request_traces.request_id=excluded.request_id and gateway_request_traces.trace_id=excluded.trace_id and gateway_request_traces.started_at=excluded.started_at`,[row.attemptId,row.requestId,row.traceId,row.startedAt,row.revision,JSON.stringify(row)]);
+  }
+  async queryGatewayTraces(raw:import('@ai-gateway/contracts').GatewayTraceQuery={}):Promise<import('@ai-gateway/contracts').GatewayTracePage>{
+    const q=traceQuery(raw),values:unknown[]=[],conditions:string[]=[];
+    const add=(sql:string,value:unknown)=>{values.push(value);conditions.push(sql.replace('?',`$${values.length}`));};
+    for(const [key,column]of [['requestId','request_id'],['traceId','trace_id'],['subjectId',"payload#>>'{identity,subjectId}'"],['serviceId',"payload#>>'{route,serviceId}'"],['poolId',"payload#>>'{route,poolId}'"]] as const)if(q[key])add(`${column}=?`,q[key]);
+    if(q.from)add('started_at>=?',q.from);if(q.to)add('started_at<?',q.to);
+    if(q.state)conditions.push(q.state==='active'?"payload->>'completedAt' is null":q.state==='ended'?"payload->>'completedAt' is not null":"((payload->>'status')::int>=400 or payload->>'errorCode' is not null)");
+    if(q.cursor){values.push(q.cursor.at,q.cursor.id);conditions.push(`(started_at,attempt_id)<($${values.length-1}::timestamptz,$${values.length}::uuid)`);}
+    values.push(q.limit+1);const result=await this.pool.query(`select payload from gateway_request_traces ${conditions.length?'where '+conditions.join(' and '):''} order by started_at desc,attempt_id desc limit $${values.length}`,values);
+    const items=result.rows.slice(0,q.limit).map(r=>r.payload as import('@ai-gateway/contracts').GatewayRequestTrace),last=items.at(-1);
+    return {items,nextCursor:result.rows.length>q.limit&&last?{at:last.startedAt,id:last.attemptId}:null,collectedAt:new Date().toISOString()};
+  }
+  override async operationalBacklog(filter:import('../platform/operational-metrics').BacklogFilter):Promise<import('../platform/operational-metrics').BacklogSnapshot>{
+    const result=await this.pool.query(`select 'media' as kind,count(*)::int as count,
+      coalesce(greatest(0,extract(epoch from clock_timestamp()-min((payload->>'createdAt')::timestamptz))),0) as oldest
+      from model_media_jobs where payload->>'finishedAt' is null
+      and ($1::text is null or payload->'route'->>'serviceId'=$1)
+      and ($2::text is null or payload->'route'->>'poolId'=$2)
+      and ($3::text is null or payload->>'modelId'=$3)
+      union all select 'settlement',count(*)::int,
+      coalesce(greatest(0,extract(epoch from clock_timestamp()-min(completed_at))),0)
+      from call_logs where billable_state='pending_review'
+      and ($1::text is null or admission->'route'->>'serviceId'=$1)
+      and ($2::text is null or admission->'route'->>'poolId'=$2)
+      and ($3::text is null or model_id=$3)`,[filter.serviceId??null,filter.poolId??null,filter.modelId??null]);
+    const stats=(kind:string)=>{const row=result.rows.find(row=>row.kind===kind);return {count:Number(row.count),oldestSeconds:Number(row.oldest)};};
+    return {collectedAt:new Date().toISOString(),media:stats('media'),settlement:stats('settlement')};
+  }
+  override async upstreamCredentialUsage(id:string){
+    const result=await this.pool.query(`select (admission->'route'->'credential'->>'version')::int as version,
+      count(*)::int as calls,count(*) filter(where outcome<>'completed')::int as failures,max(completed_at) as last_used_at
+      from call_logs where admission->'route'->'credential'->>'id'=$1 and forwarded=true group by 1 order by 1 desc`,[id]);
+    return result.rows.map(row=>({version:row.version,calls:row.calls,failures:row.failures,lastUsedAt:row.last_used_at.toISOString()}));
+  }
+  override async routeObservations(serviceIds:string[]){return postgresRouteObservations(this.pool,serviceIds);}
+  async capacityCounters(scopeIds:string[]):Promise<import('@ai-gateway/contracts').CapacityCounters>{
+    // One MVCC snapshot and one database clock for every scope, across all gateway instances.
+    const result=await this.pool.query(`with sample as materialized(select statement_timestamp() as at),
+      active as(select scope_id,count(*)::int as count from reservation_limit_scopes,sample where active=true and expires_at>sample.at and scope_id=any($1::text[]) group by scope_id)
+      select sample.at,date_trunc('minute',sample.at) as start,s.id,coalesce(w.requests,0) as requests,coalesce(w.tokens,0) as tokens,coalesce(a.count,0) as active
+      from sample left join unnest($1::text[]) s(id) on true left join admission_windows w on w.scope_id=s.id and w.window_start=date_trunc('minute',sample.at) left join active a on a.scope_id=s.id`,[[...new Set(scopeIds)]]);
+    const at=result.rows[0].at as Date,start=result.rows[0].start as Date;
+    return {collectedAt:at.toISOString(),windowStart:start.toISOString(),windowEnd:new Date(start.getTime()+60000).toISOString(),rows:result.rows.filter(r=>r.id).map(r=>({scopeId:r.id,requests:Number(r.requests),tokens:Number(r.tokens),active:Number(r.active)}))};
+  }
   async inFlightCounts(client?:PoolClient):Promise<InFlightCount[]>{
     const read=async()=>{const result=await (client??this.pool).query(`select admission->'route'->>'serviceId' as service_id,model_id,count(*)::int as count from reservations where finalized=false and expires_at>clock_timestamp() group by 1,2`);return result.rows.map(r=>({serviceId:r.service_id,modelId:r.model_id,count:r.count}));};
     return client?this.statisticsWithin(client,read):read();
@@ -343,7 +457,7 @@ export class PostgresStore extends DemoStore implements OnModuleDestroy {
       try{
         await client.query(`update service_verification_runs set state='interrupted',completed_at=clock_timestamp(),note='验证进程中断，已发出的请求用量待确认；不会自动重发。' where state='running' and lease_expires_at<=clock_timestamp()`);
         const prior=await client.query('select * from service_verification_runs where idempotency_key=$1',[input.idempotencyKey]);
-        if(prior.rowCount){const run=this.mapVerification(prior.rows[0]);if(run.serviceId!==input.serviceId)throw new ConflictException('verification key was reused for another service');await client.query('commit');return {run,replayed:true};}
+        if(prior.rowCount){const run=this.mapVerification(prior.rows[0]);if(run.serviceId!==input.serviceId||run.mappings[0]?.requestFingerprint!==input.mappings[0]?.requestFingerprint)throw new ConflictException('verification key was reused for another request');await client.query('commit');return {run,replayed:true};}
         const inserted=await client.query(`insert into service_verification_runs(id,idempotency_key,service_id,service_name,operator_id,config_version,state,mappings,results,note,started_at,completed_at,lease_expires_at)
           values($1,$2,$3,$4,$5,$6,'running',$7,'[]'::jsonb,null,clock_timestamp(),null,clock_timestamp()+interval '2 minutes') returning *`,[`verification-${randomUUID()}`,input.idempotencyKey,input.serviceId,input.serviceName,input.operatorId,input.configVersion,JSON.stringify(input.mappings)]);
         await client.query('commit');return {run:this.mapVerification(inserted.rows[0]),replayed:false};
@@ -379,6 +493,11 @@ export class PostgresStore extends DemoStore implements OnModuleDestroy {
     const rows=result.rows.slice(0,limit);
     return {items:rows.map(row=>this.mapVerification(row)),nextBefore:result.rows.length>rows.length?rows.at(-1)?.started_at.toISOString()??null:null};
   }
+  override async dispatchRoute(requestId:string,reservationId:string,jobId?:string):Promise<import('@ai-gateway/contracts').RouteSnapshot|null>{
+    if(jobId){const job=await this.getMediaJob(jobId);return job?.requestId===requestId&&job.reservationId===reservationId?job.route:null;}
+    const result=await this.pool.query("select admission->'route' as route from reservations where request_id=$1 and reservation_id=$2 and not finalized and expires_at>clock_timestamp()",[requestId,reservationId]);
+    return result.rows[0]?.route??null;
+  }
   async getReservationSummary(requestId:string){const result=await this.pool.query('select amount,batch_id,admission from reservations where request_id=$1',[requestId]),r=result.rows[0];return r?{amount:Number(r.amount),batchId:String(r.batch_id),admission:(r.admission as AdmissionSnapshot|null)??null}:null;}
   async listExpiredReservations(){const result=await this.pool.query('select request_id,reservation_id from reservations where finalized=false and expires_at<=clock_timestamp() order by expires_at limit 100');return result.rows.map(r=>({requestId:String(r.request_id),reservationId:String(r.reservation_id)}));}
   async renewReservation(requestId:string,reservationId:string){return this.withClient(async client=>{
@@ -402,14 +521,17 @@ export class PostgresStore extends DemoStore implements OnModuleDestroy {
       available_amount=available_amount+case when closed_at is null then $1::numeric else 0 end,
       closed_amount=closed_amount+case when closed_at is not null then $1::numeric else 0 end
       where id=$2 and (accounting or (case when closed_at is null then available_amount else closed_amount end)+$1>=0)
-      and available_amount+closed_amount+$1<=total_amount returning id`,[release,r.batch_id]);
+      and available_amount+closed_amount+returned_amount+$1<=total_amount returning id`,[release,r.batch_id]);
     if(!updated.rowCount)throw new ConflictException('original quota batch has insufficient funds or invalid balance');
     const response:SettlementResponse={requestId:input.requestId,status:result.billable?'settled':'released',billableState:result.billable?'confirmed':'not_billable',ledgerEntryId:`ledger-${randomUUID()}`};
+    const priorUsage=(await client.query('select usage_final,input_tokens,output_tokens from call_logs where request_id=$1 for update',[input.requestId])).rows[0];
+    if(input.mode==='confirm_usage'){const scopes=await client.query('select scope_id from reservation_limit_scopes where reservation_id=$1',[r.reservation_id]);await this.lock(client,scopes.rows.map(scope=>`limit:${scope.scope_id}`));await client.query(`update admission_windows w set tokens=greatest(0,w.tokens-(case when $2::boolean then $3::bigint else r.estimated_tokens end)+$4::bigint) from reservation_limit_scopes r where r.reservation_id=$1 and w.scope_id=r.scope_id and w.window_start=r.window_start`,[r.reservation_id,priorUsage?.usage_final===true,Number(priorUsage?.input_tokens??0)+Number(priorUsage?.output_tokens??0),(input.inputTokens??0)+(input.outputTokens??0)]);}
     const changed=await client.query(`update call_logs set actual_amount=$1,billable_state=$2,
       input_tokens=case when $3 then $4 else input_tokens end,output_tokens=case when $3 then $5 else output_tokens end,
       cached_input_tokens=case when $3 then $6 else cached_input_tokens end,usage_final=case when $3 then true else usage_final end where request_id=$7 returning request_id`,[result.amount,response.billableState,input.mode==='confirm_usage',input.inputTokens??0,input.outputTokens??0,input.cachedInputTokens??0,input.requestId]);
     if(!changed.rowCount)throw new ConflictException('pending call log is missing');
     await client.query('update settlement_records set response=$1 where request_id=$2',[response,input.requestId]);
+    if(input.meteredUsage&&input.mode==='confirm_usage')await client.query('update call_logs set metered_usage=$2 where request_id=$1',[input.requestId,JSON.stringify(input.meteredUsage)]);
     await client.query('insert into reconciliation_records(request_id,idempotency_key,fingerprint,actor_id,reason,response) values($1,$2,$3,$4,$5,$6)',[input.requestId,input.idempotencyKey,fingerprint,input.actorId,input.reason,response]);
     await client.query('insert into usage_ledger_entries(id,request_id,reservation_id,batch_id,kind,amount,detail) values($1,$2,$3,$4,$5,$6,$7)',[response.ledgerEntryId,input.requestId,r.reservation_id,r.batch_id,'reconciliation',result.amount,{actorId:input.actorId,reason:input.reason,mode:input.mode,reservedAmount:Number(r.amount),releasedAmount:release,admission:r.admission}]);
     return response;

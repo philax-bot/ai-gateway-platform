@@ -6,7 +6,7 @@ import { summarizeVerification } from '@ai-gateway/contracts';
 import { DemoStore } from '../store/demo.store';
 import { WorkspaceRepository } from './workspace.repository';
 import { PlatformService } from './platform.service';
-import { verificationCost, verificationPrice } from './verification';
+import { verificationCost, verificationPrice,probeProtocol } from './verification';
 
 const operator = 'operator-demo-001';
 const servers: Server[] = [];
@@ -31,12 +31,18 @@ async function harness(handler: (request: IncomingMessage, response: ServerRespo
     current.verification = 'unverified';
     current.verificationMessage = '';
     current.mappings[0].upstreamModel = 'upstream-validation-model';
-    Object.assign(current.mappings[0], { inputPrice: 2, outputPrice: 3, cachedInputPrice: 0.5 });
+    Object.assign(current.mappings[0], { inputPrice: 2, outputPrice: 3, cachedInputPrice: 0.5,costPrice:{inputPrice:2,outputPrice:3,cachedInputPrice:0.5} });
   });
   return { ledger, repository, platform, serviceId: service.id };
 }
 
 const completion = (usage: unknown) => JSON.stringify({ choices: [{ message: { role: 'assistant', content: 'ok' } }], usage });
+
+it('requires a complete SSE terminal payload rather than a literal marker inside text',async()=>{
+  let terminal=false;const h=await harness((_request,response)=>{response.writeHead(200,{'content-type':'text/event-stream'});response.write(`data: ${JSON.stringify({choices:[{delta:{content:'literal [DONE] text'}}],usage:{prompt_tokens:1,completion_tokens:1}})}\n\n`);response.end(terminal?'data: [DONE]\n\n':'');});
+  const state=await h.repository.read(),service=state.services[0],mapping=service.mappings[0];
+  for(const enabled of [false,true]){terminal=enabled;const result=await probeProtocol('chat',service.baseUrl+'/v1/chat/completions',mapping.upstreamModel,null,false,mapping,null,'stream');expect(result.outcome).toBe(enabled?'passed':'failed');}
+});
 
 describe('platform connection verification metering', () => {
   it('keeps Chat-only services usable and distinguishes unsupported from transient probe failures',async()=>{
@@ -93,7 +99,7 @@ describe('platform connection verification metering', () => {
 
     await h.repository.transact(async tx => {
       const mapping = tx.state.services[0].mappings[0];
-      Object.assign(mapping, { inputPrice: null, outputPrice: null, cachedInputPrice: null });
+      Object.assign(mapping, { inputPrice: null, outputPrice: null, cachedInputPrice: null,costPrice:null });
     });
     mode = 'unknown-price';
     const unknownPrice = await h.platform.verifyService(operator, h.serviceId, { idempotencyKey: 'verify-unknown-price' });
@@ -193,7 +199,7 @@ describe('platform connection verification metering', () => {
   });
 
   it('treats a zero price as a priced cost and never invents zero for unknown usage', () => {
-    const price = verificationPrice('service', 1, { definitionId: 'definition', upstreamModel: 'model', inputPrice: 0, outputPrice: 0, cachedInputPrice: 0 });
+    const price = verificationPrice('service', 1, { definitionId: 'definition', upstreamModel: 'model', inputPrice: 9, outputPrice: 9, cachedInputPrice: 9,costPrice:{inputPrice:0,outputPrice:0,cachedInputPrice:0} });
     expect(price).not.toBeNull();
     expect(verificationCost(price, { inputTokens: 10, outputTokens: 5, cachedInputTokens: 0 })).toMatchObject({ state: 'priced', amount: 0 });
     expect(verificationCost(null, { inputTokens: 10, outputTokens: 5, cachedInputTokens: 0 })).toMatchObject({ state: 'price_unknown', amount: null });

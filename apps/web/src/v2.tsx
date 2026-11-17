@@ -38,8 +38,8 @@ export function Icon({ name, size = 18 }: { name: IconName; size?: number }) {
 export function navIcon(id: string): IconName {
   if(id==='available')return 'chip';
   return ({
-    overview: 'home', usage:'chart', leaderboard:'signal', 'cockpit-light':'chart', 'cockpit-tech':'signal', 'cockpit-beacon':'grid', home: 'home', onboarding: 'userPlus', online: 'spark', agent:'spark',
-    quota: 'wallet', approvals: 'inbox', projects: 'folder', applications: 'grid',
+    overview: 'home', usage:'chart', leaderboard:'signal', 'cockpit-light':'chart', 'cockpit-tech':'signal', 'cockpit-beacon':'grid', home: 'home', onboarding: 'userPlus', online: 'spark', multimodal:'spark','media-tasks':'list', agent:'spark',
+    quota: 'wallet', plans:'checklist', approvals: 'inbox', projects: 'folder', applications: 'grid',
     catalog:'chip', models: 'chip', pools:'grid', capacity:'sliders', members: 'users', keys: 'key', monitoring: 'activity',
     safety:'checklist', calls: 'list', reviews: 'checklist', settings: 'sliders', notifications: 'bell',
   } as Record<string, IconName>)[id] ?? 'grid';

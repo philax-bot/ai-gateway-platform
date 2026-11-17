@@ -109,8 +109,8 @@ export async function checkBusiness({controlPlaneUrl:cp,gatewayUrl:gw,modelUrl:m
   assertions+=await checkRetention({admin,employeeCookie,request,state,command,updateWorkspaceForCheck});
   assertions+=await checkAudit({admin,employeeCookie,request,state,command,updateWorkspaceForCheck});
 
-  const project=(await command(admin,'save.project',{name:'验收项目',managerId:manager.id,range})).result;
-  const beforeFunding=await state(admin);check(!beforeFunding.projectBudgets.some(b=>b.projectId===project.id),'project creation creates no budget');
+  const project=(await command(admin,'save.project',{initialAmount:1,validity:'permanent',name:'验收项目',managerId:manager.id,range})).result;
+  const beforeFunding=await state(admin);check(beforeFunding.projectBudgets.find(b=>b.projectId===project.id)?.totalAmount===1,'project creation atomically grants the required initial budget');
   await command(managerCookie,'project.members',{projectId:project.id,memberIds:[employee.id]});
   check(!(await state(admin)).quotaBatches.some(b=>b.projectId===project.id),'membership creates no member money');
   const budget=(await command(admin,'project.fund',{projectId:project.id,amount:20,expiresAt:future})).result;
@@ -126,7 +126,7 @@ export async function checkBusiness({controlPlaneUrl:cp,gatewayUrl:gw,modelUrl:m
   check((await request('/api/v1/platform/commands',{...over,previewToken:overPreview.body.previewToken},managerCookie)).status===409,'cannot overallocate project budget');
   check((await state(admin)).projectBudgets.find(b=>b.id===budget.id).availableAmount===12,'failed allocation rolls back');
 
-  const app=(await command(admin,'save.application',{billingMode:'quota',name:'独立应用',ownerId:employee.id,organizationId:'org-demo',range})).result;
+  const app=(await command(admin,'save.application',{initialAmount:1,validity:'permanent',billingMode:'quota',name:'独立应用',ownerId:employee.id,organizationId:'org-demo',range})).result;
   await command(admin,'application.fund',{applicationId:app.id,amount:50,expiresAt:future});
   const appKey=(await command(employeeCookie,'key.issue',{name:'应用接入',purpose:'application',applicationId:app.id})).result;
   await command(admin,'save.member',{id:employee.id,name:employee.name,directoryId:employee.directoryId,organizationId:employee.organizationId,category:'employee',roles:['employee'],tags:[],active:false});

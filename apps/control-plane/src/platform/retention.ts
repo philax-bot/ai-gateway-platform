@@ -21,7 +21,7 @@ export function prepareRetention(state:WorkspaceState,checkedAt=new Date().toISO
   if(!Number.isInteger(days)||days<1||days>3650)throw new ConflictException('retention policy is invalid; configure it before cleanup');
   const events=[...(state.monitoring?.events??[]),...(state.monitoring?.collectionEvents??[])];
   function finished(type:string,id:string){
-    if(type==='approval')return ['effective','rejected','withdrawn'].includes(state.approvals.find(a=>a.id===id)?.status??'');
+    if(type==='approval')return ['effective','rejected','withdrawn','closed'].includes(state.approvals.find(a=>a.id===id)?.status??'');
     if(type==='alert')return events.some(e=>e.id===id&&e.status==='recovered');
     return true;
   }

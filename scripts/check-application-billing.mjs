@@ -54,8 +54,9 @@ export async function checkApplicationBilling({cp,gateway,web,seeded,cdp,evaluat
   check(!(await visibleText()).includes('申请追加额度'),'accounting has no direct quota request');
   await clickExact('申请切换为额度模式');await waitFor(`document.querySelector('dialog[open]')?.innerText.includes('申请初始额度')`);
   await evaluate(`(()=>{const inputs=[...document.querySelectorAll('dialog[open] input')];const scenario=inputs.find(i=>i.closest('.form-field')?.innerText.includes('使用场景'));Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(scenario,'本地模式切换验收');scenario.dispatchEvent(new Event('input',{bubbles:true}));})()`);
+  await setInput('dialog[open] input[type=number]','100');
   await setInput('dialog[open] textarea','确认历史账目保留，新额度独立使用','HTMLTextAreaElement');
-  await clickExact('继续');await waitFor(`document.querySelectorAll('dialog[open]').length===2`);await clickExact('确认执行');await waitFor(`!document.querySelector('dialog[open]')`);
+  await clickExact('提交申请');await waitFor(`document.querySelectorAll('dialog[open]').length===2`);await clickExact('确认提交申请');await waitFor(`!document.querySelector('dialog[open]')`);
   await apiLogin('web-employee',seeded.employeePassword);
   const approval=(await api('/api/v1/platform/state')).approvals.find(a=>a.kind==='application_billing'&&a.objectId===application.id);
   check(approval?.status==='pending','owner submits mode switch from the actual UI');

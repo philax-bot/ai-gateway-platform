@@ -22,8 +22,8 @@ describe('approval execution repairs and current responsibility',()=>{
   }
   it('previews and repairs without funding, then executes adjusted values exactly once with full history',async()=>{
     const a=await failedApproval(),before=await repo.view();expect(before.state.approvals.find(v=>v.id===a.id)?.status).toBe('failed');
-    expect((await platform.approvalDetail(operator,a.id)).permissions).toEqual({decide:false,repair:true,execute:true,withdraw:false});
-    expect((await platform.approvalDetail(employee,a.id)).permissions).toEqual({decide:false,repair:false,execute:false,withdraw:false});
+    expect((await platform.approvalDetail(operator,a.id)).permissions).toEqual({decide:false,repair:true,execute:true,withdraw:false,close:true});
+    expect((await platform.approvalDetail(employee,a.id)).permissions).toEqual({decide:false,repair:false,execute:false,withdraw:false,close:false});
     const c:PlatformCommand={type:'approval.repair',payload:{id:a.id,planId:plan.id,amount:6,expiresAt:future(),reason:'修正不存在的方案'},idempotencyKey:crypto.randomUUID()};
     const preview=await platform.preview(operator,c);expect(preview.impact.approvalBefore).toMatchObject({status:'failed',approvedAmount:8});expect(preview.impact.approvalAfter).toMatchObject({status:'approved',approvedAmount:6});
     expect((await repo.view()).batches).toEqual(before.batches);
@@ -32,7 +32,7 @@ describe('approval execution repairs and current responsibility',()=>{
     const key=crypto.randomUUID();await command('approval.execute',{id:a.id},operator,key);await command('approval.execute',{id:a.id},operator,key);await command('approval.execute',{id:a.id});
     expect((await repo.view()).batches.filter(b=>b.entitlementId).map(b=>b.totalAmount)).toEqual([6]);
     const detail=await platform.approvalDetail(employee,a.id);expect(detail.history.map(h=>h.action)).toEqual(expect.arrayContaining(['approval.submit','approval.decide','approval.execution_failed','approval.execution_repaired','approval.execute']));
-    expect((await platform.approvalDetail(operator,a.id)).permissions).toEqual({decide:false,repair:false,execute:false,withdraw:false});
+    expect((await platform.approvalDetail(operator,a.id)).permissions).toEqual({decide:false,repair:false,execute:false,withdraw:false,close:false});
     expect(detail.history.find(h=>h.action==='approval.execution_repaired')?.detail.before).toMatchObject({approvedAmount:8,execution:{planId:'wrong-plan'}});
     await expect(command('approval.repair',c.payload)).rejects.toThrow('only an approved or failed');
     await expect(platform.approvalDetail('missing-member',a.id)).rejects.toThrow();
@@ -58,11 +58,11 @@ describe('approval execution repairs and current responsibility',()=>{
     const event=(await platform.approvalDetail(employee,a.id)).history.find(h=>h.action==='approval.execution_repaired')!;expect((event.detail.before as any).approverId).toBe(operator);expect(event.actorId).toBe(second.id);
   });
   it('repairs project member quota from a same-project batch and inherits its exact expiry',async()=>{
-    const manager=await command('save.member',{directoryId:'manager',name:'经理',organizationId:'org-demo'}),project=await command('save.project',{name:'项目',managerId:manager.id,range});await command('project.members',{projectId:project.id,memberIds:[employee]});
+    const manager=await command('save.member',{directoryId:'manager',name:'经理',organizationId:'org-demo'}),project=await command('save.project',{initialAmount:1,validity:'permanent',name:'项目',managerId:manager.id,range});await command('project.members',{projectId:project.id,memberIds:[employee]});
     const a=await command('approval.submit',{kind:'project_member_quota',objectId:project.id,amount:3,expiresAt:future(),scenario:'项目',reason:'申请'},employee);
     await command('approval.decide',{id:a.id,decision:'approve',amount:3,expiresAt:future(),sourceBatchId:'missing',reason:'批准'},manager.id);await expect(command('approval.execute',{id:a.id},manager.id)).rejects.toThrow();
     const budget=await command('project.fund',{projectId:project.id,amount:5,expiresAt:future()});
-    const other=await command('save.project',{name:'其他项目',managerId:manager.id,range}),otherBudget=await command('project.fund',{projectId:other.id,amount:5,expiresAt:future()});
+    const other=await command('save.project',{initialAmount:1,validity:'permanent',name:'其他项目',managerId:manager.id,range}),otherBudget=await command('project.fund',{projectId:other.id,amount:5,expiresAt:future()});
     await expect(command('approval.repair',{id:a.id,sourceBatchId:otherBudget.id,expiresAt:otherBudget.expiresAt,reason:'跨项目'},manager.id)).rejects.toThrow('belong');
     await command('approval.repair',{id:a.id,sourceBatchId:budget.id,expiresAt:budget.expiresAt,reason:'新有效批次'},manager.id);await command('approval.execute',{id:a.id},manager.id);
     const view=await repo.view();expect(view.budgets.find(b=>b.id===budget.id)?.availableAmount).toBe(2);expect(view.batches.find(b=>b.sourceBatchId===budget.id)?.expiresAt).toBe(budget.expiresAt);

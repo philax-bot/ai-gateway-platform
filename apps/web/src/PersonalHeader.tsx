@@ -16,7 +16,7 @@ export function PersonalHeader({actorName,workspaceName,admin,page,unread,primar
   useEffect(()=>{
     const outside=(event:PointerEvent)=>{const more=moreRef.current;if(more&&!more.contains(event.target as Node))more.open=false;};
     const blur=(event:FocusEvent)=>{const more=moreRef.current;if(more&&!more.contains(event.target as Node))more.open=false;};
-    const resize=()=>{if(window.innerWidth>900)setMenu(false);};
+    const resize=()=>{if(window.innerWidth>1180)setMenu(false);};
     document.addEventListener('pointerdown',outside);document.addEventListener('focusin',blur);window.addEventListener('resize',resize);
     return()=>{document.removeEventListener('pointerdown',outside);document.removeEventListener('focusin',blur);window.removeEventListener('resize',resize);};
   },[]);

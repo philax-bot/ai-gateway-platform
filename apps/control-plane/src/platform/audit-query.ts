@@ -4,25 +4,27 @@ import {hash} from './validation';
 
 const actionNames:Record<string,string>={
   'workspace.bootstrap':'首次安装','save.organization':'保存组织','organization.impact':'核对组织影响','save.member':'保存成员','import.members':'导入成员',
-  'save.definition':'保存模型定义','save.service':'保存模型服务','service.verify':'验证模型连接','save.pool':'调整模型池','save.plan':'保存开通方案','save.rule':'保存自动开通规则',
+  'save.provider':'保存供应商','delete.provider':'删除供应商','save.definition':'保存模型定义','save.service':'保存模型服务','service.verify':'验证模型连接','save.pool':'调整模型池','save.plan':'保存开通方案','save.rule':'保存自动开通规则',
   'auto.apply':'为现有成员应用规则','distribution.execute':'执行开通或发放','entitlement.grant':'授予使用权益','entitlement.stop':'停止后续发放','entitlement.revoke':'撤销使用权益','quota.monthly_grant':'发放月度额度',
+  'project.initial_grant':'项目初始授额','application.initial_grant':'应用初始授额','project.changed':'项目配置变更','application.changed':'应用配置与交接',
+  'project.reclaim':'回收项目预算','project.return':'退回成员额度','project.extend':'延长项目额度','application.reclaim':'回收应用额度','application.extend':'延长应用额度',
   'save.project':'保存项目','project.members':'调整项目成员','project.fund':'发放项目预算','project.allocate':'分配项目成员额度','project.end':'结束项目','project.closed':'记录项目回收',
-  'save.application':'保存应用','application.fund':'发放应用额度','application.billing_changed':'切换应用计费模式','approval.submit':'提交申请','approval.withdraw':'撤回申请','approval.decide':'处理审批','approval.execute':'执行已批准事项','approval.repair':'修正执行参数','approval.execution_repaired':'记录审批修正','approval.execution_failed':'记录审批执行失败',
+  'save.application':'保存应用','application.fund':'发放应用额度','application.billing_changed':'切换应用计费模式','approval.submit':'提交申请','approval.withdraw':'撤回申请','approval.close':'关闭未生效申请','approval.decide':'处理审批','approval.execute':'执行已批准事项','approval.repair':'修正执行参数','approval.execution_repaired':'记录审批修正','approval.execution_failed':'记录审批执行失败',
   'key.issue':'签发密钥','key.status':'调整密钥状态','keys.status':'批量调整密钥','settings.update':'调整企业设置','settings.retention':'调整保留策略','retention.run':'清理运行辅助记录','notification.read':'读取站内通知','periodic.run':'检查周期发放','usage.reconcile':'核对调用费用',
-  'save.alert-rule':'保存告警规则','alert.ack':'知晓告警','alert.opened':'触发业务告警','alert.recovered':'恢复业务告警','alert.collection_opened':'记录采集故障','alert.collection_recovered':'记录采集恢复',
+  'credential.save':'维护上游凭据','pricing.update':'调整模型计价','alert.silence':'调整告警静默','notification.channel.save':'配置通知接收端','notification.delivery.retry':'重试通知投递','save.alert-rule':'保存告警规则','alert.ack':'知晓告警','alert.opened':'触发业务告警','alert.recovered':'恢复业务告警','alert.collection_opened':'记录采集故障','alert.collection_recovered':'记录采集恢复',
 };
 const systems:Record<string,string>={system:'系统','system:monthly':'周期发放任务','system:monitor':'监控任务','system:retention':'保留策略任务'};
 const record=(value:unknown):Record<string,unknown>=>value&&typeof value==='object'&&!Array.isArray(value)?value as Record<string,unknown>:{};
 const string=(value:unknown)=>typeof value==='string'?value:'';
-const labels:Record<string,string>={pending:'待审批',approved:'已批准待生效',effective:'已生效',failed:'执行失败',rejected:'已驳回',withdrawn:'已撤回',active:'已启用',disabled:'已停用',revoked:'已吊销',ended:'已结束',paused:'已暂停',passed:'验证通过',unverified:'尚未验证',manual:'手动开通',automatic:'自动开通',approval:'审批开通'};
-const name=(s:WorkspaceState,id:string)=>[...s.members,...s.organizations,...s.projects,...s.applications,...s.definitions,...s.services,...s.pools,...s.plans,...s.rules,...s.keys,...(s.monitoring?.rules??[])].find(v=>v.id===id)?.name;
+const labels:Record<string,string>={pending:'待审批',approved:'已批准待生效',effective:'已生效',failed:'执行失败',rejected:'已驳回',withdrawn:'已撤回',closed:'已关闭',active:'已启用',disabled:'已停用',revoked:'已吊销',ended:'已结束',paused:'已暂停',passed:'验证通过',unverified:'尚未验证',manual:'手动开通',automatic:'自动开通',approval:'审批开通'};
+const name=(s:WorkspaceState,id:string)=>[...(s.providers??[]),...(s.upstreamCredentials??[]),...(s.monitoring?.channels??[]),...s.members,...s.organizations,...s.projects,...s.applications,...s.definitions,...s.services,...s.pools,...s.plans,...s.rules,...s.keys,...(s.monitoring?.rules??[])].find(v=>v.id===id)?.name;
 const amount=(value:number)=>`${value.toLocaleString('zh-CN',{minimumFractionDigits:2,maximumFractionDigits:6})} 元`;
 
 export function auditObjectId(command:PlatformCommand,result:unknown):string|null{
   const p=command.payload,d=record(result),key=record(d.key);
   if(command.type==='key.issue')return string(key.id)||null;
   if(command.type.startsWith('project.'))return string(p.projectId)||null;
-  if(command.type==='application.fund')return string(p.applicationId)||null;
+  if(command.type.startsWith('application.'))return string(p.applicationId)||null;
   if(command.type==='usage.reconcile')return string(p.requestId)||null;
   if(command.type==='keys.status')return string(d.batchId)||null;
   if(command.type.startsWith('settings.')||command.type==='periodic.run')return null;
@@ -43,7 +45,7 @@ export function describeAudit(s:WorkspaceState,entry:AuditEntry):AuditRecord{
     else if(entry.action==='periodic.run')objectName='周期发放任务';
     else if(entry.action.startsWith('alert.collection_'))objectName='运行监控采集';
     else if(entry.action.startsWith('approval.')){
-      const approval=s.approvals.find(a=>a.id===objectId),kinds:Record<string,string>={project_create:'项目创建',project_budget:'项目预算',project_member_quota:'项目成员额度',personal_open:'个人开通',personal_topup:'个人额度追加',application_quota:'应用额度'};
+      const approval=s.approvals.find(a=>a.id===objectId),kinds:Record<string,string>={project_create:'项目创建',project_budget:'项目预算',project_member_quota:'项目成员额度',personal_open:'个人开通',personal_topup:'个人额度追加',application_quota:'应用额度',application_billing:'应用切换额度模式'};
       objectName=approval?`${kinds[approval.kind]??'业务'}申请 · ${name(s,approval.applicantId)??'历史申请人'}`:'历史审批事项';source=approval?'current':'unavailable';
     }else if(objectId){
       objectName=name(s,objectId)??'';source=objectName?'current':'unavailable';

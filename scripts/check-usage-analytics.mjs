@@ -29,15 +29,15 @@ export async function checkUsageAnalytics({database,schema,controlPlaneUrl:cp,se
   const manager=await command('save.member',{name:'聚合项目经理',directoryId:'usage-manager',organizationId:'department-engineering',category:'employee',roles:['employee'],tags:[],active:true,password});
   const state=(await request('/api/v1/platform/state',undefined,operator)).body;
   const range={poolId:state.pools[0].id,mode:'follow',definitionIds:[]};
-  const project=await command('save.project',{name:'聚合受管项目',managerId:manager.id,range});
-  const otherProject=await command('save.project',{name:'聚合其他项目',managerId:state.actor.id,range});
-  const application=await command('save.application',{billingMode:'quota',name:'聚合经理应用',ownerId:manager.id,organizationId:'department-engineering',range});
+  const project=await command('save.project',{initialAmount:1,validity:'permanent',name:'聚合受管项目',managerId:manager.id,range});
+  const otherProject=await command('save.project',{initialAmount:1,validity:'permanent',name:'聚合其他项目',managerId:state.actor.id,range});
+  const application=await command('save.application',{initialAmount:1,validity:'permanent',billingMode:'quota',name:'聚合经理应用',ownerId:manager.id,organizationId:'department-engineering',range});
   const managerCookie=await login('usage-manager',password),employeeCookie=await login('web-employee',seeded.employeePassword);
   const window={from:'2020-10-31T15:00:00.000Z',to:'2020-11-01T17:00:00.000Z'};
   let sequence=0;
   const call=(changes={})=>({requestId:`usage-integration-${++sequence}`,startedAt:'2020-10-31T15:00:00.000Z',completedAt:'2020-10-31T15:59:59.999Z',subjectType:'employee',subjectId:seeded.employeeId,credentialId:'usage-test-key',purpose:'personal',projectId:null,modelId:'test-model',organizationId:'department-engineering',outcome:'completed',inputTokens:10,outputTokens:20,cachedInputTokens:3,actualAmount:0.000001,billableState:'confirmed',reservationId:null,usageFinal:true,forwarded:true,...changes});
   const rows=[
-    call({completedAt:window.from}),
+    call({completedAt:window.from,admission:{kind:'configured',route:{serviceId:'usage-service',poolId:'usage-pool',definitionId:'usage-model',upstreamModel:'usage-model'},price:null,costPrice:{version:'cost-snapshot',currency:'CNY',unit:'per_million_tokens',inputPrice:2,outputPrice:3,cachedInputPrice:0.5},reservedAmount:1}}),
     call({completedAt:'2020-10-31T16:00:00.000Z',purpose:'project',projectId:project.id,actualAmount:1.234567}),
     call({purpose:'project',projectId:otherProject.id,actualAmount:2}),
     call({purpose:'personal',actualAmount:99,admission:{kind:'configured',route:null,price:null,reservedAmount:0,attributionOrganizationId:'historical-department'}}),
@@ -63,6 +63,9 @@ export async function checkUsageAnalytics({database,schema,controlPlaneUrl:cp,se
     ['model',{...window,modelId:'test-model'},null,'Asia/Shanghai'],['organization',{...window,organizationId:'department-engineering'},managerScope,'Asia/Shanghai'],
     ['project purpose',{...window,purpose:'project'},managerScope,'Asia/Shanghai'],['application purpose',{...window,purpose:'application'},managerScope,'Asia/Shanghai'],
     ['empty',{...window,modelId:'does-not-exist'},null,'Asia/Shanghai'],
+    ['cost and service',{...window,serviceId:'usage-service'},null,'Asia/Shanghai'],
+    ['project filter',{...window,projectId:project.id},null,'Asia/Shanghai'],
+    ['application filter',{...window,applicationId:application.id},null,'Asia/Shanghai'],
     ['month start',{to:'2020-11-01T17:00:00.000Z'},null,'Asia/Shanghai'],
   ];
   const client=await database.connect();

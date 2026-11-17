@@ -1,3 +1,7 @@
+import {RoutingDecisionView} from './RoutingDecision';
+import {hasPermission} from '@ai-gateway/contracts';
+import {meteredUsageText,METER_UNITS,ROUTING_STRATEGIES} from '@ai-gateway/contracts';
+import {RequestTraces} from './RequestTraces';
 import { useEffect,useId,useMemo,useRef,useState,type ReactNode } from 'react';
 import type { CallLog,CallPage,CallQuery,CallRelations,PlatformSnapshot } from '@ai-gateway/contracts';
 import { api } from './client';
@@ -21,7 +25,7 @@ export function CallExplorer({data:d,kind,reconcile,detail,initialQuery,active=t
   const [relatedRequest,setRelatedRequest]=useState<string|null>(null);
   const narrow=useNarrow(),filterId=useId(),[filtersOpen,setFiltersOpen]=useState(!narrow);
   useEffect(()=>{setFiltersOpen(!narrow);},[narrow]);
-  const admin=d.actor.roles.includes('operator');
+  const admin=hasPermission(d.actor,'calls.read.all');
   useEffect(()=>{if(!navigation||lastNavigation.current===navigation.id)return;lastNavigation.current=navigation.id;const next={...navigation.query,...(kind==='reviews'?{billableState:'pending_review' as const}:{})};setOrigin(navigation);setFilters(queryFilters(next));setPrevious([]);setPage(null);setQuery(next);setAdvancedOpen(true);},[navigation,kind]);
   useEffect(()=>{if(!active||navigationPending)return;let current=true;setBusy(true);setPage(null);setError('');void api<CallPage>('/api/v1/platform/calls/query',query).then(value=>{if(current)setPage(value);}).catch(e=>{if(current){setPage(null);setError(e instanceof Error?e.message:'日志采集失败');}}).finally(()=>{if(current)setBusy(false);});return()=>{current=false;};},[query,d,refresh,active,navigationPending]);
   const name=(id:string)=>d.members.find(m=>m.id===id)?.name??d.applications.find(a=>a.id===id)?.name??id;
@@ -60,20 +64,23 @@ export function CallExplorer({data:d,kind,reconcile,detail,initialQuery,active=t
       <section className="detail-group"><h3>主体与路由</h3><dl className="detail-list">{[
         ['主体',name(c.subjectId)],['调用时组织',d.organizations.find(org=>org.id===(c.admission?.attributionOrganizationId??c.organizationId))?.name??'历史归属未知'],['用途',({personal:'个人',project:'项目成员',application:'独立应用'})[c.purpose]],['模型 / 协议',model(c.modelId)+(c.admission?.protocol?` · ${c.admission.protocol.requested} → ${c.admission.protocol.upstream}（${c.admission.protocol.mode==='native'?'原生透传':'Chat 适配'}）`:' · 协议历史未知')],['项目',d.projects.find(p=>p.id===c.projectId)?.name??c.projectId??'—'],
         ['密钥',d.keys.find(k=>k.credentialId===c.credentialId)?.masked??'历史或在线临时身份'],
-        ['服务',d.services.find(s=>s.id===c.admission?.route?.serviceId)?.name??c.admission?.route?.serviceId??'未选定 / 历史未知'],
-        ['模型池',d.pools.find(p=>p.id===c.admission?.route?.poolId)?.name??c.admission?.route?.poolId??'未选定 / 历史未知'],
+        ['服务',c.admission?.route?.audit?.serviceName??d.services.find(s=>s.id===c.admission?.route?.serviceId)?.name??c.admission?.route?.serviceId??'未选定 / 历史未知'],
+        ['模型池',c.admission?.route?.audit?.poolName??d.pools.find(p=>p.id===c.admission?.route?.poolId)?.name??c.admission?.route?.poolId??'未选定 / 历史未知'],
+        ...(admin?[['上游模型',c.admission?.route?.upstreamModel??'历史未知'],['服务配置版本',c.admission?.route?.audit?.configVersion??'历史未知']]:[]),
         ['上游转发',c.forwarded===true?'已开始转发':c.forwarded===false?'未转发':'未知'],
       ].map(([label,value])=><div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl></section>
       <section className="detail-group"><h3>用量与计价</h3><dl className="detail-list">{[
-        ['用量完整性',c.usageFinal===true?'完整':'未知 / 不完整'],['输入 / 输出 / 缓存输入',c.usageFinal===true?`${c.inputTokens} / ${c.outputTokens} / ${c.cachedInputTokens}`:'未知'],
+        ['用量完整性',c.usageFinal===true?'完整':'未知 / 不完整'],['用量',c.meteredUsage?meteredUsageText(c.meteredUsage):c.usageFinal===true?`${c.inputTokens} / ${c.outputTokens} / ${c.cachedInputTokens}`:'未知'],
         ['实际费用',c.billableState==='pending_review'?'待核对（不代表免费）':money(c.actualAmount)],['预占金额',c.admission?money(c.admission.reservedAmount):c.reservationId?'历史未知':'未预占'],
-        ['价格版本',c.admission?.price?.version??'历史模拟 / 未选定'],['输入 / 输出 / 缓存单价',c.admission?.price?`${c.admission.price.inputPrice} / ${c.admission.price.outputPrice} / ${c.admission.price.cachedInputPrice} 元 / 百万 Token`:'未知'],
+        ...(hasPermission(d.actor,'costs.read')?[['计费倍率',c.admission?.price?.billing?`×${c.admission.price.billing.multiplier}`:'历史原价'],['计费基准价',c.admission?.price?.meter?`${c.admission.price.meter.price} 元 / ${METER_UNITS[c.admission.price.meter.unit]}`:c.admission?.price?.billing?`${c.admission.price.billing.base.inputPrice} / ${c.admission.price.billing.base.outputPrice} / ${c.admission.price.billing.base.cachedInputPrice}`:'历史原价'],['成本单价（输入 / 输出 / 缓存）',c.admission?.costPrice?.meter?`${c.admission.costPrice.meter.price} 元 / ${METER_UNITS[c.admission.costPrice.meter.unit]}`:c.admission?.costPrice?`${c.admission.costPrice.inputPrice} / ${c.admission.costPrice.outputPrice} / ${c.admission.costPrice.cachedInputPrice} 元 / 百万 Token`:'未知（不等于零）']]:[]),
+        ...(c.admission?.routing?[['路由策略',`${ROUTING_STRATEGIES[c.admission.routing.strategy]} · ${c.admission.routing.candidateCount} 个候选服务`]]:[]),['价格版本',c.admission?.price?.version??'历史模拟 / 未选定'],['输入 / 输出 / 缓存单价',c.admission?.price?.meter?`${c.admission.price.meter.price} × ${c.admission.price.meter.multiplier} 元 / ${METER_UNITS[c.admission.price.meter.unit]}`:c.admission?.price?`${c.admission.price.inputPrice} / ${c.admission.price.outputPrice} / ${c.admission.price.cachedInputPrice} 元 / 百万 Token`:'未知'],
       ].map(([label,value])=><div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl></section>
       <section className="detail-group"><h3>时序与追踪</h3><dl className="detail-list">{[
         ['请求 ID',c.requestId],['上游请求号',c.upstreamRequestId??'上游未提供'],['关联原调用',c.retryOfRequestId??'无（不是显式重试）'],['错误码',c.errorCode??'未采集'],['预占 ID',c.reservationId??'未预占'],
         ['开始时间',date(c.startedAt)],['完成时间',date(c.completedAt)],['总时延',c.latencyMs==null?'未知':`${c.latencyMs} ms`],
       ].map(([label,value])=><div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
-        <div className="actions"><button className="link-button" disabled={relatedRequest===c.requestId} onClick={()=>void openRelated(c.retryOfRequestId??c.requestId)}>{relatedRequest===c.requestId?'正在读取…':c.retryOfRequestId?'查看原调用与重试':'查看关联调用'}</button></div>
+        {hasPermission(d.actor,'models.read')&&c.admission?.routing&&<details className="disclosure"><summary>本次选路依据</summary><RoutingDecisionView decision={c.admission.routing}/></details>}
+        <div className="actions">{hasPermission(d.actor,'monitoring.read')&&<button className="link-button" onClick={()=>detail('调用访问链路',<RequestTraces data={d} active={true} detail={detail} initialQuery={{requestId:c.requestId}}/>)}>查看访问链路</button>}<button className="link-button" disabled={relatedRequest===c.requestId} onClick={()=>void openRelated(c.retryOfRequestId??c.requestId)}>{relatedRequest===c.requestId?'正在读取…':c.retryOfRequestId?'查看原调用与重试':'查看关联调用'}</button></div>
       </section>
     </div>
     <p className="secondary">缓存输入是输入 Token 的子集。用量未知与零用量分别表达；待核对不代表免费。默认不保存和展示正文。</p>
@@ -126,7 +133,7 @@ export function CallExplorer({data:d,kind,reconcile,detail,initialQuery,active=t
       <small className="secondary">读取于 {date(page!.collectedAt)}；按需刷新。无流量表示证据不足。</small>
     </>}
     {kind!=='overview'&&page&&<><Table headers={['请求 ID / 模型','主体 / 用途','结果 / 错误码','输入 / 输出 / 缓存','实际费用 / 预占','计费状态','完成时间',...(kind==='reviews'?['操作']:[])]} empty={emptyState} rows={page.items.map(c=>[
-      <><button className="link-button code-button" onClick={()=>show(c)}>{c.requestId.slice(0,24)}</button><small className="cell-help">{model(c.modelId)}</small></>,<>{name(c.subjectId)}<small className="cell-help">{purposeLabels[c.purpose]??c.purpose}</small></>,<><Status value={c.errorCode==='safety_policy_violation'?'已拦截':c.outcome}/><small className="cell-help">{c.errorCode??''}</small></>,c.usageFinal===true?`${c.inputTokens} / ${c.outputTokens} / ${c.cachedInputTokens}`:'未知 / 不完整',<>{c.billableState==='pending_review'?'待核对':money(c.actualAmount)}<small className="cell-help">预占 {c.admission?money(c.admission.reservedAmount):'未知'}</small></>,<Status value={c.billableState}/>,date(c.completedAt),...(kind==='reviews'?[<button className="link-button" onClick={()=>reconcile(c)}>核对并预览</button>]:[]),
+      <><button className="link-button code-button" onClick={()=>show(c)}>{c.requestId.slice(0,24)}</button><small className="cell-help">{model(c.modelId)}</small></>,<>{name(c.subjectId)}<small className="cell-help">{purposeLabels[c.purpose]??c.purpose}</small></>,<><Status value={c.errorCode==='safety_policy_violation'?'已拦截':c.outcome}/><small className="cell-help">{c.errorCode??''}</small></>,c.meteredUsage?meteredUsageText(c.meteredUsage):c.usageFinal===true?`${c.inputTokens} / ${c.outputTokens} / ${c.cachedInputTokens}`:'未知 / 不完整',<>{c.billableState==='pending_review'?'待核对':money(c.actualAmount)}<small className="cell-help">预占 {c.admission?money(c.admission.reservedAmount):'未知'}</small></>,<Status value={c.billableState}/>,date(c.completedAt),...(kind==='reviews'?[<button className="link-button" disabled={!hasPermission(d.actor,'finance.write')} onClick={()=>reconcile(c)}>核对并预览</button>]:[]),
     ])}/><div className="actions"><button disabled={busy||!previous.length} onClick={()=>{setQuery({...query,cursor:previous.at(-1)});setPrevious(p=>p.slice(0,-1));}}>上一页</button><span>第 {previous.length+1} 页 · 每页最多 50 条</span><button disabled={busy||!page.nextCursor} onClick={()=>{setPrevious(p=>[...p,query.cursor]);setQuery({...query,cursor:page.nextCursor!});}}>下一页</button></div></>}
   </Panel>;
 }

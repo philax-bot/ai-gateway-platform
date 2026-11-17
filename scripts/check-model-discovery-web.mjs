@@ -54,7 +54,7 @@ export async function checkModelDiscovery({cp,web,seeded,cdp,evaluate,waitFor,se
   await evaluate(`document.querySelector('button[aria-label="退出登录"]').click()`);await login('web-employee',seeded.employeePassword);
   for(const mode of ['beacon','azure','sidebar','next','classic']){
     await cdp.send('Page.navigate',{url:`${web}/?ui=${mode}`});await waitFor(`!!document.querySelector('.personal-header')`);
-    for(const width of [1440,390]){
+    for(const width of [1440,1024,920,390]){
       await setViewport(width,width===390?844:1000);await nav('可用模型');await waitFor(`document.querySelectorAll('.model-card').length===3`);
       check(await evaluate(`!document.querySelector('#v4-sidebar,#v3-sidebar,.rail,.v4-tabbar,.v3-tabbar')`),`${mode} ${width}: personal space has no duplicate sidebar or page tabs`);
       check(await evaluate(`document.documentElement.scrollWidth===document.documentElement.clientWidth`),`${mode} ${width}: no page overflow`);

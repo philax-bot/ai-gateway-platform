@@ -1,0 +1,16 @@
+{
+  "checkedAt": "2026-11-16T09:27:02.094Z",
+  "web": "http://localhost:5176",
+  "storage": "existing-development-postgres",
+  "businessWrites": false,
+  "checks": [
+    "existing pnpm dev workspace stays running",
+    "review operator UI login",
+    "supplier opens the updated service editor",
+    "managed credential control and inline creation are available",
+    "old free-text credential reference is hidden by default",
+    "1440 and 390 layouts have no page overflow",
+    "Escape closes the editor",
+    "no uncaught browser exceptions"
+  ]
+}

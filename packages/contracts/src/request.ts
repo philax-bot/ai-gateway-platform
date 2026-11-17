@@ -31,6 +31,6 @@ export function estimateProtocolInput(request:Record<string,unknown>,protocol:'c
 }
 export function chatCompletionsUrl(baseUrl:string):string{
   const url=new URL(baseUrl),path=url.pathname.replace(/\/+$/,'');
-  url.pathname=path.endsWith('/chat/completions')?path:path.endsWith('/v1')?`${path}/chat/completions`:`${path}/v1/chat/completions`;
+  url.pathname=path.endsWith('/chat/completions')?path:/\/v\d+(?:beta\d*)?$/.test(path)?`${path}/chat/completions`:`${path}/v1/chat/completions`;
   return url.toString();
 }

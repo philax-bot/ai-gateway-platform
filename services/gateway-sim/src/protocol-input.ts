@@ -53,7 +53,7 @@ function inspectNative(protocol:Exclude<PublicProtocol,'chat'>,body:Obj):Obj {
   // original structured request; upstream forwarding never uses this serialized string.
   const result:Obj={model:body.model,messages:[{role:'user',content:JSON.stringify(body)}]};
   if(body.stream!==undefined)result.stream=boolean(body.stream,'stream');
-  const limit=protocol==='responses'?body.max_output_tokens:body.max_tokens;if(limit!==undefined)result.max_tokens=positive(limit,'output token limit');else if(protocol==='messages')fail('max_tokens is required');
+  const limit=protocol==='responses'?body.max_output_tokens:body.max_tokens;if(limit!=null)result.max_tokens=positive(limit,'output token limit');else if(protocol==='messages')fail('max_tokens is required');
   return result;
 }
 
@@ -75,7 +75,7 @@ export function normalizeProtocolRequest(protocol:PublicProtocol,body:Obj,native
     if(body.service_tier!==undefined&&body.service_tier!=='auto')unsupported('service_tier is not supported');
     if(body.reasoning!==undefined&&Object.keys(object(body.reasoning,'reasoning')).length&&!native)unsupported('reasoning controls and encrypted history require native protocol support');
     if(body.text!==undefined&&!native){const t=object(body.text,'text');fields(t,['format'],'text');if(t.format!==undefined){const f=object(t.format,'text.format');fields(f,['type'],'text.format');if(f.type!=='text')unsupported('structured output formats require native protocol support');}}
-    if(body.max_output_tokens!==undefined)out.max_tokens=positive(body.max_output_tokens,'max_output_tokens');
+    if(body.max_output_tokens!=null)out.max_tokens=positive(body.max_output_tokens,'max_output_tokens');
     if(body.instructions!=null)messages.push({role:'system',content:text(body.instructions,'instructions')});
     const input=body.input===undefined?[]:typeof body.input==='string'?[{role:'user',content:body.input}]:array(body.input,'input');
     for(const item of input){const v=object(item,'input item');if(v.type===undefined||v.type==='message'){fields(v,['type','role','content','id','status'],'message');if(!['user','assistant','system','developer'].includes(String(v.role)))fail('invalid message role');messages.push({role:v.role,content:textParts(v.content,['input_text','output_text'],'message.content')});}

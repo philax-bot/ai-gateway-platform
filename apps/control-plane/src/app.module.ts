@@ -1,3 +1,6 @@
+import {UpstreamDispatchController} from './platform/upstream-dispatch.controller';
+import {MediaJobsController} from './platform/media-jobs.controller';
+import {TelemetryController,TelemetryIngestController} from './platform/telemetry.controller';
 import { Module } from '@nestjs/common';
 import { CallsController } from './calls/calls.controller';
 import { GatewaySyncController } from './gateway/gateway-sync.controller';
@@ -29,7 +32,7 @@ import {LocalOctopImportService} from './agents/local-octop-import.service';
 import {LocalOctopImportController} from './agents/local-octop-import.controller';
 
 @Module({
-  controllers: [PolicyController, UsageController, GatewaySyncController, CallsController, HealthController, AuthController, PlatformController, DiagnosticsController,AgentInstancesController,LocalOctopImportController],
+  controllers: [UpstreamDispatchController,MediaJobsController,TelemetryController,TelemetryIngestController,PolicyController, UsageController, GatewaySyncController, CallsController, HealthController, AuthController, PlatformController, DiagnosticsController,AgentInstancesController,LocalOctopImportController],
   providers: [
     { provide: DemoStore, useClass: process.env.STORE_MODE === 'memory' ? DemoStore : PostgresStore },
     PolicyService,

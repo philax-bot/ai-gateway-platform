@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { AuthorizeRequest, Entitlement, Plan, SettlementRequest } from '@ai-gateway/contracts';
 import { initialWorkspace } from '../platform/seed';
 import { DemoStore } from './demo.store';
-import { admissionForBatch,costForUsage,UPSTREAM_MAX_OUTPUT_TOKENS } from './admission';
+import { admissionForBatch,costForUsage,DEFAULT_ESTIMATED_OUTPUT_TOKENS } from './admission';
 import { WorkspaceRepository } from '../platform/workspace.repository';
 import { PlatformService } from '../platform/platform.service';
 import {aggregateUsage} from './call-analytics';
@@ -21,6 +21,44 @@ function configured(){
   return {store,state,batch,request};
 }
 describe('trusted admission and immutable billing',()=>{
+  it('freezes a model multiplier and independent cost across repricing, replay and settlement',async()=>{
+    const {store,state,batch,request}=configured();
+    state.definitions[0].billingMultiplier=1.5;
+    state.services[0].mappings[0].costPrice={inputPrice:1,outputPrice:2,cachedInputPrice:0.1};
+    const input=request(),auth=await store.authorize(input);
+    expect(auth.admission!.reservedAmount).toBe(0.0012);
+    expect(auth.admission!.price).toMatchObject({inputPrice:3,outputPrice:4.5,cachedInputPrice:0.75,billing:{multiplier:1.5}});
+    state.definitions[0].billingMultiplier=3;state.services[0].mappings[0].costPrice!.outputPrice=99;
+    const replay=await store.authorize(input);expect(replay.admission).toEqual(auth.admission);
+    await store.settle({requestId:input.requestId,idempotencyKey:'multiplier-finish',reservationId:auth.reservation!.reservationId,outcome:'completed',inputTokens:100,outputTokens:100,cachedInputTokens:20,usageFinal:true,forwarded:true,completedAt:new Date().toISOString()});
+    expect(store.callLogs[0].actualAmount).toBe(0.000705);expect(batch.availableAmount).toBe(9.999295);
+    expect(store.callLogs[0].admission!.costPrice!.outputPrice).toBe(2);
+    const report=aggregateUsage(store.callLogs,{to:new Date(Date.now()+1000).toISOString()},null,'Asia/Shanghai');
+    expect(report.totals.cost).toMatchObject({knownAmount:0.000282,comparableRequests:1,differenceAmount:0.000423});
+    expect((await store.authorize(request())).admission!.price!.inputPrice).toBe(6);
+  });
+  it('allows a zero billing multiplier while retaining a nonzero upstream cost',async()=>{
+    const {store,state,batch,request}=configured();state.definitions[0].billingMultiplier=0;
+    state.services[0].mappings[0].costPrice={inputPrice:2,outputPrice:3,cachedInputPrice:0.5};
+    const input=request(),auth=await store.authorize(input);expect(auth.decision).toBe('allow');expect(auth.reservation!.reservedAmount).toBe(0);
+    await store.settle({requestId:input.requestId,idempotencyKey:'free-model-finish',reservationId:auth.reservation!.reservationId,outcome:'completed',inputTokens:100,outputTokens:100,usageFinal:true,forwarded:true,completedAt:new Date().toISOString()});
+    expect(batch.availableAmount).toBe(10);expect(store.callLogs[0].actualAmount).toBe(0);
+    expect(aggregateUsage(store.callLogs,{to:new Date(Date.now()+1000).toISOString()},null,'Asia/Shanghai').totals.cost).toMatchObject({knownAmount:0.0005,differenceAmount:-0.0005});
+  });
+  it('applies a six-decimal multiplier before rounding the entire request once',()=>{
+    const base={inputPrice:0.000001,outputPrice:0.000001,cachedInputPrice:0.000001};
+    const price={version:'exact',currency:'CNY' as const,unit:'per_million_tokens' as const,inputPrice:0.0000001,outputPrice:0.0000001,cachedInputPrice:0.0000001,billing:{base,multiplier:0.1}};
+    expect(costForUsage(price,1000000,1000000,500000)).toBe(0.000001);
+    expect(costForUsage({...price,billing:{base,multiplier:0}},1000000,1000000,500000)).toBe(0);
+  });
+  it('reconciles unknown usage using the original multiplier after a price change',async()=>{
+    const {store,state,request}=configured();state.definitions[0].billingMultiplier=2;
+    const input=request(),auth=await store.authorize(input);
+    await store.settle({requestId:input.requestId,idempotencyKey:'hold-multiplier',reservationId:auth.reservation!.reservationId,outcome:'partial',usageFinal:false,forwarded:true,completedAt:new Date().toISOString()});
+    state.definitions[0].billingMultiplier=5;
+    const result=await store.reconcileWithinBusinessTransaction({requestId:input.requestId,idempotencyKey:'reconcile-multiplier',actorId:'operator-demo-001',reason:'complete fixture usage',mode:'confirm_usage',inputTokens:100,outputTokens:100,cachedInputTokens:20});
+    expect(result.billableState).toBe('confirmed');expect(store.callLogs[0].actualAmount).toBe(0.00094);
+  });
   function addSource(state:ReturnType<typeof configured>['state']){
     const source={...structuredClone(state.services[0]),id:'service-second',name:'第二来源',limits:{mode:'custom' as const,concurrency:1}};
     state.services.push(source);state.services[0].limits={mode:'custom',concurrency:1};
@@ -105,16 +143,52 @@ describe('trusted admission and immutable billing',()=>{
     const admitted=await store.authorize(input),quoted=await platform.quote(input.identity.subjectId,{purpose:'personal',model:'test-model',messages:[],max_tokens:200});
     expect(admitted.reasonCode).toBe('quota_insufficient');expect(quoted.reasonCode).toBe(admitted.reasonCode);expect(quoted).not.toHaveProperty('requestLimits');
   });
-  it('defaults an omitted output limit to the upstream ceiling, still capped by policy and context',async()=>{
-    const {store,state,request}=configured();state.settings.limits={mode:'custom',maxOutputTokens:500000};
-    const context=state.definitions[0].contextTokens;
+  it('preserves an omitted output option and separates its estimate from explicit policy caps',async()=>{
+    const {store,state,request}=configured();state.settings.limits={mode:'none'};
     const wide=await store.authorize(request({maxOutputTokens:undefined,estimatedInputTokens:100}));
     expect(wide.decision).toBe('allow');
-    expect(wide.admission!.route!.maxOutputTokens).toBe(Math.min(UPSTREAM_MAX_OUTPUT_TOKENS,context-100));
+    expect(wide.admission!.route).not.toHaveProperty('maxOutputTokens');
+    expect(wide.admission!.estimate).toEqual({inputTokens:100,outputTokens:DEFAULT_ESTIMATED_OUTPUT_TOKENS,outputSource:'default'});
     state.settings.limits={mode:'custom',maxOutputTokens:20000};
     const capped=await store.authorize(request({maxOutputTokens:undefined,estimatedInputTokens:100}));
     expect(capped.admission!.route!.maxOutputTokens).toBe(20000);
+    expect(capped.admission!.estimate!.outputTokens).toBe(DEFAULT_ESTIMATED_OUTPUT_TOKENS);
     expect(capped.requestLimits).toBeUndefined();
+  });
+  it('keeps a large explicit generation cap while reserving the independent model estimate, including on replay',async()=>{
+    const {store,state,request}=configured();state.settings.limits={mode:'none'};
+    Object.assign(state.definitions[0],{contextTokens:1000000,estimatedOutputTokens:4096});
+    const input=request({maxOutputTokens:80000}),first=await store.authorize(input);
+    expect(first.admission!.route!.maxOutputTokens).toBe(80000);
+    expect(first.admission!.estimate!.outputTokens).toBe(4096);
+    expect(first.reservation!.reservedAmount).toBe(0.012488);
+    state.definitions[0].estimatedOutputTokens=8192;
+    expect((await store.authorize(input)).admission).toEqual(first.admission);
+    const small=await store.authorize(request({maxOutputTokens:128}));
+    expect(small.admission!.estimate!.outputTokens).toBe(128);
+    const nearContext=await store.authorize(request({maxOutputTokens:undefined,estimatedInputTokens:999900}));
+    expect(nearContext.admission!.estimate!.outputTokens).toBe(100);
+    expect(nearContext.admission!.route).not.toHaveProperty('maxOutputTokens');
+  });
+  it('supplements complete usage from the original batch exactly once and keeps unknown usage pending',async()=>{
+    const {store,state,batch,request}=configured();state.definitions[0].estimatedOutputTokens=10;
+    const input=request(),auth=await store.authorize(input);
+    const usage:SettlementRequest={requestId:input.requestId,idempotencyKey:'supplement-complete',reservationId:auth.reservation!.reservationId,outcome:'completed',inputTokens:100,outputTokens:1000,usageFinal:true,completedAt:new Date().toISOString()};
+    expect(auth.reservation!.reservedAmount).toBe(0.00023);
+    expect((await store.settle(usage)).status).toBe('settled');
+    expect(batch.availableAmount).toBe(9.9968);
+    expect((await store.settle(usage)).status).toBe('already_finalized');
+    expect(batch.availableAmount).toBe(9.9968);expect(store.ledgerEntries).toHaveLength(1);
+    const next=request(),a=await store.authorize(next);
+    expect((await store.settle({...usage,requestId:next.requestId,reservationId:a.reservation!.reservationId,idempotencyKey:'supplement-unknown',usageFinal:false})).status).toBe('pending_review');
+  });
+  it('does not overdraw or borrow another batch to fund above-estimate usage',async()=>{
+    const {store,state,batch,request}=configured();state.definitions[0].estimatedOutputTokens=10;batch.totalAmount=batch.availableAmount=0.001;
+    const unrelated={...structuredClone(batch),id:'unrelated-batch',availableAmount:10,totalAmount:10};store.quotaBatches.set(unrelated.id,unrelated);
+    const input=request(),auth=await store.authorize(input);
+    expect(auth.reservation!.sourceId).toBe(batch.id);
+    const response=await store.settle({requestId:input.requestId,idempotencyKey:'supplement-insufficient',reservationId:auth.reservation!.reservationId,outcome:'completed',inputTokens:100,outputTokens:1000,usageFinal:true,completedAt:new Date().toISOString()});
+    expect(response.status).toBe('pending_review');expect(batch.availableAmount).toBe(0.00077);expect(unrelated.availableAmount).toBe(10);expect(store.ledgerEntries).toHaveLength(0);
   });
   it('explains the binding output limit without reserving funds and preserves it on replay',async()=>{
     const {store,state,batch,request}=configured();state.services[0].limits={mode:'custom',maxOutputTokens:128};

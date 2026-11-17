@@ -13,7 +13,7 @@ export async function checkAudit({admin,employeeCookie,request,state,command,upd
   check((await request('/api/v1/platform/commands',settingsCommand,admin)).status===409,'enterprise settings cannot bypass impact confirmation');
   const settingsPreview=await request('/api/v1/platform/preview',settingsCommand,admin);assert.equal(settingsPreview.status,200);
   check(settingsPreview.body.impact.settingsChanges.some(change=>change.before===before.settings.name&&change.after===before.settings.name),'settings preview describes current server values');
-  const application=(await command(admin,'save.application',{billingMode:'quota',name:prefix+' 初始名称',ownerId:before.actor.id,organizationId:'org-demo',range:{poolId:'pool-local-test',mode:'follow',definitionIds:[]}})).result;
+  const application=(await command(admin,'save.application',{initialAmount:1,validity:'permanent',billingMode:'quota',name:prefix+' 初始名称',ownerId:before.actor.id,organizationId:'org-demo',range:{poolId:'pool-local-test',mode:'follow',definitionIds:[]}})).result;
   check((await request('/api/v1/platform/commands',{...settingsCommand,previewToken:settingsPreview.body.previewToken},admin)).status===409,'concurrent business changes invalidate an older settings preview');
   await command(admin,'save.application',{...application,name:prefix+' 调整后名称'});
   const page=(await query({search:prefix,action:'save.application'})).body;

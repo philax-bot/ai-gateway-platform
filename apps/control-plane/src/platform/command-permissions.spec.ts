@@ -11,8 +11,8 @@ describe('command retries respect current responsibility without repeating busin
   async function execute(command:PlatformCommand,actor=operator){const preview=await platform.preview(actor,command);return platform.execute(actor,{...command,previewToken:preview.previewToken});}
   async function save(type:string,payload:Record<string,unknown>,actor=operator){return (await execute(input(type,payload),actor)).result as any;}
   beforeEach(async()=>{const store=new DemoStore();repository=new WorkspaceRepository(store);await repository.initialize();platform=new PlatformService(repository,store);await repository.transact(async tx=>{tx.state.services[0].verification='passed';tx.state.pools[0].entries[0].open=true;});next=await save('save.member',{directoryId:'responsibility-next',name:'新责任人',organizationId:'org-demo'});});
-  async function app(){return save('save.application',{billingMode:'quota',name:'交接应用',ownerId:employee,organizationId:'org-demo',range});}
-  async function project(){return save('save.project',{name:'交接项目',managerId:employee,range});}
+  async function app(){return save('save.application',{initialAmount:1,validity:'permanent',billingMode:'quota',name:'交接应用',ownerId:employee,organizationId:'org-demo',range});}
+  async function project(){return save('save.project',{initialAmount:1,validity:'permanent',name:'交接项目',managerId:employee,range});}
 
   it('does not return an old application key response after ownership moves',async()=>{
     const application=await app(),issue=input('key.issue',{name:'旧负责人接入',purpose:'application',applicationId:application.id});await execute(issue,employee);
@@ -26,7 +26,7 @@ describe('command retries respect current responsibility without repeating busin
   it('rejects an operator-only retry after the operator role is removed',async()=>{
     const application=await app(),fund=input('application.fund',{applicationId:application.id,amount:5,expiresAt:new Date(Date.now()+86400000).toISOString()});await execute(fund);
     await save('save.member',{...next,roles:['operator','employee']});const actor=(await repository.read()).members.find(m=>m.id===operator)!;await save('save.member',{...actor,roles:['employee']},next.id);
-    await expect(platform.execute(operator,fund)).rejects.toMatchObject({status:403});expect((await platform.applicationDetail(next.id,application.id)).availableAmount).toBe(5);
+    await expect(platform.execute(operator,fund)).rejects.toMatchObject({status:403});expect((await platform.applicationDetail(next.id,application.id)).availableAmount).toBe(6);
   });
   it('does not replay approval decisions after responsibility changes',async()=>{
     const p=await project();await save('project.members',{projectId:p.id,memberIds:[next.id]});

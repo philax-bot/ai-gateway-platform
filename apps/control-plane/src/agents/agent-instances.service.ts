@@ -3,7 +3,7 @@ import {createHash,randomUUID} from 'node:crypto';
 import type {ManagedAgentInstance,ManagedAgentView,ManagedKey,WorkspaceState} from '@ai-gateway/contracts';
 import {WorkspaceRepository,type WorkspaceTransaction} from '../platform/workspace.repository';
 import {activeMember,now,text} from '../platform/validation';
-import {syncResources} from '../platform/domain';
+import {syncResources,memberModels} from '../platform/domain';
 import {workflowAction} from '../platform/workflow-actions';
 import {LocalOctopRuntime} from './local-octop.runtime';
 
@@ -63,24 +63,28 @@ export class AgentInstancesService {
         if(action==='rotate'&&record.generation===0)throw new ConflictException('provision the instance before rotating its key');
         this.revoke(tx,record);record.generation++;record.errorCode=null;record.status=action==='stop'?'stopping':'provisioning';record.updatedAt=now();
         const operationToken=randomUUID();record.operation={key:operationKey,actorId,action,token:operationToken,expiresAt:new Date(Date.now()+600_000).toISOString()};
-        let secret:string|undefined;
+        let secret:string|undefined;let chatModelIds:string[]=[];
         if(action!=='stop'){
           const owner=activeMember(state,record.ownerId);
+          chatModelIds=memberModels(state,owner.id).filter(id=>(state.definitions.find(d=>d.modelId===id)?.kind??'chat')==='chat');
+          if(!chatModelIds.length)throw new ConflictException('no authorized chat models for managed instance');
           const issued=await workflowAction(tx,owner,'key.issue',{purpose:'personal',name:'Octop 专用'}) as {key:Omit<ManagedKey,'keyHash'>;secret:string};record.keyId=issued.key.id;secret=issued.secret;
         }
         await syncResources(tx);this.audit(tx,actor.id,record,`${action}.started`);
-        return {replayed:false,token:operationToken,secret,ownerId:record.ownerId};
+        return {replayed:false,token:operationToken,secret,ownerId:record.ownerId,chatModelIds};
       });
       if(prepared.replayed)return prepared.view;
       token=prepared.token;
       // No workspace / policy lock is held while starting Octop or delivering Key.
-      if(action==='stop')await this.runtime.stop(instanceId);else await this.runtime.configure(instanceId,prepared.secret!);
+      if(action==='stop')await this.runtime.stop(instanceId);else await this.runtime.configure(instanceId,prepared.secret!,prepared.chatModelIds!);
       return await this.repository.transact(async tx=>{
         activeMember(tx.state,actorId);const record=this.record(tx.state,actorId,instanceId);
         if(record.operation?.token!==token)throw new ConflictException('agent operation was superseded');
         if(action!=='stop'){
           activeMember(tx.state,record.ownerId);const key=tx.state.keys.find(k=>k.id===record.keyId);
           if(key?.status!=='active'||Date.parse(key.expiresAt)<=Date.now())throw new ConflictException('managed key changed during delivery');
+          const currentModels=memberModels(tx.state,record.ownerId).filter(id=>(tx.state.definitions.find(d=>d.modelId===id)?.kind??'chat')==='chat');
+          if(prepared.chatModelIds!.some(id=>!currentModels.includes(id)))throw new ConflictException('managed chat models changed during delivery');
         }
         record.status=action==='stop'?'stopped':'running';record.updatedAt=now();delete record.operation;
         tx.state.operations[operationKey]={fingerprint:`${actorId}:${action}`,result:{instanceId,status:record.status,generation:record.generation}};

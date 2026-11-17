@@ -14,11 +14,16 @@ export interface UsageAnalyticsQuery {
   /** Optional scope narrowing. Names are resolved by the client from the snapshot. */
   organizationId?: string;
   modelId?: string;
+  projectId?: string;
+  applicationId?: string;
+  serviceId?: string;
   purpose?: 'personal' | 'project' | 'application';
 }
 
 /** One aggregation bucket: a person, application, project, model, organization or day. */
 export interface UsageBucket {
+  /** Operator-only. Difference compares the same confirmed, cost-known calls. */
+  cost?: { comparableRequests:number; knownAmount:number; unknownRequests:number; comparableBilledAmount:number; comparableCostAmount:number; differenceAmount:number };
   /** subjectId / modelId / organizationId / projectId ('' when the call carried none) / YYYY-MM-DD. */
   key: string;
   /** Every ended call in the bucket (the same row count `CallSummary.ended` uses). */
@@ -62,6 +67,7 @@ export interface UsageAnalytics {
   /** Grouped by `projectId`; `''` collects project-less calls so sums still close. */
   projects: UsageBucket[];
   models: UsageBucket[];
+  services: UsageBucket[];
   organizations: UsageBucket[];
   days: UsageBucket[];
   collectedAt: string;

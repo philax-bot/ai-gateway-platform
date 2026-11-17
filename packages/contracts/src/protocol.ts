@@ -11,7 +11,7 @@ export function protocolUrl(baseUrl:string,protocol:ModelProtocol,paths:Protocol
   let base=url.pathname.replace(/\/+$/,'').replace(/\/(?:chat\/completions|responses|messages)$/,'');
   if(protocol!=='chat'&&paths[protocol]!==undefined){const path=paths[protocol]!;if(!/^\/(?!\/)[A-Za-z0-9_./~-]+$/.test(path)||path.includes('..'))throw Error('invalid relative protocol path');url.pathname=path;return url.toString();}
   if(protocol==='messages'&&url.hostname==='api.deepseek.com')base='/anthropic';
-  url.pathname=(base.endsWith('/v1')?base:base+'/v1')+'/'+(protocol==='chat'?'chat/completions':protocol);
+  url.pathname=(/\/v\d+(?:beta\d*)?$/.test(base)?base:base+'/v1')+'/'+(protocol==='chat'?'chat/completions':protocol);
   return url.toString();
 }
 

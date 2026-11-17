@@ -1,22 +1,35 @@
+import {isPermanentQuota} from '@ai-gateway/contracts';
 import { Children, useEffect, useLayoutEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react';
-import type { PlatformSnapshot } from '@ai-gateway/contracts';
+import type { PlatformSnapshot,PersonSummary } from '@ai-gateway/contracts';
 import {ApiError} from './client';
 import {DateField} from './date-field';
 import {PasswordInput} from './password-field';
+import {PersonPicker,type PersonSource} from './PersonPicker';
 
-export interface RelatedResource {kind:'definition'|'service'|'pool'|'plan'|'organization'|'member';label:string;definitionId?:string}
+export interface RelatedResource {kind:'definition'|'service'|'pool'|'plan'|'organization'|'member'|'upstreamCredential';label:string;definitionId?:string}
 
 export interface FieldSpec {
-  key:string;label:string;type?:'choice'|'text'|'number'|'date'|'datetime'|'select'|'multiple'|'textarea'|'password'|'import';required?:boolean;help?:string;
+  key:string;label:string;type?:'choice'|'text'|'number'|'date'|'datetime'|'select'|'multiple'|'person'|'textarea'|'password'|'import'|'file';required?:boolean;help?:string;
+  person?:PersonSource&{multiple?:boolean;initialPeople?:PersonSummary[]};
+  accept?:string;maxBytes?:number;onFile?:(file:File|null)=>void;
   options?:{value:string;label:string}[];show?:(values:FormValues)=>boolean;
+  optionsWhen?:(values:FormValues)=>{value:string;label:string}[];
+  onChange?:(value:string|string[],values:FormValues)=>FormValues;
   step?:string;
   requiredWhen?:(values:FormValues)=>boolean;
   group?:string;
   create?:RelatedResource;
 }
 export type FormValues=Record<string,string|string[]>;
-export interface Editor {title:string;description?:string;fields:FieldSpec[];initial:FormValues;submit:(values:FormValues)=>Promise<boolean>;commandType?:string;getResult?:()=>unknown;rebuild?:(data:PlatformSnapshot)=>Editor;submitLabel?:string}
-export function Modal({title,onClose,children,footer}:{title:string;onClose:()=>void;children:ReactNode;footer?:ReactNode}){
+export interface Editor {title:string;description?:string;context?:(values:FormValues)=>ReactNode;danger?:boolean;fields:FieldSpec[];initial:FormValues;submit:(values:FormValues)=>Promise<boolean>;commandType?:string;getResult?:()=>unknown;rebuild?:(data:PlatformSnapshot)=>Editor;submitLabel?:string}
+export interface ProcessStep {label:string;detail?:string;state:'done'|'current'|'waiting'|'error'|'stopped'}
+export function ProcessPath({label,steps}:{label:string;steps:ProcessStep[]}){
+  return <ol className="process-path" aria-label={label}>{steps.map((step,i)=><li key={i} data-state={step.state} aria-current={step.state==='current'||step.state==='error'?'step':undefined}><span className="process-mark" aria-hidden="true">{step.state==='done'?'✓':step.state==='error'?'!':step.state==='stopped'?'−':i+1}</span><div><strong>{step.label}</strong>{step.detail&&<small>{step.detail}</small>}</div></li>)}</ol>;
+}
+export function ChangeSummary({label,items,beforeLabel='申请',afterLabel='批准'}:{label:string;items:{label:string;before?:ReactNode;after:ReactNode;detail?:string}[];beforeLabel?:string;afterLabel?:string}){
+  return <dl className="change-summary" aria-label={label}>{items.map((item,i)=><div className="change-row" key={i}><dt>{item.label}</dt><dd>{item.before!==undefined&&<><span className="change-value"><small>{beforeLabel}</small><strong>{item.before}</strong></span><span className="change-arrow" aria-hidden="true">→</span></>}<span className="change-value is-target"><small>{afterLabel}</small><strong>{item.after}</strong>{item.detail&&<small>{item.detail}</small>}</span></dd></div>)}</dl>;
+}
+export function Modal({title,onClose,children,footer,className}:{title:string;onClose:()=>void;children:ReactNode;footer?:ReactNode;className?:string}){
   const ref=useRef<HTMLDialogElement>(null),titleId=useId();
   useLayoutEffect(()=>{
     const dialog=ref.current!,opener=document.activeElement instanceof HTMLElement?document.activeElement:null;
@@ -24,13 +37,14 @@ export function Modal({title,onClose,children,footer}:{title:string;onClose:()=>
     return()=>{dialog.close();if(opener?.isConnected)opener.focus({preventScroll:true});};
   },[]);
   function keepFocus(event:ReactKeyboardEvent<HTMLDialogElement>){
+    if((event.target as Element).closest('dialog')!==event.currentTarget)return;
     if(event.key!=='Tab'||event.defaultPrevented)return;
     const dialog=event.currentTarget,items=[...dialog.querySelectorAll<HTMLElement>('button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),a[href],[tabindex]:not([tabindex="-1"])')].filter(item=>item.tabIndex>=0&&item.getClientRects().length>0);
     const first=items[0],last=items.at(-1),active=document.activeElement;
     if(event.shiftKey&&(active===first||active===dialog||!dialog.contains(active))){event.preventDefault();last?.focus();}
     else if(!event.shiftKey&&(active===last||active===dialog||!dialog.contains(active))){event.preventDefault();first?.focus();}
   }
-  return <dialog className="modal" ref={ref} aria-labelledby={titleId} onKeyDown={keepFocus} onCancel={event=>{event.preventDefault();onClose();}}>
+  return <dialog className={`modal ${className??''}`} ref={ref} aria-labelledby={titleId} onKeyDown={keepFocus} onCancel={event=>{event.preventDefault();event.stopPropagation();onClose();}}>
     <div className="modal-head"><h2 id={titleId}>{title}</h2><button type="button" className="icon-button" onClick={onClose} aria-label="关闭">×</button></div>
     <div className="modal-body">{children}</div>{footer&&<div className="modal-footer">{footer}</div>}
   </dialog>;
@@ -39,21 +53,21 @@ export function EditorDialog({editor,onClose,onCreate,returnTo}:{editor:Editor;o
   const [values,setValues]=useState(editor.initial),[busy,setBusy]=useState(false),[error,setError]=useState(''),[denied,setDenied]=useState(false),formId=useId();
   async function save(event:FormEvent){event.preventDefault();if(busy||denied)return;setBusy(true);setError('');try{if(await editor.submit(values))onClose(editor.getResult?.());}catch(error){setError(error instanceof Error?error.message:'保存失败');setDenied(error instanceof ApiError&&error.status===403);}finally{setBusy(false);}}
   const visible=editor.fields.filter(field=>!field.show||field.show(values)),groups=[...new Set(visible.map(f=>f.group).filter((value):value is string=>!!value))];
-  const field=(spec:FieldSpec)=><div key={spec.key} className={['textarea','import','multiple'].includes(spec.type??'')?'wide-field':undefined}><Field spec={{...spec,required:spec.required||spec.requiredWhen?.(values)}} value={values[spec.key]??(spec.type==='multiple'?[]:'')} onChange={value=>setValues(previous=>({...previous,[spec.key]:value}))}/>{spec.create&&onCreate&&<button className="link-button field-create" type="button" disabled={busy} onClick={()=>onCreate(spec,values)}>{spec.create.label}</button>}</div>;
-  return <Modal title={editor.title} onClose={()=>{if(!busy)onClose();}} footer={denied?<button className="primary" type="button" onClick={()=>onClose()}>{returnTo?'返回上一步':'关闭并返回'}</button>:<><button className="ghost" type="button" disabled={busy} onClick={()=>onClose()}>{returnTo?'返回上一步':'取消'}</button><button className="primary" disabled={busy} type="submit" form={formId}>{busy?'处理中…':editor.submitLabel??'继续'}</button></>}><form id={formId} onSubmit={event=>void save(event)}>
+  const field=(spec:FieldSpec)=><div key={spec.key} className={['textarea','import','multiple','person'].includes(spec.type??'')?'wide-field':undefined}><Field spec={{...spec,options:spec.optionsWhen?.(values)??spec.options,required:spec.required||spec.requiredWhen?.(values)}} value={values[spec.key]??(spec.type==='multiple'?[]:'')} onChange={value=>setValues(previous=>({...previous,...spec.onChange?.(value,previous),[spec.key]:value}))}/>{spec.create&&onCreate&&<button className="link-button field-create" type="button" disabled={busy} onClick={()=>onCreate(spec,values)}>{spec.create.label}</button>}</div>;
+  return <Modal title={editor.title} onClose={()=>{if(!busy)onClose();}} footer={denied?<button className="primary" type="button" onClick={()=>onClose()}>{returnTo?'返回上一步':'关闭并返回'}</button>:<><button className="ghost" type="button" disabled={busy} onClick={()=>onClose()}>{returnTo?'返回上一步':'取消'}</button><button className={editor.danger?'danger-button':'primary'} disabled={busy} type="submit" form={formId}>{busy?'处理中…':editor.submitLabel??'继续'}</button></>}><form id={formId} onSubmit={event=>void save(event)}>
     {returnTo&&<p className="notice">完成后返回“{returnTo}”，此前填写的内容已保留。</p>}{editor.description&&<p className="secondary">{editor.description}</p>}
-    <fieldset className="editor-fields" disabled={busy}><div className="form-grid">{visible.filter(f=>!f.group).map(field)}</div>{groups.map(group=><details className="disclosure" key={group} open={!!error||visible.some(f=>f.group===group&&(f.required||f.requiredWhen?.(values)||f.key.endsWith(':mode')&&values[f.key]!=='inherit'))||undefined}><summary>{group}</summary><div className="form-grid">{visible.filter(f=>f.group===group).map(field)}</div></details>)}</fieldset>
+    {editor.context?.(values)}<fieldset className="editor-fields" disabled={busy}><div className="form-grid">{visible.filter(f=>!f.group).map(field)}</div>{groups.map(group=><details className="disclosure" key={group} open={!!error||visible.some(f=>f.group===group&&(f.required||f.requiredWhen?.(values)||f.key.endsWith(':mode')&&values[f.key]!=='inherit'))||undefined}><summary>{group}</summary><div className="form-grid">{visible.filter(f=>f.group===group).map(field)}</div></details>)}</fieldset>
     {error&&<div className="notice danger" role="alert">{error}</div>}{denied&&<p className="secondary">已填写内容保留在当前窗口，返回后不会提交这次操作。</p>}
   </form></Modal>;
 }
 export function Field({spec,value,onChange}:{spec:FieldSpec;value:string|string[];onChange:(value:string|string[])=>void}){
   const id=useId(),labelId=`${id}-label`,helpId=spec.help?`${id}-help`:undefined,[fileError,setFileError]=useState(''),common={id,required:spec.required,'aria-describedby':helpId};
   const multiple=Array.isArray(value)?value:[];
-  return <div className={`form-field ${['textarea','import','multiple'].includes(spec.type??'')?'wide':''}`}>
+  return <div className={`form-field ${['textarea','import','multiple','person'].includes(spec.type??'')?'wide':''}`}>
     {spec.type==='choice'?<span id={labelId}>{spec.label}{spec.required&&' *'}</span>:spec.type==='multiple'?<label id={labelId} htmlFor={id} className="field-label">{spec.label}{spec.required&&<span className="required"> *</span>}</label>:<label htmlFor={id}>{spec.label}{spec.required&&<span className="required"> *</span>}</label>}
-    {spec.type==='choice'?<div role="radiogroup" aria-labelledby={labelId} aria-describedby={helpId}>{spec.options?.map(option=><label className="plan-choice" key={option.value}><input type="radio" name={id} required={spec.required} checked={value===option.value} value={option.value} onChange={()=>onChange(option.value)}/><span>{option.label}</span></label>)}</div>:spec.type==='multiple'?<MultiSelect id={id} labelId={labelId} helpId={helpId} options={spec.options??[]} value={multiple} onChange={onChange} required={spec.required}/>:spec.type==='select'?<select id={id} required={spec.required} aria-describedby={helpId} value={String(value)} onChange={event=>onChange(event.target.value)}>
+    {spec.type==='person'?<PersonPicker id={id} label={`选择${spec.label}`} value={spec.person?.multiple?multiple:typeof value==='string'&&value?[value]:[]} multiple={spec.person?.multiple} required={spec.required} source={{scope:spec.person?.scope??'directory',projectId:spec.person?.projectId,excludeIds:spec.person?.excludeIds}} initialPeople={spec.person?.initialPeople} onChange={ids=>onChange(spec.person?.multiple?ids:ids[0]??'')}/>:spec.type==='choice'?<div role="radiogroup" aria-labelledby={labelId} aria-describedby={helpId}>{spec.options?.map(option=><label className="plan-choice" key={option.value}><input type="radio" name={id} required={spec.required} checked={value===option.value} value={option.value} onChange={()=>onChange(option.value)}/><span>{option.label}</span></label>)}</div>:spec.type==='multiple'?<MultiSelect id={id} labelId={labelId} helpId={helpId} options={spec.options??[]} value={multiple} onChange={onChange} required={spec.required}/>:spec.type==='select'?<select id={id} required={spec.required} aria-describedby={helpId} value={String(value)} onChange={event=>onChange(event.target.value)}>
       {!spec.options?.some(option=>option.value==='')&&<option value="">请选择</option>}{spec.options?.map(option=><option key={option.value} value={option.value}>{option.label}</option>)}
-    </select>:spec.type==='import'?<><input type="file" aria-label="选择 CSV 或 TSV 成员文件" accept=".csv,.tsv,.txt" onChange={event=>{const file=event.target.files?.[0];if(!file)return;setFileError('');if(file.size>1048576){setFileError('文件最多 1 MiB');return;}void file.text().then(onChange).catch(()=>setFileError('读取文件失败，请使用 UTF-8 文本'));}}/><textarea {...common} rows={8} value={String(value)} onChange={event=>onChange(event.target.value)}/>{fileError&&<small role="alert">{fileError}</small>}</>:spec.type==='textarea'?<textarea {...common} rows={3} value={String(value)} onChange={event=>onChange(event.target.value)}/>:spec.type==='password'?<PasswordInput id={id} value={String(value)} required={spec.required} describedBy={helpId} autoComplete="new-password" onChange={value=>onChange(value)}/>:spec.type==='date'||spec.type==='datetime'?<DateField id={id} helpId={helpId} value={String(value)} mode={spec.type} required={spec.required} onChange={value=>onChange(value)}/>:<input {...common} type={spec.type??'text'} step={spec.type==='number'?spec.step??'0.000001':undefined} value={String(value)} onChange={event=>onChange(event.target.value)}/>}
+    </select>:spec.type==='file'?<><input {...common} type="file" accept={spec.accept} onChange={event=>{const file=event.target.files?.[0]??null;setFileError('');if(file&&spec.maxBytes&&file.size>spec.maxBytes){setFileError(`文件最多 ${Math.floor(spec.maxBytes/1048576)} MiB`);event.target.value='';spec.onFile?.(null);onChange('');return;}spec.onFile?.(file);onChange(file?.name??'');}}/>{fileError&&<small role="alert">{fileError}</small>}</>:spec.type==='import'?<><input type="file" aria-label="选择 CSV 或 TSV 成员文件" accept=".csv,.tsv,.txt" onChange={event=>{const file=event.target.files?.[0];if(!file)return;setFileError('');if(file.size>1048576){setFileError('文件最多 1 MiB');return;}void file.text().then(onChange).catch(()=>setFileError('读取文件失败，请使用 UTF-8 文本'));}}/><textarea {...common} rows={8} value={String(value)} onChange={event=>onChange(event.target.value)}/>{fileError&&<small role="alert">{fileError}</small>}</>:spec.type==='textarea'?<textarea {...common} rows={3} value={String(value)} onChange={event=>onChange(event.target.value)}/>:spec.type==='password'?<PasswordInput id={id} value={String(value)} required={spec.required} describedBy={helpId} autoComplete="new-password" onChange={value=>onChange(value)}/>:spec.type==='date'||spec.type==='datetime'?<DateField id={id} helpId={helpId} value={String(value)} mode={spec.type} required={spec.required} onChange={value=>onChange(value)}/>:<input {...common} type={spec.type??'text'} step={spec.type==='number'?spec.step??'0.000001':undefined} value={String(value)} onChange={event=>onChange(event.target.value)}/>}
     {spec.help&&<small id={helpId}>{spec.help}</small>}
   </div>;
 }
@@ -104,7 +118,7 @@ function MultiSelect({id,labelId,helpId,options,value,onChange,required}:{
     </div>}
   </div>;
 }
-const statusLabels:Record<string,string>={active:'已启用',paused:'已暂停',ended:'已结束',expired:'已到期',pending:'待审批',approved:'已批准待生效',effective:'已生效',failed:'执行失败',rejected:'已驳回',withdrawn:'已撤回',passed:'验证通过',unverified:'未验证',disabled:'已停用',revoked:'已吊销',confirmed:'已结算',pending_review:'待核对',not_billable:'不计费',completed:'完成',upstream_error:'上游失败',client_cancelled:'已取消',timeout:'超时',partial:'响应中断',rejected_before_upstream:'生成前拒绝',running:'进行中',interrupted:'已中断'};
+const statusLabels:Record<string,string>={active:'已启用',paused:'已暂停',ended:'已结束',expired:'已到期',pending:'待审批',approved:'已批准待生效',effective:'已生效',failed:'执行失败',rejected:'已驳回',withdrawn:'已撤回',closed:'已关闭',passed:'验证通过',unverified:'未验证',disabled:'已停用',revoked:'已吊销',confirmed:'已结算',pending_review:'待核对',not_billable:'不计费',completed:'完成',upstream_error:'上游失败',client_cancelled:'已取消',timeout:'超时',partial:'响应中断',rejected_before_upstream:'生成前拒绝',running:'进行中',interrupted:'已中断'};
 /* `label` only overrides the wording: some resources share a state code but not its name
    (`active` is 已启用 for members and keys, 进行中 for projects). Tone still follows the code. */
 export function Status({value,label}:{value:string;label?:string}){return <span className={`tag ${['active','effective','passed','confirmed','completed'].includes(value)?'success':['failed','rejected','revoked','upstream_error'].includes(value)?'danger':'warning'}`}>{label??statusLabels[value]??value}</span>;}
@@ -124,6 +138,6 @@ export function useNarrow(maxWidth=760){
   return narrow;
 }
 export const money=(value:number)=>`¥ ${value.toLocaleString('zh-CN',{minimumFractionDigits:2,maximumFractionDigits:6})}`;
-export const date=(value:string|null|undefined)=>value?new Date(value).toLocaleString('zh-CN'):'长期有效';
-export const toDateInput=(value?:string|null)=>value?new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(value)):'';
+export const date=(value:string|null|undefined)=>value&&!isPermanentQuota(value)?new Date(value).toLocaleString('zh-CN',{timeZone:'Asia/Shanghai'}):'长期有效';
+export const toDateInput=(value?:string|null)=>value&&!isPermanentQuota(value)?new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(value)):'';
 export const endOfDay=(value:string|string[])=>`${String(value)}T23:59:59.999+08:00`;

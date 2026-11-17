@@ -5,11 +5,14 @@ import { isAbsolute,resolve } from 'node:path';
 import type { AuthorizeRequest, AuthorizeResponse, SettlementRequest, SettlementResponse } from '@ai-gateway/contracts';
 import { chatCompletionsUrl,estimateProtocolInput,extractUpstreamUsage,isRequestReference,readUpstreamRequestId,validateRuntimeConfig } from '@ai-gateway/contracts';
 import { SettlementJournal } from './journal.js';
+import {TraceJournal,RequestTrace} from './request-trace.js';
+import {otlpExporter} from './otlp-trace.js';
 import { definitelyNotSent, shouldRetryConnect } from './connection-failure.js';
 import { adaptUpstreamChatRequest } from './upstream-compat.js';
 import { gatewayTimeouts, UpstreamDeadline } from './upstream-timeout.js';
 import {normalizeProtocolRequest,protocolError,ProtocolInputError,type PublicProtocol} from './protocol-input.js';
 import {ProtocolOutput} from './protocol-output.js';
+import {MediaGateway} from './media.js';
 import {NativeProtocolOutput} from './protocol-native.js';
 import {validateChatContent} from './chat-content.js';
 import {protocolUrl,extractProtocolUsage} from '@ai-gateway/contracts';
@@ -26,13 +29,15 @@ if(!Number.isSafeInteger(controlPlaneTimeoutMs)||controlPlaneTimeoutMs<1000||con
 const webOrigin = process.env.WEB_ORIGIN ?? 'http://127.0.0.1:5173';
 const localWebOrigins = new Set(runtimeMode==='production'?[webOrigin]:[webOrigin, 'http://127.0.0.1:5173', 'http://localhost:5173']);
 const journal=new SettlementJournal(process.env.GATEWAY_JOURNAL_DIR??resolve(process.cwd(),`.runtime/gateway-${port}`));
+const traceJournal=new TraceJournal(resolve(journal.directory,'requests'));
+const requestTraces=new WeakMap<IncomingMessage,RequestTrace>();
 const activeUpstreams=new Set<AbortController>();
 let closing=false,draining=false;
 
 function corsHeaders(origin?: string): Record<string, string> {
   return { 'access-control-allow-origin': origin && localWebOrigins.has(origin) ? origin : webOrigin,
-    'access-control-allow-headers': 'authorization, x-api-key, anthropic-version, anthropic-beta, content-type, idempotency-key, x-request-id, x-price-version, x-retry-of-request-id',
-    'access-control-allow-methods': 'POST, OPTIONS', 'access-control-expose-headers': 'x-request-id, x-atlas-protocol-mode', vary: 'Origin' };
+    'access-control-allow-headers': 'authorization, x-api-key, anthropic-version, anthropic-beta, content-type, idempotency-key, x-request-id, x-price-version, x-retry-of-request-id, traceparent',
+    'access-control-allow-methods': 'GET, POST, OPTIONS', 'access-control-expose-headers': 'x-request-id, x-trace-id, x-atlas-protocol-mode', vary: 'Origin' };
 }
 function sendJson(response: ServerResponse, status: number, value: unknown, origin?: string): void {
   if (response.destroyed || response.writableEnded) return;
@@ -94,8 +99,9 @@ async function handleModels(request: IncomingMessage, response: ServerResponse):
 }
 
 async function handleCompletions(request: IncomingMessage, response: ServerResponse, protocol:PublicProtocol='chat'): Promise<void> {
-  const startedAt=Date.now();let ttftMs:number|undefined;
-  const reply=(status:number,value:unknown)=>sendJson(response,status,protocolError(protocol,value),request.headers.origin);
+  const startedAt=Date.now();let ttftMs:number|undefined;const trace=requestTraces.get(request);
+  const mark=async(stage:import('@ai-gateway/contracts').GatewayStage,patch:Parameters<RequestTrace['mark']>[1]={})=>{try{await trace?.mark(stage,patch);}catch{console.error(JSON.stringify({event:'trace_stage_write_failed',requestId:trace?.row.requestId,stage}));}};
+  const reply=(status:number,value:unknown)=>{if(trace&&value&&typeof value==='object'){const error=(value as {error?:{code?:string;type?:string}}).error;const code=error?.code??error?.type;if(code&&/^[a-zA-Z0-9_-]{1,100}$/.test(code))trace.row.errorCode=code;}sendJson(response,status,protocolError(protocol,value),request.headers.origin);};
   let body: Record<string,unknown>;
   let originalBody:Record<string,unknown>,apiKey=(request.headers.authorization??'').replace(/^Bearer\s+/i,'');
   try {
@@ -116,11 +122,12 @@ async function handleCompletions(request: IncomingMessage, response: ServerRespo
   try { validateChatContent(body); } catch(error) {
     reply(400,{error:{type:error instanceof ProtocolInputError?error.code:'invalid_request_error',message:error instanceof Error?error.message:'invalid content'}});return;
   }
-  const requestedOutput=body.max_completion_tokens??body.max_tokens;
+  if(body.n!==undefined&&body.n!==1){reply(400,{error:{type:'invalid_request_error',message:'only n=1 is supported for metered Chat requests'}});return;}
+  const requestedOutput=body.max_completion_tokens??body.max_tokens??undefined;
   if(requestedOutput!==undefined&&(typeof requestedOutput!=='number'||!Number.isSafeInteger(requestedOutput)||requestedOutput<1)){
     reply(400,{error:{type:'invalid_request_error',message:'output token limit must be a positive integer'}});return;
   }
-  const requestId=String(request.headers['x-request-id']??`request-${randomUUID()}`);
+  const requestId=trace?.row.requestId??String(request.headers['x-request-id']??`request-${randomUUID()}`);
   const retryHeader=request.headers['x-retry-of-request-id'];
   if(retryHeader!==undefined&&(typeof retryHeader!=='string'||!isRequestReference(retryHeader))){
     reply(400,{error:{type:'invalid_request_error',message:'x-retry-of-request-id must be an opaque reference of at most 160 characters'}});return;
@@ -134,6 +141,7 @@ async function handleCompletions(request: IncomingMessage, response: ServerRespo
     credential=resolved.value;
     if(!credential) { reply(401,{error:{type:'authentication_error',message:'invalid API key'}}); return; }
   } catch { reply(503,{error:{type:'control_plane_unavailable',message:'authorization service is unavailable'},requestId}); return; }
+  await mark('authenticated',{identity:credential.identity,purpose:credential.purpose,modelId:credential.modelIds?.includes(String(body.model))?String(body.model):null});
   const admissionAttemptId=randomUUID();
   const {model:_ignoredModel,...normalizedInput}=body;
   const assessment=checkGuardrail(credential.guardrailPolicy??defaultGuardrailPolicy(),body.model,protocol==='chat'?body:{...originalBody,normalizedInput});
@@ -167,12 +175,14 @@ async function handleCompletions(request: IncomingMessage, response: ServerRespo
     await forget();
     reply(decision.reasonCode==='rate_limited'?429:decision.reasonCode==='request_limit_exceeded'?400:decision.reasonCode==='price_unconfigured'?503:403,{error:{type:decision.reasonCode==='safety_policy_violation'?'safety_policy_violation':'policy_denied',code:decision.reasonCode==='safety_policy_violation'?'sensitive_input':decision.reasonCode,message:decision.reasonMessage,...(decision.requestLimits?{details:{requestLimits:decision.requestLimits}}:{})},requestId}); return;
   }
+  if(decision.replayed&&trace)trace.row.replayed=true;
   if(decision.replayed||decision.requestId!==requestId||(decision.admissionAttemptId&&decision.admissionAttemptId!==admissionAttemptId)) {
     if(decision.admissionAttemptId===admissionAttemptId)await defer();else await forget();
     reply(409,{error:{type:'request_already_authorized',message:'request already authorized; repeat forwarding is disabled'},requestId:decision.requestId}); return;
   }
   const logicalModel=body.model;
   const admission=decision.admission;
+  await mark('admitted',{route:admission?.route?{serviceId:admission.route.serviceId,poolId:admission.route.poolId,upstreamModel:admission.route.upstreamModel,...(admission.route.audit?{audit:admission.route.audit}:{})}:null});
   const configured=admission?.kind==='configured';
   const baseSettlement:SettlementRequest={requestId,idempotencyKey:`${idempotencyKey}:settlement`,reservationId:decision.reservation.reservationId,
     outcome:'rejected_before_upstream',forwarded:false,usageFinal:true,inputTokens:0,outputTokens:0,cachedInputTokens:0,actualAmount:0,currency:'CNY',completedAt:new Date().toISOString(),
@@ -225,20 +235,26 @@ async function handleCompletions(request: IncomingMessage, response: ServerRespo
     if(process.env.GATEWAY_DATA_PLANE==='higress'&&!transport)throw new Error('Higress dispatch metadata is required');
     const dispatchTarget=transport?new URL(transport.baseUrl):target;
     if(transport&&(!process.env.HIGRESS_PROXY_URL||!transport.baseUrl.startsWith(process.env.HIGRESS_PROXY_URL.replace(/\/$/,'')+'/atlas/')||!/^atlas-[a-f0-9]{32}$/.test(transport.model)))throw new Error('invalid Higress dispatch target');
-    const upstreamCredential=transport?process.env.UPSTREAM_HIGRESS_INTERNAL:route?.credentialRef?process.env[route.credentialRef]:null;
+    let upstreamCredential=transport?process.env.UPSTREAM_HIGRESS_INTERNAL:route?.credentialRef?process.env[route.credentialRef]:null;
+    if(!transport&&route?.credential){
+      const resolved=await controlPlane<{secret:string}>('/internal/v1/upstream/resolve',{requestId,reservationId:decision.reservation!.reservationId});
+      if(resolved.status!==200||!resolved.value.secret)throw new Error('managed upstream credential unavailable');
+      upstreamCredential=resolved.value.secret;
+    }
     if(transport&&!upstreamCredential)throw new Error('Higress credential is not configured');
     if(!transport&&route?.credentialRef&&(!/^UPSTREAM_[A-Z0-9_]+$/.test(route.credentialRef)||!upstreamCredential))throw new Error('upstream credential reference is not configured');
     const forwarded:Record<string,unknown>={...(native?originalBody:body),model:native?route!.upstreamModel:transport?.model??route?.upstreamModel??logicalModel};
     if(native&&protocol==='responses')forwarded.store=false;
-    if(configured){if(native&&protocol==='responses')forwarded.max_output_tokens=route!.maxOutputTokens;else if(body.max_completion_tokens!==undefined){forwarded.max_completion_tokens=route!.maxOutputTokens;delete forwarded.max_tokens;}else forwarded.max_tokens=route!.maxOutputTokens;}
+    if(configured&&route!.maxOutputTokens!==undefined){if(native&&protocol==='responses')forwarded.max_output_tokens=route!.maxOutputTokens;else if(body.max_completion_tokens!==undefined){forwarded.max_completion_tokens=route!.maxOutputTokens;delete forwarded.max_tokens;}else forwarded.max_tokens=route!.maxOutputTokens;}
     if(body.stream===true&&!native)forwarded.stream_options={...(body.stream_options as Record<string,unknown>|undefined),include_usage:true};
-    await journal.dispatched(requestId);dispatched=true;
+    await journal.dispatched(requestId);dispatched=true;await mark('dispatched');
     deadline=new UpstreamDeadline(controller,timeouts);
     const dispatchUrl=native?(transport?transport.baseUrl+'/v1/'+protocol:protocolUrl(target.toString(),protocol,route?.protocolPaths)):chatCompletionsUrl(dispatchTarget.toString());
     upstream=await dispatchUpstream(dispatchUrl, { method:'POST',redirect:'error', signal:controller.signal,
-      headers:{'content-type':'application/json','x-request-id':requestId,...(native&&protocol==='messages'?{'anthropic-version':String(request.headers['anthropic-version']),...(request.headers['anthropic-beta']?{'anthropic-beta':String(request.headers['anthropic-beta'])}:{})}:{}),...(upstreamCredential?{[transport?'x-atlas-hop-token':'authorization']:`Bearer ${upstreamCredential}`,...(native&&protocol==='messages'&&!transport?{'x-api-key':upstreamCredential}:{})}:{})},body:JSON.stringify(native?forwarded:adaptUpstreamChatRequest(target,forwarded)) });
+      headers:{'content-type':'application/json','x-request-id':requestId,...(trace?{traceparent:trace.traceparent}:{}),...(native&&protocol==='messages'?{'anthropic-version':String(request.headers['anthropic-version']),...(request.headers['anthropic-beta']?{'anthropic-beta':String(request.headers['anthropic-beta'])}:{})}:{}),...(upstreamCredential?{[transport?'x-atlas-hop-token':'authorization']:`Bearer ${upstreamCredential}`,...(native&&protocol==='messages'&&!transport?{'x-api-key':upstreamCredential}:{})}:{})},body:JSON.stringify(native?forwarded:adaptUpstreamChatRequest(target,forwarded)) });
     upstreamStatus=upstream.status;
     upstreamRequestId=readUpstreamRequestId(upstream.headers);
+    await mark('upstream_response',{upstreamRequestId});
     if(!upstream.ok) { raw=await boundedText(upstream,()=>deadline!.receivedBytes()); outcome='upstream_error';usageFinal=extractUpstreamUsage(raw)!==null||!configured||upstream.status<500;
       // Local-only diagnostic: the client still gets a generic message, but operators need the vendor's own reason.
       let vendorType:string|null=null,vendorMessage:string|null=null;
@@ -256,6 +272,7 @@ async function handleCompletions(request: IncomingMessage, response: ServerRespo
           if(!data.trim())return;
           const value=JSON.parse(data),eventName=event.split(/\r?\n/).find(line=>line.startsWith('event:'))?.slice(6).trim();
           if(ttftMs===undefined&&(['response.output_text.delta','response.function_call_arguments.delta','content_block_delta'].includes(value.type)))ttftMs=Math.min(2147483647,Date.now()-startedAt);
+          if(ttftMs!==undefined&&!trace?.row.stages.some(e=>e.stage==='first_output'))await mark('first_output');
           await writeFrames(native.push(value,eventName));done=native.done;return;
         }
         if(data.trim()==='[DONE]'){done=true;return;}
@@ -264,10 +281,12 @@ async function handleCompletions(request: IncomingMessage, response: ServerRespo
           if(done)throw new Error('upstream data after terminal marker');
           const value=JSON.parse(data);
           if(ttftMs===undefined&&value?.choices?.some((c:{delta?:{content?:string;tool_calls?:unknown[]}})=>c.delta?.content||c.delta?.tool_calls?.length))ttftMs=Math.min(2147483647,Date.now()-startedAt);
+          if(ttftMs!==undefined&&!trace?.row.stages.some(e=>e.stage==='first_output'))await mark('first_output');
           await writeFrames(output.push(value));return;
         }
         let forwardedEvent=event;
         try{const value=JSON.parse(data);if(ttftMs===undefined&&value?.choices?.some((choice:{delta?:{content?:string;tool_calls?:unknown[]}})=>choice.delta?.content||choice.delta?.tool_calls?.length))ttftMs=Math.min(2147483647,Date.now()-startedAt);if(value&&typeof value==='object'&&'model'in value){value.model=logicalModel;forwardedEvent=event.split(/\r?\n/).filter(line=>!line.startsWith('data:')).concat(`data: ${JSON.stringify(value)}`).join('\n');}}catch{/* pass through non-JSON SSE events */}
+        if(ttftMs!==undefined&&!trace?.row.stages.some(e=>e.stage==='first_output'))await mark('first_output');
         if(!response.destroyed&&!response.write(`${forwardedEvent}\n\n`))await new Promise<void>(resolve=>{
           const finish=()=>{response.off('drain',finish);response.off('close',finish);resolve();};response.once('drain',finish);response.once('close',finish);
         });
@@ -309,15 +328,19 @@ async function handleCompletions(request: IncomingMessage, response: ServerRespo
     upstreamStatus=protocolValidation?400:!dispatched?503:deadline?.phase?504:draining?503:502; failureMessage=protocolValidation?protocolValidation.message:!dispatched?'controlled upstream configuration is unavailable':deadline?.phase?`upstream ${deadline.phase} timeout`:draining?'gateway shutdown interrupted the upstream':'upstream model connection interrupted';
   } finally { deadline?.stop();activeUpstreams.delete(controller);clearInterval(heartbeat); response.off('close',onClose); }
 
+  if(ttftMs!==undefined&&trace&&!trace.row.stages.some(e=>e.stage==='first_output')){const at=new Date(Math.max(Date.parse(trace.row.updatedAt),startedAt+ttftMs)).toISOString();trace.row.stages.push({stage:'first_output',at});trace.row.updatedAt=at;}
+  await mark('generation_finished');
   const usage=extractUpstreamUsage(raw)??{inputTokens:0,outputTokens:0,cachedInputTokens:0};
   const errorCode=protocolValidation?.code??(outcome==='completed'?undefined:deadline?.phase?`upstream_${deadline.phase}_timeout`:draining&&outcome==='partial'?'gateway_stopping':outcome==='upstream_error'?`upstream_http_${upstream?.status??'connection'}`:outcome==='rejected_before_upstream'?'controlled_configuration_unavailable':outcome);
   const settlement: SettlementRequest={...baseSettlement,outcome,forwarded:dispatched,ttftMs,errorCode,...usage,usageFinal,upstreamRequestId,actualAmount:configured?undefined:outcome==='completed'||outcome==='partial'?0.02:0,completedAt:new Date().toISOString()};
+  if(trace)trace.row.errorCode=errorCode??null;
   let settled=false;
   try{settled=await journal.finalize(settlement);}catch(error){console.error(JSON.stringify({event:'settlement_journal_failed',requestId,reservationId:settlement.reservationId,errorName:error instanceof Error?error.name:'unknown',causeCode:(error as NodeJS.ErrnoException).code??null}));}
+  if(settled)await mark('settled');
   if(!settled) {if(output&&streamStarted){await writeFrames(output.fail('settlement_pending','usage settlement is pending durable replay or reconciliation'));response.end();}else reply(503,{error:{type:'settlement_pending',message:'usage settlement is pending durable replay or reconciliation'},requestId}); return; }
   if(clientCancelled||response.destroyed) return;
   if(streamStarted) {
-    if(output){await writeFrames(native&&native.done&&usageFinal?native.complete():outcome==='completed'&&done?output.complete(usage):output.fail(errorCode??'upstream_interrupted'));response.end();return;}
+    if(output){await writeFrames(native&&native.done&&(!native.successful||usageFinal)?native.complete():outcome==='completed'&&done?output.complete(usage):output.fail(errorCode??'upstream_interrupted'));response.end();return;}
     if(outcome==='completed'&&done)response.write('data: [DONE]\n\n');
     if(outcome!=='completed') response.write(`event: error\ndata: ${JSON.stringify({error:{type:'upstream_interrupted',code:errorCode},requestId})}\n\n`);
     response.end(); return;
@@ -329,6 +352,8 @@ async function handleCompletions(request: IncomingMessage, response: ServerRespo
     response.writeHead(upstream.status,{'content-type':upstream.headers.get('content-type')??'application/json',...corsHeaders(origin)}); response.end(raw);
   } else reply(upstreamStatus,{error:{type:protocolValidation?.code??outcome,code:errorCode,message:failureMessage},requestId});
 }
+const media=new MediaGateway({activeUpstreams,rpc:controlPlane,journal,trace:r=>requestTraces.get(r),send:sendJson,cors:corsHeaders});
+const mediaPaths:Record<string,import('@ai-gateway/contracts').ModelKind>={'/v1/embeddings':'embeddings','/v1/rerank':'rerank','/v2/rerank':'rerank','/v1/images/generations':'image','/v1/audio/transcriptions':'asr','/v1/audio/speech':'tts','/v1/videos':'video','/v1/videos/generations':'video'};
 const pendingRequests=new Set<Promise<void>>();
 async function handleOutbox(request:IncomingMessage,response:ServerResponse){
   const expected=createHash('sha256').update(`Bearer ${serviceToken}`).digest(),actual=createHash('sha256').update(request.headers.authorization??'').digest();
@@ -353,8 +378,13 @@ async function serveRequest(request:IncomingMessage,response:ServerResponse){
     if(closing){sendJson(response,503,{error:{type:'gateway_stopping',message:'gateway is draining active requests'}},request.headers.origin);return;}
     // SDKs such as Claude Code append ?beta=true; query parameters do not change the public route.
     const {pathname}=new URL(request.url??'/','http://gateway.local');
-    if(request.method==='GET'&&pathname==='/health') {const outbox=await journal.status();sendJson(response,200,{status:outbox.blocked||outbox.queued?'degraded':'ok',dataPlane:process.env.GATEWAY_DATA_PLANE==='higress'?'higress':runtimeMode==='production'?'controlled-proxy':'local-simulation',outbox},request.headers.origin);return;}
+    if(request.method==='GET'&&pathname==='/health') {const outbox=await journal.status(),traces=await traceJournal.status(),mediaStatus=await media.status();sendJson(response,200,{media:mediaStatus,traces,status:outbox.blocked||outbox.queued||traces.deliveryFailed||mediaStatus.pendingReceipts||mediaStatus.workerFailures?'degraded':'ok',dataPlane:process.env.GATEWAY_DATA_PLANE==='higress'?'higress':runtimeMode==='production'?'controlled-proxy':'local-simulation',outbox},request.headers.origin);return;}
     if(pathname==='/internal/v1/outbox'||pathname.startsWith('/internal/v1/outbox/')){await handleOutbox(request,response);return;}
+    if(request.method==='OPTIONS'&&(mediaPaths[pathname]||/^\/v1\/videos\//.test(pathname))){response.writeHead(204,corsHeaders(request.headers.origin));response.end();return;}
+    if(request.method==='POST'&&mediaPaths[pathname]){try{await media.post(request,response,mediaPaths[pathname]);}catch{if(response.headersSent)response.destroy();else sendJson(response,503,{error:{type:'media_gateway_unavailable'}},request.headers.origin);}return;}
+    const cancelMatch=pathname.match(/^\/v1\/videos\/([a-f0-9-]{36})\/cancel$/);
+    if(request.method==='POST'&&cancelMatch){try{await media.cancel(request,response,cancelMatch[1]);}catch{if(response.headersSent)response.destroy();else sendJson(response,503,{error:{type:'video_cancellation_uncertain'}},request.headers.origin);}return;}
+    const videoMatch=pathname.match(/^\/v1\/videos\/([a-f0-9-]{36})(\/content)?$/);if(request.method==='GET'&&videoMatch){try{await media.get(request,response,videoMatch[1],!!videoMatch[2]);}catch{if(response.headersSent)response.destroy();else sendJson(response,503,{error:{type:'media_gateway_unavailable'}},request.headers.origin);}return;}
     if(request.method==='OPTIONS'&&['/v1/chat/completions','/v1/models','/v1/responses','/v1/messages'].includes(pathname)) {response.writeHead(204,corsHeaders(request.headers.origin));response.end();return;}
     if(request.method==='GET'&&pathname==='/v1/models') {await handleModels(request,response);return;}
     if(request.method==='POST'&&pathname==='/v1/chat/completions') {await handleCompletions(request,response);return;}
@@ -363,8 +393,17 @@ async function serveRequest(request:IncomingMessage,response:ServerResponse){
     sendJson(response,404,{error:{type:'not_found',message:'route not found'}},request.headers.origin);
   } catch {sendJson(response,500,{error:{type:'gateway_error',message:'gateway request failed'}},request.headers.origin);}
 }
+async function tracedRequest(request:IncomingMessage,response:ServerResponse){
+  const path=new URL(request.url??'/','http://gateway.local').pathname;
+  if(!/^\/v1(?:\/[a-zA-Z0-9_/-]*)?$/.test(path)||path.length>160){await serveRequest(request,response);return;}
+  const trace=new RequestTrace(traceJournal,request.method??'GET',path,request.headers['x-request-id'],request.headers.traceparent);
+  requestTraces.set(request,trace);response.setHeader('x-request-id',trace.row.requestId);response.setHeader('x-trace-id',trace.row.traceId);
+  try{await trace.mark('accepted');await serveRequest(request,response);}
+  catch{sendJson(response,503,{error:{type:'trace_journal_unavailable',message:'request trace could not be persisted'}});}
+  finally{try{await trace.mark('completed',{status:response.destroyed&&!response.writableEnded?499:response.statusCode});}catch{console.error(JSON.stringify({event:'trace_journal_failed',attemptId:trace.row.attemptId}));}}
+}
 const server=createServer((request,response)=>{
-  const pending=serveRequest(request,response);pendingRequests.add(pending);
+  const pending=tracedRequest(request,response);pendingRequests.add(pending);
   void pending.finally(()=>pendingRequests.delete(pending)).catch(()=>undefined);
 });
 function shutdown(){
@@ -374,10 +413,13 @@ function shutdown(){
   const drain=setTimeout(()=>{draining=true;for(const controller of activeUpstreams)controller.abort();},timeouts.drainMs);drain.unref();
   const deadline=setTimeout(()=>process.exit(1),timeouts.drainMs+5000);deadline.unref();
   server.close(()=>{void (async()=>{
-    await Promise.allSettled([...pendingRequests]);await journal.flush();await journal.close();
+    await Promise.allSettled([...pendingRequests]);await media.close();await journal.flush();await traceJournal.close();await journal.close();
   })().then(()=>{clearTimeout(drain);clearTimeout(deadline);process.exit(0);}).catch(()=>process.exit(1));});
 }
 process.on('SIGTERM',shutdown);process.on('SIGINT',shutdown);
 await journal.initialize(async event=>(await controlPlane<SettlementResponse>('/internal/v1/usage/settlements',event)).status,input=>controlPlane<AuthorizeResponse>('/internal/v1/policy/authorize',input));
+const exportTrace=otlpExporter();
+await traceJournal.initialize(async row=>{const status=(await controlPlane('/internal/v1/telemetry/requests',row)).status;return status===200&&!(await exportTrace(row))?503:status;});
+await media.initialize();
 const host=process.env.HOST??'127.0.0.1';
 server.listen(port,host,()=>console.log(`gateway listening on ${host}:${port}`));

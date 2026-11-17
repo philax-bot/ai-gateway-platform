@@ -20,6 +20,10 @@ describe('local Octop import handoff',()=>{
   afterEach(()=>{service.onModuleDestroy();vi.useRealTimers();if(previous===undefined)delete process.env.PUBLIC_GATEWAY_URL;else process.env.PUBLIC_GATEWAY_URL=previous;});
   const create=()=>service.create(employee,token,{keyId:issued.key.id,apiKey:issued.secret});
   const ticket=(url:string)=>new URL(url).searchParams.get('ticket')!;
+  it('refuses to export an Embedding-only key as a chat provider',async()=>{
+    await repository.transact(async tx=>{tx.state.definitions[0].kind='embeddings';});
+    await expect(create()).rejects.toThrow('chat models');
+  });
   it('hands off the existing key once without putting it in URLs or persisted state',async()=>{
     const link=await create();expect(link.url).not.toContain(issued.secret);const claim=await service.claim({ticket:ticket(link.url)});expect(claim.config).toMatchObject({apiKey:issued.secret,baseUrl:'https://gateway.example.com/v1'});expect(claim.config!.models[0]).toMatchObject({api_mode:'chat_completions',api_fallback:'none'});expect((await repository.read()).keys).toHaveLength(1);expect(JSON.stringify(await repository.read())).not.toContain(issued.secret);await expect(service.claim({ticket:ticket(link.url)})).rejects.toThrow('already used');
     service.complete({id:claim.id,receipt:claim.receipt,status:'completed'});expect(service.status(employee,link.id).status).toBe('completed');expect(()=>service.complete({id:claim.id,receipt:claim.receipt,status:'failed'})).toThrow();

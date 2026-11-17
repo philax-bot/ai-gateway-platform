@@ -63,7 +63,7 @@ describe('application accounting and approved quota transitions',()=>{
     expect((await platform.keyDetail(employee,detail.keys[0].id)).sources[0].balance).toBe(4.999956);
   });
   it('keeps explicit and legacy quota applications gated, with no negative quota spending',async()=>{
-    const a=await app({billingMode:'quota'}),r=await request(a.id);expect((await store.authorize(r)).reasonCode).toBe('no_quota');
+    const a=await app({billingMode:'quota',initialAmount:0.000001,validity:'permanent'}),r=await request(a.id);expect((await store.authorize(r)).reasonCode).toBe('quota_insufficient');
     await command('application.fund',{applicationId:a.id,amount:0.000001,expiresAt:expiresAt()});expect((await store.authorize(next(r))).reasonCode).toBe('quota_insufficient');
     await repo.transact(async tx=>{delete tx.state.applications[0].billingMode;});expect(applicationBillingMode((await repo.read()).applications[0])).toBe('quota');expect((await store.authorize(next(r))).reasonCode).toBe('quota_insufficient');
   });

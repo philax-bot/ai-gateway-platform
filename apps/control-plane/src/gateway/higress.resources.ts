@@ -14,7 +14,7 @@ export function containsConfiguration(actual:unknown,expected:unknown):boolean{
 export const resourceId=(route:Pick<RouteSnapshot,'serviceId'|'definitionId'>)=>`route-${digest([route.serviceId,route.definitionId]).slice(0,32)}`;
 export function binding(route:RouteSnapshot,credential:string){
   const local=['localhost','127.0.0.1','[::1]'].includes(new URL(route.baseUrl).hostname);
-  return digest(['atlas-higress-config-v3',route.serviceId,route.definitionId,route.baseUrl,route.protocolPaths??{},route.upstreamModel,route.credentialRef,digest(credential),digest(process.env.UPSTREAM_HIGRESS_INTERNAL??''),...(local?[process.env.HIGRESS_LOOPBACK_HOST,process.env.HIGRESS_LOOPBACK_SOURCE_PORT,process.env.HIGRESS_LOOPBACK_RELAY_URL]:[])]);
+  return digest(['atlas-higress-config-v3',route.serviceId,route.definitionId,route.baseUrl,route.protocolPaths??{},route.upstreamModel,route.credential??null,route.credentialRef,digest(credential),digest(process.env.UPSTREAM_HIGRESS_INTERNAL??''),...(local?[process.env.HIGRESS_LOOPBACK_HOST,process.env.HIGRESS_LOOPBACK_SOURCE_PORT,process.env.HIGRESS_LOOPBACK_RELAY_URL]:[])]);
 }
 export interface Resource {apiVersion:string;kind:string;metadata:{name:string;namespace:string;[key:string]:unknown};spec:Record<string,unknown>}
 export function renderRoute(route:RouteSnapshot,version:string,credential:string,proxyToken:string,namespace:string):{name:string;resources:Resource[]}{
@@ -27,7 +27,7 @@ export function renderRoute(route:RouteSnapshot,version:string,credential:string
   const name=`atlas-${digest([binding(route,credential),version]).slice(0,32)}`,probe=name+'-probe',port=Number(target.port||(target.protocol==='https:'?443:80));
   const metadata=(name:string)=>({name,namespace,labels:{'app.kubernetes.io/managed-by':'atlas'}});
   const wasm=(name:string,plugin:string,version:string,phase:string,priority:number,config:unknown,ingresses:string[]):Resource=>({apiVersion:'extensions.higress.io/v1alpha1',kind:'WasmPlugin',metadata:metadata(name),spec:{url:`http://127.0.0.1:8002/plugins/${plugin}/${version}/plugin.wasm`,failStrategy:'FAIL_CLOSE',phase,priority,defaultConfigDisable:true,defaultConfig:{},matchRules:[{ingress:ingresses,configDisable:false,config}]}});
-  let path=target.pathname.replace(/\/+$/,'');if(!path.endsWith('/chat/completions'))path+=path.endsWith('/v1')?'/chat/completions':'/v1/chat/completions';target.pathname=path;
+  let path=target.pathname.replace(/\/+$/,'');if(!path.endsWith('/chat/completions'))path+=/\/v\d+(?:beta\d*)?$/.test(path)?'/chat/completions':'/v1/chat/completions';target.pathname=path;
   const ingress=(id:string,path:string):Resource=>({apiVersion:'networking.k8s.io/v1',kind:'Ingress',metadata:{...metadata(id),annotations:{'higress.io/destination':id===probe?'atlas-readiness.static:1':`${name}.${isIP(target.hostname)?'static':'dns'}:${port}`,'higress.io/request-header-control-remove':'x-atlas-hop-token','higress.io/proxy-next-upstream':'off','higress.io/proxy-next-upstream-tries':'0','higress.io/response-header-control-update':`x-atlas-config-version ${name}`}},spec:{rules:[{http:{paths:[{path,pathType:'Exact',backend:{resource:{apiGroup:'networking.higress.io',kind:'McpBridge',name:'default'}}}]}}]}});
   const native=(protocol:'responses'|'messages')=>{
     const value=ingress(name+'-'+protocol,`/atlas/${name}/v1/${protocol}`),annotations=value.metadata.annotations as Record<string,string>;

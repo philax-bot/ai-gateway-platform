@@ -52,7 +52,7 @@ export function CockpitDemo({variant,data,active=true,setPage}:Props&{variant:Co
   const trendPoints=days.map(row=>({label:row.key,primary:row.confirmedAmount,secondary:row.requests}));
   const hasData=!!report&&(totals?.requests??0)>0;
 
-  const range=(label:string,days:number|null)=>{setPreset(label);query.range(days);};
+  const range=(label:string,days:number|null)=>{setPreset(label);query.range(days===null?'month':days===7?'last7':'last30');};
 
   const hero=<section className="dc-hero" aria-label="窗口汇总">
     <div className="dc-hero-main">

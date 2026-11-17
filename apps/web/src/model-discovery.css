@@ -50,7 +50,7 @@ html .model-card .model-card-actions { margin: 20px 0 0; justify-content: space-
   .personal-user { display: none; }
   .personal-toolbar, .personal-navigation { padding-left: 24px; padding-right: 24px; }
 }
-@media (max-width: 900px) {
+@media (max-width: 1180px) {
   .personal-navigation, .personal-header .personal-design, .personal-header .personal-space { display: none; }
   .personal-header .personal-menu-button { display: inline-flex; }
   .personal-toolbar { min-height: 64px; gap: 8px; border-bottom: 0; }

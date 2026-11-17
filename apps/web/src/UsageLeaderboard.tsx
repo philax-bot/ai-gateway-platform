@@ -1,3 +1,4 @@
+import {hasPermission} from '@ai-gateway/contracts';
 import { useEffect, useMemo, useState } from 'react';
 import type { CallQuery, PlatformSnapshot, UsageBucket } from '@ai-gateway/contracts';
 import {usageTarget} from './usage-navigation';
@@ -21,7 +22,7 @@ export function UsageLeaderboard({data,active=true,setPage,edit,targetId}:Props)
   const initial=(dimensions.some(([value])=>value===targetId)?targetId:'people') as UsageDimension;
   const [dimension,setDimension]=useState<UsageDimension>(initial),[metric,setMetric]=useState<UsageMetric>('cost');
   useEffect(()=>{if(dimensions.some(([value])=>value===targetId))setDimension(targetId as UsageDimension);},[targetId]);
-  const operator=data.actor.roles.includes('operator'),managesProjects=data.projects.some(project=>project.managerId===data.actor.id&&project.status==='active');
+  const operator=hasPermission(data.actor,'usage.read.all'),managesProjects=data.projects.some(project=>project.managerId===data.actor.id&&project.status==='active');
   const report=query.report,totals=report?.totals;
 
   const memberOf=(id:string)=>data.members.find(member=>member.id===id);
@@ -36,8 +37,8 @@ export function UsageLeaderboard({data,active=true,setPage,edit,targetId}:Props)
   const rowQuery=(row:UsageBucket):CallQuery=>dimension==='people'?{subjectId:row.key,subjectType:'employee'}:dimension==='applications'?{subjectId:row.key,subjectType:'application'}:dimension==='projects'?{projectId:row.key}:{organizationId:row.key};
   const drill=(row:UsageBucket,extra:CallQuery={},reviews=false)=>{if(report&&operator)setPage(reviews?'reviews':'calls',usageTarget('leaderboard',label(row),report,{...query.appliedQuery,...rowQuery(row),...extra}));};
   const action=(row:UsageBucket)=>{
-    if(!operator)return null;
-    if(dimension==='people'){const member=memberOf(row.key);return member?<button className="link-button" onClick={()=>edit.grantPlan(undefined,member.id)}>调整额度</button>:'—';}
+    if(!hasPermission(data.actor,'finance.write'))return null;
+    if(dimension==='people'){if(!hasPermission(data.actor,'administration.manage'))return null;const member=memberOf(row.key);return member?<button className="link-button" onClick={()=>edit.grantPlan(undefined,member.id)}>调整额度</button>:'—';}
     if(dimension==='projects'){const project=projectOf(row.key);return project?<button className="link-button" onClick={()=>edit.fund('project',project)}>补充额度</button>:'—';}
     if(dimension==='applications'){const application=applicationOf(row.key);return application?application.billingMode==='accounting'?<button className="link-button" onClick={()=>setPage('applications',application.id)}>查看记账</button>:<button className="link-button" onClick={()=>edit.fund('application',application)}>追加额度</button>:'—';}
     return <button className="link-button" onClick={()=>setPage('members')}>成员</button>;

@@ -20,6 +20,10 @@ export interface WorkspaceTransaction {
   fundBudget(batch: ProjectBudgetBatch): Promise<void>;
   allocateBudget(id: string, amount: number): Promise<void>;
   closeProjectBalances(projectId:string):Promise<{memberAmount:number;budgetAmount:number}>;
+  changeQuota(id:string,value:number,operation:'reclaim'|'return'):Promise<void>;
+  reclaimBudget(id:string,value:number):Promise<void>;
+  extendQuota(id:string,expiresAt:string,budget:boolean):Promise<void>;
+  closeMemberBalances(projectId:string,memberId:string):Promise<void>;
   reconcile(input:ReconciliationRequest):Promise<SettlementResponse>;
 }
 
@@ -44,8 +48,12 @@ export class WorkspaceRepository {
     if(!(this.store instanceof PostgresStore))return structuredClone({services:this.memory.services,definitions:this.memory.definitions});
     return this.store.withClient(async client=>(await client.query("select jsonb_build_object('services',payload->'services','definitions',payload->'definitions') as payload from platform_workspace where id=$1",['org-demo'])).rows[0].payload);
   }
+  readUpstreamCredentials(){return this.readSelected(['upstreamCredentials'] as const,'maintenance_read');}
+  readPeople(){return this.readSelected(['members','organizations','projects'] as const);}
+  readNotifications(){return this.readSelected(['monitoring'] as const,'maintenance_read');}
+  readCapacity(){return this.readSelected(['tenantId','members','organizations','services','definitions','pools','settings'] as const,'maintenance_read');}
   readAuthentication(){return this.readSelected(['members','organizations','sessions'] as const,'auth_session');}
-  readMaintenance(){return this.readSelected(['members','organizations','entitlements','rules','services','definitions','monitoring','settings','retention'] as const,'maintenance_read');}
+  readMaintenance(){return this.readSelected(['tenantId','members','organizations','pools','entitlements','rules','services','definitions','monitoring','settings','retention'] as const,'maintenance_read');}
 
   // Field sets come only from the internal methods above. Filter the JSON object
   // on the server, preserving explicit nulls and absent optional top-level fields.
@@ -63,7 +71,7 @@ export class WorkspaceRepository {
   }
 
   async view(projectId?:string) {
-    if(!(this.store instanceof PostgresStore)) return this.store.exclusive(async()=>{const batches=await this.context(this.memory).batches();return {state:structuredClone(this.memory),batches,budgets:await this.context(this.memory).budgetBatches(),consumedByBatch:projectId?await this.store.confirmedAmountsForBatches(batches.filter(b=>b.projectId===projectId).map(b=>b.id)):{}};});
+    if(!(this.store instanceof PostgresStore)) return this.store.exclusive(async()=>{const batches=await this.context(this.memory).batches();return {state:structuredClone(this.memory),batches,budgets:await this.context(this.memory).budgetBatches(),consumedByBatch:projectId?await this.store.confirmedAmountsForBatches(batches.filter(b=>(b.projectId===projectId||b.purpose==='application'&&b.sourceId===projectId)).map(b=>b.id)):{}};});
     const trace=hotPathDiagnostics.start('workspace_view');
     return this.store.withClient(async raw=>{
       const client=trace.acquired(raw);let failed=false;
@@ -73,7 +81,7 @@ export class WorkspaceRepository {
         const state=result.rows[0].payload as WorkspaceState;
         const tx=this.context(state,client);
         const batches=await tx.batches();
-        const value={state,batches,budgets:await tx.budgetBatches(),consumedByBatch:projectId?await this.store.confirmedAmountsForBatches(batches.filter(b=>b.projectId===projectId).map(b=>b.id),client):{}};
+        const value={state,batches,budgets:await tx.budgetBatches(),consumedByBatch:projectId?await this.store.confirmedAmountsForBatches(batches.filter(b=>(b.projectId===projectId||b.purpose==='application'&&b.sourceId===projectId)).map(b=>b.id),client):{}};
         await client.query('commit');return value;
       } catch(error){failed=true;await client.query('rollback');throw error;}finally{trace.finish(failed);}
     }).catch(error=>{trace.finish(true);throw error;});
@@ -133,7 +141,7 @@ export class WorkspaceRepository {
       batches: async () => {
         if (!client) return [...this.store.quotaBatches.values()].map(b => ({...b,entitlementId:b.entitlementId??null,sourceBatchId:b.sourceBatchId??null}));
         const result = await client.query('select * from quota_batches order by expires_at,id');
-        return result.rows.map(r => ({id:r.id,accounting:r.accounting,sourceType:r.source_type,sourceId:r.source_id,organizationId:r.organization_id,projectId:r.project_id,totalAmount:Number(r.total_amount),availableAmount:Number(r.available_amount),modelIds:r.model_ids,expiresAt:r.expires_at.toISOString(),purpose:r.purpose,entitlementId:r.entitlement_id,sourceBatchId:r.source_batch_id,closedAt:r.closed_at?.toISOString()??null,closedAmount:Number(r.closed_amount)}));
+        return result.rows.map(r => ({id:r.id,accounting:r.accounting,returnedAmount:Number(r.returned_amount),sourceType:r.source_type,sourceId:r.source_id,organizationId:r.organization_id,projectId:r.project_id,totalAmount:Number(r.total_amount),availableAmount:Number(r.available_amount),modelIds:r.model_ids,expiresAt:r.expires_at.toISOString(),purpose:r.purpose,entitlementId:r.entitlement_id,sourceBatchId:r.source_batch_id,closedAt:r.closed_at?.toISOString()??null,closedAmount:Number(r.closed_amount)}));
       },
       grant: async batch => {
         writable();
@@ -181,6 +189,48 @@ export class WorkspaceRepository {
         const result=await client.query('update project_budget_batches set available_amount=available_amount-$1 where id=$2 and expires_at>now() and available_amount >= $1 and closed_at is null returning id',[amount,id]);
         if(!result.rowCount)throw new ConflictException('source budget is expired or insufficient');
       },
+      changeQuota:async(id,value,operation)=>{
+        writable();
+        if(!client){
+          const b=this.store.quotaBatches.get(id);
+          if(!b||b.accounting)throw new ConflictException('额度批次不可调整');
+          const from=operation==='return'&&b.closedAt?'closedAmount':'availableAmount';
+          if((b[from]??0)<value||operation==='reclaim'&&(b.closedAt||Date.parse(b.expiresAt)<=Date.now()))throw new ConflictException('当前可调整余额不足或批次已失效，请刷新');
+          if(operation==='return'){
+            const budget=this.budgets.get(b.sourceBatchId??'');if(!budget)throw new ConflictException('来源预算不存在');
+            const target=budget.closedAt||Date.parse(budget.expiresAt)<=Date.now()?'closedAmount':'availableAmount';
+            budget[target]=Number(((budget[target]??0)+value).toFixed(6));b.returnedAmount=Number(((b.returnedAmount??0)+value).toFixed(6));
+          }else b.closedAmount=Number(((b.closedAmount??0)+value).toFixed(6));
+          b[from]=Number(((b[from]??0)-value).toFixed(6));return;
+        }
+        // Lock only the source batch before its budget. Settlement never locks a budget.
+        const b=(await client.query('select * from quota_batches where id=$1 for update',[id])).rows[0];
+        if(!b||b.accounting)throw new ConflictException('额度批次不可调整');
+        const from=operation==='return'&&b.closed_at?'closed_amount':'available_amount';
+        if(Number(b[from])<value||operation==='reclaim'&&(b.closed_at||new Date(b.expires_at).getTime()<=Date.now()))throw new ConflictException('当前可调整余额不足或批次已失效，请刷新');
+        if(operation==='return'){
+          const changed=await client.query(`update project_budget_batches set available_amount=available_amount+case when closed_at is null and expires_at>now() then $1::numeric else 0 end,closed_amount=closed_amount+case when closed_at is not null or expires_at<=now() then $1::numeric else 0 end where id=$2 returning id`,[value,b.source_batch_id]);
+          if(!changed.rowCount)throw new ConflictException('来源预算不存在');
+        }
+        await client.query(`update quota_batches set ${from}=${from}-$1,${operation==='return'?'returned_amount':'closed_amount'}=${operation==='return'?'returned_amount':'closed_amount'}+$1 where id=$2`,[value,id]);
+      },
+      reclaimBudget:async(id,value)=>{
+        writable();
+        if(!client){const b=this.budgets.get(id);if(!b||b.closedAt||Date.parse(b.expiresAt)<=Date.now()||b.availableAmount<value)throw new ConflictException('当前未分配预算不足或批次已失效，请刷新');b.availableAmount=Number((b.availableAmount-value).toFixed(6));b.closedAmount=Number(((b.closedAmount??0)+value).toFixed(6));return;}
+        const r=await client.query('update project_budget_batches set available_amount=available_amount-$1,closed_amount=closed_amount+$1 where id=$2 and closed_at is null and expires_at>now() and available_amount>=$1 returning id',[value,id]);
+        if(!r.rowCount)throw new ConflictException('当前未分配预算不足或批次已失效，请刷新');
+      },
+      extendQuota:async(id,expiresAt,budget)=>{
+        writable();
+        if(!client){const b=budget?this.budgets.get(id):this.store.quotaBatches.get(id);if(!b||b.closedAt||Date.parse(b.expiresAt)<=Date.now()||Date.parse(b.expiresAt)>=Date.parse(expiresAt))throw new ConflictException('仅可延长未关闭且未过期的额度');b.expiresAt=expiresAt;if(budget)for(const child of this.store.quotaBatches.values())if(child.sourceBatchId===id&&!child.closedAt)child.expiresAt=expiresAt;return;}
+        const r=await client.query(`update ${budget?'project_budget_batches':'quota_batches'} set expires_at=$1 where id=$2 and closed_at is null and expires_at>now() and expires_at<$1 returning id`,[expiresAt,id]);if(!r.rowCount)throw new ConflictException('仅可延长未关闭且未过期的额度');
+        if(budget)await client.query('update quota_batches set expires_at=$1 where source_batch_id=$2 and closed_at is null',[expiresAt,id]);
+      },
+      closeMemberBalances:async(projectId,memberId)=>{
+        writable();
+        if(!client){for(const b of this.store.quotaBatches.values())if(b.projectId===projectId&&b.sourceId===memberId&&!b.closedAt){b.closedAmount=Number(((b.closedAmount??0)+b.availableAmount).toFixed(6));b.availableAmount=0;b.closedAt=new Date().toISOString();b.modelIds=[];}return;}
+        await client.query("update quota_batches set closed_amount=closed_amount+available_amount,available_amount=0,closed_at=clock_timestamp(),model_ids='[]'::jsonb where project_id=$1 and source_id=$2 and closed_at is null",[projectId,memberId]);
+      },
       closeProjectBalances:async projectId=>{
         writable();
         if(!client){let memberAmount=0,budgetAmount=0;const at=new Date().toISOString();
@@ -188,8 +238,8 @@ export class WorkspaceRepository {
           for(const batch of this.budgets.values())if(batch.projectId===projectId&&!batch.closedAt){budgetAmount+=batch.availableAmount;batch.closedAmount=Number(((batch.closedAmount??0)+batch.availableAmount).toFixed(6));batch.availableAmount=0;batch.closedAt=at;}
           return {memberAmount:Number(memberAmount.toFixed(6)),budgetAmount:Number(budgetAmount.toFixed(6))};
         }
-        const members=await client.query(`with moved as (update quota_batches set closed_amount=closed_amount+available_amount,available_amount=0,closed_at=clock_timestamp(),model_ids='[]'::jsonb where project_id=$1 and closed_at is null returning closed_amount) select coalesce(sum(closed_amount),0) as amount from moved`,[projectId]);
-        const budgets=await client.query(`with moved as (update project_budget_batches set closed_amount=closed_amount+available_amount,available_amount=0,closed_at=clock_timestamp() where project_id=$1 and closed_at is null returning closed_amount) select coalesce(sum(closed_amount),0) as amount from moved`,[projectId]);
+        const members=await client.query(`with before_close as materialized (select id,available_amount from quota_batches where project_id=$1 and closed_at is null for update), moved as (update quota_batches q set closed_amount=q.closed_amount+q.available_amount,available_amount=0,closed_at=clock_timestamp(),model_ids='[]'::jsonb from before_close b where q.id=b.id returning b.available_amount) select coalesce(sum(available_amount),0) as amount from moved`,[projectId]);
+        const budgets=await client.query(`with before_close as materialized (select id,available_amount from project_budget_batches where project_id=$1 and closed_at is null for update), moved as (update project_budget_batches q set closed_amount=q.closed_amount+q.available_amount,available_amount=0,closed_at=clock_timestamp() from before_close b where q.id=b.id returning b.available_amount) select coalesce(sum(available_amount),0) as amount from moved`,[projectId]);
         return {memberAmount:Number(members.rows[0].amount),budgetAmount:Number(budgets.rows[0].amount)};
       },
     };

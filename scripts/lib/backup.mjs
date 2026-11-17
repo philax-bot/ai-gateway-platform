@@ -52,6 +52,16 @@ function validateEntry(name,raw,authorization=false){
   }else if(!['admitted','dispatched','queued','blocked'].includes(entry?.phase)||typeof entry.settlement?.requestId!=='string'||createHash('sha256').update(entry.settlement.requestId).digest('hex')+'.json'!==name)fail('Invalid journal identity; inspect the source journal before backup');
   return entry;
 }
+function validateTraceEntry(name,raw){
+  let row;try{row=JSON.parse(raw);}catch{fail('Invalid trace journal JSON');}
+  if(!/^[a-f0-9-]{36}\.json$/.test(name)||row?.attemptId+'.json'!==name||typeof row.requestId!=='string'||!row.requestId||row.requestId.length>160||!/^[a-f0-9]{32}$/.test(row.traceId)||!Number.isInteger(row.revision)||row.revision<1||row.revision>32||!Array.isArray(row.stages)||row.stages.length<1||row.stages.length>10||!Number.isFinite(Date.parse(row.startedAt)))fail('Invalid trace journal identity');
+  return row;
+}
+function validateMediaReceipt(name,raw){
+  let row;try{row=JSON.parse(raw);}catch{fail('Invalid video receipt JSON');}
+  if(!/^[a-f0-9-]{36}\.json$/.test(name)||row?.id+'.json'!==name||typeof row.upstreamId!=='string'||!row.upstreamId||row.upstreamId.length>1000||!['queued','in_progress'].includes(row.status))fail('Invalid video receipt identity');
+  return row;
+}
 async function regularFile(path){const info=await lstat(path);if(!info.isFile()||info.isSymbolicLink())fail('Backup contains an unsupported file or link');return info;}
 async function exclusiveJournal(directory){
   const physical=await realpath(directory),info=await lstat(directory);if(!info.isDirectory()||info.isSymbolicLink())fail('Journal must be an existing physical directory');
@@ -93,12 +103,40 @@ export async function backupWorkspace({connectionString,schema,bin,destination,j
     const snapshot=(await client.query('select pg_export_snapshot() as snapshot')).rows[0].snapshot;
     await mkdir(dirname(out),{recursive:true});await mkdir(out,{mode:0o700});
     const archive=join(out,'platform.dump');await native('pg_dump',['--format=custom','--no-owner','--no-acl',`--schema=${schema}`,`--snapshot=${snapshot}`,'--file',archive],{connectionString,bin});
-    const files=[{path:'platform.dump',size:(await regularFile(archive)).size,sha256:await digestFile(archive)}],summary=[];let authorizationRecords=0;
+    const files=[{path:'platform.dump',size:(await regularFile(archive)).size,sha256:await digestFile(archive)}],summary=[];let authorizationRecords=0,traceRecords=0,mediaRecords=0;
     for(const [index,lock] of locks.entries()){
       const id=`gateway-${String(index+1).padStart(3,'0')}`,folder=join(out,'journals',id);await mkdir(folder,{recursive:true,mode:0o700});let records=0;const phases={admitted:0,dispatched:0,queued:0,blocked:0};
+      async function copyTraces(){
+        const snapshots=new Map();
+        for(const item of await readdir(join(lock.directory,'requests'),{withFileTypes:true})){
+          if(item.isSymbolicLink()||!item.isFile())fail('Trace journal contains an unsupported file');
+          const temporary=/^[a-f0-9-]{36}\.[a-f0-9-]{36}\.tmp$/.test(item.name);
+          if(!temporary&&!/^[a-f0-9-]{36}\.json$/.test(item.name))fail('Trace journal contains unknown files');
+          const source=join(lock.directory,'requests',item.name);if((await regularFile(source)).size>2097152)fail('Trace journal record exceeds backup limit');
+          const raw=await readFile(source,'utf8'),name=item.name.slice(0,36)+'.json';let entry;
+          try{entry=validateTraceEntry(name,raw);}catch(error){if(temporary)continue;throw error;}
+          if(!snapshots.has(name)||snapshots.get(name).entry.revision<entry.revision)snapshots.set(name,{raw,entry});
+        }
+        for(const [name,{raw}] of snapshots){
+          const relative=`journals/${id}/requests/${name}`,target=join(out,...relative.split('/'));
+          await mkdir(dirname(target),{recursive:true,mode:0o700});await writeFile(target,raw,{flag:'wx',mode:0o600});files.push({path:relative,size:(await regularFile(target)).size,sha256:await digestFile(target)});records++;traceRecords++;phases.trace=(phases.trace??0)+1;
+        }
+      }
+      async function copyMedia(){
+        const snapshots=new Map();
+        for(const item of await readdir(join(lock.directory,'media-receipts'),{withFileTypes:true})){
+          if(item.isSymbolicLink()||!item.isFile()||!/^[a-f0-9-]{36}\.(json|tmp)$/.test(item.name))fail('Unsupported media receipt file');
+          const source=join(lock.directory,'media-receipts',item.name);if((await regularFile(source)).size>2097152)fail('Media receipt exceeds backup limit');
+          const raw=await readFile(source,'utf8'),name=item.name.slice(0,36)+'.json';try{validateMediaReceipt(name,raw);}catch(error){if(item.name.endsWith('.tmp'))continue;throw error;}
+          if(snapshots.has(name)&&snapshots.get(name)!==raw)fail('Conflicting video receipt');snapshots.set(name,raw);
+        }
+        for(const [name,raw]of snapshots){const relative=`journals/${id}/media-receipts/${name}`,target=join(out,...relative.split('/'));await mkdir(dirname(target),{recursive:true,mode:0o700});await writeFile(target,raw,{flag:'wx',mode:0o600});files.push({path:relative,size:(await regularFile(target)).size,sha256:await digestFile(target)});records++;mediaRecords++;phases.media_receipt=(phases.media_receipt??0)+1;}
+      }
       async function copyRecords(subdirectory=''){
         const snapshots=new Map(),temporary=[];
         for(const item of await readdir(join(lock.directory,subdirectory),{withFileTypes:true})){
+          if(!subdirectory&&item.name==='media-receipts'&&item.isDirectory()&&!item.isSymbolicLink()){await copyMedia();continue;}
+          if(!subdirectory&&item.name==='requests'&&item.isDirectory()&&!item.isSymbolicLink()){await copyTraces();continue;}
           if(!subdirectory&&item.name==='authorizations'&&item.isDirectory()&&!item.isSymbolicLink()){await copyRecords('authorizations');continue;}
           if(item.isSymbolicLink()||!item.isFile())fail('Journal contains an unsupported file or directory');
           if(!subdirectory&&item.name==='writer.lock')continue;
@@ -129,7 +167,7 @@ export async function backupWorkspace({connectionString,schema,bin,destination,j
       await copyRecords();
       summary.push({id,records,phases});
     }
-    const manifest={format:'signal-atlas-backup',version:authorizationRecords?2:1,createdAt:new Date().toISOString(),schema,mode:installation.mode,client:version,migrations,journals:summary,files};
+    const manifest={format:'signal-atlas-backup',version:mediaRecords?4:traceRecords?3:authorizationRecords?2:1,createdAt:new Date().toISOString(),schema,mode:installation.mode,client:version,migrations,journals:summary,files};
     await writeFile(join(out,'manifest.json'),JSON.stringify(manifest,null,2)+'\n',{flag:'wx',mode:0o600});await client.query('commit');return {directory:out,manifest};
   }catch(error){if(client)await client.query('rollback').catch(()=>undefined);throw error;}
   finally{if(client){await client.query('select pg_advisory_unlock_all()').catch(()=>undefined);client.release();}await db.end();for(const lock of locks.reverse())await lock.release();}
@@ -138,18 +176,18 @@ export async function backupWorkspace({connectionString,schema,bin,destination,j
 async function validateBundle(directory){
   const root=await realpath(directory);if((await lstat(directory)).isSymbolicLink())fail('Backup directory cannot be a link');
   await regularFile(join(root,'manifest.json'));const manifest=JSON.parse(await readFile(join(root,'manifest.json'),'utf8'));
-  if(manifest.format!=='signal-atlas-backup'||![1,2].includes(manifest.version)||!['development','production'].includes(manifest.mode)||!Array.isArray(manifest.files)||!Array.isArray(manifest.journals)||!manifest.journals.length)fail('Unsupported or incomplete backup manifest');
+  if(manifest.format!=='signal-atlas-backup'||![1,2,3,4].includes(manifest.version)||!['development','production'].includes(manifest.mode)||!Array.isArray(manifest.files)||!Array.isArray(manifest.journals)||!manifest.journals.length)fail('Unsupported or incomplete backup manifest');
   validateSchema(manifest.schema);
   const ids=manifest.journals.map(j=>j.id);if(ids.some(id=>!/^gateway-\d{3}$/.test(id))||new Set(ids).size!==ids.length)fail('Invalid backup journal identifiers');
   const paths=new Set();for(const file of manifest.files){
-    if(typeof file.path!=='string'||(file.path!=='platform.dump'&&!/^journals\/gateway-\d{3}\/[a-f0-9]{64}\.json$/.test(file.path)&&!(manifest.version===2&&/^journals\/gateway-\d{3}\/authorizations\/[a-f0-9]{64}\.json$/.test(file.path)))||paths.has(file.path)||!/^[a-f0-9]{64}$/.test(file.sha256)||!Number.isSafeInteger(file.size)||file.size<0)fail('Invalid backup file manifest');
+    if(typeof file.path!=='string'||(file.path!=='platform.dump'&&!/^journals\/gateway-\d{3}\/[a-f0-9]{64}\.json$/.test(file.path)&&!(manifest.version>=2&&/^journals\/gateway-\d{3}\/authorizations\/[a-f0-9]{64}\.json$/.test(file.path))&&!(manifest.version>=4&&/^journals\/gateway-\d{3}\/media-receipts\/[a-f0-9-]{36}\.json$/.test(file.path))&&!(manifest.version>=3&&/^journals\/gateway-\d{3}\/requests\/[a-f0-9-]{36}\.json$/.test(file.path)))||paths.has(file.path)||!/^[a-f0-9]{64}$/.test(file.sha256)||!Number.isSafeInteger(file.size)||file.size<0)fail('Invalid backup file manifest');
     paths.add(file.path);const path=join(root,...file.path.split('/'));if(!(await realpath(path)).startsWith(root+sep))fail('Backup file resolves outside the bundle');
     if(file.path!=='platform.dump'){
-      const [,id,...parts]=file.path.split('/'),name=parts.at(-1),authorization=parts.length===2;if(!ids.includes(id))fail('Unknown journal in backup');
+      const [,id,...parts]=file.path.split('/'),name=parts.at(-1),authorization=parts[0]==='authorizations',trace=parts[0]==='requests',media=parts[0]==='media-receipts';if(!ids.includes(id))fail('Unknown journal in backup');
       if((await lstat(join(root,'journals'))).isSymbolicLink()||(await lstat(join(root,'journals',id))).isSymbolicLink())fail('Backup directories cannot be links');
-      if(authorization){const info=await lstat(join(root,'journals',id,'authorizations'));if(!info.isDirectory()||info.isSymbolicLink())fail('Backup directories cannot be links');}
+      if(authorization||trace||media){const info=await lstat(join(root,'journals',id,media?'media-receipts':trace?'requests':'authorizations'));if(!info.isDirectory()||info.isSymbolicLink())fail('Backup directories cannot be links');}
       if(file.size>2097152)fail('Journal record exceeds the supported backup size');
-      validateEntry(name,await readFile(path,'utf8'),authorization);
+      if(media)validateMediaReceipt(name,await readFile(path,'utf8'));else if(trace)validateTraceEntry(name,await readFile(path,'utf8'));else validateEntry(name,await readFile(path,'utf8'),authorization);
     }
     if((await regularFile(path)).size!==file.size||await digestFile(path)!==file.sha256)fail('Backup checksum mismatch; no restoration was attempted');
   }

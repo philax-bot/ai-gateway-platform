@@ -71,7 +71,7 @@ export class ProtocolOutput {
     return frames;
   }
   validate():void {
-    if(!this.finishReason)invalid();for(const item of this.items)if(item.kind==='tool')toolInput(item.arguments);
+    if(!this.finishReason)invalid();for(const item of this.items)if(item.kind==='tool'&&!(this.protocol==='responses'&&this.finishReason==='length'))toolInput(item.arguments);
     if(this.finishReason==='tool_calls'&&!this.tools.size)invalid();
     if(this.tools.size&&this.finishReason!=='tool_calls'&&this.finishReason!=='length')invalid();
     if(this.finishReason==='content_filter')invalid();

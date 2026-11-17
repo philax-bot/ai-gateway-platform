@@ -44,12 +44,16 @@ test('a failed final settlement survives restart and is retried with the origina
   assert.equal(received.length,1);assert.equal(received[0].idempotencyKey,input.idempotencyKey);assert.equal((await j.status()).queued,0);
 }));
 test('a permanent contract rejection remains inspectable and is not blindly retried',()=>fixture(async(directory,newJournal)=>{
-  const j=newJournal();let calls=0;await j.initialize(async()=>{calls++;return 409;});assert.equal(await j.finalize(event()),false);await j.flush();
+  const j=newJournal();let calls=0;await j.initialize(async()=>{calls++;return 409;});const input=event();assert.equal(await j.finalize(input),false);await j.flush();
+  assert.equal(await j.finalize({...input,errorCode:undefined}),false);await j.flush();assert.equal((await j.inspect(input.requestId))[0].attempts,1);
   assert.equal(calls,1);assert.equal((await j.status()).blocked,1);
 }));
 test('a live writer lock is respected',()=>fixture(async(directory,newJournal)=>{
   const first=newJournal();await first.initialize(async()=>200);
   const second=newJournal();await assert.rejects(second.initialize(async()=>200),/running process/);
+}));
+test('repeated finalization retains an automatic retry schedule and its attempt count',()=>fixture(async(directory,newJournal)=>{
+  const j=newJournal();let calls=0;await j.initialize(async()=>{calls++;return 503;});const input=event();await j.finalize(input);const before=(await j.inspect(input.requestId))[0];await j.finalize(input);const after=(await j.inspect(input.requestId))[0];assert.equal(calls,1);assert.equal(after.attempts,before.attempts);assert.equal(after.nextAttemptAt,before.nextAttemptAt);
 }));
 test('a prior runtime with a reused PID does not block a single-instance container restart',()=>fixture(async(directory,newJournal)=>{
   await writeFile(join(directory,'writer.lock'),JSON.stringify({pid:process.pid,runtimeToken:'previous-single-instance-runtime'}));

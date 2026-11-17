@@ -1,9 +1,12 @@
+import {PersonPicker} from './PersonPicker';
+import {memberIdentity} from './person-identity';
 import { useEffect, useState } from 'react';
+import {hasPermission} from '@ai-gateway/contracts';
 import type { PlatformSnapshot } from '@ai-gateway/contracts';
 import { date, money, Panel, Status } from './components';
 import type { PageProps } from './WorkspacePages';
 import { responsible } from './ApprovalCenter';
-import { availablePlanModels as availableModels,entryReadiness } from './model-readiness';
+import { availablePlanModels as availableModels,entryReadiness,planReadiness } from './model-readiness';
 
 function eligible(d:PlatformSnapshot,member:PlatformSnapshot['members'][number]){
   if(!member.active||(member.validUntil&&Date.parse(member.validUntil)<=Date.now()))return false;
@@ -19,7 +22,7 @@ export function OperationsHome({data:d,setPage}:Pick<PageProps,'data'|'setPage'>
   const attention=pending+failed+(d.pendingReviewCount??0);
   /* 口径：只统计本人有权处理的审批；待核对数量来自费用采集，采集失败时为未知，不显示为 0。 */
   const entitled=new Set(d.entitlements.filter(e=>e.status==='active'&&Date.parse(e.expiresAt)>Date.now()).map(e=>e.memberId)).size;
-  const blocked=!hasService?{title:'先接通一个可用模型',body:'验证模型连接并确认价格后，才能开放给同事使用。',label:'配置并验证模型',page:'models'}:!hasOpenPool?{title:'模型已接通，下一步开放使用范围',body:'选择允许同事使用的模型，保存到模型池。',label:'开放模型',page:'pools'}:!usablePlans.length?{title:'还需要一份人员开通方案',body:'把可用模型和每人额度保存为方案，开通时直接选用。',label:'设置开通方案',page:'onboarding'}:null;
+  const blocked=!hasService?{title:'先接通一个可用模型',body:'验证模型连接并确认价格后，才能开放给同事使用。',label:'配置并验证模型',page:'models'}:!hasOpenPool?{title:'模型已接通，下一步开放使用范围',body:'选择允许同事使用的模型，保存到模型池。',label:'开放模型',page:'pools'}:!usablePlans.length?{title:'还需要一份人员开通方案',body:'把可用模型和每人额度保存为方案，开通时直接选用。',label:'设置开通方案',page:'plans'}:null;
   return <>
     <Panel title="需要你处理"><div className="task-inbox">{[
       {count:pending,title:'申请待审批',body:'查看申请人的用途，决定是否批准。',page:'approvals'},
@@ -33,31 +36,34 @@ export function OperationsHome({data:d,setPage}:Pick<PageProps,'data'|'setPage'>
 }
 
 export function EnableColleague({data:d,run,setPage,edit}:Pick<PageProps,'data'|'run'|'setPage'|'edit'>){
-  const [step,setStep]=useState(0),[query,setQuery]=useState(''),[selected,setSelected]=useState<string[]>([]),[planId,setPlanId]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState('');
+  const [step,setStep]=useState(0),[selected,setSelected]=useState<string[]>([]),[planId,setPlanId]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState('');
   const [receipt,setReceipt]=useState<{names:string[];planName:string;granted:number;skipped:number;failed:number}|null>(null);
   const [restored,setRestored]=useState(false);
+  const [createdPlanId,setCreatedPlanId]=useState('');
   const draftKey='signal-atlas.onboarding-draft';
-  const people=d.members.filter(m=>eligible(d,m)),plans=d.plans.filter(p=>p.active&&availableModels(d,p).length>0),plan=plans.find(p=>p.id===planId);
-  const filtered=people.filter(m=>`${m.name} ${m.directoryId??''} ${d.organizations.find(o=>o.id===m.organizationId)?.name??''}`.toLowerCase().includes(query.trim().toLowerCase()));
+  const people=d.members.filter(m=>eligible(d,m)),plans=[...d.plans].sort((a,b)=>Number(!!planReadiness(d,a))-Number(!!planReadiness(d,b))),plan=plans.find(p=>p.id===planId),blockedReason=plan?planReadiness(d,plan):null;
+  const canManage=hasPermission(d.actor,'administration.manage');
+  const invalidSelected=selected.some(id=>!people.some(m=>m.id===id));
   useEffect(()=>{
     try{
       const raw=window.sessionStorage.getItem(draftKey);if(!raw)return;
       const draft=JSON.parse(raw) as {step?:number;selected?:string[];planId?:string;query?:string};
-      const kept=(draft.selected??[]).filter(id=>people.some(m=>m.id===id));
-      if(kept.length){setSelected(kept);setStep(draft.step===1?1:0);setPlanId(plans.some(p=>p.id===draft.planId)?draft.planId??'':'');setQuery(draft.query??'');setRestored(true);}
+      const kept=(draft.selected??[]).filter(id=>typeof id==='string').slice(0,1000);
+      if(kept.length){setSelected(kept);setStep(draft.step===1?1:0);setPlanId(plans.some(p=>p.id===draft.planId)?draft.planId??'':'');setRestored(true);}
     }catch{/* A corrupt or unavailable draft only means starting fresh. */}
   },[]);
   useEffect(()=>{
     try{
       if(receipt||!selected.length)window.sessionStorage.removeItem(draftKey);
-      else window.sessionStorage.setItem(draftKey,JSON.stringify({step,selected,planId,query}));
+      else window.sessionStorage.setItem(draftKey,JSON.stringify({step,selected,planId}));
     }catch{/* Private browsing can reject storage; the in-memory draft still works. */}
-  },[step,selected,planId,query,receipt]);
-  function restart(){setSelected([]);setPlanId('');setQuery('');setStep(0);setRestored(false);}
+  },[step,selected,planId,receipt]);
+  function restart(){setSelected([]);setPlanId('');setStep(0);setRestored(false);setCreatedPlanId('');}
+  function createPlan(){edit.plan(undefined,created=>{setPlanId(created.id);setCreatedPlanId(created.id);setError('');});}
   async function open(){
-    if(!plan)return;setBusy(true);setError('');
+    if(!plan||blockedReason)return;setBusy(true);setError('');
     try{const result=await run('distribution.execute',{operation:'open_plan',planId:plan.id,memberIds:selected}) as {results:{memberId:string;status:string}[]}|null;
-      if(result)setReceipt({names:selected.map(id=>d.members.find(m=>m.id===id)?.name??id),planName:plan.name,granted:result.results.filter(r=>r.status==='granted').length,skipped:result.results.filter(r=>r.status==='skipped').length,failed:result.results.filter(r=>r.status==='failed').length});
+      if(result)setReceipt({names:selected.map(id=>memberIdentity(d,id)),planName:plan.name,granted:result.results.filter(r=>r.status==='granted').length,skipped:result.results.filter(r=>r.status==='skipped').length,failed:result.results.filter(r=>r.status==='failed').length});
     }catch(e){setError(e instanceof Error?e.message:'开通失败，请重试');}finally{setBusy(false);}
   }
   if(receipt)return <Panel title={receipt.granted?'开通已完成':'本次开通结果'}>
@@ -72,7 +78,13 @@ export function EnableColleague({data:d,run,setPage,edit}:Pick<PageProps,'data'|
   return <Panel title="让同事开始使用 AI"><ol className="journey-steps" aria-label="开通进度"><li aria-current={step===0?'step':undefined}>1 选择人员</li><li aria-current={step===1?'step':undefined}>2 选择方案</li><li>3 确认并开通</li></ol>
     {restored&&<div className="notice" role="status">已恢复上次未完成的进度：{selected.length} 人{step===1&&plan?` · 方案「${plan.name}」`:''}。离开本页或切换页面不会清空草稿。<button type="button" className="link-button" onClick={restart}>重新开始</button></div>}
     {(selected.length>0||plan)&&<div className="choice-summary"><span><b>人员</b>{selected.length?`已选 ${selected.length} 人`:'未选择'}</span><span><b>方案</b>{plan?plan.name:'未选择'}</span>{plan&&<span><b>每人额度</b>{money(plan.amount)}</span>}</div>}
-    {step===0?<><h3>这次为谁开通？</h3><p className="secondary">可选择一人或多人。已停用、到期或组织无效的人员不会出现在名单中。</p><label className="person-search">搜索姓名、账号或组织<input value={query} onChange={e=>setQuery(e.target.value)} placeholder="例如：张三、研发部"/></label><fieldset className="choice-list choice-list-people"><legend className="sr-only">选择人员</legend><div className="choice-list-head"><strong>选择人员</strong><span className="choice-count">已选 {selected.length} 人</span><div className="choice-tools"><button type="button" className="link-button" disabled={!filtered.length} onClick={()=>setSelected(ids=>[...new Set([...ids,...filtered.map(m=>m.id)])])}>全选当前结果</button>{selected.length>0&&<button type="button" className="link-button" onClick={()=>setSelected([])}>清空</button>}</div></div><div className="person-list">{filtered.map(m=><label key={m.id} className={`person-row ${selected.includes(m.id)?'selected':''}`}><input type="checkbox" checked={selected.includes(m.id)} onChange={e=>setSelected(old=>e.target.checked?[...old,m.id]:old.filter(id=>id!==m.id))}/><span className="person-copy"><strong>{m.name}</strong><small>{d.organizations.find(o=>o.id===m.organizationId)?.name} · {m.directoryId}</small></span><span className="person-category">{m.category==='contractor'?'外部协作':'员工'}</span></label>)}{!filtered.length&&<p className="person-empty">没有匹配人员。可在“组织与成员”中添加或检查成员状态。</p>}</div></fieldset><div className="actions"><button className="primary" disabled={!selected.length} onClick={()=>setStep(1)}>下一步：选择方案（{selected.length} 人）</button><button className="ghost" onClick={()=>setPage('members')}>前往组织与成员</button></div></>:<><h3>给 {selected.length} 人开放什么能力？</h3><p className="secondary">已选：{selected.map(id=>d.members.find(m=>m.id===id)?.name).join('、')}</p><fieldset className="choice-list"><legend>可用方案</legend>{plans.map(p=><label key={p.id} className={`plan-choice ${planId===p.id?'selected':''}`}><input type="radio" name="onboarding-plan" checked={planId===p.id} onChange={()=>setPlanId(p.id)}/><span><strong>{p.name}</strong><small>可用模型：{availableModels(d,p).join('、')}</small><small>{p.cadence==='monthly'?'每月':'一次性'}每人 {money(p.amount)} · {p.cadence==='monthly'?'当月额度月底到期':`额度 ${p.quotaDays} 天`} · 权益最长 {p.entitlementDays} 天</small></span></label>)}</fieldset>{!plans.length&&<div className="notice warning">当前没有包含可用模型的开通方案。请先配置方案；已有方案的模型服务也可能需要检查。</div>}{plan&&<p className="secondary">确认页会列出每人的发放金额、到期日和跳过原因；已有该方案有效权益的人员不会重复开通。</p>}{error&&<p className="notice danger" role="alert">{error}</p>}<div className="actions"><button className="primary" disabled={busy||!plan||!selected.length} onClick={()=>void open()}>{busy?'处理中…':'预览名单与金额'}</button><button className="ghost" disabled={busy} onClick={()=>setStep(0)}>返回选人</button>{!plans.length&&<><button className="ghost" onClick={()=>edit.plan()}>创建开通方案</button><button className="ghost" onClick={()=>setPage('models')}>检查模型</button></>}</div></>}
+    {step===0?<><h3>这次为谁开通？</h3><p className="secondary">可选择一人或多人。已停用、到期或组织无效的人员会标明原因，不能选入名单。</p><PersonPicker label="选择开通人员" value={selected} multiple required source={{scope:'onboarding'}} onChange={ids=>setSelected(ids)}/>{invalidSelected&&<p className="notice warning" role="alert">名单中有人员已失效或不可见，请重新打开选择器核对并移除。</p>}<div className="actions"><button className="primary" disabled={!selected.length||invalidSelected} onClick={()=>setStep(1)}>下一步：选择方案（{selected.length} 人）</button><button className="ghost" onClick={()=>setPage('members')}>前往组织与成员</button></div></>:<><h3>给 {selected.length} 人开放什么能力？</h3><p className="secondary">已选：{selected.map(id=>memberIdentity(d,id)).join('；')}</p><div className="actions"><button type="button" className="ghost" disabled={busy||!canManage} title={!canManage?'需要开通管理权限':undefined} onClick={createPlan}>新建方案</button><button type="button" className="link-button" disabled={busy} onClick={()=>setPage('plans')}>管理开通方案</button></div>
+      <p className="secondary">选择包含所需模型池和额度的方案；新建方案后会返回这里，保留已选人员。</p>
+      {createdPlanId&&<div className="notice" role="status">{!d.plans.some(p=>p.id===createdPlanId)?'方案已保存，列表暂未更新，请点击页面上方“刷新数据”重试。':`方案「${d.plans.find(p=>p.id===createdPlanId)!.name}」已保存，尚未为人员发放额度。`}</div>}
+      <fieldset className="choice-list"><legend>选择开通方案</legend>{plans.map(p=>{const reason=planReadiness(d,p),models=availableModels(d,p);return <label key={p.id} className={`plan-choice ${planId===p.id?'selected':''}`}><input type="radio" name="onboarding-plan" checked={planId===p.id} disabled={busy||!!reason} onChange={()=>{setPlanId(p.id);setCreatedPlanId('');}}/><span><strong>{p.name}</strong><small>模型池：{d.pools.find(pool=>pool.id===p.range.poolId)?.name??'已不存在'} · {p.range.mode==='follow'?'跟随模型池':'仅指定模型'}</small><small>可用模型：{models.join('、')||'暂无可用模型'}</small><small>{p.cadence==='monthly'?'每月':'一次性'}每人 {money(p.amount)} · {p.cadence==='monthly'?'当月额度月底到期':`额度 ${p.quotaDays} 天`} · 权益最长 {p.entitlementDays} 天</small>{reason&&<small><Status value={p.active?'pending':'disabled'} label={p.active?'暂不可用':'已停用'}/> {reason}</small>}</span></label>;})}</fieldset>
+      {!plans.length&&<div className="notice warning">还没有开通方案。点击“新建方案”，选择模型池并设置每人额度。</div>}
+      {blockedReason&&<div className="notice warning" role="alert">当前方案暂不可开通：{blockedReason}。<button className="link-button" onClick={()=>edit.plan(plan)}>修改方案</button><button className="link-button" onClick={()=>setPage('pools')}>检查模型池</button></div>}
+      {plan&&<p className="secondary">确认页会列出每人的发放金额、到期日和跳过原因；已有该方案有效权益的人员不会重复开通。</p>}{error&&<p className="notice danger" role="alert">{error}</p>}<div className="actions"><button className="primary" disabled={busy||!plan||!!blockedReason||!selected.length||invalidSelected} onClick={()=>void open()}>{busy?'处理中…':'预览名单与金额'}</button><button className="ghost" disabled={busy} onClick={()=>setStep(0)}>返回选人</button></div></>}
   </Panel>;
 }
 

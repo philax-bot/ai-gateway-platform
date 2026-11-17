@@ -25,6 +25,10 @@ describe('managed personal Octop lifecycle',()=>{
     expect(JSON.stringify([state,first,replay])).not.toContain(delivered[0]);expect(JSON.stringify(first)).not.toContain('keyHash');
     expect(state.keys.find(k=>k.id===first?.instance?.key?.id)?.ownerId).toBe(employee);
   });
+  it('refuses an Embedding-only managed Agent before issuing its dedicated Key',async()=>{
+    await repository.transact(async tx=>{tx.state.definitions[0].kind='embeddings';});
+    await expect(service.change(employee,'ensure',key())).rejects.toThrow('chat models');expect(runtime.configure).not.toHaveBeenCalled();expect((await repository.read()).keys).toHaveLength(0);
+  });
   it('refuses foreign instance access, paths and ownership injection; operators cannot fetch user login secrets',async()=>{
     const own=(await service.change(employee,'ensure',key()))!.instance!;
     const other=(await service.change(operator,'ensure',key()))!.instance!;

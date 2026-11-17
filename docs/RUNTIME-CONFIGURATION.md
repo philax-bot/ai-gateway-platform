@@ -93,6 +93,16 @@ Chat Completions 支持文本和 `image_url` 输入块（远程 URL 或 Base64 d
 
 用量解析兼容 OpenAI `prompt_tokens_details.cached_tokens` 和 DeepSeek `prompt_cache_hit_tokens`；两者并存且矛盾时不确认费用。推理 token 已包含在输出总量中，不重复叠加；无效的最终 SSE 用量不退回早先的累计样本。
 
+### 输出上限与费用预占（2026-11-10）
+
+Chat 的 `max_tokens` / `max_completion_tokens`、Responses 的 `max_output_tokens` 保持可选，`null` 按未指定解释；Messages 仍按其协议要求提供正整数 `max_tokens`。显式输出上限按原值校验和转发，不用费用估算值替换。未指定且没有管理员输出限制时，不添加输出参数；管理员明确配置的输出限制继续执行。已移除通用于所有模型的 DeepSeek 393216 默认上限。
+
+初始预占 = 输入估算费用 + 预计输出费用，不代表最高费用。模型定义可设置 `estimatedOutputTokens`（界面“预占费用的预计输出 Token”），必须为正整数且不超过上下文；留空使用 16384。预计输出量取该值、请求/策略输出上限（如有）和剩余上下文的较小值；它仅用于费用与 TPM 预留，不会成为生成限制。报价与准入共用计算，快照记录输入/输出估算及默认或模型配置来源，幂等重放沿用原快照。在线使用允许留空输出上限，并分别展示生成上限、预计输出和初始预占。
+
+完整权威 usage 按预占时冻结的价格结算，超过初始预占时，从原批次原子补扣差额，不跨批次或用途借款。配额余额不足时保留原预占并进入待核对；记账应用正常补记实际费用、允许负余额。未知/不完整 usage 继续待核对，不用估算冒充实耗。该方案降低额度占用，但不承诺在途模型消费绝不超过剩余配额；配额不足的实际消费会作为待核对费用保留，不能当成免费调用。
+
+专项验证：`node scripts/check-reservation-estimates.mjs`（需先构建后端，独立 PostgreSQL schema，无外呼）；原 `pnpm dev` 就绪后可运行 `node scripts/check-reservation-estimates-web.mjs` 检查可选参数界面、键盘与 1440/390 截图，不提交业务变更或调用模型。
+
 ### 结算 outbox 运维
 
 只在网关可信内网入口使用服务令牌访问 `GET /internal/v1/outbox` 与 `POST /internal/v1/outbox/retry`，浏览器公开 Nginx 入口继续拒绝 `/internal/`。用户 API Key 无权访问。检查最多列出 100 条，可用 `?requestId=...` 查指定事件；只返回结算元数据。协议见 `contracts/data-plane-operations-v0.1.yaml`。
@@ -104,3 +114,22 @@ Chat Completions 支持文本和 `image_url` 输入块（远程 URL 或 Base64 d
 `pnpm check:delivery` 先构建，再在自动创建的专属 PostgreSQL schema 中检查迁移、空安装、安装口令、受控本地模型调用、重启保持和模式隔离。它私下读取开发连接配置，停止自己的服务并清理自己的 schema 和结算日记，不消费共享开发余额。当前证据见 [安装与模型引导验证](VALIDATION-INSTALLATION-2026-10-19.md)。
 
 备份必须把同一账本和所有网关持久日记一起保留。`pnpm backup` / `pnpm restore` 提供不覆盖已有目标的原生归档与恢复；`pnpm check:backup` 验证恢复后待结算事件去重、会话保持和原密钥继续调用。停机顺序、参数及失败处理见 [备份与恢复](BACKUP-RESTORE.md)。
+
+
+## 调用追溯与容量指标（2026-11-12）
+
+- `GET /api/v1/platform/monitoring/capacity` 和 `POST /api/v1/platform/traces/query` 使用运营会话；普通用户无权读取系统访问链路和容量。
+- `GET /internal/v1/telemetry/metrics` 使用现有 `SERVICE_TOKEN` Bearer 鉴权，返回 Prometheus 文本。采集器应按网关/控制面实例分别配置 target；容量读数为共享数据库的全局 scope，多个控制面 target 的同一资源 gauge 不应求和。
+- 网关追溯日记位于 `GATEWAY_JOURNAL_DIR/requests/`，与授权/结算日记共用父目录写入所有权；备份与恢复现支持含追溯日记的格式 v3，并兼容 v1/v2。`gateway_request_traces` 表由迁移 018 创建。
+- 可选 `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` 指向 OTLP/HTTP JSON 的完整 `/v1/traces` URL。默认未设置，不向外部系统导出。网关导出一个 SERVER span 和阶段事件，接受有效 `traceparent`，并向实际上游传播；下游需要支持同一协议才能补上其内部 span。
+- OTLP 仅导出有界身份/路由元数据，不含 API Key、提示词或响应正文。配置了采集器但投递失败时，本地快照保留重送；网关 `/health` 的 `traces` 显示 pending、lastStatus、deliveryFailed 和 lastFailureAt。
+- RPM/TPM 使用当前固定分钟；TPM 是限流器占用（含预估和结算调整），并发是有效预占。`mode=none` 仍统计新请求但不施加上限；旧版本未记录的无上限 scope 不回填历史流量。
+- 本轮没有部署外部 Prometheus、Grafana 或链路采集后端。完整验证和接口边界见 [调用追溯与实时容量验收](validation/observability-2026-11-12.md)。
+
+## 供应商、路由和多模态（2026-11-12）
+
+- 模型管理新增供应商；旧服务默认 OpenAI 兼容，旧模型默认对话，旧池维持稳定分流。新策略、供应商关联与类型需要显式配置。
+- 迁移 019 增加数量计量与路由查询索引；020 增加持久化视频任务。保留现有 PostgreSQL 工作区，使用原 `pnpm dev` 启动并自动迁移。
+- 视频生成回执位于 `GATEWAY_JOURNAL_DIR/media-receipts`；备份格式 v4 支持该目录，恢复继续兼容 v1/v2/v3。`/health.media` 显示待投递回执和最近工作批次失败数。
+- 六类新接口走受控适配器；聊天继续按既有 Higress 或受控转发设置。新增非聊天类型尚未经过 Higress 原生协议插件验证。外部非聊天调用同样要求 `ALLOW_UPSTREAM_REQUESTS=true`，网关进程持有服务绑定的 `UPSTREAM_` 引用；`pnpm dev` 在现有外部调用开关开启时也向网关传递受控引用，以支持 Higress 聊天与非聊天直连并存。
+- 不自动触发外部生成。连接验证只检查非聊天模型目录；接口、计价单位、异步处理、验证命令和已知限制见 [多模态验收](validation/routing-providers-multimodal-2026-11-12.md)。

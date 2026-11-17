@@ -14,7 +14,7 @@ async function listen(server){await new Promise(resolve=>server.listen(0,'127.0.
 
 /** Local protocol stand-ins. Ledger correctness is checked separately against the real control plane. */
 export async function gatewayFixture(work,modelHandler,env={}){
-  const directory=await mkdtemp(join(tmpdir(),'agp-http-')),settlements=[],requests=[],authorizations=[];
+  const directory=await mkdtemp(join(tmpdir(),'agp-http-')),settlements=[],requests=[],authorizations=[],traces=[];
   let settlementStatus=200;
   const model=createServer(async(request,response)=>{
     try{const body=await json(request);requests.push(body);await modelHandler(body,response,request);}catch{if(!response.destroyed)response.destroy();}
@@ -22,8 +22,9 @@ export async function gatewayFixture(work,modelHandler,env={}){
   let child,output='';
   const control=createServer(async(request,response)=>{
     const body=await json(request);
+    if(request.url.endsWith('/telemetry/requests')){traces.push(body);return send(response,{recorded:true});}
     if(request.url.endsWith('/credentials/resolve'))return send(response,body.apiKey==='http-test-key'?{credentialId:'test-key',identity:{subjectType:'employee',subjectId:'test-user',credentialId:'test-key',organizationId:'test-org'},purpose:'personal',modelIds:['logical-model']}:null);
-    if(request.url.endsWith('/authorize')){authorizations.push(body);return send(response,{requestId:body.requestId,admissionAttemptId:body.admissionAttemptId,decision:'allow',reasonCode:'none',reasonMessage:'',policyVersion:'test',reservation:{reservationId:`hold-${body.requestId}`,sourceType:'personal_batch',sourceId:'test-batch',reservedAmount:1,currency:'CNY',expiresAt:new Date(Date.now()+300000).toISOString()},admission:{kind:'configured',route:{serviceId:'test-service',poolId:'test-pool',definitionId:'test-model',baseUrl:modelUrl,upstreamModel:'physical-model',credentialRef:null,maxOutputTokens:32,...(env.TEST_NATIVE_PROTOCOLS?{protocols:JSON.parse(env.TEST_NATIVE_PROTOCOLS)}:{})},price:{version:'test',currency:'CNY',unit:'per_million_tokens',inputPrice:2,outputPrice:8,cachedInputPrice:0.1},reservedAmount:1,estimatedTokens:100,scopes:[]}});}
+    if(request.url.endsWith('/authorize')){authorizations.push(body);return send(response,{requestId:body.requestId,admissionAttemptId:body.admissionAttemptId,decision:'allow',reasonCode:'none',reasonMessage:'',policyVersion:'test',reservation:{reservationId:`hold-${body.requestId}`,sourceType:'personal_batch',sourceId:'test-batch',reservedAmount:1,currency:'CNY',expiresAt:new Date(Date.now()+300000).toISOString()},admission:{kind:'configured',route:{serviceId:'test-service',poolId:'test-pool',definitionId:'test-model',baseUrl:modelUrl,upstreamModel:'physical-model',credentialRef:null,...(env.TEST_NO_OUTPUT_CAP==='true'?{}:{maxOutputTokens:32}),...(env.TEST_NATIVE_PROTOCOLS?{protocols:JSON.parse(env.TEST_NATIVE_PROTOCOLS)}:{})},price:{version:'test',currency:'CNY',unit:'per_million_tokens',inputPrice:2,outputPrice:8,cachedInputPrice:0.1},reservedAmount:1,estimatedTokens:100,scopes:[]}});}
     if(request.url.endsWith('/settlements')){settlements.push(body);return send(response,{requestId:body.requestId,status:body.usageFinal?'settled':'pending_review',billableState:body.usageFinal?'confirmed':'pending_review'},settlementStatus);}
     if(request.url.endsWith('/leases/renew'))return send(response,{renewed:true});
     send(response,{},404);
@@ -40,7 +41,7 @@ export async function gatewayFixture(work,modelHandler,env={}){
     const call=(body={},signal,headers={})=>fetch(`${base}/v1/chat/completions`,{method:'POST',headers:{authorization:'Bearer http-test-key','content-type':'application/json',...headers},body:JSON.stringify({model:'logical-model',messages:[{role:'user',content:'local test'}],...body}),signal});
     const waitSettlement=async()=>{for(let i=0;i<100;i++){if(settlements.length)return settlements.at(-1);await pause(30);}throw new Error(`missing settlement: ${output}`);};
     const stop=()=>new Promise((resolve,reject)=>{child.once('exit',code=>code===0?resolve():reject(new Error(`shutdown exited ${code}: ${output}`)));child.send('terminate');});
-    await work({base,call,requests,authorizations,settlements,waitSettlement,stop,directory,child,setSettlementStatus:status=>{settlementStatus=status;}});
+    await work({base,call,requests,authorizations,settlements,traces,waitSettlement,stop,directory,child,setSettlementStatus:status=>{settlementStatus=status;}});
   }finally{
     if(child&&child.exitCode===null){child.kill();await new Promise(resolve=>child.once('exit',resolve));}
     control.closeAllConnections();model.closeAllConnections();

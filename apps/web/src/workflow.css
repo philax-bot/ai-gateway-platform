@@ -1,0 +1,47 @@
+/* Shared process and change patterns. Semantic tokens keep all five shells aligned. */
+.process-path{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));list-style:none;padding:0;margin:20px 0;gap:0}
+.process-path>li{display:flex;align-items:flex-start;gap:10px;position:relative;min-width:0;padding:0 16px 0 0;color:var(--muted)}
+.process-path>li:not(:last-child)::after{content:"";height:1px;position:absolute;top:15px;left:40px;right:10px;background:var(--line)}
+.process-path>li>div{position:relative;z-index:1;background:var(--surface);padding-right:8px;min-width:0}
+.process-path strong{display:block;color:inherit;font-size:13px;line-height:30px;font-weight:700}
+.process-path small{display:block;color:var(--muted);font-size:12px;line-height:1.5;overflow-wrap:anywhere}
+.process-mark{display:grid;place-items:center;width:30px;height:30px;flex:none;border:1px solid var(--line);border-radius:50%;background:var(--surface);font-size:12px;font-weight:700;position:relative;z-index:1}
+.process-path>li[data-state=done]{color:var(--run)}
+.process-path>li[data-state=done] .process-mark{border-color:var(--run)}
+.process-path>li[data-state=current]{color:var(--action)}
+.process-path>li[data-state=current] .process-mark{background:var(--action);border-color:var(--action);color:var(--action-ink,#fff)}
+.process-path>li[data-state=error]{color:var(--danger)}
+.process-path>li[data-state=error] .process-mark{border-color:var(--danger);color:var(--danger)}
+.process-path>li[data-state=stopped] .process-mark{border-style:dashed}
+.change-summary{margin:16px 0;border-block:1px solid var(--line)}
+.change-row{padding:14px 0;display:grid;grid-template-columns:minmax(70px,.6fr) minmax(0,3fr);gap:16px;align-items:center;border-bottom:1px solid var(--line)}
+.change-row:last-child{border:0}
+.change-row>dt{color:var(--muted);font-size:12px}
+.change-row>dd{display:flex;align-items:center;gap:16px;margin:0;min-width:0}
+.change-value{flex:1;min-width:0;overflow-wrap:anywhere}
+.change-value small{display:block;color:var(--muted);font-size:11px;line-height:1.6}
+.change-value strong{display:block;font-size:16px;line-height:1.5;font-weight:700;font-variant-numeric:tabular-nums;color:var(--text)}
+.change-value.is-target strong{color:var(--action)}
+.change-arrow{color:var(--muted);flex:none}
+.workflow-summary{margin:16px 0;padding:16px;border:1px solid var(--line);border-radius:var(--radius-control,7px);background:var(--surface2)}
+.workflow-summary>h3{margin:0 0 10px;font-size:14px}
+.workflow-summary>.process-path{margin:0}
+.workflow-summary .process-path>li>div{background:var(--surface2)}
+.workflow-summary>.change-summary{margin:12px 0 0}
+.workflow-summary>.change-summary .change-row{padding:10px 0}
+.workflow-facts{display:flex;flex-wrap:wrap;gap:8px 20px;font-size:12px;color:var(--muted);margin:12px 0}
+.workflow-facts strong{color:var(--text);font-weight:500}
+.workflow-result{border-left:3px solid var(--run)}
+.workflow-error{border-left:3px solid var(--danger)}
+.workflow-summary p{margin:8px 0 0;overflow-wrap:anywhere}
+.workflow-summary .actions{margin-top:12px}
+.review-queue .review-item small{overflow-wrap:anywhere}
+@media(max-width:760px){
+  .process-path{grid-template-columns:1fr;gap:16px;margin:16px 0}
+  .process-path>li{padding:0;gap:12px}
+  .process-path>li:not(:last-child)::after{left:15px;right:auto;top:33px;width:1px;height:calc(100% - 17px)}
+  .change-row{grid-template-columns:1fr;gap:6px;padding:12px 0}
+  .change-row>dd{gap:12px}
+  .change-value strong{font-size:14px}
+  .workflow-summary{padding:14px}
+}

@@ -1,0 +1,32 @@
+{
+  "checkedAt": "2026-11-11T15:01:01.378Z",
+  "match": true,
+  "before": {
+    "schema": "agp_review_20bea9e2970a4e7d98eb12ca16e81692",
+    "configFingerprint": "427ad7516f65becd7c3c880e3f0d1ccb6ffafe056e9fd006037ad6421c16071f",
+    "balancesFingerprint": "357baabdb941340016941b0077cbec8e37c7166861ffe2a66d286212f9484733",
+    "batchCount": 30,
+    "calls": {
+      "count": 248,
+      "amount": "3.179040"
+    },
+    "ledger": {
+      "count": 229,
+      "amount": "3.179040"
+    }
+  },
+  "after": {
+    "schema": "agp_review_20bea9e2970a4e7d98eb12ca16e81692",
+    "configFingerprint": "427ad7516f65becd7c3c880e3f0d1ccb6ffafe056e9fd006037ad6421c16071f",
+    "balancesFingerprint": "357baabdb941340016941b0077cbec8e37c7166861ffe2a66d286212f9484733",
+    "batchCount": 30,
+    "calls": {
+      "count": 248,
+      "amount": "3.179040"
+    },
+    "ledger": {
+      "count": 229,
+      "amount": "3.179040"
+    }
+  }
+}

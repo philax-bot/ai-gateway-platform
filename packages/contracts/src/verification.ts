@@ -5,6 +5,10 @@ export type VerificationOutcome = 'passed' | 'failed';
 export type VerificationCostState = 'priced' | 'price_unknown' | 'usage_unknown';
 
 export interface VerificationMappingSnapshot {
+  probe?:'basic'|'stream'|'tools'|'actual';
+  requestFingerprint?:string;
+  credential?:import('./upstream-credentials.js').FrozenCredential;
+  kind?:import('./model-kinds.js').ModelKind;
   protocols?:import('./protocol.js').ModelProtocol[];
   definitionId: string;
   upstreamModel: string;
@@ -30,6 +34,7 @@ export interface VerificationCost {
 }
 
 export interface VerificationMappingResult {
+  meteredUsage?:import('./model-kinds.js').MeteredUsage;
   protocol?:import('./protocol.js').ModelProtocol;
   support?:'supported'|'unsupported'|'unknown';
   definitionId: string;
@@ -89,10 +94,10 @@ export function summarizeVerification(run: VerificationRun): VerificationSummary
   const attempted = new Set(run.mappings.filter(mapping => mapping.attemptedAt).map(mapping => mapping.definitionId));
   for (const result of run.results) attempted.add(result.definitionId);
   const usageKnown = run.results.filter(result => result.usage.complete).length;
-  const priced = run.results.filter(result => result.cost.state === 'priced' && result.cost.amount !== null);
+  const priced = run.results.filter(result => result.cost?.state === 'priced' && result.cost?.amount !== null);
   const totalMappings = run.mappings.reduce((n,m)=>n+(m.protocols?.length??1),0);
   const completePricing = run.results.length === totalMappings
-    && run.results.every(result => result.cost.state === 'priced' && result.cost.amount !== null);
+    && run.results.every(result => result.cost?.state === 'priced' && result.cost?.amount !== null);
   return {
     mappings: run.mappings.length,
     probes:totalMappings,
@@ -103,6 +108,6 @@ export function summarizeVerification(run: VerificationRun): VerificationSummary
     usageUnknown: run.results.length - usageKnown,
     costPriced: priced.length,
     costUnknown: run.results.length - priced.length,
-    internalCost: completePricing ? Number(priced.reduce((sum, result) => sum + (result.cost.amount ?? 0), 0).toFixed(6)) : null,
+    internalCost: completePricing ? Number(priced.reduce((sum, result) => sum + (result.cost?.amount ?? 0), 0).toFixed(6)) : null,
   };
 }

@@ -1,6 +1,7 @@
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { createHash, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
 import type { Member, ModelRange, UsageLimits, WorkspaceState } from '@ai-gateway/contracts';
+import {QUOTA_FOREVER,hasPermission,type Permission} from '@ai-gateway/contracts';
 
 export const now = () => new Date().toISOString();
 export const hash = (value: string) => createHash('sha256').update(value).digest('hex');
@@ -21,6 +22,11 @@ export function expiry(value: unknown): string {
   if(!Number.isFinite(date)||date<=Date.now())throw new BadRequestException('a future expiry timestamp is required');
   return new Date(date).toISOString();
 }
+export function quotaExpiry(payload:Record<string,unknown>):string {
+  if(payload.validity==='permanent')return QUOTA_FOREVER;
+  if(payload.validity!==undefined&&payload.validity!=='dated')throw new BadRequestException('请选择长期有效或指定到期日');
+  return expiry(payload.expiresAt);
+}
 export function pick<T extends {id:string}>(items:T[], id:unknown, label:string):T {
   const item=items.find(i=>i.id===id);if(!item)throw new NotFoundException(`${label} not found`);return item;
 }
@@ -36,7 +42,11 @@ export function activeMember(state: Pick<WorkspaceState,'members'|'organizations
   }
   return member;
 }
-export function operator(member:Member):void {if(!member.roles.includes('operator'))throw new ForbiddenException('operator role required');}
+export function operator(member:Member,permission?:Permission):void {
+  if (permission ? !hasPermission(member,permission) : !member.roles.includes('operator')) {
+    throw new ForbiddenException(permission ? `permission required: ${permission}` : 'operator role required');
+  }
+}
 export function limits(value:unknown):UsageLimits {
   const v=value as UsageLimits|undefined;if(!v)return {mode:'inherit'};
   if(!['inherit','none','custom'].includes(v.mode))throw new BadRequestException('invalid limit mode');

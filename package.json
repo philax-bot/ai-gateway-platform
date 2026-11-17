@@ -14,6 +14,8 @@
     "check:monitoring": "pnpm --filter @ai-gateway/control-plane... build && node scripts/check-monitoring-pool.mjs",
     "check:load": "pnpm --filter @ai-gateway/control-plane... --filter @ai-gateway/gateway-sim... build && node scripts/check-load.mjs",
     "check:load:postgres": "pnpm --filter @ai-gateway/control-plane... --filter @ai-gateway/gateway-sim... build && node scripts/check-load.mjs --postgres",
+    "check:operations-v2": "pnpm --filter @ai-gateway/control-plane... --filter @ai-gateway/gateway-sim... build && node scripts/check-web.mjs --operations-v2-only --postgres",
+    "check:multimodal": "pnpm --filter @ai-gateway/control-plane... --filter @ai-gateway/gateway-sim... build && node scripts/check-web.mjs --multimodal-only --postgres",
     "check:gateway": "pnpm --filter @ai-gateway/contracts build && pnpm --filter @ai-gateway/gateway-sim test",
     "check:higress": "pnpm --filter @ai-gateway/control-plane... --filter @ai-gateway/gateway-sim... build && node --test scripts/higress/file-publisher.test.mjs && node scripts/check-higress.mjs",
     "check:higress:provider": "pnpm --filter @ai-gateway/control-plane... --filter @ai-gateway/gateway-sim... build && node scripts/check-higress-provider.mjs",

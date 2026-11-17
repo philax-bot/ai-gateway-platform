@@ -2,8 +2,9 @@ import type {CallQuery,UsageAnalytics} from '@ai-gateway/contracts';
 
 export type UsageSource='usage'|'leaderboard';
 export interface UsageNavigation {id:string;source:UsageSource;label:string;query:CallQuery}
-export function usageTarget(source:UsageSource,label:string,report:UsageAnalytics,extra:CallQuery={}):string{
-  return JSON.stringify({id:crypto.randomUUID(),source,label,query:{...extra,from:report.from,to:report.to,limit:50}} satisfies UsageNavigation);
+export function usageTarget(source:UsageSource,label:string,report:UsageAnalytics,extra:CallQuery&{applicationId?:string}={}):string{
+  const {applicationId,...filters}=extra;
+  return JSON.stringify({id:crypto.randomUUID(),source,label,query:{...filters,...(applicationId?{subjectId:applicationId,subjectType:'application' as const}:{}),from:report.from,to:report.to,limit:50}} satisfies UsageNavigation);
 }
 export function readUsageTarget(value?:string|null):UsageNavigation|null{
   if(!value)return null;

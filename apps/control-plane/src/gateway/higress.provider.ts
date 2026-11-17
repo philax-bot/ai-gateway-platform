@@ -1,3 +1,4 @@
+import {frozenServiceCredential,routeSecret} from '../platform/upstream-credentials';
 import {Injectable} from '@nestjs/common';
 import {randomUUID} from 'node:crypto';
 import type {GatewaySyncRequest,GatewaySyncResponse,RouteSnapshot} from '@ai-gateway/contracts';
@@ -21,22 +22,20 @@ export class HigressProvider implements GatewayProvider {
   async getSyncStatus(id:string):Promise<GatewaySyncResponse|null>{const state=await this.repository.read(id);if(!Object.values(state.operations).some(op=>op.response.status==='pending'&&op.leaseUntil<Date.now()))return state.latest??null;return this.repository.change(id,state=>{this.expire(state);return state.latest??null;});}
   async publishPolicyReference(input:GatewaySyncRequest){return this.rejected(input,'unsupported_resource_type');}
   private rejected(input:GatewaySyncRequest,code:string):GatewaySyncResponse{return {provider:'higress',resourceId:input?.resourceId??'',desiredVersion:input?.desiredVersion??'',appliedVersion:null,status:'rejected',operationId:`provider-op-${randomUUID()}`,errorCode:code};}
-  private credential(route:RouteSnapshot){
-    if(!route.credentialRef)return '';
-    if(!/^UPSTREAM_[A-Z0-9_]+$/.test(route.credentialRef)||!process.env[route.credentialRef])throw new Error('credential_unavailable');
-    return process.env[route.credentialRef]!;
+  private async credential(route:RouteSnapshot){
+    return routeSecret(route.credential?await this.workspace.readUpstreamCredentials():{},route);
   }
   private async source(input:GatewaySyncRequest):Promise<RouteSnapshot>{
     const state=await this.workspace.readGatewayConfiguration();
     const service=state.services.find(s=>s.id===input.spec.serviceId),mapping=service?.mappings.find(m=>m.definitionId===input.spec.definitionId);
     if(!service||!mapping||!service.active)throw new Error('route_unavailable');
-    return {serviceId:service.id,definitionId:mapping.definitionId,poolId:'',baseUrl:service.baseUrl,protocolPaths:service.protocolPaths,credentialRef:service.credentialRef,upstreamModel:mapping.upstreamModel,maxOutputTokens:1};
+    return {serviceId:service.id,definitionId:mapping.definitionId,poolId:'',baseUrl:service.baseUrl,protocolPaths:service.protocolPaths,credential:frozenServiceCredential(await this.workspace.readUpstreamCredentials(),service.credentialId),credentialRef:service.credentialRef,upstreamModel:mapping.upstreamModel,maxOutputTokens:1};
   }
-  async publishRoute(input:GatewaySyncRequest):Promise<GatewaySyncResponse>{
+  async publishRoute(input:GatewaySyncRequest,frozenRoute?:RouteSnapshot):Promise<GatewaySyncResponse>{
     if(!this.configured())return this.rejected(input,'provider_unconfigured');
     if(!input||input.provider!=='higress'||input.resourceType!=='model_route'||!input.spec||!['serviceId','definitionId'].every(k=>typeof input.spec[k]==='string')||Object.keys(input.spec).some(k=>!['serviceId','definitionId'].includes(k))||![input.resourceId,input.desiredVersion,input.idempotencyKey].every(v=>typeof v==='string'&&v.length>0&&v.length<=160))return this.rejected(input,'invalid_sync_request');
     let route:RouteSnapshot,credential:string;
-    try{route=await this.source(input);credential=this.credential(route);}catch{return this.rejected(input,'route_unavailable');}
+    try{route=frozenRoute??await this.source(input);credential=await this.credential(route);}catch{return this.rejected(input,'route_unavailable');}
     if(input.resourceId!==resourceId(route))return this.rejected(input,'resource_identity_mismatch');
     const bound=binding(route,credential),operationKey=digest(input.idempotencyKey),fingerprint=digest([input.provider,input.resourceType,input.resourceId,input.desiredVersion,input.previousVersion,input.spec.serviceId,input.spec.definitionId,bound]);
     const claim=await this.repository.change(input.resourceId,state=>{
@@ -129,17 +128,22 @@ export class HigressProvider implements GatewayProvider {
   async transport(route:RouteSnapshot,verifyRuntime=false):Promise<NonNullable<RouteSnapshot['transport']>>{
     try{
       if(!this.configured())return {kind:'unavailable'};
-      const bound=binding(route,this.credential(route)),id=resourceId(route);
+      const bound=binding(route,await this.credential(route)),id=resourceId(route);
       let active=await this.repository.active(id);
+      if(active?.binding!==bound){
+        const history=await this.repository.read(id);
+        const applied=Object.values(history.operations).find(operation=>operation.binding===bound&&operation.response.status==='applied');
+        if(applied?.response.appliedVersion)active={binding:bound,version:applied.response.appliedVersion,name:`atlas-${digest([bound,applied.response.appliedVersion]).slice(0,32)}`};
+      }
       if(active?.binding===bound&&verifyRuntime){
         try{await this.observe(active.name);}catch{
-          await this.publishRoute({provider:'higress',resourceType:'model_route',resourceId:id,desiredVersion:active.version,idempotencyKey:`recover-${randomUUID()}`,spec:{serviceId:route.serviceId,definitionId:route.definitionId}});
+          await this.publishRoute({provider:'higress',resourceType:'model_route',resourceId:id,desiredVersion:active.version,idempotencyKey:`recover-${randomUUID()}`,spec:{serviceId:route.serviceId,definitionId:route.definitionId}},route);
           active=await this.repository.active(id);
           try{if(active)await this.observe(active.name);else return {kind:'unavailable'};}catch{return {kind:'unavailable'};}
         }
       }
       if(active?.binding!==bound){
-        await this.publishRoute({provider:'higress',resourceType:'model_route',resourceId:id,desiredVersion:bound,idempotencyKey:`auto-${bound}-${Math.floor(Date.now()/60000)}`,spec:{serviceId:route.serviceId,definitionId:route.definitionId}});
+        await this.publishRoute({provider:'higress',resourceType:'model_route',resourceId:id,desiredVersion:bound,idempotencyKey:`auto-${bound}-${Math.floor(Date.now()/60000)}`,spec:{serviceId:route.serviceId,definitionId:route.definitionId}},route);
         active=await this.repository.active(id);
       }
       if(active?.binding!==bound)return {kind:'unavailable'};
@@ -151,7 +155,8 @@ export class HigressProvider implements GatewayProvider {
     if(!this.enabled)return {enabled:false,routes:[]};
     const state=await this.workspace.readGatewayConfiguration(),routes=[];
     for(const service of state.services.filter(s=>s.active))for(const mapping of service.mappings){
-      const transport=await this.transport({serviceId:service.id,definitionId:mapping.definitionId,poolId:'',baseUrl:service.baseUrl,protocolPaths:service.protocolPaths,credentialRef:service.credentialRef,upstreamModel:mapping.upstreamModel,maxOutputTokens:1},true);
+      let transport:NonNullable<RouteSnapshot['transport']>={kind:'unavailable'};
+      try{transport=await this.transport({serviceId:service.id,definitionId:mapping.definitionId,poolId:'',baseUrl:service.baseUrl,protocolPaths:service.protocolPaths,credential:frozenServiceCredential(await this.workspace.readUpstreamCredentials(),service.credentialId),credentialRef:service.credentialRef,upstreamModel:mapping.upstreamModel,maxOutputTokens:1},true);}catch{/* Disabled credentials keep this route unavailable without stopping unrelated services. */}
       routes.push({resourceId:resourceId({serviceId:service.id,definitionId:mapping.definitionId}),status:transport.kind==='higress'?'applied':'unavailable'});
     }
     return {enabled:true,routes};

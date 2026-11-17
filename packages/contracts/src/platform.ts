@@ -1,4 +1,4 @@
-export type Role = 'operator' | 'employee';
+export type Role = 'operator' | 'model_operator' | 'finance_operator' | 'auditor' | 'employee';
 export interface Organization { id: string; name: string; parentId: string | null; active: boolean }
 export interface OrganizationChangeImpact {
   name:string; beforeParent:string|null; afterParent:string|null; beforeActive:boolean|null; afterActive:boolean;
@@ -17,23 +17,31 @@ export interface Member {
 export const MODEL_CAPABILITIES = {text:'文本',vision:'图片理解',tools:'工具调用',streaming:'流式输出'} as const;
 export type ModelCapability = keyof typeof MODEL_CAPABILITIES;
 export interface ModelDefinition {
-  id: string; name: string; modelId: string; contextTokens: number; description: string; active: boolean;
+  kind?:import('./model-kinds.js').ModelKind;
+  billingMultiplier?:number;
+  id: string; name: string; modelId: string; contextTokens: number; estimatedOutputTokens?:number; description: string; active: boolean;
   /** Operator-maintained discovery metadata, not admission limits or automatic verification. */
   vendor?:string; capabilities?:ModelCapability[]; maxOutputTokens?:number;
 }
 export interface UsageLimits { mode: 'inherit' | 'none' | 'custom'; rpm?: number; tpm?: number; concurrency?: number; maxOutputTokens?: number }
 export interface ServiceModel {
+  meter?:import('./model-kinds.js').MeterPrice;
+  costPrice?: { inputPrice:number; outputPrice:number; cachedInputPrice:number } | null;
   definitionId: string; upstreamModel: string; inputPrice: number | null; outputPrice: number | null;
   cachedInputPrice: number | null; limits: UsageLimits;
 }
 export interface ModelService {
+  videoCancellation?:{path:string;method:'POST'|'DELETE'};
+  credentialId?:string|null;
+  providerId?:string;
+  modalityPaths?:Partial<Record<import('./model-kinds.js').ModelKind,string>>;
   protocolPaths?:import('./protocol.js').ProtocolPaths;
   protocolCapabilities?:import('./protocol.js').ServiceProtocolCapabilities;
   id: string; name: string; baseUrl: string; credentialRef: string | null; active: boolean; mappings: ServiceModel[];
   verification: 'unverified' | 'passed' | 'failed'; verificationMessage: string; verifiedAt: string | null; configVersion: number;
   limits: UsageLimits; sharedCapacityId: string | null;
 }
-export interface ModelPool { id: string; name: string; entries: { definitionId: string; serviceId: string; open: boolean }[]; limits: UsageLimits }
+export interface ModelPool {routing?:import('./model-kinds.js').PoolRouting; id: string; name: string; entries: { definitionId: string; serviceId: string; open: boolean;weight?:number;priority?:number }[]; limits: UsageLimits }
 export interface ModelRange { poolId: string; mode: 'follow' | 'specific'; definitionIds: string[] }
 export interface Plan {
   id: string; name: string; version: number; range: ModelRange; amount: number; cadence: 'once' | 'monthly';
@@ -51,26 +59,39 @@ export interface Project {
   status: 'active' | 'paused' | 'ended'; range: ModelRange; limits: UsageLimits;
 }
 export type ApplicationBillingMode = 'accounting' | 'quota';
+/** Explicit permanent quota policy, stored as a finite SQL/JS timestamp for legacy compatibility. */
+export const QUOTA_FOREVER = '9999-12-31T23:59:59.999Z';
+export const isPermanentQuota = (value:string|null|undefined) => value===QUOTA_FOREVER;
 /** Missing mode is a legacy quota application; only new applications default to accounting. */
 export const applicationBillingMode = (app: Pick<Application,'billingMode'>):ApplicationBillingMode => app.billingMode??'quota';
-export interface Application { billingMode?:ApplicationBillingMode; id: string; name: string; ownerId: string; organizationId: string; description: string; active: boolean; range: ModelRange; limits: UsageLimits }
-export type ApprovalKind = 'project_create' | 'project_budget' | 'project_member_quota' | 'personal_open' | 'personal_topup' | 'application_quota' | 'application_billing';
+export interface Application {
+  completionChannelId?:string|null; billingMode?:ApplicationBillingMode; id: string; name: string; ownerId: string; organizationId: string; description: string; active: boolean; range: ModelRange; limits: UsageLimits }
+export type ApprovalKind = 'project_create' | 'project_budget' | 'project_member_quota' | 'personal_open' | 'personal_topup' | 'application_quota' | 'application_billing' | 'application_create' | 'project_extend' | 'application_extend';
+export const approvalKindLabels:Record<ApprovalKind,string>={project_create:'项目创建',project_budget:'项目总额度',project_member_quota:'个人项目额度',personal_open:'个人开通',personal_topup:'个人追加额度',application_quota:'应用额度',application_billing:'应用切换额度模式',application_create:'应用创建',project_extend:'项目额度延期',application_extend:'应用额度延期'};
+export interface ApprovalReceipt {
+  objectId:string|null;batchId:string|null;entitlementId:string|null;
+  amount:number;expiresAt:string|null;sourceName:string;destinationName:string;modelNames:string[];
+}
 export interface Approval {
+  requestedBatchId?:string;proposedApplication?:{ownerId:string;organizationId:string;billingMode:ApplicationBillingMode};
   id: string; kind: ApprovalKind; applicantId: string; objectId: string | null; amount: number; requestedExpiresAt: string;
-  scenario: string; reason: string; proposedManagerId: string | null; proposedName: string; status: 'pending' | 'approved' | 'effective' | 'rejected' | 'withdrawn' | 'failed';
+  scenario: string; reason: string; proposedManagerId: string | null; proposedName: string; status: 'pending' | 'approved' | 'effective' | 'rejected' | 'withdrawn' | 'failed' | 'closed';
   approverId: string | null; decisionReason: string; approvedAmount: number | null; approvedExpiresAt: string | null;
   execution: Record<string, unknown> | null; createdAt: string; decidedAt: string | null; effectiveAt: string | null; failure: string | null;
+  receipt?:ApprovalReceipt;closedAt?:string;closedBy?:string;closeReason?:string;
 }
 export interface ManagedKey {
   internal?: boolean;
   onlineSessionHash?: string;
+  /** Personal keys: absent follows all active entitlements; a nonempty list fixes the allowed entitlement identities. */
+  entitlementIds?: string[];
   id: string; credentialId: string; name: string; ownerId: string; subjectType: 'employee' | 'application'; subjectId: string;
   purpose: 'personal' | 'project' | 'application'; projectId: string | null; masked: string; keyHash: string;
   status: 'active' | 'disabled' | 'revoked'; createdAt: string; expiresAt: string; lastUsedAt: string | null;
 }
 export interface ApprovalDetail {
   approval:Approval;applicantName:string;responsible:{id:string;name:string}[];history:AuditEntry[];
-  permissions:{decide:boolean;repair:boolean;execute:boolean;withdraw:boolean};
+  permissions:{decide:boolean;repair:boolean;execute:boolean;withdraw:boolean;close:boolean};
 }
 export interface Notification { id: string; recipientId: string; title: string; body: string; objectType: string; objectId: string; createdAt: string; readAt: string | null }
 export interface AuditEntry { id: string; actorId: string; actorName?:string; action: string; objectId: string | null; objectName?:string; reason: string; createdAt: string; detail: Record<string, unknown> }
@@ -82,6 +103,8 @@ export interface Distribution {
 export interface Session { tokenHash: string; memberId: string; createdAt: string; expiresAt: string }
 export interface WorkspaceSettings { name: string; timezone: 'Asia/Shanghai'; personalDefaultPoolId: string | null; projectDefaultPoolId: string | null; limits: UsageLimits; retentionDays: number; retentionAutomatic?:boolean }
 export interface WorkspaceState {
+  upstreamCredentials?:import('./upstream-credentials.js').UpstreamCredential[];
+  providers?:import('./model-kinds.js').ModelProvider[];
   guardrail?: import('./guardrail.js').GuardrailPolicy;
   agentInstances?: ManagedAgentInstance[];
   retention?:{lastRun:import('./retention.js').RetentionRun};
@@ -105,6 +128,7 @@ export interface ManagedAgentView {
   };
 }
 export interface BusinessQuotaBatch {
+  returnedAmount?:number;
   /** Zero-origin application ledger; permits negative balances and is never a quota grant. */
   accounting?:boolean;
   closedAt?:string|null;closedAmount?:number;
@@ -120,6 +144,7 @@ export interface ProjectDetail {
   consumedByBatch:Record<string,number>;history:AuditEntry[];
 }
 export interface ApplicationDetail {
+  consumedByBatch:Record<string,number>;
   application:Application;ownerName:string;organizationName:string;poolName:string;
   status:'disabled'|'model_unavailable'|'price_unconfigured'|'no_quota'|'quota_insufficient'|'ready';
   models:PurposeView['models'];availableAmount:number;accountingBalance:number;batches:BusinessQuotaBatch[];
@@ -155,11 +180,14 @@ export interface PurposeView {
   catalogModels?:PurposeView['models'];
 }
 export interface PlatformSnapshot {
+  notificationChannels?:import('./notifications.js').WebhookChannel[];
+  upstreamCredentials?:import('./upstream-credentials.js').PublicUpstreamCredential[];
+  providers?:import('./model-kinds.js').ModelProvider[];
   pendingReviewCount:number|null;callDataQuality:'collected'|'collection_failed';
   revision: number; actor: PublicMember; settings: WorkspaceSettings; organizations: Organization[];
   members: (Pick<PublicMember,'id'|'name'|'organizationId'|'roles'|'active'> & Partial<PublicMember>)[];
   definitions: ModelDefinition[]; services: ModelService[]; pools: ModelPool[]; plans: Plan[]; rules: AutoRule[];
-  entitlements: (Entitlement & {futureGrantStatus:'scheduled'|'manually_stopped'|'rule_not_matching'|'inactive'})[]; projects: Project[]; applications: Application[]; approvals: Approval[];
+  entitlements: (Entitlement & {futureGrantStatus:'scheduled'|'manually_stopped'|'rule_not_matching'|'inactive'})[]; projects: (Project & {memberApprovalReviewers?:{id:string;name:string}[]})[]; applications: Application[]; approvals: (Approval & {responsibleIds?:string[]})[];
   keys: Omit<ManagedKey,'keyHash'|'onlineSessionHash'>[]; distributions: Distribution[]; audit: AuditEntry[]; notifications: Notification[];
   quotaBatches: BusinessQuotaBatch[]; projectBudgets: ProjectBudgetBatch[];
   purposes: PurposeView[];

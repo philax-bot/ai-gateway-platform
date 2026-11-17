@@ -15,6 +15,7 @@ export async function prepareBusinessDemo({controlPlaneUrl:cp,gatewayUrl,modelUr
   async function command(step,type,payload){
     const input={type,payload,idempotencyKey:`${prefix}-${step}`};
     try{return (await api('/api/v1/platform/commands',input)).result;}catch(error){if(error.status!==409)throw error;}
+    if((type==='save.project'||type==='save.application'&&payload.billingMode==='quota')&&!payload.id){input.payload={initialAmount:1,validity:'permanent',...payload};try{return (await api('/api/v1/platform/commands',input)).result;}catch(error){if(error.status!==409)throw error;}}
     const preview=await api('/api/v1/platform/preview',input);return (await api('/api/v1/platform/commands',{...input,previewToken:preview.previewToken})).result;
   }
   await login(operatorLogin,operatorPassword);

@@ -1,3 +1,6 @@
+export * from './upstream-credentials.js';
+export * from './notifications.js';
+export * from './routing.js';
 export * from './catalog.js';
 export * from './protocol.js';
 export * from './guardrail.js';
@@ -5,16 +8,22 @@ export type SubjectType = 'employee' | 'application';
 export * from './platform.js';
 export * from './calls.js';
 export * from './monitoring.js';
+export * from './capacity.js';
+export * from './gateway-trace.js';
+export * from './model-kinds.js';
+export * from './permissions.js';
+export * from './media.js';
 export * from './retention.js';
 export * from './audit.js';
 export * from './tracing.js';
 export * from './verification.js';
 export * from './usage.js';
 export * from './analytics.js';
+export * from './report-period.js';
 export * from './connection-failure.js';
 export { estimateChatInput,estimateProtocolInput,chatCompletionsUrl } from './request.js';
 export type Purpose = 'personal' | 'project' | 'application';
-export type RequestMode = 'chat' | 'embeddings' | 'rerank' | 'image' | 'audio';
+export type RequestMode = import('./model-kinds.js').ModelKind | 'audio';
 export type Decision = 'allow' | 'deny';
 export type ReasonCode =
   | 'safety_policy_violation'
@@ -40,6 +49,7 @@ export interface RequestIdentity {
 }
 
 export interface AuthorizeRequest {
+  estimatedUnits?:number;
   modelProtocol?:import('./protocol.js').ModelProtocol;
   guardrail?: import('./guardrail.js').GuardrailAssessment;
   requestId: string;
@@ -51,6 +61,8 @@ export interface AuthorizeRequest {
   modelId: string;
   mode: RequestMode;
   estimatedInputTokens?: number;
+  /** Largest individual Embedding input; total tokens still govern reservation and TPM. */
+  maxInputTokens?:number;
   maxOutputTokens?: number;
   requestFingerprint?: string;
   expectedPriceVersion?: string;
@@ -69,14 +81,23 @@ export interface Reservation {
 }
 
 export interface PriceSnapshot {
+  meter?:{unit:import('./model-kinds.js').MeterUnit;price:number;multiplier:number};
+  /** Exact operator-only calculation basis; unit prices are effective display values. */
+  billing?: { base: { inputPrice:number; outputPrice:number; cachedInputPrice:number }; multiplier:number };
   version: string;
   currency: 'CNY';
-  unit: 'per_million_tokens';
+  unit: 'per_million_tokens'|import('./model-kinds.js').MeterUnit;
   inputPrice: number;
   outputPrice: number;
   cachedInputPrice: number;
 }
 export interface RouteSnapshot {
+  videoCancellation?:{path:string;method:'POST'|'DELETE'};
+  credential?:import('./upstream-credentials.js').FrozenCredential;
+  kind?:import('./model-kinds.js').ModelKind;
+  adapter?:import('./model-kinds.js').ModelProvider['adapter'];
+  modalityPaths?:Partial<Record<import('./model-kinds.js').ModelKind,string>>;
+  audit?:import('./gateway-trace.js').RouteAudit;
   protocolPaths?:import('./protocol.js').ProtocolPaths;
   protocols?:Partial<Record<import('./protocol.js').ModelProtocol,import('./protocol.js').ProtocolCapability>>;
   serviceId: string;
@@ -85,7 +106,8 @@ export interface RouteSnapshot {
   baseUrl: string;
   upstreamModel: string;
   credentialRef: string | null;
-  maxOutputTokens: number;
+  /** Explicit request/policy cap only. Absence preserves the provider default. */
+  maxOutputTokens?: number;
   /** Private dispatch metadata; the original route and price remain authoritative. */
   transport?:{kind:'higress';baseUrl:string;model:string;version:string}|{kind:'unavailable'};
 }
@@ -96,6 +118,12 @@ export interface AdmissionScope {
   concurrency?: number;
 }
 export interface AdmissionSnapshot {
+  callbackChannelId?:string|null;
+  meterEstimate?:import('./model-kinds.js').MeteredUsage;
+  routing?:import('./routing.js').RoutingDecision;
+  costPrice?: PriceSnapshot | null;
+  /** Frozen reservation estimate, independent of the generation cap and final usage. */
+  estimate?: { inputTokens:number; outputTokens:number; outputSource:'model'|'default' };
   /** Directory organization at admission time, independent of the tenant authorization identity. */
   attributionOrganizationId?:string|null;
   protocol?:{requested:import('./protocol.js').ModelProtocol;upstream:import('./protocol.js').ModelProtocol;mode:'native'|'adapted'};
@@ -139,6 +167,7 @@ export type SettlementOutcome =
   | 'rejected_before_upstream';
 
 export interface SettlementRequest {
+  meteredUsage?:import('./model-kinds.js').MeteredUsage;
   forwarded?:boolean;
   ttftMs?:number;
   errorCode?:string;
@@ -167,6 +196,7 @@ export interface SettlementResponse {
   ledgerEntryId: string | null;
 }
 export interface ReconciliationRequest {
+  meteredUsage?:import('./model-kinds.js').MeteredUsage;
   requestId:string;
   idempotencyKey:string;
   actorId:string;
@@ -199,11 +229,12 @@ export interface GatewaySyncResponse {
 }
 
 export interface CallLog {
+  meteredUsage?:import('./model-kinds.js').MeteredUsage|null;
   safety?: import('./guardrail.js').SafetyEvent | null;
   forwarded?:boolean|null;
   ttftMs?:number|null;
   usageFinal?:boolean;
-  admission?: {attributionOrganizationId?:string|null;protocol?:AdmissionSnapshot['protocol'];kind:AdmissionSnapshot['kind'];price:PriceSnapshot|null;reservedAmount:number;route:Pick<RouteSnapshot,'serviceId'|'poolId'|'definitionId'|'upstreamModel'>|null} | null;
+  admission?: {routing?:AdmissionSnapshot['routing'];meterEstimate?:AdmissionSnapshot['meterEstimate'];costPrice?:PriceSnapshot|null;attributionOrganizationId?:string|null;protocol?:AdmissionSnapshot['protocol'];kind:AdmissionSnapshot['kind'];price:PriceSnapshot|null;reservedAmount:number;route:Pick<RouteSnapshot,'serviceId'|'poolId'|'definitionId'|'upstreamModel'|'audit'|'kind'|'credential'>|null} | null;
   organizationId?: string | null;
   errorCode?: string | null;
   latencyMs?: number | null;
@@ -229,3 +260,4 @@ export interface CallLog {
 }
 export { parseMemberImport } from './member-import.js';
 export { runtimeMode,databaseSchema,validateRuntimeConfig } from './runtime-config.js';
+export * from './people.js';

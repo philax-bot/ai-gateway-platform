@@ -4,6 +4,7 @@ const { createServer } = require('node:http');
 const requests=[];
 let totalRequests=0;
 const server=createServer(async (req, res) => {
+  if(await require('./multimodal.js')(req,res))return;
   if (req.url === '/health') { res.end('{"status":"ok","environment":"mock"}'); return; }
   if(req.url==='/_test/requests'){res.setHeader('content-type','application/json');res.end(JSON.stringify(requests));return;}
   if(req.url==='/_test/stats'){res.setHeader('content-type','application/json');res.end(JSON.stringify({totalRequests,retainedRequests:requests.length,engine:'deterministic-local-http',modelInference:false}));return;}

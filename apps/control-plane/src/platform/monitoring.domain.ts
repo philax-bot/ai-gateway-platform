@@ -1,3 +1,5 @@
+import {enqueueAlertWebhooks} from './webhook-notifications';
+import {hasPermission,ALERT_METRICS} from '@ai-gateway/contracts';
 import { BadRequestException } from '@nestjs/common';
 import type { AlertMetric,AlertRule,CallSummary,CollectionHealth,CollectionAlertEvent,CollectionStage,MonitorReading,MonitoringState,WorkspaceState } from '@ai-gateway/contracts';
 import { activeMember,pick,text } from './validation';
@@ -9,7 +11,11 @@ export function monitoringState(s:Pick<WorkspaceState,'monitoring'>):MonitoringS
   return m as MonitoringState&{collection:CollectionHealth;collectionEvents:CollectionAlertEvent[]};
 }
 function alertNotification(s:WorkspaceState,title:string,body:string,id:string,action:string,createdAt:string,detail:Record<string,unknown>){
-  for(const member of s.members){try{if(member.roles.includes('operator')){activeMember(s,member.id);notify(s,member.id,title,body,'alert',id);}}catch{/* inactive operators do not receive new notifications */}}
+  const event=s.monitoring?.events.find(event=>event.id===id);
+  const rule=s.monitoring?.rules.find(rule=>rule.id===event?.ruleId);
+  const silenced=!!rule?.silencedUntil&&Date.parse(rule.silencedUntil)>Date.parse(createdAt);
+  for(const member of s.members){try{if(!silenced&&hasPermission(member,'monitoring.write')){activeMember(s,member.id);notify(s,member.id,title,body,'alert',id);}}catch{/* inactive operators do not receive new notifications */}}
+  if(!silenced)enqueueAlertWebhooks(s,id,action,createdAt,rule?.id??null,title,body);
   s.audit.push({id:newId('audit'),actorId:'system:monitor',action,objectId:id,reason:body,createdAt,detail});
 }
 export function applyCollectionReading(s:WorkspaceState,failedStages:CollectionStage[],bucket:number,at:string){
@@ -29,15 +35,18 @@ export function applyCollectionReading(s:WorkspaceState,failedStages:CollectionS
     if(recoveries>=2){active.status='recovered';active.recoveredAt=at;alertNotification(s,'监控采集已恢复','连续两次不同分钟的完整采集成功。业务故障告警仍按各自样本和阈值判断。',active.id,'alert.collection_recovered',at,{});}
   }
 }
-export const alertMetrics:AlertMetric[]=['request_error_rate','upstream_failure_rate','timeout_rate','stream_failure_rate','rate_limit_rate','cancellation_rate'];
+export const alertMetrics=Object.keys(ALERT_METRICS) as AlertMetric[];
 export function saveAlertRule(s:WorkspaceState,p:Record<string,unknown>):AlertRule{
   const m=monitoringState(s),existing=p.id?pick(m.rules,p.id,'alert rule'):null;
   if(p.serviceId)pick(s.services,p.serviceId,'service');
+  if(p.poolId){const pool=pick(s.pools,p.poolId,'pool');if(p.serviceId&&!pool.entries.some(entry=>entry.serviceId===p.serviceId))throw new BadRequestException('service is outside this pool');}
+  if(p.poolId&&p.modelId&&!s.pools.find(pool=>pool.id===p.poolId)?.entries.some(entry=>s.definitions.find(model=>model.id===entry.definitionId)?.modelId===p.modelId))throw new BadRequestException('model is outside this pool');
   if(p.modelId&&!s.definitions.some(d=>d.modelId===p.modelId))throw new BadRequestException('model not found');
   if(!alertMetrics.includes(p.metric as AlertMetric))throw new BadRequestException('invalid alert metric');
+  if(String(p.metric).endsWith('_utilization')&&p.poolId&&p.modelId&&!p.serviceId)throw new BadRequestException('pool capacity is shared across models; choose the whole pool or a service-model scope');
   const integer=(key:string,max:number)=>{const n=p[key];if(typeof n!=='number'||!Number.isInteger(n)||n<1||n>max)throw new BadRequestException(`invalid ${key}`);return n;};
-  const rate=(key:string)=>{const n=p[key];if(typeof n!=='number'||!Number.isFinite(n)||n<0||n>100)throw new BadRequestException(`invalid ${key}`);return n;};
-  const rule:AlertRule={id:existing?.id??newId('alert-rule'),name:text(p.name,'name',100),active:p.active!==false,serviceId:p.serviceId?String(p.serviceId):null,modelId:p.modelId?String(p.modelId):null,metric:p.metric as AlertMetric,windowMinutes:integer('windowMinutes',60),threshold:rate('threshold'),minSamples:integer('minSamples',1000000),triggerCount:integer('triggerCount',60),recoveryThreshold:rate('recoveryThreshold'),recoveryCount:integer('recoveryCount',60),version:(existing?.version??0)+1};
+  const rate=(key:string)=>{const n=p[key];if(typeof n!=='number'||!Number.isFinite(n)||n<0||n>(ALERT_METRICS[p.metric as AlertMetric].unit==='%'?100:1e9))throw new BadRequestException(`invalid ${key}`);return n;};
+  const rule:AlertRule={id:existing?.id??newId('alert-rule'),name:text(p.name,'name',100),active:p.active!==false,poolId:p.poolId?String(p.poolId):null,silencedUntil:existing?.silencedUntil??null,silencedBy:existing?.silencedBy??null,serviceId:p.serviceId?String(p.serviceId):null,modelId:p.modelId?String(p.modelId):null,metric:p.metric as AlertMetric,windowMinutes:integer('windowMinutes',60),threshold:rate('threshold'),minSamples:integer('minSamples',1000000),triggerCount:integer('triggerCount',60),recoveryThreshold:rate('recoveryThreshold'),recoveryCount:integer('recoveryCount',60),version:(existing?.version??0)+1};
   if(rule.recoveryThreshold>=rule.threshold)throw new BadRequestException('recovery threshold must be below trigger threshold');
   // Existing events keep evaluating their original rule through recovery; edits govern later events.
   if(existing)Object.assign(existing,rule);else m.rules.push(rule);if(!m.events.some(e=>e.ruleId===rule.id&&e.status==='active'))delete m.evaluations[rule.id];return rule;
@@ -45,10 +54,10 @@ export function saveAlertRule(s:WorkspaceState,p:Record<string,unknown>):AlertRu
 export function metricReading(rule:AlertRule,summary:CallSummary|null,from:string,to:string,collectedAt:string):MonitorReading{
   const forwarded=rule.metric==='upstream_failure_rate';
   const denominator=summary?(forwarded?summary.forwarded:summary.ended):null;
-  const numerator=summary?({request_error_rate:summary.errors,upstream_failure_rate:summary.upstreamFailures,timeout_rate:summary.timeouts,stream_failure_rate:summary.partial,rate_limit_rate:summary.rateLimited,cancellation_rate:summary.cancelled})[rule.metric]:null;
+  const numerator=summary?({request_error_rate:summary.errors,upstream_failure_rate:summary.upstreamFailures,timeout_rate:summary.timeouts,stream_failure_rate:summary.partial,rate_limit_rate:summary.rateLimited,cancellation_rate:summary.cancelled} as Partial<Record<AlertMetric,number>>)[rule.metric]??null:null;
   // Legacy/lease-expiry rows may lack dispatch evidence. Never turn missing coverage into recovery.
   const incomplete=!!summary&&forwarded&&summary.unknownForwarding>0;
-  return {ruleId:rule.id,from,to,collectedAt,quality:!summary?'collection_failed':!denominator?'no_traffic':denominator<rule.minSamples||incomplete?'insufficient':'ready',sampleCount:denominator??0,numerator,denominator,value:denominator?100*numerator!/denominator:null};
+  return {ruleId:rule.id,from,to,collectedAt,unit:'%',quality:!summary?'collection_failed':!denominator?'no_traffic':denominator<rule.minSamples||incomplete?'insufficient':'ready',sampleCount:denominator??0,numerator,denominator,value:denominator?100*numerator!/denominator:null};
 }
 export function applyAlertReading(s:WorkspaceState,rule:AlertRule,reading:MonitorReading,bucket:number){
   const m=monitoringState(s),prior=m.evaluations[rule.id];if(prior?.bucket===bucket&&prior.ruleVersion===rule.version)return;
@@ -60,10 +69,10 @@ export function applyAlertReading(s:WorkspaceState,rule:AlertRule,reading:Monito
   let notification:{title:string;body:string;id:string}|null=null;
   if(active){
     active.reading=reading;active.updatedAt=reading.collectedAt;if(ready&&reading.value!>=rule.threshold)active.occurrences++;
-    if(recoveries>=rule.recoveryCount){active.status='recovered';active.recoveredAt=reading.collectedAt;notification={title:`告警已恢复：${rule.name}`,body:`连续 ${recoveries} 次低于恢复阈值 ${rule.recoveryThreshold}%，最近样本 ${reading.sampleCount}。`,id:active.id};}
+    if(recoveries>=rule.recoveryCount){active.status='recovered';active.recoveredAt=reading.collectedAt;notification={title:`告警已恢复：${rule.name}`,body:`连续 ${recoveries} 次低于恢复阈值 ${rule.recoveryThreshold}${ALERT_METRICS[rule.metric].unit}，最近样本 ${reading.sampleCount}。`,id:active.id};}
   }else if(hits>=rule.triggerCount){
     const event={id:newId('alert'),ruleId:rule.id,ruleSnapshot:structuredClone(rule),status:'active' as const,openedAt:reading.collectedAt,updatedAt:reading.collectedAt,recoveredAt:null,acknowledgedAt:null,acknowledgedBy:null,occurrences:1,reading};m.events.push(event);
-    notification={title:`运行告警：${rule.name}`,body:`${reading.value!.toFixed(2)}% ≥ ${rule.threshold}%，窗口 ${rule.windowMinutes} 分钟，样本 ${reading.sampleCount}。知晓不代表恢复。`,id:event.id};
+    notification={title:`运行告警：${rule.name}`,body:`${reading.value!.toFixed(2)}${ALERT_METRICS[rule.metric].unit} ≥ ${rule.threshold}${ALERT_METRICS[rule.metric].unit}，窗口 ${rule.windowMinutes} 分钟，样本 ${reading.sampleCount}。知晓不代表恢复。`,id:event.id};
   }
   if(notification)alertNotification(s,notification.title,notification.body,notification.id,notification.title.startsWith('告警已恢复')?'alert.recovered':'alert.opened',reading.collectedAt,{ruleId:rule.id});
 }

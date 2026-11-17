@@ -24,11 +24,15 @@ export async function checkBackup({schema,schemas,db,env,control,gateway,start,s
   await writeFile(resolve(journal,`${file.slice(0,-5)}.${randomUUID()}.tmp`),JSON.stringify(entry));
   const intent={phase:'authorizing',input:authorizationInput,createdAt:new Date().toISOString(),attempts:0,nextAttemptAt:0,lastStatus:null},intentFile=createHash('sha256').update(authorizationInput.admissionAttemptId).digest('hex')+'.json';
   await mkdir(resolve(journal,'authorizations'),{recursive:true});await writeFile(resolve(journal,'authorizations',intentFile),JSON.stringify(intent));
+  const traceId=randomUUID(),traceAt=new Date().toISOString(),traceFile=traceId+'.json',trace={attemptId:traceId,requestId:'backup-trace',traceId:'a'.repeat(32),spanId:'b'.repeat(16),parentSpanId:null,revision:1,startedAt:traceAt,updatedAt:traceAt,completedAt:null,method:'POST',path:'/v1/chat/completions',status:null,identity:null,purpose:null,modelId:null,route:null,upstreamRequestId:null,errorCode:null,replayed:false,stages:[{stage:'accepted',at:traceAt}]};
+  await mkdir(resolve(journal,'requests'),{recursive:true});await writeFile(resolve(journal,'requests',traceFile),JSON.stringify(trace));
+
   const secondJournal=resolve(directory,'empty-journal');await mkdir(secondJournal);await writeFile(resolve(secondJournal,'writer.lock'),JSON.stringify({pid:process.pid,runtimeToken:'stopped-container-runtime'}));options.journals.push(secondJournal);
+  const mediaJournal=resolve(directory,'media-journal'),receiptId=randomUUID(),receipt={id:receiptId,upstreamId:'backup-vendor-task',status:'queued',result:null};await mkdir(resolve(mediaJournal,'media-receipts'),{recursive:true});await writeFile(resolve(mediaJournal,'media-receipts',receiptId+'.json'),JSON.stringify(receipt));options.journals.push(mediaJournal);
   console.log('CHECK native backup of stopped gateway journals and authoritative PostgreSQL ledger');
   const backup=await backupWorkspace(options);
-  check(backup.manifest.mode==='production'&&backup.manifest.journals.length===2&&backup.manifest.journals[0].phases.queued===1&&backup.manifest.journals[1].records===0,'bundle includes installation mode, pending settlement and empty second journal');
-  check(backup.manifest.version===2&&backup.manifest.journals[0].phases.authorization_authorizing===1&&backup.manifest.files.some(file=>file.path===`journals/gateway-001/authorizations/${intentFile}`),'version 2 bundle includes the separate authorization intent');
+  check(backup.manifest.mode==='production'&&backup.manifest.journals.length===3&&backup.manifest.journals[0].phases.queued===1&&backup.manifest.journals[1].records===0,'bundle includes installation mode, pending settlement and empty second journal');
+  check(backup.manifest.version===4&&backup.manifest.journals[0].phases.authorization_authorizing===1&&backup.manifest.files.some(file=>file.path===`journals/gateway-001/authorizations/${intentFile}`),'version 4 bundle includes the separate authorization intent and trace journal');
   check(backup.manifest.migrations.length===migrationCount&&backup.manifest.files.some(f=>f.path==='platform.dump'),'bundle carries migrations and native database archive');
   await assert.rejects(backupWorkspace(options),/Destination already exists/);check(true,'backup never overwrites an existing bundle');
   await assert.rejects(restoreWorkspace({connectionString:env.DATABASE_URL,bin:process.env.PG_BIN,source:bundle,journalRoot:resolve(directory,'existing-schema-restore')}),/Target schema already exists/);check(true,'restore never replaces an existing schema');
@@ -44,8 +48,10 @@ export async function checkBackup({schema,schemas,db,env,control,gateway,start,s
   const archived=`agp_check_${randomUUID().replaceAll('-','')}`;assert.match(archived,/^agp_check_[a-f0-9]{32}$/);assert.ok(!schemas.includes(archived));schemas.push(archived);
   await db.query(`alter schema "${schema}" rename to "${archived}"`);
   const restored=await restoreWorkspace({connectionString:env.DATABASE_URL,bin:process.env.PG_BIN,source:bundle,journalRoot:resolve(directory,'restored-journals')});
-  check(restored.journals.length===2&&JSON.stringify(JSON.parse(await readFile(resolve(restored.journals[0].directory,file),'utf8')))===JSON.stringify(entry),'restoration preserves exact queued event and independent journal directories');
+  check(restored.journals.length===3&&JSON.stringify(JSON.parse(await readFile(resolve(restored.journals[0].directory,file),'utf8')))===JSON.stringify(entry),'restoration preserves exact queued event and independent journal directories');
   check(JSON.stringify(JSON.parse(await readFile(resolve(restored.journals[0].directory,'authorizations',intentFile),'utf8')))===JSON.stringify(intent),'restoration preserves the exact authorization input and owner');
+  check(JSON.stringify(JSON.parse(await readFile(resolve(restored.journals[0].directory,'requests',traceFile),'utf8')))===JSON.stringify(trace),'restoration preserves the exact trace attempt and stage snapshot');
+  check(JSON.stringify(JSON.parse(await readFile(resolve(restored.journals[2].directory,'media-receipts',receiptId+'.json'),'utf8')))===JSON.stringify(receipt),'restoration preserves the exact video acceptance receipt without resubmitting generation');
   check((await inSchema(schema,c=>c.query('select count(*)::int as total from schema_migrations'))).rows[0].total===migrationCount,'native restore retains migration history');
   check((await inSchema(schema,c=>c.query('select admission_lock_version from platform_installation where singleton=true'))).rows[0].admission_lock_version===2,'native restore retains the admission policy lock protocol');
   check((await inSchema(schema,c=>c.query("select count(distinct column_name)::int as total from information_schema.columns where table_schema=current_schema() and column_name in ('upstream_request_id','retry_of_request_id')"))).rows[0].total===2,'native restore retains call tracing columns');

@@ -1,16 +1,16 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import type { PlatformSnapshot, PriceSnapshot } from '@ai-gateway/contracts';
 import { api,gatewayBaseUrl,gatewayFailureMessage } from './client';
-import { money, Panel } from './components';
+import { money, Panel, Field } from './components';
 import { fundingSourceSummary,fundingSources } from './quota-view';
 export const purposeLabels:Record<string,string>={not_open:'未开通模型',model_unavailable:'模型暂不可用',price_unconfigured:'价格未确认',no_quota:'无有效额度',quota_insufficient:'额度不足',ready:'可使用'};
-interface Quote {decision:'allow'|'deny';reasonCode:string;sourceName?:string;reservedAmount?:number;price?:PriceSnapshot;estimatedInputTokens?:number;maxOutputTokens?:number}
+interface Quote {decision:'allow'|'deny';reasonCode:string;sourceName?:string;reservedAmount?:number;price?:PriceSnapshot;estimatedInputTokens?:number;estimatedOutputTokens?:number;maxOutputTokens?:number}
 
 export interface OnlineModelRequest {purposeId:string;modelId:string;requestId:string}
 export function Online({data,purposeId,onPurpose,refresh,modelRequest}:{data:PlatformSnapshot;purposeId:string;onPurpose:(value:string)=>void;refresh:()=>Promise<boolean>;modelRequest?:OnlineModelRequest}){
-  const purpose=data.purposes.find(p=>p.id===purposeId)??data.purposes[0];
+  const sourcePurpose=data.purposes.find(p=>p.id===purposeId)??data.purposes[0],purpose={...sourcePurpose,models:sourcePurpose.models.filter(m=>(data.definitions.find(d=>d.modelId===m.modelId)?.kind??'chat')==='chat')};
   const [model,setModel]=useState(''),[input,setInput]=useState(''),[reply,setReply]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState('');
-  const [maxOutput,setMaxOutput]=useState(String(data.settings.limits.maxOutputTokens??4096)),[quote,setQuote]=useState<Quote|null>(null);
+  const [maxOutput,setMaxOutput]=useState(''),[quote,setQuote]=useState<Quote|null>(null);
   const lastPurpose=useRef<string|undefined>(undefined),consumedRequest=useRef<string|undefined>(undefined);
   const abort=useRef<AbortController|null>(null),selected=purpose.models.find(m=>m.modelId===model);
   const selectedSources=selected?fundingSources(data,purpose,selected.modelId):[],sourceNames=fundingSourceSummary(selectedSources);
@@ -27,8 +27,8 @@ export function Online({data,purposeId,onPurpose,refresh,modelRequest}:{data:Pla
   },[purpose.id,modelRequest?.requestId,busy]);
   useEffect(()=>{
     let cancelled=false;setQuote(null);
-    if(!model||!Number.isSafeInteger(Number(maxOutput))||Number(maxOutput)<1)return;
-    const timer=setTimeout(()=>{void api<Quote>('/api/v1/platform/quote',{purpose:purpose.purpose,projectId:purpose.projectId,model,messages:[{role:'user',content:input}],max_tokens:Number(maxOutput)}).then(value=>{if(!cancelled)setQuote(value);}).catch(error=>{if(!cancelled)setError(error instanceof Error?error.message:'报价失败');});},300);
+    if(!model||(maxOutput!==''&&(!Number.isSafeInteger(Number(maxOutput))||Number(maxOutput)<1)))return;
+    const timer=setTimeout(()=>{void api<Quote>('/api/v1/platform/quote',{purpose:purpose.purpose,projectId:purpose.projectId,model,messages:[{role:'user',content:input}],...(maxOutput===''?{}:{max_tokens:Number(maxOutput)})}).then(value=>{if(!cancelled)setQuote(value);}).catch(error=>{if(!cancelled)setError(error instanceof Error?error.message:'报价失败');});},300);
     return()=>{cancelled=true;clearTimeout(timer);};
   },[purpose.id,model,input,maxOutput,data.revision]);
   async function send(event:FormEvent){
@@ -36,7 +36,7 @@ export function Online({data,purposeId,onPurpose,refresh,modelRequest}:{data:Pla
     const controller=new AbortController();abort.current=controller;setBusy(true);setError('');setReply('');
     try{
       const credential=await api<{token:string}>('/api/v1/platform/online-credential',{purpose:purpose.purpose,projectId:purpose.projectId});
-      const response=await fetch(`${gatewayBaseUrl}/v1/chat/completions`,{method:'POST',signal:controller.signal,headers:{'content-type':'application/json',authorization:`Bearer ${credential.token}`,'idempotency-key':crypto.randomUUID(),'x-price-version':quote.price.version},body:JSON.stringify({model,messages:[{role:'user',content:input}],max_tokens:Number(maxOutput),stream:true})});
+      const response=await fetch(`${gatewayBaseUrl}/v1/chat/completions`,{method:'POST',signal:controller.signal,headers:{'content-type':'application/json',authorization:`Bearer ${credential.token}`,'idempotency-key':crypto.randomUUID(),'x-price-version':quote.price.version},body:JSON.stringify({model,messages:[{role:'user',content:input}],...(maxOutput===''?{}:{max_tokens:Number(maxOutput)}),stream:true})});
       if(!response.ok)throw new Error(gatewayFailureMessage(await response.text()));if(!response.body)throw new Error('响应流不可用');
       const reader=response.body.getReader(),decoder=new TextDecoder();let buffer='';
       while(true){
@@ -58,8 +58,8 @@ export function Online({data,purposeId,onPurpose,refresh,modelRequest}:{data:Pla
     {!selected&&<div className="notice warning">{model?'所选模型当前不可用，输入已保留。请选择其他可用模型，或联系企业运营。':purposeLabels[purpose.status]}</div>}
     <label className="form-field">你需要什么帮助？<textarea rows={6} required placeholder="例如：把下面的会议记录整理为结论、待办和负责人……" value={input} onChange={event=>{setQuote(null);setError('');setInput(event.target.value);}} disabled={busy}/></label>
     {quote?.decision==='deny'&&<div className="notice warning">{({quota_insufficient:'本次预计费用超过单个来源余额。可在“回复长度与费用明细”降低输出上限，或到“我的额度”申请追加。',price_unconfigured:'模型价格尚未确认，请联系企业运营处理。',request_limit_exceeded:'输入过长或输出上限超过保护范围，请减少输入或调整输出上限。',no_quota:'当前用途没有有效额度，请到“我的额度”查看并申请。'} as Record<string,string>)[quote.reasonCode]??`暂时无法发送：${quote.reasonCode}`}</div>}
-    <details className="disclosure"><summary>回复长度与费用明细</summary><label className="form-field">最多输出 Token<input type="number" min="1" step="1" disabled={busy} value={maxOutput} onChange={event=>{setQuote(null);setMaxOutput(event.target.value);}}/></label>{quote?.decision==='allow'&&<p className="secondary">来源：{quote.sourceName} · 输入保守估算 {quote.estimatedInputTokens} Token · 输出最多 {quote.maxOutputTokens} Token。发送后预占，完成后按返回用量结算，多余预占释放。</p>}</details>
-    {quote?.decision==='allow'&&<p className="secondary">本次最多预占 {money(quote.reservedAmount!)}，按实际用量结算。</p>}
+    <details className="disclosure"><summary>回复长度与费用明细</summary><fieldset className="editor-fields" disabled={busy}><Field spec={{key:'maxOutput',label:'最多输出 Token（可选）',type:'number',step:'1',help:'留空使用上游默认值，仍受管理员设置的输出限制约束。'}} value={maxOutput} onChange={value=>{setQuote(null);setMaxOutput(String(value));}}/></fieldset>{quote?.decision==='allow'&&<p className="secondary">来源：{quote.sourceName} · 输入估算 {quote.estimatedInputTokens} Token · 费用预估按输出 {quote.estimatedOutputTokens} Token 计算{quote.maxOutputTokens===undefined?' · 使用上游默认输出上限':` · 生成上限 ${quote.maxOutputTokens} Token`}。</p>}</details>
+    {quote?.decision==='allow'&&<p className="secondary">本次初始预占 {money(quote.reservedAmount!)}，费用可能超过预估。完成后按实际用量结算，多余预占释放；差额从原来源补扣，余额不足或用量不完整时进入待核对。</p>}
     <div className="actions"><button className="primary" disabled={busy||!selected||quote?.decision!=='allow'}>发送</button>{busy&&<button type="button" className="ghost" onClick={()=>abort.current?.abort()}>取消请求</button>}</div>
     {reply&&<div className="reply" aria-live="polite">{reply}</div>}{error&&<div className="notice warning" role="status">{error}</div>}
   </form></Panel>;

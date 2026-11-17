@@ -54,7 +54,7 @@ export class LocalOctopRuntime implements OnModuleDestroy {
   }
   async stop(id:string){const p=this.processes.get(id);if(p){await this.stopProcess(p.child);this.processes.delete(id);}}
 
-  async configure(id:string,apiKey:string){
+  async configure(id:string,apiKey:string,chatModelIds:string[]){
     const paths=await this.paths(id);let running=this.processes.get(id);
     if(running&&(running.child.exitCode!==null||running.child.signalCode!==null)){this.processes.delete(id);running=undefined;}
     const record=resolve(paths.directory,'manager.json');let info:RuntimeInfo;
@@ -79,7 +79,7 @@ export class LocalOctopRuntime implements OnModuleDestroy {
     else await this.http(base,`/api/users/${user.id}/reset-password`,{new_password:password},admin);
     info.userId=user.id;const userToken=(await this.http(base,'/api/auth/login',{username:info.username,password})).access_token;
     const gateway=new URL(process.env.OCTOP_GATEWAY_URL??'');if(gateway.protocol!=='http:'||!['127.0.0.1','localhost','[::1]'].includes(gateway.hostname)||gateway.username||gateway.password||gateway.search||gateway.hash||!['','/','/v1'].includes(gateway.pathname))throw Error('managed gateway must be the server configured loopback URL');
-    gateway.pathname='/v1';const models=await this.http(gateway.origin,'/v1/models',undefined,apiKey);if(!models.data?.length)throw Error('no authorized models for managed instance');
+    gateway.pathname='/v1';const models=await this.http(gateway.origin,'/v1/models',undefined,apiKey);if(Array.isArray(models.data))models.data=models.data.filter((model:{id:string})=>chatModelIds.includes(model.id));if(!models.data?.length)throw Error('no authorized chat models for managed instance');
     const providers=await this.http(base,'/api/admin/providers',undefined,admin);if(providers.some((p:{name:string})=>p.name!=='platform-gateway'))throw Error('managed instance has unexpected provider configuration');
     const provider=providers.find((p:{name:string})=>p.name==='platform-gateway'),body={name:'platform-gateway',kind:'openai',base_url:gateway.toString().replace(/\/$/,''),api_key:apiKey,stream_usage:true,models:models.data.map((m:{id:string})=>({id:m.id,name:m.id,enabled:true,input:['text'],api_mode:'chat_completions',api_fallback:'none'}))};
     await this.http(base,provider?`/api/admin/providers/${provider.id}`:'/api/admin/providers',body,admin,provider?'PATCH':'POST');

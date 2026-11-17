@@ -1,3 +1,4 @@
+import {developmentCredentialKey} from './lib/development-secrets.mjs';
 import {spawn} from 'node:child_process';
 import {createServer} from 'node:net';
 import {randomUUID} from 'node:crypto';
@@ -26,7 +27,7 @@ const password='Review-local-2026!',accounts=[
   {login:'review-new',name:'待开通同事',role:'个人申请执行失败，供修正重试'},
 ];
 // Review-only opt-in: the root .env may enable external verification and supply
-// named upstream credentials. Values reach the control plane only, never the web build.
+// named upstream credentials. Values reach server processes only, never the web build.
 let localEnv={};try{localEnv=parseEnv(await readFile(resolve(root,'.env'),'utf8'));}catch{}
 const allowUpstreamValidation=(process.env.REVIEW_ALLOW_UPSTREAM_VALIDATION??localEnv.REVIEW_ALLOW_UPSTREAM_VALIDATION)==='true';
 // Review-only opt-in: without this, the data plane stays loopback-only even when
@@ -37,7 +38,7 @@ const controlPlaneRpcTimeoutMs=process.env.CONTROL_PLANE_RPC_TIMEOUT_MS??localEn
 const dataPlane=process.env.REVIEW_DATA_PLANE??localEnv.REVIEW_DATA_PLANE??(development?'higress':'direct');
 if(!['direct','higress'].includes(dataPlane))throw new Error('REVIEW_DATA_PLANE 必须是 direct 或 higress');
 const upstreamEnvironment=Object.fromEntries(Object.entries({...localEnv,...process.env}).filter(([key])=>key.startsWith('UPSTREAM_')));
-const environment=Object.fromEntries(Object.entries(process.env).filter(([key])=>!key.startsWith('UPSTREAM_')&&!key.startsWith('VITE_')&&!key.startsWith('HIGRESS_')&&key!=='GATEWAY_DATA_PLANE'));
+const environment=Object.fromEntries(Object.entries(process.env).filter(([key])=>!key.startsWith('PLATFORM_CREDENTIAL_')&&!key.startsWith('NOTIFICATION_')&&!key.startsWith('UPSTREAM_')&&!key.startsWith('VITE_')&&!key.startsWith('HIGRESS_')&&key!=='GATEWAY_DATA_PLANE'));
 let directory,closing=false,ready=false,persistentState,higress;
 function start(file,args=[],extra={},cwd=root){
   const child=spawn(process.execPath,[resolve(root,file),...args],{cwd,windowsHide:true,stdio:['ignore','pipe','pipe'],env:{...environment,PLATFORM_MODE:'development',DATABASE_SCHEMA:'',DATABASE_URL:'',REDIS_URL:'',PGOPTIONS:'',STORE_MODE:'memory',HOST:'127.0.0.1',DOTENV_CONFIG_PATH:resolve(directory,'unused.env'),SERVICE_TOKEN:serviceToken,BOOTSTRAP_TOKEN:'',COOKIE_SECURE:'false',MOCK_API_TOKEN:'',ALLOW_UPSTREAM_VALIDATION:'false',ALLOW_UPSTREAM_REQUESTS:'false',WEB_ORIGIN:url('web'),...extra}});
@@ -75,7 +76,8 @@ async function seed(){
     const c={type,payload,idempotencyKey:persistentState?`review-seed-${persistentState.state.id}-${++step}`:randomUUID()};
     // Ask for the original result first: a new preview can legitimately reject an
     // already-created member or grant. Only a new command needs a fresh preview.
-    if(persistentState)try{return (await api('/api/v1/platform/commands',c)).result;}catch(error){if(error.status!==409||error.apiMessage!=='impact preview required')throw error;}
+    if(persistentState)try{return (await api('/api/v1/platform/commands',c)).result;}catch(error){if(error.status!==409||!['impact preview required','command key reused with different input'].includes(error.apiMessage))throw error;}
+    if((type==='save.project'||type==='save.application'&&payload.billingMode==='quota')&&!payload.id){c.payload={initialAmount:1,validity:'permanent',...payload};if(persistentState)try{return (await api('/api/v1/platform/commands',c)).result;}catch(error){if(error.status!==409||error.apiMessage!=='impact preview required')throw error;}}
     const preview=await api('/api/v1/platform/preview',c);return (await api('/api/v1/platform/commands',{...c,previewToken:preview.previewToken})).result;
   }
   if((await api('/api/v1/auth/bootstrap')).required)await api('/api/v1/auth/setup',{name:accounts[0].name,directoryId:accounts[0].login,password});await login(accounts[0].login);
@@ -102,8 +104,12 @@ try{
   console.log('构建完成；正在准备本地数据面…');
   if(dataPlane==='higress')higress=await openHigress({root,directory:resolve(directory,'higress'),persistent:true,localModelPort:ports.model});
   console.log('数据面已准备；正在启动控制面、网关和本地模型…');
+  const credentialKey=await developmentCredentialKey(root,process.env.PLATFORM_CREDENTIAL_ENCRYPTION_KEY??localEnv.PLATFORM_CREDENTIAL_ENCRYPTION_KEY);
+  const notificationEnvironment=Object.fromEntries(Object.entries({...localEnv,...process.env}).filter(([key])=>key.startsWith('NOTIFICATION_')));
   const dispatchEnvironment=higress?.environment??{GATEWAY_DATA_PLANE:'direct'};
-  const model=start('postman/mocks/test-model/default.js',[],{PORT:String(ports.model),REVIEW_MODEL:'true'}),control=start('apps/control-plane/dist/main.js',[],{PORT:String(ports.control),PUBLIC_GATEWAY_URL:url('gateway'),ALLOW_UPSTREAM_VALIDATION:allowUpstreamValidation?'true':'false',...upstreamEnvironment,...dispatchEnvironment,...(persistentState?{STORE_MODE:'postgres',DATABASE_URL:persistentState.connectionString,DATABASE_SCHEMA:persistentState.state.schema}:{})}),gateway=start('services/gateway-sim/dist/server.js',[],{PORT:String(ports.gateway),CONTROL_PLANE_URL:url('control'),CONTROL_PLANE_RPC_TIMEOUT_MS:controlPlaneRpcTimeoutMs,MODEL_URL:url('model'),GATEWAY_JOURNAL_DIR:resolve(directory,'journal'),ALLOW_UPSTREAM_REQUESTS:allowUpstreamRequests?'true':'false',...(higress?{}:allowUpstreamRequests?upstreamEnvironment:{}),...(higress?.gatewayEnvironment??dispatchEnvironment)});
+  // Non-chat adapters use controlled direct dispatch alongside Higress chat routes.
+  // Give the gateway named credentials only when the existing request opt-in is enabled.
+  const model=start('postman/mocks/test-model/default.js',[],{PORT:String(ports.model),REVIEW_MODEL:'true'}),control=start('apps/control-plane/dist/main.js',[],{PORT:String(ports.control),PUBLIC_GATEWAY_URL:url('gateway'),PLATFORM_CREDENTIAL_ENCRYPTION_KEY:credentialKey,...notificationEnvironment,ALLOW_UPSTREAM_VALIDATION:allowUpstreamValidation?'true':'false',...upstreamEnvironment,...dispatchEnvironment,...(persistentState?{STORE_MODE:'postgres',DATABASE_URL:persistentState.connectionString,DATABASE_SCHEMA:persistentState.state.schema}:{})}),gateway=start('services/gateway-sim/dist/server.js',[],{PORT:String(ports.gateway),CONTROL_PLANE_URL:url('control'),CONTROL_PLANE_RPC_TIMEOUT_MS:controlPlaneRpcTimeoutMs,MODEL_URL:url('model'),GATEWAY_JOURNAL_DIR:resolve(directory,'journal'),ALLOW_UPSTREAM_REQUESTS:allowUpstreamRequests?'true':'false',...(allowUpstreamRequests?upstreamEnvironment:{}),...(higress?.gatewayEnvironment??dispatchEnvironment)});
   await Promise.all([waitFor(`${url('model')}/health`,model),waitFor(`${url('control')}/health`,control),waitFor(`${url('gateway')}/health`,gateway)]);
   if(!persistentState?.state.ready){const objects=await seed();await persistentState?.markReady(objects);}else console.log('已恢复原审查工作区；不会重建账号、重置配置或重复发放。');
   if(higress){const response=await fetch(`${url('control')}/internal/v1/gateway-sync/reconcile`,{method:'POST',headers:{authorization:`Bearer ${serviceToken}`},signal:AbortSignal.timeout(180000)});if(!response.ok)throw new Error('Higress 路由准备失败');const result=await response.json();console.log(`Higress 已准备 ${result.routes.filter(route=>route.status==='applied').length}/${result.routes.length} 条路由；未生效路由会拦截调用。`);}

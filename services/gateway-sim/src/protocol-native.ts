@@ -7,11 +7,12 @@ export class NativeProtocolOutput {
   private terminal='';
   private status:'completed'|'failed'|null=null;
   private begun=false;
+  private meterFinal=false;
   constructor(readonly protocol:Exclude<ModelProtocol,'chat'>,private model:string){}
   get done(){return this.status!==null;}
   get successful(){return this.status==='completed';}
   get usage(){return extractProtocolUsage(this.protocol,{usage:this.meter});}
-  get usageRaw(){const u=this.usage;return u?JSON.stringify({usage:{prompt_tokens:u.inputTokens,completion_tokens:u.outputTokens,prompt_tokens_details:{cached_tokens:u.cachedInputTokens}}}):'';}
+  get usageRaw(){const u=this.meterFinal?this.usage:null;return u?JSON.stringify({usage:{prompt_tokens:u.inputTokens,completion_tokens:u.outputTokens,prompt_tokens_details:{cached_tokens:u.cachedInputTokens}}}):'';}
   private rewrite(value:Obj):Obj {
     if('model'in value)value.model=this.model;
     for(const key of ['response','message'])if(value[key]&&typeof value[key]==='object'&&!Array.isArray(value[key]))value[key]={...(value[key]as Obj),model:this.model};
@@ -20,7 +21,7 @@ export class NativeProtocolOutput {
   json(value:Obj):Obj {
     const valid=this.protocol==='responses'?value.object==='response'&&Array.isArray(value.output)&&['completed','incomplete'].includes(String(value.status)):value.type==='message'&&Array.isArray(value.content)&&typeof value.stop_reason==='string';
     if(!valid)throw Error('invalid native protocol response');
-    this.meter=(value.usage??{})as Obj;
+    this.meter=(value.usage??{})as Obj;this.meterFinal=true;
     return this.rewrite(value);
   }
   push(value:Obj,eventName?:string):string {
@@ -29,11 +30,11 @@ export class NativeProtocolOutput {
     if(eventName&&eventName!==type)throw Error('native SSE event name/type conflict');
     if(this.protocol==='responses'){
       if(type==='response.created')this.begun=true;
-      if(type.startsWith('response.')&&value.response&&typeof value.response==='object'){const response=value.response as Obj;if(response.usage)this.meter=response.usage as Obj;}
+      if(type.startsWith('response.')&&value.response&&typeof value.response==='object'){const response=value.response as Obj;if(response.usage){this.meter=response.usage as Obj;this.meterFinal=['response.completed','response.incomplete','response.failed'].includes(type);}}
       if(['response.completed','response.incomplete','response.failed','error'].includes(type)){if(!this.begun)throw Error('native response terminal without creation');this.status=type==='response.failed'||type==='error'?'failed':'completed';}
     }else{
       if(type==='message_start'){this.begun=true;this.meter={...((value.message as Obj)?.usage as Obj??{})};}
-      if(type==='message_delta'&&value.usage)this.meter={...this.meter,...value.usage as Obj};
+      if(type==='message_delta'&&value.usage){this.meter={...this.meter,...value.usage as Obj};this.meterFinal=typeof (value.delta as Obj)?.stop_reason==='string';}
       if(type==='message_stop'||type==='error'){if(!this.begun&&type!=='error')throw Error('native message terminal without start');this.status=type==='error'?'failed':'completed';}
     }
     const frames=`event: ${type}\ndata: ${JSON.stringify(this.rewrite(value))}\n\n`;

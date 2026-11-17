@@ -1,7 +1,8 @@
 import {useState} from 'react';
-import {MODEL_CAPABILITIES,type ModelCapability,type ModelDefinition} from '@ai-gateway/contracts';
+import {MODEL_CAPABILITIES,MODEL_KINDS,MODEL_API_PATHS,type ModelCapability,type ModelDefinition} from '@ai-gateway/contracts';
 import {Field,money,Panel,Status} from './components';
 import {ModelCapabilities,ModelCard,ModelFacts} from './ModelCard';
+import {gatewayBaseUrl} from './client';
 import {purposeLabels} from './Online';
 import type {PageProps} from './WorkspacePages';
 
@@ -18,7 +19,8 @@ export function AvailableModels({data,purposeId,setPurpose,setPage,refresh,detai
     detail('可用模型详情',latest=>{
       const current=latest.purposes.find(p=>p.id===selectedPurpose),model=(current?.catalogModels??current?.models??[]).find(m=>m.modelId===modelId),d:ModelDefinition|undefined=latest.definitions.find(d=>d.modelId===modelId);
       if(!model)return <p className="notice warning">模型已不在当前用途的开放范围内，请关闭详情后刷新模型列表。</p>;
-      return <><dl className="detail-lead"><div><dt>使用状态</dt><dd><Status value={model.status==='ready'?'active':'unavailable'} label={purposeLabels[model.status]}/></dd></div><div><dt>当前用途</dt><dd>{current?.name}</dd></div><div><dt>模型适用余额</dt><dd>{money(model.availableAmount)}</dd></div><div><dt>单次调用金额上限</dt><dd>{money(model.largestBatchAmount)}</dd></div></dl>
+      const kind=d?.kind??'chat';
+      return <>{kind!=='chat'&&<section className="detail-group"><h3>{MODEL_KINDS[kind]} API 接入</h3><p>在密钥与接入中签发当前用途的密钥，再使用下列入口；模型字段填写下方对外模型标识。</p><code>POST {gatewayBaseUrl}{MODEL_API_PATHS[kind]}</code><p className="secondary">{kind==='asr'?'使用 multipart/form-data，包含 model 和 file 音频文件。':kind==='video'?'提交后返回平台任务 ID；使用同一用途密钥 GET /v1/videos/{id} 查询，完成后 GET /v1/videos/{id}/content 获取视频。':kind==='tts'?'JSON 包含 model、input、voice，返回音频二进制。':kind==='embeddings'?'JSON 包含 model 和 input，返回向量数组。':kind==='rerank'?'JSON 包含 model、query、documents，返回相关性排序。':'JSON 包含 model、prompt、n，返回图片地址或 Base64 数据。'}</p></section>}<dl className="detail-lead"><div><dt>使用状态</dt><dd><Status value={model.status==='ready'?'active':'unavailable'} label={purposeLabels[model.status]}/></dd></div><div><dt>当前用途</dt><dd>{current?.name}</dd></div><div><dt>模型适用余额</dt><dd>{money(model.availableAmount)}</dd></div><div><dt>单次调用金额上限</dt><dd>{money(model.largestBatchAmount)}</dd></div></dl>
         <div className="detail-groups"><section className="detail-group"><h3>模型与适用任务</h3><dl className="detail-list"><div><dt>名称</dt><dd>{model.name}</dd></div><div><dt>模型标识</dt><dd><code>{model.modelId}</code></dd></div><div><dt>厂商</dt><dd>{d?.vendor||'未维护'}</dd></div><div><dt>能力说明</dt><dd>{d?.description||'未维护'}</dd></div></dl></section>
         <section className="detail-group"><h3>接入能力与关键参数</h3><ModelCapabilities definition={d}/><ModelFacts definition={d}/><p className="secondary">能力由运营按当前接入维护；未维护不表示不支持。最大输出仅作选型参考，本次输出仍受上下文与实际调用保护限制。</p></section></div></>;
     });

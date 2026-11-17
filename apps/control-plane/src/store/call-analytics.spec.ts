@@ -14,6 +14,17 @@ const window={from:'2026-10-25T00:00:00.000Z',to:'2026-10-26T00:00:00.000Z'};
 const scope=null;
 
 describe('usage analytics aggregation',()=>{
+  it('separates unknown costs, known zero and pending costs, comparing only matching confirmed calls',()=>{
+    const costPrice={version:'c',currency:'CNY' as const,unit:'per_million_tokens' as const,inputPrice:2,outputPrice:3,cachedInputPrice:0.5};
+    const admission={kind:'configured' as const,route:{serviceId:'svc',poolId:'pool',definitionId:'model',upstreamModel:'u'},price:null,costPrice,reservedAmount:1};
+    const rows=[call(1,{admission}),call(2,{admission,billableState:'pending_review',actualAmount:7}),call(3),call(4,{admission,usageFinal:false}),call(5,{admission,forwarded:undefined}),call(6,{admission:undefined,forwarded:false,billableState:'not_billable',actualAmount:0})];
+    const report=aggregateUsage(rows,window,null,'Asia/Shanghai');
+    expect(report.totals.cost).toEqual({knownAmount:0.000152,unknownRequests:3,comparableRequests:1,comparableBilledAmount:0.5,comparableCostAmount:0.000076,differenceAmount:0.499924});
+    expect(report.services.reduce((sum,row)=>sum+row.requests,0)).toBe(6);
+    expect(aggregateUsage(rows,{...window,serviceId:'svc'},null,'Asia/Shanghai').totals.requests).toBe(4);
+    expect(aggregateUsage(rows,window,{employeeId:'employee-a',applicationIds:[]},'Asia/Shanghai').totals).not.toHaveProperty('cost');
+    expect(aggregateUsage(rows,{...window,applicationId:'not-owned'},null,'Asia/Shanghai').totals.requests).toBe(0);
+  });
   it('keeps unknown usage and pending review out of the money and token columns',()=>{
     const rows=[
       call(1),

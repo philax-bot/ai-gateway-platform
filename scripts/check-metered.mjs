@@ -60,10 +60,11 @@ export async function checkMetered({cp,gw,model,admin,employeeCookie,managerCook
   check(streamText.includes('tool_calls')&&streamText.includes('local_weather')&&streamText.includes('[DONE]'),'streamed tool call and completion marker preserved');
   check(!streamText.includes('mapped-upstream-v2'),'streamed model metadata uses the logical identifier');
 
-  const pool=(await command(admin,'save.pool',{name:'第二用途池',entries:[{definitionId:'definition-test-model',serviceId:service.id,open:true}]})).result;
+  // A service now belongs to one pool. A second entitlement/subject must reuse that owner pool.
+  const pool=(await state(admin)).pools.find(p=>p.entries.some(e=>e.serviceId===service.id));assert.ok(pool,'service owner pool exists');
   const plan=(await command(admin,'save.plan',{name:'第二用途方案',range:{poolId:pool.id,mode:'follow',definitionIds:[]},amount:20,cadence:'once',quotaDays:30,entitlementDays:365})).result;
   await command(admin,'distribution.execute',{planId:plan.id,memberIds:[manager.id]});
-  const managerKey=(await command(managerCookie,'key.issue',{name:'第二模型池调用',purpose:'personal'})).result;
+  const managerKey=(await command(managerCookie,'key.issue',{name:'第二用途调用',purpose:'personal'})).result;
   await configure({limits:{mode:'custom',concurrency:1,rpm:100,maxOutputTokens:128}});
   // Hold an explicit admission until the competing gateway call ends. A 600 ms upstream
   // timeout is not a stable overlap barrier when control-plane requests cross a remote DB.
@@ -71,7 +72,7 @@ export async function checkMetered({cp,gw,model,admin,employeeCookie,managerCook
   const holdId=`shared-capacity-${randomUUID()}`,holdInput={requestId:holdId,idempotencyKey:holdId,identity:resolved.body.identity,purpose:'personal',modelId:'test-model',mode:'chat',estimatedInputTokens:100,maxOutputTokens:32,policyVersion:'shared-capacity-check'};
   const capacityHold=await internal('/internal/v1/policy/authorize',holdInput);check(capacityHold.status===200&&capacityHold.body.decision==='allow','explicit service-capacity admission is held until test release');
   const shared=gatewayRequest({apiKey:managerKey.secret}),sharedResponse=await shared.promise;
-  const sharedBody=await sharedResponse.json();check(sharedResponse.status===429&&sharedBody.error.code==='rate_limited',`different pools and subjects still share service concurrency (HTTP ${sharedResponse.status})`);
+  const sharedBody=await sharedResponse.json();check(sharedResponse.status===429&&sharedBody.error.code==='rate_limited',`different entitlements and subjects share their service concurrency (HTTP ${sharedResponse.status})`);
   check((await upstreamRequests(shared.id)).length===0,'shared-capacity denial happens before inference');
   const released=await internal('/internal/v1/usage/settlements',{requestId:holdId,idempotencyKey:`${holdId}:release`,reservationId:capacityHold.body.reservation.reservationId,outcome:'rejected_before_upstream',forwarded:false,usageFinal:true,inputTokens:0,outputTokens:0,completedAt:new Date().toISOString()});check(released.body.status==='released','undispatched test admission is released explicitly');
   const abort=new AbortController(),held=gatewayRequest({stream:true,scenario:'cancel',signal:abort.signal}),heldResponse=await held.promise;
@@ -178,8 +179,17 @@ export async function checkMetered({cp,gw,model,admin,employeeCookie,managerCook
   check(source.summary.ttftSamples>0&&source.summary.p95TtftMs>=0,'stream TTFT samples are recorded separately from full request latency');
   check(source.summary.rateLimited>0&&source.summary.upstreamFailures<=source.summary.forwarded,'monitoring keeps limit refusals separate from upstream-failure denominator');
   const rule=(await command(admin,'save.alert-rule',{name:'隔离检查请求错误率',metric:'request_error_rate',windowMinutes:60,threshold:1,minSamples:1,triggerCount:1,recoveryThreshold:0.5,recoveryCount:2})).result;
-  await request('/api/v1/platform/maintenance/run',{},admin);
-  const evaluated=await request('/api/v1/platform/monitoring',undefined,admin);check(evaluated.body.evaluations[rule.id]?.reading.to.endsWith(':00.000Z'),'maintenance evaluates a closed minute window');
+  let maintained=await request('/api/v1/platform/maintenance/run',{},admin);
+  check(maintained.status===200,`maintenance completes: ${JSON.stringify(maintained.body)}`);
+  let evaluated=await request('/api/v1/platform/monitoring',undefined,admin);
+  // A manual request can join a background tick that sampled before this rule
+  // was saved. Once that tick completes, a new tick must observe the new rule.
+  if(!evaluated.body.evaluations[rule.id]){
+    maintained=await request('/api/v1/platform/maintenance/run',{},admin);
+    check(maintained.status===200,`new-rule maintenance completes: ${JSON.stringify(maintained.body)}`);
+    evaluated=await request('/api/v1/platform/monitoring',undefined,admin);
+  }
+  check(evaluated.body.evaluations[rule.id]?.reading.to.endsWith(':00.000Z'),'maintenance evaluates a closed minute window');
   const denyRule=await request('/api/v1/platform/commands',{type:'save.alert-rule',idempotencyKey:randomUUID(),payload:{...rule,name:'forbidden'}},employeeCookie);check(denyRule.status===403,'employees cannot change alert thresholds');
   const event=evaluated.body.events.find(e=>e.ruleId===rule.id&&e.status==='active');
   check(event,'closed-minute historical failure must produce an active alert instead of skipping acknowledgement checks');

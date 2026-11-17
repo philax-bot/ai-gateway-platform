@@ -1,8 +1,10 @@
+import {hasPermission} from '@ai-gateway/contracts';
 import { useMemo, useState } from 'react';
 import type { CallQuery, PlatformSnapshot } from '@ai-gateway/contracts';
 import {usageTarget} from './usage-navigation';
 import { ChartEmpty, DonutChart, GaugeChart, ShareBar, TrendChart } from './components-charts';
 import { date, Panel, Table } from './components';
+import { UsageCostReport } from './UsageCostReport';
 import type { makeEditors } from './editors';
 import { calendarDays, emptyBucket, metricText, metricValue, money, pendingText, percent, usageMetricLabels, usageMetricSwitch, usageNames, usagePeople, useUsageQuery, UsageFilterBar, type UsageMetric } from './usage-shared';
 
@@ -15,7 +17,7 @@ const dimensionPage:Record<Dimension,string>={organizations:'organizations',proj
 export function UsageCockpit({data,active=true,setPage,edit}:Props){
   const query=useUsageQuery(active),names=usageNames(data);
   const [metric,setMetric]=useState<UsageMetric>('cost'),[dimension,setDimension]=useState<Dimension>('organizations');
-  const operator=data.actor.roles.includes('operator');
+  const operator=hasPermission(data.actor,'usage.read.all');
   const managesProjects=data.projects.some(project=>project.managerId===data.actor.id&&project.status==='active');
 
   const report=query.report,totals=report?.totals;
@@ -158,6 +160,7 @@ export function UsageCockpit({data,active=true,setPage,edit}:Props){
 
   return <div className="usage-cockpit">
     <UsageFilterBar data={data} state={query} names={names}/>
+    {report&&<UsageCostReport report={report} names={names}/>}
     {report&&!hasData?emptyPage:cockpit}
     <p className="secondary">窗口内已结束调用；在途、未识别密钥与控制面未收到的请求不在分母内。Token 只计完整用量，费用只计已确认金额；导出 CSV 时待核对的未知金额留空。完整表格在「排行榜」。</p>
   </div>;

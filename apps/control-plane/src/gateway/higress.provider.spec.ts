@@ -4,11 +4,17 @@ import {DemoStore} from '../store/demo.store';
 import {WorkspaceRepository} from '../platform/workspace.repository';
 import {GatewaySyncRepository} from './gateway-sync.repository';
 import {HigressProvider} from './higress.provider';
-import {binding,digest,resourceId} from './higress.resources';
+import {binding,digest,resourceId,renderRoute} from './higress.resources';
+import {saveUpstreamCredential} from '../platform/upstream-credentials';
 
 describe('Higress publication authority',()=>{
   let provider:HigressProvider,repository:GatewaySyncRepository,workspace:WorkspaceRepository,route:RouteSnapshot,input:GatewaySyncRequest;
   let objects:Map<string,any>,writes:number;
+  it('preserves versioned provider paths in generated Chat and native routes',()=>{
+    const rendered=renderRoute({serviceId:'service',definitionId:'model',poolId:'pool',baseUrl:'https://ark.example/api/v3',upstreamModel:'physical',credentialRef:null},'v1','','proxy','test');
+    const proxy=rendered.resources.find(r=>r.metadata.name==='atlas-ai-proxy')!;expect((proxy.spec.matchRules as any[])[0].config.providers[0].openaiCustomUrl).toBe('https://ark.example/api/v3/chat/completions');
+    for(const protocol of ['responses','messages'])expect((rendered.resources.find(r=>r.kind==='Ingress'&&r.metadata.name===rendered.name+'-'+protocol)!.metadata.annotations as any)['higress.io/rewrite-target']).toBe('/api/v3/'+protocol);
+  });
   beforeEach(async()=>{
     for(const [key,value] of Object.entries({PLATFORM_MODE:'development',GATEWAY_DATA_PLANE:'higress',HIGRESS_API_URL:'http://127.0.0.1:18001',HIGRESS_API_TOKEN:'separate-management-token',HIGRESS_PROXY_URL:'http://127.0.0.1:18002',UPSTREAM_HIGRESS_INTERNAL:'separate-proxy-token',HIGRESS_LOOPBACK_HOST:'',HIGRESS_REQUIRE_RUNTIME_READY:'false'}))vi.stubEnv(key,value);
     const store=new DemoStore();workspace=new WorkspaceRepository(store);repository=new GatewaySyncRepository(store);provider=new HigressProvider(repository,workspace);
@@ -39,6 +45,23 @@ describe('Higress publication authority',()=>{
     expect(await provider.publishRoute(input)).toEqual(first);expect(writes).toBe(count);
     expect((await new HigressProvider(repository,workspace).getSyncStatus(input.resourceId))?.operationId).toBe(first.operationId);
     expect(JSON.stringify(await repository.read(input.resourceId))).not.toContain('separate-proxy-token');
+  });
+  it('retains an applied credential version after rotation publishes a newer version',async()=>{
+    vi.stubEnv('PLATFORM_CREDENTIAL_ENCRYPTION_KEY',Buffer.alloc(32,13).toString('base64'));
+    let credentialId='';
+    await workspace.transact(async tx=>{
+      const credential=saveUpstreamCredential(tx.state,{name:'local credential',providerId:'openai-compatible',secret:'credential-original'});
+      credentialId=credential.id;tx.state.services[0].credentialId=credentialId;
+    });
+    const original={...route,credential:{id:credentialId,version:1}};
+    const first=await provider.transport(original);expect(first.kind).toBe('higress');
+    await workspace.transact(async tx=>{saveUpstreamCredential(tx.state,{id:credentialId,secret:'credential-rotated'});});
+    const newer=await provider.transport({...route,credential:{id:credentialId,version:2}});
+    expect(newer.kind).toBe('higress');expect(newer).not.toEqual(first);
+    const writesBeforeReplay=writes;
+    expect(await provider.transport(original)).toEqual(first);expect(writes).toBe(writesBeforeReplay);
+    const state=JSON.stringify(await repository.read(resourceId(route)));
+    expect(state).not.toContain('credential-original');expect(state).not.toContain('credential-rotated');
   });
   it('rejects changed idempotency input and stale version preconditions',async()=>{
     await provider.publishRoute(input);

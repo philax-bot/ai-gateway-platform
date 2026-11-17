@@ -15,11 +15,11 @@ export async function checkProjectCloseout({cp,admin,employeeCookie,managerCooki
     const initial=await state(admin),service=(await command(admin,'save.service',{name:'关闭事务隔离服务',baseUrl:`http://127.0.0.1:${model.address().port}`,active:true,mappings:[{definitionId:initial.definitions[0].id,upstreamModel:'closeout-model',inputPrice:2,outputPrice:3,cachedInputPrice:0.5}]})).result;
     const verification=await request(`/api/v1/platform/services/${service.id}/verify`,{},admin);check(verification.body.verification==='passed','closeout model stand-in verified through local HTTP');
     const pool=(await command(admin,'save.pool',{name:'关闭事务隔离池',entries:[{definitionId:initial.definitions[0].id,serviceId:service.id,open:true}]})).result;
-    const project=(await command(admin,'save.project',{name:'关闭验收项目',managerId:manager.id,range:{poolId:pool.id,mode:'follow',definitionIds:[]}})).result;
+    const project=(await command(admin,'save.project',{initialAmount:20,expiresAt:new Date(Date.now()+7*86400000).toISOString(),name:'关闭验收项目',managerId:manager.id,range:{poolId:pool.id,mode:'follow',definitionIds:[]}})).result;
     check((await request(`/api/v1/platform/projects/${project.id}/member-candidates`,null,employeeCookie)).status===403,'ordinary member cannot discover candidate directory');
     const candidates=await request(`/api/v1/platform/projects/${project.id}/member-candidates`,null,managerCookie);check(candidates.status===200&&candidates.body.some(m=>m.id===employee.id)&&candidates.body.every(m=>!('directoryId' in m)&&!('roles' in m)),'manager receives minimal active directory candidates');
     await command(managerCookie,'project.members',{projectId:project.id,memberIds:[employee.id]});const expiresAt=new Date(Date.now()+7*86400000).toISOString();
-    const budget=(await command(admin,'project.fund',{projectId:project.id,amount:20,expiresAt})).result;
+    const budget=(await state(admin)).projectBudgets.find(b=>b.projectId===project.id);
     const allocation=(await command(managerCookie,'project.allocate',{projectId:project.id,sourceBatchId:budget.id,memberId:employee.id,amount:8})).result;
     const key=(await command(employeeCookie,'key.issue',{name:'关闭验收凭据',purpose:'project',projectId:project.id})).result;
     const port=await freePort(),gw=`http://127.0.0.1:${port}`;start('services/gateway-sim/dist/server.js',{PORT:String(port),CONTROL_PLANE_URL:cp,SERVICE_TOKEN:'local-service-token',UPSTREAM_TIMEOUT_MS:'30000',GATEWAY_JOURNAL_DIR:resolve(runtimeDirectory,'project-closeout-gateway')});

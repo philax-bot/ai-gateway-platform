@@ -113,14 +113,25 @@ export class SettlementJournal {
   }
   private persistFinalization(key:string,settlement:SettlementRequest):Promise<void>{
     const existing=this.persisting.get(key);if(existing)return existing;
-    const work=(async()=>{await this.write(key,{phase:'queued',settlement,attempts:0,nextAttemptAt:0,lastStatus:null,queuedAt:new Date().toISOString()});if(this.pendingWrites.get(key)===settlement)this.pendingWrites.delete(key);})();
+    const work=(async()=>{
+      let prior:Entry|undefined;try{prior=await this.read(key);}catch(error){
+        // Preserve the fsynced final evidence even if the target was replaced by
+        // a directory: recovery must never fall back to the older dispatch row.
+        if((error as NodeJS.ErrnoException).code==='EISDIR')await this.write(key,{phase:'queued',settlement,attempts:0,nextAttemptAt:0,lastStatus:null,queuedAt:new Date().toISOString()});
+        else if((error as NodeJS.ErrnoException).code!=='ENOENT')throw error;
+      }
+      if(prior&&(prior.phase==='queued'||prior.phase==='blocked')){
+        if(!isDeepStrictEqual(prior.settlement,JSON.parse(JSON.stringify(settlement))))throw new Error('final settlement journal conflict');
+      }else await this.write(key,{phase:'queued',settlement,attempts:0,nextAttemptAt:0,lastStatus:null,queuedAt:new Date().toISOString()});
+      if(this.pendingWrites.get(key)===settlement)this.pendingWrites.delete(key);
+    })();
     this.persisting.set(key,work);void work.finally(()=>this.persisting.delete(key)).catch(()=>undefined);return work;
   }
   private deliver(key:string):Promise<boolean>{
     const existing=this.sending.get(key);if(existing)return existing;
     if(this.closed)return Promise.resolve(false);
     const work=(async()=>{
-      const entry=await this.read(key);if(entry.phase!=='queued')return false;
+      const entry=await this.read(key);if(entry.phase!=='queued'||entry.nextAttemptAt>Date.now())return false;
       let status=503;try{status=await this.sender!(entry.settlement);}catch{/* keep the fsynced event for retry */}
       if(status===200){await unlink(this.path(key));return true;}
       entry.attempts++;entry.lastStatus=status;entry.nextAttemptAt=Date.now()+Math.min(60000,1000*2**Math.min(entry.attempts,6));
