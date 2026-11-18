@@ -11,6 +11,7 @@ import './analytics.css';
 import './cockpit-demo.css';
 import './workflow.css';
 import './model-discovery.css';
+import './model-surface.css';
 import './provider-picker.css';
 import './person-picker.css';
 

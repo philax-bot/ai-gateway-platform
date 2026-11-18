@@ -4,9 +4,8 @@ import {MediaTasks} from './MediaTasks';
 import {hasPermission} from '@ai-gateway/contracts';
 import type { ReactNode } from 'react';
 import type { PlatformSnapshot } from '@ai-gateway/contracts';
-import { api } from './client';
 import { batchAppliesToMember,batchModelNames,batchSourceName,fundingSourceSummary,fundingSources,purposeBatches } from './quota-view';
-import { date, money, Panel, Status, Table } from './components';
+import { date, money, Panel, Table } from './components';
 import { makeEditors, type RunCommand } from './editors';
 import { Online, purposeLabels, type OnlineModelRequest } from './Online';
 import {AvailableModels} from './AvailableModels';
@@ -17,7 +16,7 @@ import { Monitoring } from './Monitoring';
 import { UsageCockpit } from './UsageCockpit';
 import { UsageLeaderboard } from './UsageLeaderboard';
 import { CockpitBeaconDemo, CockpitLightDemo, CockpitTechDemo } from './cockpit-demo';
-import { ApprovalCenter,approvalLabels } from './ApprovalCenter';
+import { ApprovalCenter } from './ApprovalCenter';
 import { KeyManager } from './KeyManager';
 import { Projects } from './Projects';
 import { Applications } from './Applications';
@@ -42,7 +41,7 @@ export function WorkspacePages({data:d,page,targetId,active=true,isOps,edit,purp
   const purpose=d.purposes.find(p=>p.id===purposeId)??d.purposes[0];
   const selector=<label className="purpose-select">使用用途 <select value={purpose.id} onChange={e=>setPurpose(e.target.value)}>{d.purposes.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></label>;
   switch(page){
-    case 'available':return <AvailableModels data={d} purposeId={purposeId} setPurpose={setPurpose} setPage={setPage} refresh={refresh} detail={detail} onUseModel={onUseModel}/>;
+    case 'available':return <AvailableModels data={d} purposeId={purposeId} setPurpose={setPurpose} setPage={setPage} refresh={refresh} onUseModel={onUseModel}/>;
     case 'catalog':return <ModelCatalog data={d} edit={edit} setPage={setPage} refresh={refresh} detail={detail}/>;
     case 'safety':return <SafetyGuardrail data={d} run={run} active={active}/>;
     case 'agent':return <AgentWorkspace refreshWorkspace={refresh} setPage={setPage}/>;
@@ -56,8 +55,8 @@ export function WorkspacePages({data:d,page,targetId,active=true,isOps,edit,purp
     case 'overview':return <OperationsHome data={d} setPage={setPage}/>;
     case 'home':return <EmployeeHome data={d} purposeId={purposeId} setPurpose={setPurpose} setPage={setPage} edit={edit}/>;
     case 'models':return <ModelSetup data={d} edit={edit} setPage={setPage} refresh={refresh} detail={detail}/>;
-    case 'providers':return <Providers data={d} edit={edit} setPage={setPage} detail={detail}/>;
-    case 'pools':return <ModelPools data={d} edit={edit} setPage={setPage}/>;
+    case 'providers':return <Providers data={d} edit={edit} setPage={setPage} detail={detail} targetId={targetId}/>;
+    case 'pools':return <ModelPools data={d} edit={edit} setPage={setPage} targetId={targetId}/>;
     case 'capacity':return <ModelCapacity data={d} edit={edit} setPage={setPage}/>;
     case 'members':return <>
       <Panel title="组织结构" actions={<button className="ghost" onClick={()=>edit.organization()}>创建组织</button>}><p className="secondary">移动或停用前，先核对所有下级人员、访问变化与自动发放影响。</p><Table headers={['组织路径','人员（含下级）','有效状态','操作']} rows={d.organizations.map(o=>{const tree=organizationTree(d.organizations,o.id);return [organizationPath(d.organizations,o.id),d.members.filter(m=>tree.has(m.organizationId)).length,organizationEnabled(d.organizations,o.id)?'启用':o.active?'上级停用，当前不可用':'本组织已停用',<button className="link-button" onClick={()=>edit.organization(o)}>编辑与影响预览</button>];})}/></Panel>
@@ -97,7 +96,7 @@ export function WorkspacePages({data:d,page,targetId,active=true,isOps,edit,purp
     }
     case 'multimodal':return <MultimodalWorkbench data={d} purposeId={purposeId} onPurpose={setPurpose} modelRequest={onlineModelRequest} refresh={refresh} setPage={setPage}/>;
     case 'media-tasks':return <MediaTasks data={d} active={active} targetId={targetId} setPage={setPage}/>;
-    case 'online':return <Online data={d} purposeId={purpose.id} onPurpose={setPurpose} refresh={refresh} modelRequest={onlineModelRequest}/>;
+    case 'online':return <Online data={d} purposeId={purpose.id} onPurpose={setPurpose} refresh={refresh} modelRequest={onlineModelRequest} setPage={setPage}/>;
     case 'keys':return <KeyManager data={d} isOps={isOps} edit={edit} detail={detail}/>;
     case 'approvals':return <ApprovalCenter data={d} edit={edit} run={run} setPage={setPage} targetId={targetId}/>;
     case 'calls':return <CallExplorer key="calls" data={d} kind="calls" reconcile={edit.reconcile} detail={detail} active={active} targetId={targetId} setPage={setPage}/>;

@@ -1,13 +1,13 @@
 {
-  "checkedAt": "2026-11-12T13:48:42.389Z",
+  "checkedAt": "2026-11-17T06:57:41.835Z",
   "storage": "isolated-postgres",
-  "assertionCount": 72,
+  "assertionCount": 74,
   "assertions": [
     "blue-gray review shell is active",
     "login button is present",
     "operator reaches the operations workspace",
     "credential command returns public version metadata only",
-    "technical role creates unpriced mappings without finance authority",
+    "technical role preserves the required costs supplied by an authorized pricing operator",
     "direct API authorization separates technical, pricing, audit and role assignment responsibilities",
     "technical snapshots redact costs and multipliers while retaining connection configuration",
     "an administrator session cannot call the service-token-only credential resolution endpoint",
@@ -74,6 +74,8 @@
     "rerank workbench renders authoritative result order and score",
     "video workbench submits a persisted generation task",
     "task center has no page overflow at 390",
+    "unknown cancellation is labeled and offers an explicit retry",
+    "cancellation retry preserves the shared impact confirmation",
     "operations v2 produces no uncaught browser errors"
   ],
   "uncaughtErrors": []

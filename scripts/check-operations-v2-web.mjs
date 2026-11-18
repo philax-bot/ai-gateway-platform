@@ -5,7 +5,7 @@ import {createHash,createHmac,randomUUID} from 'node:crypto';
 import {createServer} from 'node:http';
 
 const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
-export async function checkOperationsV2Web({cp,gateway,model,web,seeded,cdp,evaluate,waitFor,clickExact,setInput,pressKey,setViewport,screenshot,login,check,restartGateway,database,schema,tempDir,restartControlPlane}){
+export async function checkOperationsV2Web({cp,gateway,model,web,seeded,cdp,evaluate,waitFor,clickExact,pressKey,setViewport,screenshot,login,check,restartGateway,database,schema,tempDir,restartControlPlane}){
   const session=async(directoryId,password)=>{
     const response=await fetch(cp+'/api/v1/auth/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({directoryId,password})});
     assert.equal(response.status,200);return response.headers.get('set-cookie').split(';')[0];
@@ -38,7 +38,9 @@ export async function checkOperationsV2Web({cp,gateway,model,web,seeded,cdp,eval
   const meter={rerank:'per_request',image:'per_image',asr:'per_second',tts:'per_1000_characters',video:'per_second'};
   let service=await command('save.service',{name:'托管凭据多模态连接',providerId:provider.id,baseUrl:model,credentialId:credential.id,credentialRef:null,active:true,limits:{mode:'custom',concurrency:1},videoCancellation:{method:'POST',path:'/v1/videos/{id}/cancel'},mappings:definitions.map(definition=>({definitionId:definition.id,upstreamModel:'test-'+(definition.kind==='chat'?'model':definition.kind),limits:{mode:'none'},...(meter[definition.kind]?{meter:{unit:meter[definition.kind],price:0,costPrice:0,estimatedUnits:1,maxUnits:10000}}:{costPrice:{inputPrice:0,outputPrice:0,cachedInputPrice:0}})}))});
   service=await command('save.service',{...service,mappings:service.mappings.map(({definitionId,upstreamModel,limits})=>({definitionId,upstreamModel,limits}))},roles.model_operator.cookie);
-  check(service.mappings.every(mapping=>mapping.meter?.costPrice===0||mapping.costPrice?.inputPrice===0),'technical role preserves the required costs supplied by an authorized pricing operator');
+  /* The command receipt is redacted for actors without costs.read, so verify preservation on the stored service. */
+  const preserved=(await request('/api/v1/platform/state')).services.find(item=>item.id===service.id);
+  check(!!preserved&&preserved.mappings.every(mapping=>mapping.meter?.costPrice===0||mapping.costPrice?.inputPrice===0),'technical role preserves the required costs supplied by an authorized pricing operator');
   service=await command('pricing.update',{serviceId:service.id,mappings:definitions.map(definition=>({definitionId:definition.id,inputPrice:meter[definition.kind]?null:2,outputPrice:meter[definition.kind]?null:3,cachedInputPrice:meter[definition.kind]?null:1,...(meter[definition.kind]?{meter:{unit:meter[definition.kind],price:0.2,costPrice:0.1,estimatedUnits:1,maxUnits:10000}}:{costPrice:{inputPrice:1,outputPrice:2,cachedInputPrice:0.5}})}))},roles.finance_operator.cookie);
   await request('/api/v1/platform/preview',{type:'save.service',payload:{...service,name:'finance cannot edit'},idempotencyKey:randomUUID()},roles.finance_operator.cookie,403);
   await request('/api/v1/platform/preview',{type:'pricing.update',payload:{definitionId:definitions[0].id,billingMultiplier:3},idempotencyKey:randomUUID()},roles.model_operator.cookie,403);
@@ -144,10 +146,10 @@ export async function checkOperationsV2Web({cp,gateway,model,web,seeded,cdp,eval
     }
     await cdp.send('Page.navigate',{url:web+'/?ui=beacon'});await waitFor(`!!document.querySelector('#v4-sidebar')`);
     await nav('模型池');await waitFor(`document.querySelector('[data-page="pools"]')?.getClientRects().length>0`);
-    await evaluate(`(()=>{const page=document.querySelector('[data-page="pools"]');[...page.querySelectorAll('button')].find(button=>button.textContent==='路由试算').click();})()`);
-    await waitFor(`document.querySelector('dialog')?.innerText.includes('开始试算')`);await screenshot('routing-simulation-1440.png');
-    await clickExact('开始试算');await waitFor(`document.querySelector('dialog')?.innerText.includes('路由试算结果')`);await screenshot('routing-decision-1440.png');
-    await setViewport(390,844);check(await evaluate(`document.documentElement.scrollWidth<=innerWidth+1`),'routing simulation has no page overflow at 390');await screenshot('routing-decision-390.png');await pressKey('Escape');
+    await evaluate(`(()=>{const page=document.querySelector('[data-page="pools"]');const row=[...page.querySelectorAll('tbody tr')].find(row=>row.querySelector('button'));row.querySelector('button').click();})()`);
+    await waitFor(`document.querySelector('[data-page="pools"]').innerText.includes('路由解释与试算')`);await screenshot('routing-simulation-1440.png');
+    await clickExact('开始试算');await waitFor(`document.querySelector('[data-page="pools"]').innerText.includes('排序 / 分数')`);await screenshot('routing-decision-1440.png');
+    await setViewport(390,844);check(await evaluate(`document.documentElement.scrollWidth<=innerWidth+1`),'routing simulation has no page overflow at 390');await screenshot('routing-decision-390.png');
     await setViewport(1440,1000);await nav('供应商');await screenshot('credentials-1440.png');await clickExact('创建上游凭据');await waitFor(`!!document.querySelector('dialog input[type="password"]')`);check(await evaluate(`!!document.querySelector('dialog button[aria-label*="显示"]')`),'upstream credential entry is masked with an accessible reveal control');await setViewport(390,844);await screenshot('credential-editor-390.png');await pressKey('Tab');check(await evaluate(`document.querySelector('dialog')?.contains(document.activeElement)`),'keyboard focus remains inside credential editor');await pressKey('Escape');
     await setViewport(1440,1000);
     for(const [role,landing] of [['model_operator','运行监控'],['finance_operator','用量驾驶舱'],['auditor','用量驾驶舱']]){
@@ -175,7 +177,8 @@ export async function checkOperationsV2Web({cp,gateway,model,web,seeded,cdp,eval
     await evaluate(`fetch(${JSON.stringify(cp+'/api/v1/auth/logout')},{method:'POST',credentials:'include'})`);await cdp.send('Page.navigate',{url:web+'/?ui=beacon'});await login('web-employee',seeded.employeePassword);
     await nav('多模态工作台');await waitFor(`!!document.querySelector('[data-page="multimodal"] form')`);
     const fillField=async(label,value)=>evaluate(`(()=>{const page=document.querySelector('[data-page="multimodal"]'),label=[...page.querySelectorAll('label')].find(node=>node.textContent.includes(${JSON.stringify(label)})),input=document.getElementById(label.htmlFor);Object.getOwnPropertyDescriptor((input.tagName==='SELECT'?HTMLSelectElement:input.tagName==='TEXTAREA'?HTMLTextAreaElement:HTMLInputElement).prototype,'value').set.call(input,${JSON.stringify(value)});input.dispatchEvent(new Event(input.tagName==='SELECT'?'change':'input',{bubbles:true}));})()`);
-    await fillField('模型类型','embeddings');await waitFor(`document.querySelector('[data-page="multimodal"]').innerText.includes('运营验收 embeddings')`);await fillField('待编码文本','本地向量验收');
+    const selectKind=async(label)=>evaluate(`(()=>{const page=document.querySelector('[data-page="multimodal"]'),button=[...page.querySelectorAll('.media-tabs button')].find(button=>button.textContent.trim()===${JSON.stringify(label)});if(!button)throw Error('missing media tab: '+${JSON.stringify(label)});button.click();})()`);
+    await selectKind('向量嵌入');await waitFor(`document.querySelector('[data-page="multimodal"]').innerText.includes('运营验收 embeddings')`);await fillField('待编码文本','本地向量验收');
     await evaluate(`document.querySelector('[data-page="multimodal"] form').requestSubmit()`);await waitFor(`document.querySelector('[data-page="multimodal"]').innerText.includes('执行一次调用')`);await clickExact('执行一次调用');await waitFor(`document.querySelector('[data-page="multimodal"]').innerText.includes('向量维度')`);
     check(await evaluate(`document.querySelector('[data-page="multimodal"]').innerText.includes('3')`),'employee workbench performs real embedding and displays returned dimensions');await screenshot('workbench-result-1440.png');
     for(const theme of ['beacon','azure','sidebar','next','classic']){
@@ -188,7 +191,7 @@ export async function checkOperationsV2Web({cp,gateway,model,web,seeded,cdp,eval
     await evaluate(`[...document.querySelectorAll('.design-switch button')].find(button=>button.getClientRects().length&&button.textContent.trim()==='信标').click()`);
     await waitFor(`document.documentElement.dataset.ui==='beacon'`);
     async function executeUi(kind,textValue,documentsValue){
-      await fillField('模型类型',kind);await pause(150);
+      await selectKind({image:'图片生成',embeddings:'向量嵌入',rerank:'重排序',asr:'语音识别',tts:'语音合成',video:'视频生成'}[kind]);await pause(150);
       if(textValue)await fillField(kind==='embeddings'?'待编码文本':kind==='rerank'?'检索查询':kind==='tts'?'朗读文字':'生成提示词',textValue);
       if(documentsValue)await fillField('候选文档',documentsValue);
       await evaluate(`document.querySelector('[data-page="multimodal"] form').requestSubmit()`);
@@ -200,14 +203,14 @@ export async function checkOperationsV2Web({cp,gateway,model,web,seeded,cdp,eval
     check(true,'image workbench previews a valid returned PNG');await screenshot('workbench-image-1440.png');
     await executeUi('tts','本地音频验收');await waitFor(`document.querySelector('[data-page="multimodal"] audio')?.readyState>=1`);
     check(true,'TTS workbench loads playable WAV metadata');await screenshot('workbench-audio-1440.png');
-    await fillField('模型类型','asr');await pause(150);
+    await selectKind('语音识别');await pause(150);
     const wav=Buffer.alloc(44+32000);wav.write('RIFF');wav.writeUInt32LE(wav.length-8,4);wav.write('WAVEfmt ',8);wav.writeUInt32LE(16,16);wav.writeUInt16LE(1,20);wav.writeUInt16LE(1,22);wav.writeUInt32LE(16000,24);wav.writeUInt32LE(32000,28);wav.writeUInt16LE(2,32);wav.writeUInt16LE(16,34);wav.write('data',36);wav.writeUInt32LE(32000,40);
     const audioFile=resolve(tempDir,'workbench-audio.wav');await writeFile(audioFile,wav);
     const doc=await cdp.send('DOM.getDocument'),node=await cdp.send('DOM.querySelector',{nodeId:doc.root.nodeId,selector:'[data-page="multimodal"] input[type="file"]'});
     await cdp.send('DOM.setFileInputFiles',{nodeId:node.nodeId,files:[audioFile]});
     await executeUi('asr');await waitFor(`document.querySelector('[data-page="multimodal"]').innerText.includes('本地语音识别测试')`);
     check(true,'ASR workbench uploads a real audio file through the shared Field');
-    await executeUi('rerank','模型网关','模型网关\n数据库');await waitFor(`document.querySelector('[data-page="multimodal"]').innerText.includes('相关性得分')`);
+    await executeUi('rerank','模型网关','模型网关\n数据库');await waitFor(`document.querySelector('[data-page="multimodal"]').innerText.includes('原文第')`);
     check(true,'rerank workbench renders authoritative result order and score');
     await executeUi('video','本地工作台视频验收');await waitFor(`document.querySelector('[data-page="multimodal"]').innerText.includes('视频任务已提交')`);
     check(true,'video workbench submits a persisted generation task');await clickExact('查看任务进度与结果');

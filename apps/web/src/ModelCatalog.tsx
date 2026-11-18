@@ -3,7 +3,7 @@ import {useMemo,useState,type FormEvent} from 'react';
 import {MODEL_KINDS,METER_UNITS,modelCatalog,filterModelCatalog,catalogPriceRange,type CatalogFilter,type CatalogModel,type CatalogStage} from '@ai-gateway/contracts';
 import {Panel,Table,Status,useNarrow} from './components';
 import type {PageProps} from './WorkspacePages';
-import {ModelCapabilities,ModelFacts} from './ModelCard';
+import {ModelCapabilities,ModelFacts} from './model-facts';
 
 const stages:Record<CatalogStage,string>={disabled:'模型已停用',unconfigured:'未配置来源',source_unavailable:'来源未就绪',price_unknown:'价格未确认',ready_unopened:'已就绪，未开放',open:'模型池已开放'};
 const empty={query:'',serviceId:'',poolId:'',stage:'',active:'active'};

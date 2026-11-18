@@ -1,0 +1,210 @@
+/* 模型与供应商工作台：新增共享构件（组件契约 §3.21–3.24）。
+   只使用语义 token，五套壳层同构渲染；这里不覆盖任何既有控件外观，
+   类名一律带组件前缀（model-/capability-/admission-ticket/capacity-meter/split-pane）。 */
+
+/* ---------- 模型身份标（§3.21） ---------- */
+.model-mark{display:grid;place-items:center;flex:none;width:30px;height:30px;border-radius:9px;font:650 13px/1 var(--v2-mono,ui-monospace);letter-spacing:0}
+.model-mark.is-sm{width:24px;height:24px;border-radius:7px;font-size:11px}
+.model-identity{display:flex;align-items:flex-start;gap:10px;min-width:0}
+.model-identity-text{display:grid;gap:3px;min-width:0;white-space:normal}
+.model-identity-text > b{font-size:13.5px;font-weight:650;color:var(--text);overflow-wrap:anywhere}
+.model-identity-code{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
+.model-identity-code code{font:500 11.5px/1.5 var(--v2-mono,ui-monospace);color:var(--muted);background:var(--surface2);border:1px solid var(--line);border-radius:5px;padding:0 6px;overflow-wrap:anywhere}
+.model-identity-code .link-button{font-size:11.5px;padding:0}
+.model-identity > .model-identity-text > small{font-size:11px;line-height:1.5;color:var(--muted);overflow-wrap:anywhere}
+
+/* ---------- 能力矩阵（§3.22） ---------- */
+.capability-matrix-wrap{overflow-x:auto;margin:4px 0 0}
+.capability-matrix{width:100%;min-width:480px;border-collapse:collapse}
+.capability-matrix th,.capability-matrix td{padding:9px 10px;border-bottom:1px solid var(--line);text-align:center;white-space:nowrap}
+.capability-matrix thead th{font:500 10.5px/1.4 var(--v2-mono,ui-monospace);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);border-bottom-color:var(--line-strong)}
+.capability-matrix thead th:first-child,.capability-matrix tbody th{text-align:left}
+.capability-matrix tbody th{font-size:12.5px;font-weight:650;color:var(--text)}
+.capability-cell{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:6px;font:600 11.5px/1 var(--v2-mono,ui-monospace)}
+.capability-cell[data-state="verified"]{background:var(--ok-soft,var(--tint));color:var(--ok,var(--action))}
+.capability-cell[data-state="declared"]{border:1px dashed var(--line-strong);color:var(--muted)}
+.capability-cell[data-state="unsupported"]{color:var(--muted);opacity:.55}
+.capability-legend{display:flex;gap:16px;flex-wrap:wrap;margin:10px 0 0;font-size:11.5px;color:var(--muted)}
+.capability-legend span{display:inline-flex;align-items:center;gap:6px}
+.capability-legend span::before{content:"";display:inline-grid;place-items:center;width:14px;height:14px;border-radius:4px;font:600 9px/1 var(--v2-mono,ui-monospace)}
+.capability-legend span[data-state="verified"]::before{content:"✓";background:var(--ok-soft,var(--tint));color:var(--ok,var(--action))}
+.capability-legend span[data-state="declared"]::before{content:"·";border:1px dashed var(--line-strong);color:var(--muted)}
+.capability-legend span[data-state="unsupported"]::before{content:"–";color:var(--muted);opacity:.6}
+.capability-list{display:none}
+@media (max-width:760px){
+  .capability-matrix-wrap{display:none}
+  .capability-list{display:grid;gap:2px;margin:4px 0 0}
+  .capability-list-group{display:grid;gap:2px}
+  .capability-list-name{margin:4px 0 2px;font-size:12px;font-weight:650;color:var(--text)}
+  .capability-list ul{display:grid;gap:0;margin:0;padding:0;list-style:none}
+  .capability-list li{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--line);font-size:12.5px}
+  .capability-list li:last-child{border-bottom:0}
+  .capability-list li > span{color:var(--muted)}
+  .capability-list li > em{font-style:normal;color:var(--text)}
+  .capability-list li > em[data-state="verified"]{color:var(--ok,var(--action))}
+  .capability-list li > em[data-state="declared"]{color:var(--warn)}
+  .capability-list li > em[data-state="unsupported"]{color:var(--muted)}
+}
+
+/* ---------- 准入小票（§3.23） ---------- */
+.admission-ticket{display:grid;gap:10px;margin:16px 0;padding:16px 18px;border:1px solid var(--line);border-radius:var(--radius-panel,12px);background:var(--surface2)}
+.admission-ticket-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.admission-ticket-state{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:650;color:var(--muted)}
+.admission-ticket-state::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor;flex:none}
+.admission-ticket-head > strong{font:650 15px/1.3 var(--v2-mono,ui-monospace);letter-spacing:-.01em;color:var(--text)}
+.admission-ticket[data-state="allow"]{border-color:var(--line-strong)}
+.admission-ticket[data-state="allow"] .admission-ticket-state{color:var(--ok,var(--action))}
+.admission-ticket[data-state="deny"]{border-color:var(--danger)}
+.admission-ticket[data-state="deny"] .admission-ticket-state{color:var(--danger)}
+.admission-ticket[data-state="unknown"] .admission-ticket-state,.admission-ticket[data-state="pending"] .admission-ticket-state{color:var(--warn)}
+.admission-ticket-rows{display:grid;gap:7px;margin:0}
+.admission-ticket-rows > div{display:grid;grid-template-columns:minmax(64px,auto) minmax(0,1fr);gap:12px;align-items:baseline}
+.admission-ticket-rows dt{font-size:11.5px;color:var(--muted)}
+.admission-ticket-rows dd{margin:0;font-size:12.5px;color:var(--text);overflow-wrap:anywhere}
+.admission-ticket-rows > div.is-emphasis dd{font:650 13px/1.4 var(--v2-mono,ui-monospace)}
+.admission-ticket-note{margin:0;font-size:11.5px;line-height:1.6;color:var(--muted)}
+.admission-ticket-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+
+/* ---------- 容量条（§3.24） ---------- */
+.capacity-meter{display:grid;gap:6px;margin:10px 0 0;min-width:0}
+.capacity-meter-row{display:grid;grid-template-columns:38px minmax(48px,1fr) auto;align-items:center;gap:10px;min-width:0}
+.capacity-meter-label{font:500 10.5px/1.4 var(--v2-mono,ui-monospace);letter-spacing:.05em;color:var(--muted)}
+.capacity-meter-track{height:6px;border-radius:999px;background:var(--surface3);overflow:hidden}
+.capacity-meter-track > i{display:block;height:100%;border-radius:999px;background:var(--action)}
+.capacity-meter-value{font:600 11.5px/1.3 var(--v2-mono,ui-monospace);color:var(--text);text-align:right;white-space:nowrap}
+.capacity-meter-value small{display:block;font:400 10px/1.4 var(--v2-mono,ui-monospace);color:var(--muted)}
+.capacity-meter-note{margin:2px 0 0;font-size:10.5px;line-height:1.55;color:var(--muted)}
+
+/* ---------- 清单 + 详情（§3.25） ---------- */
+.split-pane{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(320px,1fr);gap:18px;align-items:start}
+.split-pane-list,.split-pane-detail{min-width:0}
+.split-pane-detail{position:sticky;top:calc(128px + 12px)}
+.split-pane-detail > .panel:last-child{margin-bottom:0}
+.split-pane-detail .detail-lead{grid-template-columns:repeat(2,minmax(0,1fr))}
+.split-list{display:grid;gap:10px;margin:0;padding:0;list-style:none}
+.split-group{display:grid;gap:6px}
+.split-group > h3{display:flex;align-items:center;gap:8px;margin:8px 0 2px;font-size:11.5px;font-weight:650;letter-spacing:.04em;color:var(--muted)}
+.split-group > h3 > span{font:500 10.5px/1.4 var(--v2-mono,ui-monospace);color:var(--muted)}
+.split-row{display:flex;align-items:flex-start;gap:12px;width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:var(--radius-panel,12px);background:var(--surface);color:var(--text);text-align:left}
+.split-row:hover{border-color:var(--line-strong);background:var(--surface2)}
+.split-row[aria-selected="true"]{border-color:var(--action);box-shadow:inset 3px 0 var(--action)}
+.split-row-main{display:grid;gap:3px;min-width:0;flex:1}
+.split-row-main > b{font-size:13px;font-weight:650;overflow-wrap:anywhere}
+.split-row-main > small{font-size:11px;line-height:1.5;color:var(--muted);overflow-wrap:anywhere}
+.split-row-signal{flex:none;padding-top:2px;text-align:right}
+
+/* ---------- 模型资料（从原卡片样式迁移） ---------- */
+.model-capabilities{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0}
+.model-facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin:0;padding:14px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.model-facts dt{font-size:11.5px;color:var(--muted)}
+.model-facts dd{margin:4px 0 0;font-size:13.5px;font-weight:500;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+
+/* 选型首屏：用途条与余额事实（与 3.25 清单共用一行高度） */
+.available-purpose{display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap;margin:0 0 14px}
+.available-purpose > .form-field{flex:0 1 220px;min-width:180px;margin:0}
+.available-facts{display:flex;gap:22px;flex-wrap:wrap;align-items:flex-end;flex:1;min-width:0}
+.available-facts > span{display:grid;gap:2px;min-width:0}
+.available-facts small{font-size:11px;color:var(--muted)}
+.available-facts b{font:650 15px/1.3 var(--v2-mono,ui-monospace);letter-spacing:-.01em;color:var(--text)}
+
+/* ---------- 列表中的“安静状态” ---------- */
+.quiet-state{font-size:12px;color:var(--muted)}
+.quiet-state.is-warning{color:var(--warn)}
+.quiet-state.is-danger{color:var(--danger)}
+
+/* 来源构成：小堆叠标记 + 计数，代替在行内铺开每条来源。 */
+.pool-stack{display:flex;align-items:center;flex:none}
+.provider-mark.is-stacked{width:24px;height:24px;border-radius:7px;font-size:10.5px;border:1px solid var(--surface)}
+.provider-mark.is-stacked + .provider-mark.is-stacked{margin-left:-7px}
+
+/* ---------- 在线使用 console（§4.12） ---------- */
+.console-pane{display:grid;grid-template-columns:minmax(240px,296px) minmax(0,1fr) minmax(272px,336px);gap:16px;align-items:start}
+.console-card{min-width:0;margin:0;padding:18px;border:1px solid var(--line);border-radius:var(--radius-panel,12px);background:var(--surface)}
+.console-card > h2{margin:0 0 12px;font-size:13px;font-weight:650;letter-spacing:.02em;color:var(--muted)}
+.console-rail{display:grid;gap:2px;align-content:start}
+.console-rail .form-field{margin:0 0 10px}
+.console-facts{display:grid;gap:7px;margin:6px 0 10px;padding-top:10px;border-top:1px solid var(--line)}
+.console-facts > div{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.console-facts dt{font-size:11.5px;color:var(--muted)}
+.console-facts dd{margin:0;font:650 12.5px/1.4 var(--v2-mono,ui-monospace);color:var(--text);text-align:right;overflow-wrap:anywhere}
+.console-rail-actions{display:flex;flex-direction:column;align-items:flex-start;gap:2px;margin-top:6px;padding-top:10px;border-top:1px solid var(--line)}
+.console-rail-actions .link-button{font-size:12px}
+.console-thread{display:flex;flex-direction:column;gap:14px;min-height:460px}
+.console-empty{display:grid;gap:8px;margin:auto 0;padding:8px 2px}
+.console-empty strong{font-size:14.5px;font-weight:650;color:var(--text)}
+.console-empty p{margin:0;font-size:12.5px;color:var(--muted)}
+.console-examples{display:grid;gap:8px;margin-top:6px}
+.console-examples button{padding:10px 12px;border:1px dashed var(--line-strong);border-radius:10px;background:transparent;color:var(--text);font-size:12.5px;text-align:left}
+.console-examples button:hover{border-style:solid;border-color:var(--action);background:var(--surface2)}
+.console-turn{display:grid;gap:8px}
+.console-bubble{max-width:min(100%,68ch);padding:11px 14px;border-radius:var(--radius-panel,12px)}
+.console-bubble.is-user{margin-left:auto;background:var(--surface2);border:1px solid var(--line)}
+.console-bubble.is-assistant{background:var(--tint,var(--surface2));border:1px solid transparent}
+.console-bubble > small{display:block;margin-bottom:4px;font:500 10.5px/1.4 var(--v2-mono,ui-monospace);letter-spacing:.05em;color:var(--muted)}
+.console-bubble > p{margin:0;font-size:13.5px;line-height:1.75;color:var(--text);white-space:pre-wrap;overflow-wrap:anywhere}
+.console-composer{margin-top:auto;padding-top:12px;border-top:1px solid var(--line)}
+.console-composer .actions{margin-top:10px}
+.console-ticket{min-width:0;position:sticky;top:calc(128px + 12px)}
+.console-ticket .admission-ticket{margin:0}
+.console-ticket > p{margin:10px 0 0}
+
+@media (max-width:1280px){
+  .console-pane{grid-template-columns:minmax(0,1fr) minmax(272px,324px)}
+  .console-rail{grid-column:1 / -1;grid-template-columns:repeat(3,minmax(0,1fr));gap:0 16px}
+  .console-rail > h2,.console-facts,.console-rail-actions{grid-column:1 / -1}
+  .console-rail .form-field{min-width:0}
+}
+@media (max-width:900px){
+  .console-pane{grid-template-columns:minmax(0,1fr)}
+  .console-rail{grid-template-columns:minmax(0,1fr)}
+  .console-ticket{position:static;order:2}
+  .console-thread{min-height:380px;order:3}
+  .console-rail{order:1}
+}
+
+/* ---------- 多模态工作台（§4.13） ---------- */
+.media-tabs{margin:0 0 16px;flex-wrap:wrap}
+.workbench{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:18px;align-items:start}
+.workbench-form,.workbench-result{min-width:0}
+.workbench-form .form-fields{margin:0}
+.workbench-form .form-fields > p{margin-top:0}
+.workbench-result{position:sticky;top:calc(128px + 12px)}
+.workbench-result .admission-ticket{margin-top:0}
+.workbench-placeholder{padding:16px;border:1px dashed var(--line-strong);border-radius:var(--radius-panel,12px);background:var(--surface2)}
+.media-result{display:grid;gap:10px;margin-top:14px}
+.media-result-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.media-result-head h3{margin:0;font-size:14.5px;font-weight:650}
+.media-result-head small{font-size:11px;color:var(--muted);overflow-wrap:anywhere}
+.media-result-head code{font-family:var(--v2-mono,ui-monospace)}
+.media-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px}
+.media-grid figure{margin:0;display:grid;gap:6px}
+.media-grid img.media-preview{margin:0;width:100%;height:auto}
+.media-transcript{margin:0;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:var(--surface2);white-space:pre-wrap;font-size:13.5px;line-height:1.75}
+.media-rank{margin:0;padding:0;list-style:none;display:grid}
+.media-rank li{display:grid;grid-template-columns:2.2em minmax(0,1fr);gap:10px;padding:9px 0;border-bottom:1px solid var(--line)}
+.media-rank-no{font:650 11.5px/1.6 var(--v2-mono,ui-monospace);color:var(--muted);text-align:center}
+.media-rank-body{display:grid;gap:4px;min-width:0}
+.media-rank-meta{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:11px;color:var(--muted)}
+.media-rank-meta b{font:650 12px/1.4 var(--v2-mono,ui-monospace);color:var(--text)}
+.media-rank-bar{flex:1;min-width:60px;max-width:180px;height:5px;border-radius:999px;background:var(--surface3);overflow:hidden}
+.media-rank-bar > i{display:block;height:100%;border-radius:999px;background:var(--action)}
+.media-rank-body p{margin:0;font-size:12.5px;line-height:1.6;color:var(--text);overflow-wrap:anywhere}
+
+@media (max-width:1024px){
+  .workbench{grid-template-columns:minmax(0,1fr)}
+  .workbench-result{position:static}
+}
+
+@media (max-width:900px){
+  .split-pane{grid-template-columns:minmax(0,1fr)}
+  .split-pane-detail{position:static}
+}
+@media (max-width:760px){
+  .admission-ticket{padding:14px}
+  .admission-ticket-rows > div{grid-template-columns:minmax(0,1fr);gap:2px}
+  .capability-matrix{min-width:440px}
+  .available-purpose{gap:12px}
+  .available-purpose > .form-field{flex:1 1 100%}
+  .available-facts{gap:18px}
+  .split-row{padding:11px 12px}
+}

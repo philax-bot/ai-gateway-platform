@@ -58,7 +58,8 @@ export async function checkProviderOnboarding({cp,gateway,model,web,seeded,cdp,e
   await save();await closed();
   const provider=(await state()).providers.find(p=>p.name==='浏览器接入供应商');
   check(!!provider,'supplier is created through the UI and persists in PostgreSQL');
-  await click('接入服务','page',provider.name);await title('接入模型服务');
+  await click('详情 ›','page',provider.name);await waitFor(`(${page}).innerText.includes('接入类型与确认状态')`);
+  await click('接入服务');await title('接入模型服务');
   await field('服务名称','浏览器完整接入服务');
   check(await value('服务地址')===upstreamUrl&&await value('供应商')===provider.id,'supplier row preselects the supplier and its default address');
   await field('身份验证方式','managed');
@@ -152,14 +153,17 @@ export async function checkProviderOnboarding({cp,gateway,model,web,seeded,cdp,e
       await setViewport(width,width===390?844:1000);await nav('供应商');
       check(await evaluate('document.documentElement.scrollWidth<=document.documentElement.clientWidth'),`${mode} ${width}: supplier page has no horizontal overflow`);
       if(mode==='beacon')await screenshot(`providers-${width}.png`);
-      await click(service.name);await title('编辑模型服务');
+      await click('详情 ›','page',provider.name);await waitFor(`(${page}).innerText.includes('接入类型与确认状态')`);
+      check(await evaluate('document.documentElement.scrollWidth<=document.documentElement.clientWidth'),`${mode} ${width}: supplier detail has no horizontal overflow`);
+      if(mode==='beacon')await screenshot(`provider-detail-${width}.png`);
+      await click('编辑服务','page',service.name);await title('编辑模型服务');
       check(await value('托管上游凭据')===credential.id,`${mode} ${width}: existing service restores its authentication selection`);
       check(await evaluate('document.documentElement.scrollWidth<=document.documentElement.clientWidth'),`${mode} ${width}: service editor has no horizontal overflow`);
       if(mode==='beacon')await screenshot(`service-editor-${width}.png`);
       await evaluate(`${dialog}.querySelector('.modal-footer button:last-child').focus()`);await pressKey('Tab');
       check(await evaluate(`(${dialog}).contains(document.activeElement)`),`${mode} ${width}: Tab remains in the editor`);
       await pressKey('Escape');await closed();
-      check(await evaluate(`document.activeElement?.textContent===${q(service.name)}`),`${mode} ${width}: Escape restores focus to the service opener`);
+      check(await evaluate(`document.activeElement?.textContent==='编辑服务'`),`${mode} ${width}: Escape restores focus to the service opener`);
     }
   }
   await setViewport(1440,1000);
@@ -169,7 +173,7 @@ export async function checkProviderOnboarding({cp,gateway,model,web,seeded,cdp,e
   await waitFor(`!!document.querySelector('textarea[placeholder]')`);
   await evaluate(`(()=>{const root=${page},el=[...root.querySelectorAll('select')].find(el=>[...el.options].some(o=>o.value==='ui-onboarding-model'));Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(el,'ui-onboarding-model');el.dispatchEvent(new Event('change',{bubbles:true}));const input=root.querySelector('textarea');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(input,'provider onboarding browser end to end');input.dispatchEvent(new Event('input',{bubbles:true}));})()`);
   await waitFor(`[...(${page}).querySelectorAll('button')].some(el=>el.textContent==='发送'&&!el.disabled)`);
-  await click('发送');await waitFor(`!!(${page}).querySelector('.reply')&&![...(${page}).querySelectorAll('button')].some(el=>el.textContent==='取消请求')`,25000);
+  await click('发送');await waitFor(`(${page}).querySelector('.console-bubble.is-assistant p')?.textContent.trim().length>3&&![...(${page}).querySelectorAll('button')].some(el=>el.textContent==='取消请求')`,25000);
   check(authorized.some(path=>path.includes('chat/completions')),'employee online use sends an actual authenticated request through the newly onboarded service');
   await screenshot('employee-online-1440.png');
   await evaluate(`[...document.querySelectorAll('.personal-header nav button')].find(el=>el.textContent.includes('调用记录')).click()`);
