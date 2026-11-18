@@ -8,6 +8,8 @@ import { syncResources } from './domain';
 @Injectable()
 export class AuthService {
   private attempts = new Map<string, { count: number; until: number }>();
+  private static readonly ATTEMPT_WINDOW_MS = 15 * 60_000;
+  private static readonly ATTEMPT_LIMIT = 10;
   private logoutListeners = new Map<string,Set<()=>void>>();
   onLogout(token:string,listener:()=>void){const key=hash(token),listeners=this.logoutListeners.get(key)??new Set<()=>void>();listeners.add(listener);this.logoutListeners.set(key,listeners);return()=>{listeners.delete(listener);if(!listeners.size)this.logoutListeners.delete(key);};}
   constructor(private readonly repository: WorkspaceRepository) {}
@@ -33,13 +35,23 @@ export class AuthService {
     },{diagnosticContext:'auth_setup'});
   }
 
+  /** Expired buckets are dropped so a long-running process does not accumulate one entry per source forever. */
+  private pruneAttempts(at:number){for(const [key,entry] of this.attempts)if(entry.until<=at)this.attempts.delete(key);}
+  private rateLimited(key:string,at:number){const entry=this.attempts.get(key);return !!entry&&entry.until>at&&entry.count>=AuthService.ATTEMPT_LIMIT;}
+  private recordAttempt(key:string,at:number){
+    const current=this.attempts.get(key),attempt=current&&current.until>at?current:{count:0,until:at+AuthService.ATTEMPT_WINDOW_MS};
+    attempt.count++;this.attempts.set(key,attempt);
+  }
+
   async login(body:Record<string,unknown>,ip:string) {
     if(!body||typeof body!=='object'||Array.isArray(body))throw new BadRequestException('invalid login request');
-    const current=this.attempts.get(ip);
-    if(current&&current.until>Date.now()&&current.count>=10)throw new UnauthorizedException('too many login attempts; retry later');
-    const attempt=current&&current.until>Date.now()?current:{count:0,until:Date.now()+15*60_000};
-    attempt.count++;this.attempts.set(ip,attempt);
+    const at=Date.now();this.pruneAttempts(at);
     const directoryId=text(body.directoryId,'directoryId',100),password=text(body.password,'password',256);
+    // A per-source limit alone lets a distributed attempt spray one account; a per-account limit
+    // alone lets one source lock every account out. Both buckets are counted and cleared on success.
+    const buckets=[`source:${ip}`,`account:${directoryId.trim().toLowerCase()}`];
+    if(buckets.some(bucket=>this.rateLimited(bucket,at)))throw new UnauthorizedException('too many login attempts; retry later');
+    for(const bucket of buckets)this.recordAttempt(bucket,at);
     const result=await this.repository.transact(async tx=>{
       const member=tx.state.members.find(m=>m.directoryId===directoryId);
       if(!member?.passwordHash||!verifyPassword(password,member.passwordHash))throw new UnauthorizedException('invalid credentials');
@@ -49,7 +61,7 @@ export class AuthService {
       tx.state.sessions.push({tokenHash:hash(token),memberId:member.id,createdAt:now(),expiresAt:new Date(Date.now()+8*60*60_000).toISOString()});
       return {token,member:this.publicMember(member)};
     },{diagnosticContext:'auth_login'});
-    this.attempts.delete(ip);return result;
+    for(const bucket of buckets)this.attempts.delete(bucket);return result;
   }
 
   async authenticate(token:string):Promise<Member> {

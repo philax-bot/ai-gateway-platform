@@ -47,6 +47,17 @@ function authorizePricing(state:WorkspaceState,actor:Member,command:PlatformComm
   }
 }
 
+/** Moving a model service moves its upstream credential to a new destination, so an
+ * endpoint change is a credential operation rather than only a model one. */
+function authorizeServiceEndpoint(state:WorkspaceState,actor:Member,command:PlatformCommand):void{
+  if(command.type!=='save.service'||typeof command.payload.baseUrl!=='string')return;
+  const existing=state.services.find(service=>service.id===command.payload.id);
+  if(!existing)return;
+  let next:string;
+  try{next=new URL(command.payload.baseUrl.trim()).toString().replace(/\/$/,'');}catch{return;}
+  if(next!==existing.baseUrl)operator(actor,'credentials.write');
+}
+
 const operatorCommands=new Set(['save.provider',
   'guardrail.update','save.alert-rule','save.organization','save.member','import.members','save.definition','save.service','save.pool','save.plan','save.rule',
   'alert.ack','auto.apply','distribution.execute','entitlement.stop','entitlement.revoke','entitlements.migrate','project.fund','application.fund','project.reclaim','project.extend','application.reclaim','application.extend','settings.update','settings.retention','retention.run','periodic.run','usage.reconcile',
@@ -59,7 +70,7 @@ const operatorCommands=new Set(['save.provider',
 export function authorizeCommand(state:WorkspaceState,actor:Member,command:PlatformCommand):void{
   const {type,payload:p}=command;
   const permission=commandPermissions[type];
-  if(permission){operator(actor,permission);authorizePricing(state,actor,command);return;}
+  if(permission){operator(actor,permission);if(type==='save.service')authorizeServiceEndpoint(state,actor,command);authorizePricing(state,actor,command);return;}
   if(operatorCommands.has(type)){operator(actor);return;}
   switch(type){
     case 'save.project':{

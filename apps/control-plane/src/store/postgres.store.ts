@@ -5,7 +5,7 @@ import {guardrailPolicy,type SafetyQuery,type SafetyEvent} from '@ai-gateway/con
 import {admissionGuardrail,safetyQuery,safetyCursor} from './guardrail';
 import { ConflictException, Injectable, OnModuleDestroy } from '@nestjs/common';
 import { Pool, type PoolClient } from 'pg';
-import { createHash, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import { readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import Redis from 'ioredis';
@@ -17,6 +17,7 @@ import { scopedAuthorizationKey,scopedSettlementKey,sameAuthorizationScope,autho
 import { admissionOptionsForBatch, admissionDenialMessage, publicLogAdmission } from './admission';
 import { callVisible,decodeCursor, type CallScope } from './call-query';
 import { queryPostgresCalls, type CallRow } from './postgres-call-query';
+import { credentialLookupValues } from './credential-key';
 import { queryPostgresUsage } from './postgres-call-analytics';
 import { databaseSchema,runtimeMode } from '@ai-gateway/contracts';
 import { applyMigrations,loadMigrations } from './migrations';
@@ -289,7 +290,8 @@ export class PostgresStore extends DemoStore implements OnModuleDestroy {
     const raw=await this.pool.connect().catch(error=>{trace.finish(true);throw error;});
     const client=trace.acquired(raw);let failed=false;
     try{
-      const result=await client.query("select * from credentials where (api_key=$1 or api_key=$2) and active=true and not exists(select 1 from platform_workspace w cross join lateral jsonb_array_elements(w.payload->'keys') k where k->>'credentialId'=credentials.credential_id and (k->>'status'<>'active' or (k->>'expiresAt')::timestamptz<=clock_timestamp()))",[apiKey,`sha256:${createHash('sha256').update(apiKey).digest('hex')}`]);
+      // Only derived lookup values are matched; a persisted hash never authenticates by itself.
+      const result=await client.query("select * from credentials where api_key=any($1::text[]) and active=true and not exists(select 1 from platform_workspace w cross join lateral jsonb_array_elements(w.payload->'keys') k where k->>'credentialId'=credentials.credential_id and (k->>'status'<>'active' or (k->>'expiresAt')::timestamptz<=clock_timestamp()))",[credentialLookupValues(apiKey)]);
       const r=result.rows[0];return r?{credentialId:r.credential_id,identity:r.identity,purpose:r.purpose,modelIds:parseModelIds(r.model_ids)}:null;
     }catch(error){failed=true;throw error;}finally{trace.finish(failed);raw.release();}
   }

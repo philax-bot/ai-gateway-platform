@@ -3,7 +3,7 @@ import {rankRoutes,memoryRouteObservations,recordRoutingOutcome} from './pool-ro
 import {guardrailPolicy,type SafetyEvent,type SafetyQuery} from '@ai-gateway/contracts';
 import {admissionGuardrail,memorySafetyPage} from './guardrail';
 import { ConflictException, Injectable } from '@nestjs/common';
-import { createHash, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import type {
   AuthorizeRequest,
   AuthorizeResponse,
@@ -28,6 +28,7 @@ import { admissionOptionsForBatch, admissionDenialMessage, legacyAdmission, publ
 import { businessDenial } from '../platform/domain';
 import {runtimeMode} from '@ai-gateway/contracts';
 import { queryMemoryCalls, callVisible,decodeCursor, type CallScope } from './call-query';
+import { credentialLookupValues } from './credential-key';
 import {validateGatewayTrace,traceQuery,traceMatches} from './gateway-traces';
 
 export interface CredentialRecord {
@@ -384,7 +385,9 @@ export class DemoStore implements ControlPlaneStore {
 
   async getDemoCredential(apiKey: string): Promise<DemoCredential | null> {
     if(typeof apiKey!=='string'||apiKey.length>4096)return null;
-    const credential = this.credentials.get(apiKey) ?? this.credentials.get(`sha256:${createHash('sha256').update(apiKey).digest('hex')}`);
+    // Only derived lookup values are matched; a persisted hash never authenticates by itself.
+    let credential: CredentialRecord | undefined;
+    for (const value of credentialLookupValues(apiKey)) { credential = this.credentials.get(value); if (credential) break; }
     if (!credential || !credential.active) return null;
     const workspace=await this.businessState?.(),key=workspace?.keys.find(k=>k.credentialId===credential.credentialId);
     if(key&&(key.status!=='active'||Date.parse(key.expiresAt)<=Date.now()))return null;
@@ -431,8 +434,8 @@ export class DemoStore implements ControlPlaneStore {
   }
   async operationalBacklog(filter:import('../platform/operational-metrics').BacklogFilter):Promise<import('../platform/operational-metrics').BacklogSnapshot>{
     const now=Date.now();
-    const matches=(route:{serviceId:string;poolId:string}|null|undefined,modelId:string)=>!filter.serviceId||route?.serviceId===filter.serviceId;
-    const scoped=(route:{serviceId:string;poolId:string}|null|undefined,modelId:string)=>matches(route,modelId)&&(!filter.poolId||route?.poolId===filter.poolId)&&(!filter.modelId||modelId===filter.modelId);
+    const matches=(route:{serviceId:string;poolId:string}|null|undefined)=>!filter.serviceId||route?.serviceId===filter.serviceId;
+    const scoped=(route:{serviceId:string;poolId:string}|null|undefined,modelId:string)=>matches(route)&&(!filter.poolId||route?.poolId===filter.poolId)&&(!filter.modelId||modelId===filter.modelId);
     const media=[...this.mediaJobs.values()].filter(job=>!job.finishedAt&&scoped(job.route,job.modelId));
     const settlement=this.callLogs.filter(call=>call.billableState==='pending_review'&&scoped(call.admission?.route,call.modelId));
     const stats=(times:string[])=>({count:times.length,oldestSeconds:times.length?Math.max(0,(now-Math.min(...times.map(Date.parse)))/1000):0});

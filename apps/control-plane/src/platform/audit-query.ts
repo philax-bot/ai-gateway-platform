@@ -4,7 +4,7 @@ import {hash} from './validation';
 
 const actionNames:Record<string,string>={
   'workspace.bootstrap':'首次安装','save.organization':'保存组织','organization.impact':'核对组织影响','save.member':'保存成员','import.members':'导入成员',
-  'save.provider':'保存供应商','delete.provider':'删除供应商','save.definition':'保存模型定义','save.service':'保存模型服务','service.verify':'验证模型连接','save.pool':'调整模型池','save.plan':'保存开通方案','save.rule':'保存自动开通规则',
+  'save.provider':'保存供应商','delete.provider':'删除供应商','save.definition':'保存模型定义','save.service':'保存模型服务','service.verify':'验证模型连接','service.endpoint_changed':'记录上游地址变更','save.pool':'调整模型池','save.plan':'保存开通方案','save.rule':'保存自动开通规则',
   'auto.apply':'为现有成员应用规则','distribution.execute':'执行开通或发放','entitlement.grant':'授予使用权益','entitlement.stop':'停止后续发放','entitlement.revoke':'撤销使用权益','quota.monthly_grant':'发放月度额度',
   'project.initial_grant':'项目初始授额','application.initial_grant':'应用初始授额','project.changed':'项目配置变更','application.changed':'应用配置与交接',
   'project.reclaim':'回收项目预算','project.return':'退回成员额度','project.extend':'延长项目额度','application.reclaim':'回收应用额度','application.extend':'延长应用额度',

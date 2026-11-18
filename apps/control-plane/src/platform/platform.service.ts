@@ -193,6 +193,19 @@ export class PlatformService {
     if(c.type==='save.definition'&&p.billingMultiplier!==undefined){const before=s.definitions.find(d=>d.id===p.id);impact.billingChange={name:p.name,before:before?.billingMultiplier??1,after:p.billingMultiplier};}
     if(c.type==='save.service'&&Array.isArray(p.mappings)){
       const existing=s.services.find(service=>service.id===p.id);
+      // Moving the endpoint moves the upstream credential; make that explicit instead of
+      // letting an endpoint change hide behind an ordinary “pricing” preview.
+      const endpoint=(value:unknown)=>{
+        if(typeof value!=='string')return null;
+        try{return new URL(value.trim()).toString().replace(/\/$/,'');}catch{return null;}
+      };
+      const nextEndpoint=endpoint(p.baseUrl);
+      if(existing&&nextEndpoint&&nextEndpoint!==existing.baseUrl){
+        const credential=existing.credentialId?'托管上游凭据':existing.credentialRef?`环境变量 ${existing.credentialRef}`:null;
+        impact.endpointChange={before:existing.baseUrl,after:nextEndpoint,credential,
+          sendsCredential:credential?`变更后，服务调用和连接验收都会把${credential}发送到新地址，服务同时回到未验证状态`:'当前服务未绑定上游凭据；如果新地址需要鉴权，请在本次保存中录入服务内密钥',
+          requires:'credentials.write',audited:'会单独记录“记录上游地址变更”审计事件'};
+      }
       const rates=(value:{inputPrice?:unknown;outputPrice?:unknown;cachedInputPrice?:unknown;meter?:{price:number;unit:string}}|null|undefined)=>value?.meter?`${value.meter.price} 元 / ${{per_request:'次',per_image:'张',per_second:'秒',per_1000_characters:'千字符'}[value.meter.unit]??value.meter.unit}`:value?[value.inputPrice,value.outputPrice,value.cachedInputPrice].map(price=>price===null||price===undefined?'未知':String(price)).join(' / '):'未知';
       impact.servicePricing=p.mappings.map((value:unknown)=>{
         if(!value||typeof value!=='object'||Array.isArray(value))throw new BadRequestException('invalid model mapping');

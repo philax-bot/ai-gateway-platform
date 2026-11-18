@@ -161,7 +161,11 @@ export async function resourceAction(tx:WorkspaceTransaction,actor:Member,type:s
       const changed=!existing||(existing.providerId??'openai-compatible')!==providerId||!!rawSecret||JSON.stringify(existing.modalityPaths??{})!==JSON.stringify(paths??{})||JSON.stringify(existing.videoCancellation??null)!==JSON.stringify(videoCancellation??null)||existing.baseUrl!==baseUrl||existing.credentialRef!==credentialRef||existing.credentialId!==credentialId||JSON.stringify(existing.protocolPaths??{})!==JSON.stringify(protocolPaths)||JSON.stringify(connectionShape(existing.mappings))!==JSON.stringify(connectionShape(mappings));
       const service:ModelService={videoCancellation,credentialId,providerId,modalityPaths:paths,id:serviceId,name:text(p.name,'name',100),baseUrl,credentialRef,mappings,active:p.active!==false,protocolPaths,protocolCapabilities:changed?undefined:existing?.protocolCapabilities,
         verification:changed?'unverified':existing!.verification,verificationMessage:changed?'连接配置已变更，需要重新验证':existing!.verificationMessage,verifiedAt:changed?null:existing!.verifiedAt,configVersion:(existing?.configVersion??0)+(changed?1:0),limits:limits(p.limits),sharedCapacityId:p.sharedCapacityId?String(p.sharedCapacityId):null};
-      if(existing)Object.assign(existing,service);else s.services.push(service);return service;
+      // An endpoint move redirects the upstream credential to a new host, so it is recorded as its own security event.
+      const previousEndpoint=existing?.baseUrl??null,endpointChanged=!!existing&&existing.baseUrl!==baseUrl;
+      if(existing)Object.assign(existing,service);else s.services.push(service);
+      if(endpointChanged)s.audit.push({id:newId('audit'),actorId:actor.id,action:'service.endpoint_changed',objectId:serviceId,reason:'上游地址变更：后续调用会向新地址发送上游凭据，服务已回到未验证状态',createdAt:now(),detail:{before:previousEndpoint,after:baseUrl,credentialId:service.credentialId??null,credentialRef:service.credentialRef??null,configVersion:service.configVersion,verification:service.verification}});
+      return service;
     }
     case 'save.pool':{
       const existing=p.id?pick(s.pools,p.id,'pool'):null;
