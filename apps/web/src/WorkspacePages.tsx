@@ -71,8 +71,8 @@ export function WorkspacePages({data:d,page,targetId,active=true,isOps,edit,purp
       <Panel title="发放执行记录"><Table headers={['方案 / 范围','人数','发放 / 跳过 / 失败','时间','明细']} rows={d.distributions.slice().reverse().map(r=>[<>{r.planSnapshot?.name??d.plans.find(p=>p.id===r.planId)?.name??'已有权益追加'}<small className="cell-help">{r.scopeDescription??r.kind} · {r.planSnapshot?`v${r.planSnapshot.version}`:''}</small></>,r.memberIds.length,`${r.results.filter(r=>r.status==='granted').length} / ${r.results.filter(r=>r.status==='skipped').length} / ${r.results.filter(r=>r.status==='failed').length}`,date(r.createdAt),<button className="link-button" onClick={()=>detail('逐人发放结果',<><p>批次 {r.id} · 每人标准金额 {money(r.amount)}。实际资金以成功生成的来源批次为准。</p><Table headers={['成员','结果','实际新增金额','授予版本','原因','到期日','来源批次']} rows={r.results.map(row=>[memberName(row.memberId),row.status==='granted'?'已开通 / 发放':row.status==='skipped'?'跳过':'失败',row.amount===undefined?'历史未采集':money(row.amount),row.planVersion===undefined?'—':`v${row.planVersion}`,row.reason||'—',row.expiresAt?date(row.expiresAt):'未新增资金批次',row.batchId??'—'])}/></>)}>查看明细</button>])}/></Panel>
       </details>
     </>;
-    case 'projects':return <Projects data={d} isOps={isOps} edit={edit} run={run} detail={detail} setPage={setPage} targetId={targetId}/>;
-    case 'applications':return <Applications data={d} edit={edit} setPage={setPage} detail={detail} isOps={isOps} targetId={targetId}/>;
+    case 'projects':return <Projects onUseModel={onUseModel} data={d} isOps={isOps} edit={edit} run={run} detail={detail} setPage={setPage} targetId={targetId}/>;
+    case 'applications':return <Applications active={active} data={d} edit={edit} setPage={setPage} detail={detail} isOps={isOps} targetId={targetId}/>;
     case 'quota':{
       const batches=purposeBatches(d,purpose),singleCallLimit=Math.max(0,...purpose.models.map(m=>m.largestBatchAmount));
       const sourceRows=batches.map(b=>{

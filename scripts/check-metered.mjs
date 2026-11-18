@@ -173,6 +173,16 @@ export async function checkMetered({cp,gw,model,admin,employeeCookie,managerCook
   check(oldPending.body.items.length===1&&oldPending.body.summary.unknownUsage===1,'pending review query includes old holds and marks unknown usage');
   check((await request('/api/v1/platform/calls/query',{limit:201},admin)).status===400,'oversized query pages are rejected');
   check((await request('/api/v1/platform/calls/query',{cursor:'broken-cursor'},admin)).status===400,'invalid page cursor is rejected');
+  const breakdown=await request('/api/v1/platform/calls/errors',{modelId:deniedModel,limit:50},admin);
+  check(breakdown.status===200&&breakdown.body.ended===210&&breakdown.body.errors===210&&breakdown.body.cancelled===0,'reason breakdown counts the same window and denominator as the call list');
+  check(breakdown.body.buckets.reduce((n,b)=>n+b.calls,0)===breakdown.body.errors+breakdown.body.cancelled,'reason buckets sum to errors plus separately reported cancellations');
+  const bucket=breakdown.body.buckets[0];
+  const drill=await request('/api/v1/platform/calls/query',{modelId:deniedModel,outcome:bucket.outcome,limit:200,...(bucket.serviceId?{serviceId:bucket.serviceId}:{serviceMissing:'true'}),...(bucket.errorCode?{errorCode:bucket.errorCode}:{errorCodeMissing:'true'})},admin);
+  check(drill.body.summary.ended===bucket.calls,`drilling a reason returns exactly the ${bucket.calls} calls the row counted`);
+  const hiddenBreakdown=await request('/api/v1/platform/calls/errors',{subjectId:manager.id,scope:null},employeeCookie);
+  check(hiddenBreakdown.body.ended===0&&hiddenBreakdown.body.buckets.length===0,'employee reason breakdown cannot expand scope or leak counts');
+  check((await request('/api/v1/platform/calls/errors',{errorCode:'x',errorCodeMissing:'true'},admin)).status===400,'contradictory reason filters are rejected');
+  check((await request('/api/v1/platform/calls/errors',{limit:201},admin)).status===400,'oversized reason bucket limits are rejected');
   check((await request('/api/v1/platform/monitoring',undefined,employeeCookie)).status===403,'monitoring is restricted to operators');
   const monitor=await request('/api/v1/platform/monitoring',undefined,admin),total=monitor.body.rows.find(r=>r.modelId==='*'),source=monitor.body.rows.find(r=>r.serviceId===service.id&&r.modelId==='test-model');
   check(monitor.status===200&&monitor.body.quality==='collected'&&total.summary.ended>=210,'monitoring summarizes persisted attempts without the recent-200 truncation');

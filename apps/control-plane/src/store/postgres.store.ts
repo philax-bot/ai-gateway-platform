@@ -1,3 +1,4 @@
+import {applicationActivity} from './application-activity';
 import {postgresRouteObservations} from './postgres-route-observations';
 import {jobReceipt,jobUpdate,applyJobReceipt,applyJobUpdate,claimJobCancellation} from './media-jobs';
 import {rankRoutes,recordRoutingOutcome,type RouteObservation} from './pool-routing';
@@ -16,7 +17,7 @@ import type { DemoCredential, QuotaSnapshot, StartVerificationInput, Verificatio
 import { scopedAuthorizationKey,scopedSettlementKey,sameAuthorizationScope,authorizationFingerprint, checkSettlementScope, reconciliationCalculation, RESERVATION_AMOUNT, retryLinkAllowed, sameIdentity, settlementAmount, type RetryTarget } from './accounting';
 import { admissionOptionsForBatch, admissionDenialMessage, publicLogAdmission } from './admission';
 import { callVisible,decodeCursor, type CallScope } from './call-query';
-import { queryPostgresCalls, type CallRow } from './postgres-call-query';
+import { queryPostgresCalls, queryPostgresCallErrors, type CallRow } from './postgres-call-query';
 import { credentialLookupValues } from './credential-key';
 import { queryPostgresUsage } from './postgres-call-analytics';
 import { databaseSchema,runtimeMode } from '@ai-gateway/contracts';
@@ -311,6 +312,20 @@ export class PostgresStore extends DemoStore implements OnModuleDestroy {
       await client.query('commit');return {items,nextCursor:events.length>limit?safetyCursor(items.at(-1)!):null,counts};
     }catch(error){await client.query('rollback');throw error;}});
   }
+  async applicationActivity(ids:string[]) {
+    if(!ids.length)return {};
+    // Keep the oldest success and the newest success, failure and cancellation per application.
+    const {rows}=await this.pool.query(`with classified as (
+      select subject_id,request_id,model_id,completed_at,outcome,error_code,
+        case when outcome='completed' then 'success' when outcome='client_cancelled' then 'cancelled' else 'failure' end as kind
+      from call_logs where subject_type='application' and purpose='application' and subject_id=any($1::text[])
+    ), ranked as (
+      select *,row_number() over (partition by subject_id,kind order by completed_at desc,request_id desc) as newest,
+        row_number() over (partition by subject_id,kind order by completed_at,request_id) as oldest from classified
+    ) select * from ranked where newest=1 or (kind='success' and oldest=1)`,[ids]);
+    return applicationActivity(rows.map(r=>({subjectId:r.subject_id,requestId:r.request_id,modelId:r.model_id,
+      completedAt:r.completed_at.toISOString(),outcome:r.outcome,errorCode:r.error_code})));
+  }
   async listCalls(): Promise<CallLog[]> {
     const result=await this.pool.query('select * from call_logs order by completed_at desc limit 200');
     return result.rows.map(r=>this.mapCall(r));
@@ -330,6 +345,16 @@ export class PostgresStore extends DemoStore implements OnModuleDestroy {
       const client=trace.acquired(raw);let failed=false;
       await client.query('begin isolation level repeatable read read only');
       try{const result=await queryPostgresCalls(client,input,scope,r=>this.mapCall(r));await client.query('commit');return result;}
+      catch(error){failed=true;await client.query('rollback');throw error;}finally{trace.finish(failed);}
+    }).catch(error=>{trace.finish(true);throw error;});
+  }
+  async queryCallErrors(input:import('@ai-gateway/contracts').CallErrorQuery,scope:CallScope=null,existingClient?:PoolClient){
+    if(existingClient)return this.statisticsWithin(existingClient,()=>queryPostgresCallErrors(existingClient,input,scope));
+    const trace=hotPathDiagnostics.start('query_call_errors');
+    return this.withClient(async raw=>{
+      const client=trace.acquired(raw);let failed=false;
+      await client.query('begin isolation level repeatable read read only');
+      try{const result=await queryPostgresCallErrors(client,input,scope);await client.query('commit');return result;}
       catch(error){failed=true;await client.query('rollback');throw error;}finally{trace.finish(failed);}
     }).catch(error=>{trace.finish(true);throw error;});
   }

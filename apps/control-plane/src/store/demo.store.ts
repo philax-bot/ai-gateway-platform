@@ -1,3 +1,4 @@
+import {applicationActivity} from './application-activity';
 import {jobReceipt,jobUpdate,applyJobReceipt,applyJobUpdate,claimJobCancellation} from './media-jobs';
 import {rankRoutes,memoryRouteObservations,recordRoutingOutcome} from './pool-routing';
 import {guardrailPolicy,type SafetyEvent,type SafetyQuery} from '@ai-gateway/contracts';
@@ -27,7 +28,7 @@ import { scopedAuthorizationKey,scopedSettlementKey,sameAuthorizationScope,autho
 import { admissionOptionsForBatch, admissionDenialMessage, legacyAdmission, publicLogAdmission } from './admission';
 import { businessDenial } from '../platform/domain';
 import {runtimeMode} from '@ai-gateway/contracts';
-import { queryMemoryCalls, callVisible,decodeCursor, type CallScope } from './call-query';
+import { queryMemoryCalls, aggregateCallErrors, callVisible,decodeCursor, type CallScope } from './call-query';
 import { credentialLookupValues } from './credential-key';
 import {validateGatewayTrace,traceQuery,traceMatches} from './gateway-traces';
 
@@ -397,7 +398,12 @@ export class DemoStore implements ControlPlaneStore {
   async listCalls(): Promise<CallLog[]> {
     return [...this.callLogs].reverse();
   }
+  async applicationActivity(ids:string[]) {
+    const visible=new Set(ids);
+    return applicationActivity(this.callLogs.filter(c=>c.subjectType==='application'&&c.purpose==='application'&&visible.has(c.subjectId)));
+  }
   async queryCalls(input:CallQuery,scope:CallScope=null,_client?:import('pg').PoolClient){return queryMemoryCalls(this.callLogs,input,scope);}
+  async queryCallErrors(input:import('@ai-gateway/contracts').CallErrorQuery,scope:CallScope=null,_client?:import('pg').PoolClient){return aggregateCallErrors(this.callLogs,input,scope);}
   async queryUsage(input:UsageAnalyticsQuery|undefined,scope:CallScope=null,timezone='Asia/Shanghai',_client?:import('pg').PoolClient){return aggregateUsage(this.callLogs,input,scope,timezone);}
   protected readonly mediaJobs=new Map<string,import('@ai-gateway/contracts').MediaJob>();
   private readonly mediaJobLeases=new Map<string,number>();

@@ -16,11 +16,16 @@ services:
       DATABASE_SCHEMA: ${DATABASE_SCHEMA:?Set DATABASE_SCHEMA}
       SERVICE_TOKEN: ${SERVICE_TOKEN:?Set a strong SERVICE_TOKEN}
       CONTROL_PLANE_DIAGNOSTICS: ${CONTROL_PLANE_DIAGNOSTICS:-false}
+      CONTROL_PLANE_TRUST_PROXY: ${ATLAS_PROXY_NETWORK_PREFIX:-172.31.254}.2
       BOOTSTRAP_TOKEN: ${BOOTSTRAP_TOKEN:?Set a different strong BOOTSTRAP_TOKEN}
       WEB_ORIGIN: ${PUBLIC_ORIGIN:?Set the exact public HTTPS origin}
       COOKIE_SECURE: 'true'
       ALLOW_UPSTREAM_VALIDATION: ${ALLOW_UPSTREAM_VALIDATION:-false}
       PORT: '4001'
+    networks:
+      default: {}
+      web_proxy:
+        aliases: [control-plane-web]
     restart: unless-stopped
     read_only: true
     tmpfs: [/tmp]
@@ -73,6 +78,10 @@ services:
         PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:?Set the exact public HTTPS origin}
     ports:
       - '${BIND_ADDRESS:-127.0.0.1}:${HTTPS_PORT:-8443}:8443'
+    networks:
+      default: {}
+      web_proxy:
+        ipv4_address: ${ATLAS_PROXY_NETWORK_PREFIX:-172.31.254}.2
     volumes:
       - type: bind
         source: ${TLS_DIRECTORY:?Set the absolute TLS certificate directory}
@@ -111,3 +120,9 @@ services:
     tmpfs: [/tmp]
 volumes:
   gateway_journal:
+networks:
+  web_proxy:
+    internal: true
+    ipam:
+      config:
+        - subnet: ${ATLAS_PROXY_NETWORK_PREFIX:-172.31.254}.0/29

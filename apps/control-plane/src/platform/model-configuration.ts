@@ -1,5 +1,17 @@
 import {BadRequestException} from '@nestjs/common';
 import {MODEL_KINDS,METER_UNITS,ROUTING_STRATEGIES,type MeterPrice,type ModelKind,type PoolRouting,type ModelService} from '@ai-gateway/contracts';
+import {text} from './validation';
+
+export function serviceBaseUrl(value: unknown): string {
+  let url: URL;
+  try { url = new URL(text(value, 'baseUrl', 1000)); }
+  catch { throw new BadRequestException('invalid service URL'); }
+  if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.search || url.hash) {
+    throw new BadRequestException('service URL must be HTTP(S) without embedded credentials, query or fragment');
+  }
+  return url.toString().replace(/\/$/, '');
+}
+
 export function modelKind(value:unknown):ModelKind {if(typeof value!=='string'||!Object.hasOwn(MODEL_KINDS,value))throw new BadRequestException('invalid model kind');return value as ModelKind;}
 export function modalityPaths(raw:unknown):ModelService['modalityPaths']{
   if(raw===undefined)return undefined;if(!raw||typeof raw!=='object'||Array.isArray(raw))throw new BadRequestException('invalid modality paths');

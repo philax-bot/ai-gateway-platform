@@ -11,13 +11,14 @@ import { AppModule } from './app.module';
 import { DemoStore } from './store/demo.store';
 import { WorkspaceRepository } from './platform/workspace.repository';
 import {runtimeMode,validateRuntimeConfig} from '@ai-gateway/contracts';
+import {trustedProxyAddress} from './http-proxy';
 
 let startupPhase='configuration';
 async function bootstrap(): Promise<void> {
   validateRuntimeConfig(process.env,'control-plane');
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
-    new FastifyAdapter({ logger: false }),
+    new FastifyAdapter({ logger: false, trustProxy: trustedProxyAddress(process.env.CONTROL_PLANE_TRUST_PROXY) }),
   );
   try {
     await app.register(cors, { origin: runtimeMode(process.env)==='production'?[process.env.WEB_ORIGIN!]:[process.env.WEB_ORIGIN ?? 'http://127.0.0.1:5173','http://localhost:5173'], credentials: true });

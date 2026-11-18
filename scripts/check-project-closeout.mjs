@@ -12,7 +12,7 @@ export async function checkProjectCloseout({cp,admin,employeeCookie,managerCooki
   });
   await new Promise(resolve=>model.listen(0,'127.0.0.1',resolve));
   try{
-    const initial=await state(admin),service=(await command(admin,'save.service',{name:'关闭事务隔离服务',baseUrl:`http://127.0.0.1:${model.address().port}`,active:true,mappings:[{definitionId:initial.definitions[0].id,upstreamModel:'closeout-model',inputPrice:2,outputPrice:3,cachedInputPrice:0.5}]})).result;
+    const initial=await state(admin),service=(await command(admin,'save.service',{name:'关闭事务隔离服务',baseUrl:`http://127.0.0.1:${model.address().port}`,active:true,mappings:[{definitionId:initial.definitions[0].id,upstreamModel:'closeout-model',inputPrice:2,outputPrice:3,cachedInputPrice:0.5,costPrice:{inputPrice:0,outputPrice:0,cachedInputPrice:0}}]})).result;
     const verification=await request(`/api/v1/platform/services/${service.id}/verify`,{},admin);check(verification.body.verification==='passed','closeout model stand-in verified through local HTTP');
     const pool=(await command(admin,'save.pool',{name:'关闭事务隔离池',entries:[{definitionId:initial.definitions[0].id,serviceId:service.id,open:true}]})).result;
     const project=(await command(admin,'save.project',{initialAmount:20,expiresAt:new Date(Date.now()+7*86400000).toISOString(),name:'关闭验收项目',managerId:manager.id,range:{poolId:pool.id,mode:'follow',definitionIds:[]}})).result;

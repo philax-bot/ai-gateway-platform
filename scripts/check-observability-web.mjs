@@ -35,6 +35,20 @@ export async function checkObservabilityWeb({cp,gateway,web,seeded,cdp,evaluate,
   const credential=await internal('/internal/v1/policy/credentials/resolve',{apiKey:key.secret}),holds=[];
   const authorization=()=>{const id='capacity-'+randomUUID();return {requestId:id,idempotencyKey:id,identity:credential.identity,purpose:credential.purpose,modelId:'test-model',mode:'chat',policyVersion:'observability-check',estimatedInputTokens:10,maxOutputTokens:32};};
   try{
+    const missingCodeIds=[];
+    for(const [outcome,errorCode] of [['timeout',undefined],['timeout',''],['client_cancelled','vendor_cancelled']]){
+      const input=authorization(),grant=await internal('/internal/v1/policy/authorize',input);
+      assert.equal(grant.decision,'allow');
+      await internal('/internal/v1/usage/settlements',{requestId:input.requestId,idempotencyKey:input.requestId+':settle',reservationId:grant.reservation.reservationId,outcome,errorCode,forwarded:true,usageFinal:true,inputTokens:0,outputTokens:0,completedAt:new Date().toISOString()});
+      if(outcome==='timeout')missingCodeIds.push(input.requestId);
+    }
+    const reasonScope={modelId:'test-model',serviceId:service.id,outcome:'timeout'};
+    const distribution=await api('/api/v1/platform/calls/errors',reasonScope);
+    const missing=distribution.buckets.filter(row=>!row.errorCode);
+    check(missing.length===1&&missing[0].errorCode===null&&missing[0].calls===2,'absent and empty codes share one missing-code bucket');
+    const detailPage=await api('/api/v1/platform/calls/query',{...reasonScope,errorCodeMissing:'true'});
+    assert.deepEqual(detailPage.items.map(row=>row.requestId).sort(),missingCodeIds.sort());
+    check(detailPage.summary.ended===missing[0].calls,'missing-code drill-down matches its group');
     for(let i=0;i<2;i++){const input=authorization(),result=await internal('/internal/v1/policy/authorize',input);assert.equal(result.decision,'allow');holds.push({input,result});}
     const denied=await internal('/internal/v1/policy/authorize',authorization());check(denied.decision==='deny'&&denied.reasonCode==='rate_limited','two active slots fill the service and the third authorization is refused');
     const capacity=await api('/api/v1/platform/monitoring/capacity'),sr=capacity.rows.find(r=>r.kind==='service'&&r.resourceId===service.id),pr=capacity.rows.find(r=>r.kind==='pool'&&r.resourceId===pool.id);
@@ -46,6 +60,14 @@ export async function checkObservabilityWeb({cp,gateway,web,seeded,cdp,evaluate,
     check((await fetch(cp+'/internal/v1/telemetry/metrics')).status===401,'metrics endpoint requires service authentication');
     await cdp.send('Page.reload');await waitFor(`!!document.querySelector('#v4-sidebar')`);await monitorNav();
     await waitFor(`document.body.innerText.includes('实时容量与压力')&&document.body.innerText.includes('已满载')`,10000);
+    await waitFor(`Array.from(document.querySelectorAll('tbody tr')).some(row=>row.textContent.includes('vendor_cancelled'))`);
+    check(await evaluate(`(()=>{const row=Array.from(document.querySelectorAll('tbody tr')).find(row=>row.textContent.includes('vendor_cancelled'));return row.cells[1].innerText==='已取消'&&row.cells[2].innerText==='vendor_cancelled'})()`),'a recorded vendor code stays visible and a cancellation keeps its own status');
+    await evaluate(`(()=>{const row=Array.from(document.querySelectorAll('tbody tr')).find(row=>row.cells[2]?.innerText==='错误码未采集'&&row.cells[1]?.innerText==='超时');row.querySelector('button').focus()})()`);
+    await pressKey('Enter');
+    await waitFor(`document.querySelector('dialog[open]')?.innerText.includes('错误码未采集')&&document.querySelectorAll('dialog[open] .code-button').length===2`);
+    await pressKey('Escape');
+    await waitFor(`!document.querySelector('dialog[open]')`);
+    check(await evaluate(`document.activeElement?.getAttribute('aria-label')?.includes('错误码未采集')`),'reason drill-down opens with Enter and restores focus on Escape');
     for(const [mode,label] of [['beacon','信标'],['azure','蓝灰'],['sidebar','左栏'],['next','顶栏'],['classic','经典']]){
       await setViewport(1440,1000);
       if(mode!=='beacon'){await cdp.send('Page.navigate',{url:web+'/?ui='+mode});await waitFor(`document.documentElement.dataset.ui===${JSON.stringify(mode==='sidebar'?'next':mode)}&&document.documentElement.dataset.layout===${JSON.stringify(['beacon','azure','sidebar'].includes(mode)?'sidebar':mode)}`);await monitorNav();}

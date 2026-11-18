@@ -5,6 +5,7 @@ import {operator,pick} from './validation';
 import {statusKeys} from './key-status';
 import {hasPermission,type Permission} from '@ai-gateway/contracts';
 import {isDeepStrictEqual} from 'node:util';
+import {serviceBaseUrl} from './model-configuration';
 
 const commandPermissions:Record<string,Permission> = {
   'save.provider':'models.write',
@@ -50,12 +51,8 @@ function authorizePricing(state:WorkspaceState,actor:Member,command:PlatformComm
 /** Moving a model service moves its upstream credential to a new destination, so an
  * endpoint change is a credential operation rather than only a model one. */
 function authorizeServiceEndpoint(state:WorkspaceState,actor:Member,command:PlatformCommand):void{
-  if(command.type!=='save.service'||typeof command.payload.baseUrl!=='string')return;
   const existing=state.services.find(service=>service.id===command.payload.id);
-  if(!existing)return;
-  let next:string;
-  try{next=new URL(command.payload.baseUrl.trim()).toString().replace(/\/$/,'');}catch{return;}
-  if(next!==existing.baseUrl)operator(actor,'credentials.write');
+  if(existing && serviceBaseUrl(command.payload.baseUrl)!==existing.baseUrl)operator(actor,'credentials.write');
 }
 
 const operatorCommands=new Set(['save.provider',

@@ -5,6 +5,7 @@ import { useEffect,useState,type ReactNode } from 'react';
 import type { AlertEvent,CallQuery,CollectionAlertEvent,CollectionStage,MonitorSnapshot,PlatformSnapshot } from '@ai-gateway/contracts';
 import { api } from './client';
 import { CallExplorer } from './CallExplorer';
+import { CallErrorBreakdown } from './CallErrorBreakdown';
 import { date,Panel,Table } from './components';
 import type { makeEditors,RunCommand } from './editors';
 
@@ -37,9 +38,8 @@ export function Monitoring({data,edit,run,detail,refreshWorkspace,active=true}:P
     <>{e.ruleSnapshot.name}<small className="cell-help">{service(e.ruleSnapshot.serviceId)} / {model(e.ruleSnapshot.modelId)}</small></>,<>{e.status==='active'?'告警中':'已恢复'}<small className="cell-help">{knownBy(e)}</small></>,<>{e.reading.value===null?'未知':`${e.reading.value.toFixed(2)}${ALERT_METRICS[e.ruleSnapshot.metric].unit}`} / {e.ruleSnapshot.threshold}{ALERT_METRICS[e.ruleSnapshot.metric].unit}<small className="cell-help">{qualityLabels[e.reading.quality]} · 持续异常 {e.occurrences} 次</small></>,`${e.ruleSnapshot.windowMinutes} 分钟 / ${e.reading.sampleCount}`,<>{date(e.openedAt)}<small className="cell-help">{date(e.updatedAt)}</small></>,<div className="inline-actions"><button onClick={()=>inspect(e)}>查看窗口调用</button>{!e.acknowledgedAt&&hasPermission(data.actor,'monitoring.write')&&<button onClick={()=>void acknowledge(e)}>我已知晓</button>}</div>,
   ]);
   return <>
-    <CapacityMonitoring data={data} active={active} detail={detail}/>
     <Panel title="当前运行情况" actions={<><button className="ghost" onClick={()=>setPaused(p=>!p)}>{paused?'恢复自动刷新':'暂停刷新'}</button><button className="ghost" onClick={()=>void refresh()}>刷新读数</button></>}>
-      <div className="project-summary"><div>近 5 分钟已结束请求<strong>{readable?total.summary.ended:'未知'}</strong></div><div>请求异常<strong>{readable?total.summary.errors:'未知'}</strong></div><div>在途预占<strong>{readable?total.activeReservations:'未知'}</strong></div><div>待恢复告警<strong>{!report||error||stale?'未知':activeEvents.length+(activeCollection?1:0)}</strong></div></div>
+      <div className="project-summary"><div>近 5 分钟已结束请求<strong>{readable?total.summary.ended:'未知'}</strong></div><div>请求异常<strong>{readable?total.summary.errors:'未知'}</strong></div><div>在途预占<strong>{readable?total.activeReservations:'未知'}</strong></div><div>待恢复告警<strong>{readable?activeEvents.length+(activeCollection?1:0):'未知'}</strong></div></div>
       <div className={`notice ${collectionProblem?'warning':''}`} role="status">{error?'当前无法读取运行指标':report?.quality==='collection_failed'?`当前采集失败：${collectionStages(report.failedStages)}`:stale?'采集延迟，当前读数已超过 90 秒':readable&&!total.summary.ended?'近 5 分钟没有已结束调用，暂不能判断模型健康':report?'当前页面读数采集成功':'正在读取…'}{paused?' · 自动刷新已暂停':' · 每 15 秒刷新读数'}</div>
       <p className="secondary">最近读取尝试：{lastAttempt?date(lastAttempt):'正在读取'} · 最近成功：{lastGood?date(lastGood):'暂无成功记录'}</p>
       <details className="disclosure" open={collectionProblem||undefined}><summary>采集状态与处理</summary>
@@ -50,8 +50,10 @@ export function Monitoring({data,edit,run,detail,refreshWorkspace,active=true}:P
       </details>
       {actionError&&<p className="notice danger" role="alert">{actionError}</p>}
     </Panel>
-    <Panel title={`${error||stale?'最近记录的':'需要处理的'}调用异常（${activeEvents.length}）`}>{activeEvents.length?<><p className="secondary">先查看异常窗口中的调用，再决定处理措施。知晓会记录操作人；有足够样本且达到恢复条件后，告警才会恢复。</p><Table headers={['事件 / 对象','状态 / 知晓','实际值 / 阈值','窗口 / 样本','首次 / 最近更新','操作']} rows={eventRows(activeEvents)}/></>:<p className="secondary">{!report||error||stale?'当前告警状态待核验，请刷新读数。':'当前没有待恢复的调用告警；无流量时不能据此判断模型健康。'}</p>}
+    <Panel title={readable?`需要处理的调用异常（${activeEvents.length}）`:report?'最近记录的调用异常':'调用异常'}>{activeEvents.length?<><p className="secondary">先查看异常窗口中的调用，再决定处理措施。知晓会记录操作人；有足够样本且达到恢复条件后，告警才会恢复。</p><Table headers={['事件 / 对象','状态 / 知晓','实际值 / 阈值','窗口 / 样本','首次 / 最近更新','操作']} rows={eventRows(activeEvents)}/></>:<p className="secondary">{!report&&!error?'正在读取告警…':!readable?'当前告警状态待核验，请刷新读数。':'当前没有待恢复的调用告警；无流量时不能据此判断模型健康。'}</p>}
     </Panel>
+    {(report||error)&&<CallErrorBreakdown key={data.actor.id} data={data} window={report?{from:report.from,to:report.to}:null} readable={readable} active={active} detail={detail} reconcile={edit.reconcile}/>}
+    <CapacityMonitoring data={data} active={active} detail={detail}/>
     <details className="disclosure"><summary>查看近 5 分钟运行指标</summary>
       <p className="secondary">近 5 分钟已结束的已识别身份请求；在途单列为有效预占数量。吞吐是窗口平均值；预占在途包含授权后尚未转发的请求。无流量不能用于判断健康，控制面未收到的请求不在样本中。</p>
       {!error&&!stale&&report?.quality==='collected'?<Table headers={['服务 / 模型','已结束 / 平均 RPM','预占在途','错误 / 上游失败','拒绝 / 限流','取消 / 超时 / 部分异常','P95 时延 / 样本','P95 TTFT / 样本','数据质量']} rows={report.rows.map(row=>{const s=row.summary;return [<>{service(row.serviceId)}<small className="cell-help">{model(row.modelId)}</small></>,`${s.ended} / ${(s.ended/5).toFixed(2)}`,row.activeReservations,`${s.errors} / ${s.upstreamFailures}`,`${s.rejected} / ${s.rateLimited}`,`${s.cancelled} / ${s.timeouts} / ${s.partial}`,s.latencySamples?`${s.p95LatencyMs} ms / ${s.latencySamples}`:'未知 / 0',s.ttftSamples?`${s.p95TtftMs} ms / ${s.ttftSamples}`:'未采集 / 0',s.ended?`${s.unknownUsage} 条用量未知；${s.unknownForwarding} 条转发未知`:'无流量，证据不足'];})}/>:<p className="notice warning">当前指标不可用。请先在上方重新检查采集，再刷新读数。</p>}

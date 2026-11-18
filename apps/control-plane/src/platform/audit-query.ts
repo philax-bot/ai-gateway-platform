@@ -67,8 +67,18 @@ export function describeAudit(s:WorkspaceState,entry:AuditEntry):AuditRecord{
   if(Array.isArray(d.keys))for(const value of d.keys){const k=record(value);append(string(k.name)||'用途密钥',`${string(k.masked)} · ${labels[string(k.before)]??'原状态'} → ${labels[string(k.after)]??'执行后状态'}${k.changed===false?'（跳过）':''}`);}
   const removed=record(d.removed);for(const [field,label]of [['notifications','清理通知'],['alerts','清理业务告警'],['collectionAlerts','清理采集告警'],['sessions','清理过期会话']]as const)if(typeof removed[field]==='number')append(label,`${removed[field]} 条`);
   const days=d.days,automatic=d.automatic;if(typeof days==='number')append('保留期限',`${days} 天`);if(typeof automatic==='boolean')append('执行方式',automatic?'每日自动清理':'按需手动清理');
+  let reason=entry.action==='entitlement.grant'?(labels[entry.reason]??entry.reason):entry.action==='workspace.bootstrap'&&entry.reason==='initial setup'?'创建首位运营管理员':entry.action==='approval.execution_failed'&&entry.reason==='plan not found'?'批准时选择的方案已不存在，尚未完成生效。':entry.reason;
   if(entry.action==='service.verify')append('验证结果',d.verification==='passed'?'连接验证通过':d.verification==='failed'?'连接验证失败':'未确认');
-  const reason=entry.action==='entitlement.grant'?(labels[entry.reason]??entry.reason):entry.action==='workspace.bootstrap'&&entry.reason==='initial setup'?'创建首位运营管理员':entry.action==='approval.execution_failed'&&entry.reason==='plan not found'?'批准时选择的方案已不存在，尚未完成生效。':entry.reason;
+  if(entry.action==='service.endpoint_changed'){
+    append('原上游地址',d.before);
+    append('新上游地址',d.after);
+    const credential=string(d.credentialLabel)||(d.credentialId?'托管凭据或服务内密钥':d.credentialRef?`环境变量 ${string(d.credentialRef)}`:'未绑定上游凭据');
+    append('变更后凭据',credential);
+    append('验证状态',labels[string(d.verification)]);
+    if(d.credentialLabel===undefined&&d.credentialId===null&&d.credentialRef===null){
+      reason='新地址未绑定上游凭据，服务已回到未验证状态';
+    }
+  }
   const createdAt=Number.isFinite(Date.parse(entry.createdAt))?new Date(entry.createdAt).toISOString():entry.createdAt;
   return {id:entry.id,createdAt,actorId:entry.actorId,actorName:entry.actorName||systems[entry.actorId]||name(s,entry.actorId)||'历史操作者',action:entry.action,actionName:actionNames[entry.action]??'历史管理操作',objectId,objectName:objectName||'历史业务对象',objectNameSource:source,reason,summary};
 }

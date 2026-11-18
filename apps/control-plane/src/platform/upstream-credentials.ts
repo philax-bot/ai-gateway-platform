@@ -1,6 +1,6 @@
 import {BadRequestException,ConflictException} from '@nestjs/common';
 import {createCipheriv,createDecipheriv,randomBytes} from 'node:crypto';
-import {modelProviders,type FrozenCredential,type PublicUpstreamCredential,type RouteSnapshot,type UpstreamCredential,type WorkspaceState} from '@ai-gateway/contracts';
+import {modelProviders,type FrozenCredential,type ModelService,type PublicUpstreamCredential,type RouteSnapshot,type UpstreamCredential,type WorkspaceState} from '@ai-gateway/contracts';
 import {newId} from './domain';
 import {pick,text} from './validation';
 
@@ -14,6 +14,34 @@ function masterKey():Buffer {
 
 export function publicUpstreamCredential(credential:UpstreamCredential):PublicUpstreamCredential {
   return {...credential,versions:credential.versions.map(({version,createdAt,masked})=>({version,createdAt,masked}))};
+}
+
+export function prepareServiceCredentialBinding(
+  state: WorkspaceState, payload: Record<string, unknown>, existing: ModelService | null | undefined, providerId: string,
+) {
+  const credentialRef = payload.credentialRef ? text(payload.credentialRef, 'credentialRef', 120) : null;
+  const secret = typeof payload.credentialSecret === 'string' ? payload.credentialSecret.trim() : '';
+  const credentialId = payload.credentialId === undefined ? existing?.credentialId : payload.credentialId ? String(payload.credentialId) : null;
+  if ((secret || credentialId) && credentialRef) throw new BadRequestException('choose managed credential or environment reference');
+  if (credentialRef && !/^UPSTREAM_[A-Z0-9_]+$/.test(credentialRef)) {
+    throw new BadRequestException('credential reference must name a controlled UPSTREAM_ environment variable');
+  }
+  const credentials = state.upstreamCredentials ?? [];
+  if (secret) {
+    if (secret.length > 8192 || /[\r\n\u0000]/.test(secret)) throw new BadRequestException('invalid provider secret');
+    const scoped = existing && credentials.find(value => value.serviceId === existing.id);
+    if (scoped && scoped.providerId !== providerId) throw new BadRequestException('credential provider cannot be changed');
+    return {credentialRef, credentialId, secret, scoped, label: `服务内密钥 · v${(scoped?.currentVersion ?? 0) + 1}`};
+  }
+  if (credentialId) {
+    const credential = pick(credentials, credentialId, 'upstream credential');
+    if (credential.providerId !== providerId) throw new BadRequestException('credential belongs to another provider');
+    if (credential.serviceId && credential.serviceId !== existing?.id) throw new BadRequestException('credential belongs to another service');
+    if (!credential.active) throw new ConflictException('upstream credential is disabled');
+    const label = credential.serviceId ? '服务内密钥' : `托管上游凭据 ${credential.name}`;
+    return {credentialRef, credentialId, secret, label: `${label} · v${credential.currentVersion}`};
+  }
+  return {credentialRef, credentialId, secret, label: credentialRef ? `环境变量 ${credentialRef}` : null};
 }
 
 export function saveUpstreamCredential(state:WorkspaceState,payload:Record<string,unknown>):PublicUpstreamCredential {

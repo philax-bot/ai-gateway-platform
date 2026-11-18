@@ -138,12 +138,26 @@ export interface BusinessQuotaBatch {
   entitlementId: string | null; sourceBatchId: string | null;
 }
 export interface ProjectBudgetBatch { closedAt?:string|null;closedAmount?:number;id: string; projectId: string; totalAmount: number; availableAmount: number; expiresAt: string; createdAt: string }
+export interface ProjectAttention {
+  unfundedMemberIds:string[];
+  expiringBudgets:{id:string;amount:number;expiresAt:string}[];
+}
+export type ApplicationCall = Pick<import('./index.js').CallLog,'requestId'|'completedAt'|'modelId'|'outcome'|'errorCode'>;
+export interface ApplicationActivity {
+  firstSuccess:ApplicationCall|null;
+  lastSuccess:ApplicationCall|null;
+  lastFailure:ApplicationCall|null;
+  lastCall:ApplicationCall|null;
+}
 export interface ProjectDetail {
+  attention?:ProjectAttention;
   project:Project;canManage:boolean;managerName:string;poolName:string;models:{modelId:string;name:string}[];budgets:ProjectBudgetBatch[];
   members:{id:string;name:string;active:boolean;isMember:boolean;batches:BusinessQuotaBatch[]}[];
   consumedByBatch:Record<string,number>;history:AuditEntry[];
 }
 export interface ApplicationDetail {
+  activity:ApplicationActivity;
+  lastFailedCall:import('./index.js').CallLog|null;
   consumedByBatch:Record<string,number>;
   application:Application;ownerName:string;organizationName:string;poolName:string;
   status:'disabled'|'model_unavailable'|'price_unconfigured'|'no_quota'|'quota_insufficient'|'ready';
@@ -187,7 +201,7 @@ export interface PlatformSnapshot {
   revision: number; actor: PublicMember; settings: WorkspaceSettings; organizations: Organization[];
   members: (Pick<PublicMember,'id'|'name'|'organizationId'|'roles'|'active'> & Partial<PublicMember>)[];
   definitions: ModelDefinition[]; services: ModelService[]; pools: ModelPool[]; plans: Plan[]; rules: AutoRule[];
-  entitlements: (Entitlement & {futureGrantStatus:'scheduled'|'manually_stopped'|'rule_not_matching'|'inactive'})[]; projects: (Project & {memberApprovalReviewers?:{id:string;name:string}[]})[]; applications: Application[]; approvals: (Approval & {responsibleIds?:string[]})[];
+  entitlements: (Entitlement & {futureGrantStatus:'scheduled'|'manually_stopped'|'rule_not_matching'|'inactive'})[]; projects: (Project & {attention?:ProjectAttention;memberApprovalReviewers?:{id:string;name:string}[]})[]; applications: Application[]; approvals: (Approval & {responsibleIds?:string[]})[];
   keys: Omit<ManagedKey,'keyHash'|'onlineSessionHash'>[]; distributions: Distribution[]; audit: AuditEntry[]; notifications: Notification[];
   quotaBatches: BusinessQuotaBatch[]; projectBudgets: ProjectBudgetBatch[];
   purposes: PurposeView[];

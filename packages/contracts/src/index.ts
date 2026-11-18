@@ -7,6 +7,7 @@ export * from './guardrail.js';
 export type SubjectType = 'employee' | 'application';
 export * from './platform.js';
 export * from './calls.js';
+export * from './call-errors.js';
 export * from './monitoring.js';
 export * from './capacity.js';
 export * from './gateway-trace.js';

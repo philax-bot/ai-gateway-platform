@@ -1,7 +1,7 @@
 import type { PoolClient } from 'pg';
 import {monitorEventLoopDelay} from 'node:perf_hooks';
 
-const OPERATIONS=['authorize','settle','resolve_credential','workspace_write','workspace_view','workspace_read','query_calls','query_usage'] as const;
+const OPERATIONS=['authorize','settle','resolve_credential','workspace_write','workspace_view','workspace_read','query_calls','query_call_errors','query_usage'] as const;
 type Operation=typeof OPERATIONS[number];
 export type DiagnosticContext='business_command'|'approval_failure'|'service_verification'|'online_credential'|'auth_setup'|'auth_login'|'auth_logout'|'auth_session'|'maintenance_read'|'periodic_grant'|'monitoring_commit'|'retention';
 interface Step {stage:string;command:string;lock:string|null;elapsedMs:number;startedAt:number;endedAt:number|null}

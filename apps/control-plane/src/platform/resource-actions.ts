@@ -1,8 +1,8 @@
-import {frozenServiceCredential,saveUpstreamCredential} from './upstream-credentials';
+import {prepareServiceCredentialBinding,saveUpstreamCredential} from './upstream-credentials';
 import {mappingPrices,modelMultiplier} from './model-pricing';
 import {authorizeCommand} from './command-authorization';
 import {ROLE_LABELS} from '@ai-gateway/contracts';
-import {modelKind,modalityPaths,poolRouting} from './model-configuration';
+import {modelKind,modalityPaths,poolRouting,serviceBaseUrl} from './model-configuration';
 import {modelProviders,type ModelProvider} from '@ai-gateway/contracts';
 import {quotaExpiry,now} from './validation';
 import { BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
@@ -119,8 +119,7 @@ export async function resourceAction(tx:WorkspaceTransaction,actor:Member,type:s
     }
     case 'save.service':{
       const existing=p.id?pick(s.services,p.id,'model service'):null;
-      let url:URL;try{url=new URL(text(p.baseUrl,'baseUrl',1000));}catch{throw new BadRequestException('invalid service URL');}
-      if(!['http:','https:'].includes(url.protocol)||url.username||url.password||url.search||url.hash)throw new BadRequestException('service URL must be HTTP(S) without embedded credentials, query or fragment');
+      const baseUrl=serviceBaseUrl(p.baseUrl);
       const providerId=String(p.providerId??existing?.providerId??'openai-compatible'),provider=modelProviders(s.providers).find(v=>v.id===providerId);if(!provider)throw new BadRequestException('provider not found');
       const rawCancellation=p.videoCancellation===undefined?existing?.videoCancellation:p.videoCancellation;
       let videoCancellation:ModelService['videoCancellation'];
@@ -130,19 +129,14 @@ export async function resourceAction(tx:WorkspaceTransaction,actor:Member,type:s
         videoCancellation={path:raw.path,method:raw.method as 'POST'|'DELETE'};
       }
       const paths=modalityPaths(p.modalityPaths===undefined?existing?.modalityPaths:p.modalityPaths);
-      const credentialRef=p.credentialRef?text(p.credentialRef,'credentialRef',120):null;
       const serviceId=existing?.id??newId('service');
-      const rawSecret=typeof p.credentialSecret==='string'?p.credentialSecret.trim():'';
-      if(rawSecret&&/[\r\n\u0000]/.test(rawSecret))throw new BadRequestException('invalid provider secret');
-      let credentialId=p.credentialId===undefined?existing?.credentialId:p.credentialId?String(p.credentialId):null;
+      const binding=prepareServiceCredentialBinding(s,p,existing,providerId);
+      const {credentialRef,secret:rawSecret,scoped}=binding;
+      let {credentialId}=binding;
       if(rawSecret){
         /* “自定义密钥” is stored as a service-scoped credential: encrypted, rotated and frozen like a managed one, but never listed or reusable. */
-        const scoped=(s.upstreamCredentials??[]).find(value=>value.serviceId===serviceId);
         credentialId=saveUpstreamCredential(s,{...(scoped?{id:scoped.id}:{}),name:scoped?.name??`${text(p.name,'name',100)} · 服务内密钥`,providerId,secret:rawSecret,active:true,serviceId}).id;
       }
-      if(credentialId&&credentialRef)throw new BadRequestException('choose managed credential or environment reference');
-      if(credentialId){const credential=pick(s.upstreamCredentials??[],credentialId,'upstream credential');if(credential.providerId!==providerId)throw new BadRequestException('credential belongs to another provider');if(credential.serviceId&&credential.serviceId!==serviceId)throw new BadRequestException('credential belongs to another service');frozenServiceCredential(s,credentialId);}
-      if(credentialRef&&!/^UPSTREAM_[A-Z0-9_]+$/.test(credentialRef))throw new BadRequestException('credential reference must name a controlled UPSTREAM_ environment variable');
       if(!Array.isArray(p.mappings)||!p.mappings.length)throw new BadRequestException('at least one model mapping required');
       const mappings=p.mappings.map(value=>{
         if(!value||typeof value!=='object'||Array.isArray(value))throw new BadRequestException('invalid model mapping');
@@ -152,7 +146,6 @@ export async function resourceAction(tx:WorkspaceTransaction,actor:Member,type:s
         return {...prices,definitionId:definition.id,upstreamModel:text(m.upstreamModel,'upstreamModel',120),limits:limits(m.limits)};
       });
       if(new Set(mappings.map(m=>m.definitionId)).size!==mappings.length)throw new BadRequestException('duplicate model mapping');
-      const baseUrl=url.toString().replace(/\/$/,'');
       const protocolPaths:NonNullable<ModelService['protocolPaths']>={};
       const suppliedPaths=p.protocolPaths===undefined?existing?.protocolPaths??{}:p.protocolPaths;
       if(!suppliedPaths||typeof suppliedPaths!=='object'||Array.isArray(suppliedPaths)||Object.keys(suppliedPaths).some(k=>!['responses','messages'].includes(k)))throw new BadRequestException('invalid protocol paths');
@@ -161,10 +154,15 @@ export async function resourceAction(tx:WorkspaceTransaction,actor:Member,type:s
       const changed=!existing||(existing.providerId??'openai-compatible')!==providerId||!!rawSecret||JSON.stringify(existing.modalityPaths??{})!==JSON.stringify(paths??{})||JSON.stringify(existing.videoCancellation??null)!==JSON.stringify(videoCancellation??null)||existing.baseUrl!==baseUrl||existing.credentialRef!==credentialRef||existing.credentialId!==credentialId||JSON.stringify(existing.protocolPaths??{})!==JSON.stringify(protocolPaths)||JSON.stringify(connectionShape(existing.mappings))!==JSON.stringify(connectionShape(mappings));
       const service:ModelService={videoCancellation,credentialId,providerId,modalityPaths:paths,id:serviceId,name:text(p.name,'name',100),baseUrl,credentialRef,mappings,active:p.active!==false,protocolPaths,protocolCapabilities:changed?undefined:existing?.protocolCapabilities,
         verification:changed?'unverified':existing!.verification,verificationMessage:changed?'连接配置已变更，需要重新验证':existing!.verificationMessage,verifiedAt:changed?null:existing!.verifiedAt,configVersion:(existing?.configVersion??0)+(changed?1:0),limits:limits(p.limits),sharedCapacityId:p.sharedCapacityId?String(p.sharedCapacityId):null};
-      // An endpoint move redirects the upstream credential to a new host, so it is recorded as its own security event.
       const previousEndpoint=existing?.baseUrl??null,endpointChanged=!!existing&&existing.baseUrl!==baseUrl;
       if(existing)Object.assign(existing,service);else s.services.push(service);
-      if(endpointChanged)s.audit.push({id:newId('audit'),actorId:actor.id,action:'service.endpoint_changed',objectId:serviceId,reason:'上游地址变更：后续调用会向新地址发送上游凭据，服务已回到未验证状态',createdAt:now(),detail:{before:previousEndpoint,after:baseUrl,credentialId:service.credentialId??null,credentialRef:service.credentialRef??null,configVersion:service.configVersion,verification:service.verification}});
+      if(endpointChanged)s.audit.push({
+        id:newId('audit'),actorId:actor.id,actorName:actor.name,action:'service.endpoint_changed',
+        objectId:serviceId,objectName:service.name,createdAt:now(),
+        reason:binding.label?'后续调用会向新地址发送上游凭据，服务已回到未验证状态':'新地址未绑定上游凭据，服务已回到未验证状态',
+        detail:{before:previousEndpoint,after:baseUrl,credentialLabel:binding.label,credentialId:service.credentialId??null,
+          credentialRef:service.credentialRef??null,configVersion:service.configVersion,verification:service.verification},
+      });
       return service;
     }
     case 'save.pool':{

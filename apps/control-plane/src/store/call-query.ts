@@ -1,11 +1,17 @@
 import { BadRequestException } from '@nestjs/common';
-import type { CallFilters, CallLog, CallPage, CallQuery, CallSummary } from '@ai-gateway/contracts';
+import type { CallErrorBreakdown, CallErrorBucket, CallErrorQuery, CallFilters, CallLog, CallPage, CallQuery, CallSummary } from '@ai-gateway/contracts';
 
 // Scope is supplied by the authenticated service, never accepted from the request body.
 /* `projectIds` only exists for the analytics scope: a project manager sees
    project-purpose calls inside the projects they manage, plus their own usage. */
 export type CallScope = { employeeId:string; applicationIds:string[]; projectIds?:string[] } | null;
-export const filterColumns:Record<keyof CallFilters,string>={from:'completed_at',to:'completed_at',requestId:'request_id',subjectId:'subject_id',subjectType:'subject_type',organizationId:"coalesce(admission->>'attributionOrganizationId',organization_id)",resultGroup:'outcome',credentialId:'credential_id',projectId:'project_id',modelId:'model_id',serviceId:"admission->'route'->>'serviceId'",poolId:"admission->'route'->>'poolId'",purpose:'purpose',outcome:'outcome',billableState:'billable_state'};
+export const filterColumns:Record<keyof CallFilters,string>={
+  from:'completed_at',to:'completed_at',requestId:'request_id',subjectId:'subject_id',subjectType:'subject_type',
+  organizationId:"coalesce(admission->>'attributionOrganizationId',organization_id)",resultGroup:'outcome',credentialId:'credential_id',
+  projectId:'project_id',modelId:'model_id',serviceId:"admission->'route'->>'serviceId'",poolId:"admission->'route'->>'poolId'",
+  purpose:'purpose',outcome:'outcome',billableState:'billable_state',
+  errorCode:'error_code',errorCodeMissing:'error_code',serviceMissing:"admission->'route'->>'serviceId'",
+};
 const outcomes=['completed','upstream_error','timeout','client_cancelled','partial','rejected_before_upstream'];
 export function normalizeCallQuery(raw:CallQuery):CallQuery{
   if(!raw||typeof raw!=='object'||Array.isArray(raw))throw new BadRequestException('invalid call query');
@@ -21,6 +27,8 @@ export function normalizeCallQuery(raw:CallQuery):CallQuery{
   if(q.outcome&&!outcomes.includes(String(q.outcome)))throw new BadRequestException('invalid outcome');
   if(q.subjectType&&!['employee','application'].includes(String(q.subjectType)))throw new BadRequestException('invalid subject type');
   if(q.resultGroup&&q.resultGroup!=='errors')throw new BadRequestException('invalid result group');
+  for(const flag of ['errorCodeMissing','serviceMissing'] as const)if(q[flag]!==undefined&&q[flag]!=='true')throw new BadRequestException(`invalid ${flag}`);
+  if(q.errorCodeMissing&&q.errorCode)throw new BadRequestException('errorCode and errorCodeMissing are exclusive');
   if(q.billableState&&!['confirmed','pending_review','not_billable'].includes(String(q.billableState)))throw new BadRequestException('invalid billing state');
   if(raw.cursor!==undefined){decodeCursor(raw.cursor);q.cursor=raw.cursor;}
   return q as CallQuery;
@@ -43,8 +51,27 @@ export function matchesCall(c:CallLog,q:CallFilters,scope:CallScope){
     else if(key==='resultGroup'){if(['completed','client_cancelled'].includes(c.outcome))return false;}
     else if(key==='organizationId'){if((c.admission?.attributionOrganizationId??c.organizationId)!==value)return false;}
     else if(key==='serviceId'||key==='poolId'){if(c.admission?.route?.[key]!==value)return false;}
+    else if(key==='errorCode'){if((c.errorCode??'')!==value)return false;}
+    else if(key==='errorCodeMissing'){if(c.errorCode)return false;}
+    else if(key==='serviceMissing'){if(c.admission?.route?.serviceId!=null)return false;}
     else if(c[key as keyof CallLog]!==value)return false;
   }return true;
+}
+/**
+ * One SQL predicate builder for every call read path. The distribution and its
+ * drill-down list must never be able to disagree about which rows they count,
+ * so both are built from this function and the same bind order.
+ */
+export function callConditions(q:CallFilters,bind:(value:unknown)=>string):string[]{
+  const conditions:string[]=[];
+  for(const key of Object.keys(filterColumns) as (keyof CallFilters)[]){const value=q[key];if(value===undefined)continue;
+    if(key==='resultGroup'){conditions.push("outcome not in ('completed','client_cancelled')");continue;}
+    if(key==='errorCodeMissing'){conditions.push("coalesce(error_code,'')=''");continue;}
+    if(key==='serviceMissing'){conditions.push("(admission->'route'->>'serviceId') is null");continue;}
+    if(key==='errorCode'){conditions.push(`coalesce(error_code,'')=${bind(value)}`);continue;}
+    conditions.push(`${filterColumns[key]}${key==='from'?'>=':key==='to'?'<':'='}${bind(value)}`);
+  }
+  return conditions;
 }
 export function summarizeCalls(rows:CallLog[]):CallSummary{
   const known=rows.filter(c=>c.usageFinal===true),forwarded=rows.filter(c=>c.forwarded===true);
@@ -72,4 +99,31 @@ export function queryMemoryCalls(rows:CallLog[],input:CallQuery,scope:CallScope)
   const cursor=q.cursor?decodeCursor(q.cursor):null,after=cursor?all.filter(c=>Date.parse(c.completedAt)<Date.parse(cursor[0])||(Date.parse(c.completedAt)===Date.parse(cursor[0])&&c.requestId<cursor[1])):all;
   const items=after.slice(0,q.limit),last=items.at(-1);
   return {items:structuredClone(items),summary:summarizeCalls(all),nextCursor:after.length>items.length&&last?encodeCursor(last.completedAt,last.requestId):null,collectedAt:new Date().toISOString()};
+}
+/** A breakdown query never paginates; `limit` only bounds how many groups are returned. */
+export function normalizeCallErrorQuery(raw:CallErrorQuery):CallErrorQuery{
+  if(!raw||typeof raw!=='object'||Array.isArray(raw))throw new BadRequestException('invalid error breakdown query');
+  const {limit,cursor,...filters}=raw as CallErrorQuery&{cursor?:string};void cursor;void limit;
+  const q=normalizeCallQuery({...filters,limit:50}) as CallErrorQuery&{cursor?:string};
+  delete q.cursor;
+  const size=Number.isInteger(limit)?limit!:50;
+  if(size<1||size>200)throw new BadRequestException('bucket limit must be between 1 and 200');
+  return {...q,limit:size};
+}
+/** Same predicates as `summarizeCalls`; only error and cancelled rows are grouped. */
+export function aggregateCallErrors(rows:CallLog[],input:CallErrorQuery,scope:CallScope):CallErrorBreakdown{
+  const q=normalizeCallErrorQuery(input),matched=rows.filter(c=>matchesCall(c,q,scope));
+  const isError=(c:CallLog)=>!['completed','client_cancelled'].includes(c.outcome);
+  const errors=matched.filter(isError),cancelled=matched.filter(c=>c.outcome==='client_cancelled');
+  const groups=new Map<string,CallErrorBucket>();
+  for(const c of [...errors,...cancelled]){
+    const serviceId=c.admission?.route?.serviceId??null,errorCode=c.errorCode||null;
+    const key=JSON.stringify([serviceId,c.modelId,c.outcome,errorCode]);
+    const current=groups.get(key);
+    if(current)current.calls++;
+    else groups.set(key,{serviceId,modelId:c.modelId,outcome:c.outcome,errorCode,group:isError(c)?'error':'cancelled',calls:1});
+  }
+  const buckets=[...groups.values()].sort((a,b)=>Number(b.group==='error')-Number(a.group==='error')||b.calls-a.calls
+    ||(a.serviceId??'').localeCompare(b.serviceId??'')||a.modelId.localeCompare(b.modelId)||a.outcome.localeCompare(b.outcome)||(a.errorCode??'').localeCompare(b.errorCode??''));
+  return {from:q.from??null,to:q.to??null,collectedAt:new Date().toISOString(),ended:matched.length,errors:errors.length,cancelled:cancelled.length,unknownCode:errors.filter(c=>!c.errorCode).length,bucketCount:buckets.length,buckets:buckets.slice(0,q.limit)};
 }

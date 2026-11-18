@@ -1,13 +1,16 @@
+import {projectAttention} from './project-attention';
+import {emptyActivity} from '../store/application-activity';
 import {runModelAcceptance} from './model-acceptance';
 import {queryPeople,queryPeopleOrganizations} from './people-query';
-import {publicUpstreamCredential,routeSecret,frozenServiceCredential} from './upstream-credentials';
+import {publicUpstreamCredential,routeSecret,frozenServiceCredential,prepareServiceCredentialBinding} from './upstream-credentials';
+import {serviceBaseUrl} from './model-configuration';
 import {simulatePoolRouting} from './routing-simulation';
 import {modelProviders} from '@ai-gateway/contracts';
 import {prepareQuotaChange} from './quota-changes';
 import {guardrailPolicy,prepareGuardrailPolicy,checkGuardrail,type SafetyQuery} from '@ai-gateway/contracts';
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, Optional, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
 import { createHmac, randomBytes, randomUUID } from 'node:crypto';
-import type { ApplicationDetail, ApprovalDetail, AuthorizeRequest, CallQuery, ModelRange, PlatformCommand, ProjectDetail, PurposeView, ReasonCode, ReconciliationRequest, RequestLimitDiagnostic, UsageLimits, VerificationRun, WorkspaceState } from '@ai-gateway/contracts';
+import type { ApplicationDetail, ApprovalDetail, AuthorizeRequest, CallErrorQuery, CallQuery, ModelRange, PlatformCommand, ProjectDetail, PurposeView, ReasonCode, ReconciliationRequest, RequestLimitDiagnostic, UsageLimits, VerificationRun, WorkspaceState } from '@ai-gateway/contracts';
 import { modelProtocols,protocolUrl,estimateChatInput,isRequestReference,summarizeVerification } from '@ai-gateway/contracts';
 import { admissionOptionsForBatch, admissionDenialMessage } from '../store/admission';
 import { reconciliationCalculation } from '../store/accounting';
@@ -30,7 +33,7 @@ import { probeModelCatalog, probeProtocol, verificationMappingSnapshots, verific
 import {HigressProvider} from '../gateway/higress.provider';
 
 type SafeJson=string|number|boolean|null|SafeJson[]|{[key:string]:SafeJson};
-const safeResult=(value:unknown):SafeJson=>Array.isArray(value)?value.map(safeResult):value&&typeof value==='object'?Object.fromEntries(Object.entries(value).filter(([key])=>!['secret','password','passwordHash','keyHash','onlineSessionHash'].includes(key)).map(([key,v])=>[key,safeResult(v)])):typeof value==='string'||typeof value==='number'||typeof value==='boolean'||value===null?value:null;
+const safeResult=(value:unknown):SafeJson=>Array.isArray(value)?value.map(safeResult):value&&typeof value==='object'?Object.fromEntries(Object.entries(value).filter(([key])=>!['secret','credentialSecret','password','passwordHash','keyHash','onlineSessionHash'].includes(key)).map(([key,v])=>[key,safeResult(v)])):typeof value==='string'||typeof value==='number'||typeof value==='boolean'||value===null?value:null;
 
 @Injectable()
 export class PlatformService {
@@ -50,10 +53,12 @@ export class PlatformService {
   async snapshot(actorId:string){
     const {state:s,batches,budgets}=await this.repository.view(),actor=activeMember(s,actorId),admin=hasOperationsAccess(actor),financial=hasPermission(actor,'finance.read');
     const activeReviewers=s.members.filter(m=>{try{return !!activeMember(s,m.id);}catch{return false;}});
+    const activeIds=new Set(activeReviewers.map(member=>member.id));
     const activeOperators=activeReviewers.filter(m=>m.roles.includes('operator')&&m.id!==actor.id);
     const projects=s.projects.filter(p=>admin||p.memberIds.includes(actor.id)||p.managerId===actor.id||p.applicantId===actor.id).map(p=>{
       const manager=activeReviewers.find(m=>m.id===p.managerId&&m.id!==actor.id);
-      return {...p,memberApprovalReviewers:(manager?[manager]:activeOperators).map(m=>({id:m.id,name:m.name}))};
+      const manage=p.status==='active'&&(actor.roles.includes('operator')||p.managerId===actor.id);
+      return {...p,...(manage?{attention:projectAttention(p,activeIds,budgets,batches)}:{}),memberApprovalReviewers:(manager?[manager]:activeOperators).map(m=>({id:m.id,name:m.name}))};
     });
     const applications=s.applications.filter(a=>admin||a.ownerId===actor.id);
     const peers=new Set([actor.id,...projects.flatMap(p=>p.memberIds),...projects.map(p=>p.managerId)]);
@@ -102,6 +107,9 @@ export class PlatformService {
     const actor=activeMember(s,actorId);return hasPermission(actor,'calls.read.all')?null:{employeeId:actorId,applicationIds:s.applications.filter(a=>a.ownerId===actorId).map(a=>a.id)};
   }
   async queryCalls(actorId:string,query:CallQuery){const s=await this.repository.read();return this.store.queryCalls(query,this.callScope(s,actorId));}
+  /* The reason breakdown uses the same scope as the list it drills into; a
+     distribution row and its detail page must never disagree about visibility. */
+  async queryCallErrors(actorId:string,query:CallErrorQuery){const s=await this.repository.read();return this.store.queryCallErrors(query,this.callScope(s,actorId));}
   /* Analytics adds one scope to queryCalls: a project manager also sees project-purpose
      calls inside the projects they manage. Personal calls of other members never enter
      this scope, so a manager cannot read a colleague's private spend. */
@@ -147,11 +155,21 @@ export class PlatformService {
     if(!canManage&&!hasPermission(actor,'finance.read')&&!project.memberIds.includes(actorId)&&project.applicantId!==actorId)throw new ForbiddenException('project is outside actor scope');
     const projectBatches=batches.filter(b=>b.projectId===id),ids=canManage||hasPermission(actor,'finance.read')?[...new Set([...project.memberIds,...projectBatches.map(b=>b.sourceId)])]:[actorId];
     const visibleBatches=projectBatches.filter(b=>ids.includes(b.sourceId)),batchIds=new Set(visibleBatches.map(b=>b.id));
-    return {project,canManage,managerName:s.members.find(m=>m.id===project.managerId)?.name??project.managerId,poolName:s.pools.find(p=>p.id===project.range.poolId)?.name??project.range.poolId,models:availableModels(s,project.range).map(modelId=>({modelId,name:s.definitions.find(d=>d.modelId===modelId)?.name??modelId})),budgets:canManage||hasPermission(actor,'finance.read')?budgets.filter(b=>b.projectId===id):[],consumedByBatch:Object.fromEntries(Object.entries(consumedByBatch).filter(([batchId])=>batchIds.has(batchId))),members:ids.map(id=>{const m=pick(s.members,id,'member');let active=true;try{activeMember(s,id);}catch{active=false;}return {id,name:m.name,active,isMember:project.memberIds.includes(id),batches:visibleBatches.filter(b=>b.sourceId===id)};}),history:canManage?s.audit.filter(a=>a.objectId===id):[]};
+    const members=ids.map(id=>{
+      const m=pick(s.members,id,'member');let active=true;try{activeMember(s,id);}catch{active=false;}
+      return {id,name:m.name,active,isMember:project.memberIds.includes(id),batches:visibleBatches.filter(b=>b.sourceId===id)};
+    });
+    const attention=canManage&&project.status==='active'?projectAttention(project,new Set(members.filter(m=>m.active).map(m=>m.id)),budgets,visibleBatches):undefined;
+    return {project,canManage,attention,managerName:s.members.find(m=>m.id===project.managerId)?.name??project.managerId,poolName:s.pools.find(p=>p.id===project.range.poolId)?.name??project.range.poolId,models:availableModels(s,project.range).map(modelId=>({modelId,name:s.definitions.find(d=>d.modelId===modelId)?.name??modelId})),budgets:canManage||hasPermission(actor,'finance.read')?budgets.filter(b=>b.projectId===id):[],consumedByBatch:Object.fromEntries(Object.entries(consumedByBatch).filter(([batchId])=>batchIds.has(batchId))),members,history:canManage?s.audit.filter(a=>a.objectId===id):[]};
   }
   async projectMemberCandidates(actorId:string,id:string){
     const s=await this.repository.read(),actor=activeMember(s,actorId),project=manager(s,actor,id);if(project.status!=='active')throw new ConflictException('project is not active');
     return s.members.filter(m=>{if(project.memberIds.includes(m.id))return false;try{return !!activeMember(s,m.id);}catch{return false;}}).map(m=>({id:m.id,name:m.name,organizationId:m.organizationId,organizationName:s.organizations.find(o=>o.id===m.organizationId)?.name??m.organizationId}));
+  }
+
+  async applicationActivity(actorId:string){
+    const state=await this.repository.read(),scope=this.callScope(state,actorId);
+    return this.store.applicationActivity(scope?scope.applicationIds:state.applications.map(a=>a.id));
   }
 
   async applicationDetail(actorId:string,id:string):Promise<ApplicationDetail>{
@@ -165,8 +183,14 @@ export class PlatformService {
       return {modelId,name:s.definitions.find(d=>d.modelId===modelId)?.name??modelId,availableAmount,largestBatchAmount:Math.max(0,...usable.map(b=>b.availableAmount)),status};
     });
     const status:ApplicationDetail['status']=!application.active?'disabled':!models.length?'model_unavailable':models.some(m=>m.status==='ready')?'ready':models.some(m=>m.status==='quota_insufficient')?'quota_insufficient':models.some(m=>m.status==='price_unconfigured')?'price_unconfigured':models.every(m=>m.status==='model_unavailable')?'model_unavailable':'no_quota';
-    const ids=new Set([id,...keys.map(k=>k.id)]),calls=await this.store.queryCalls({subjectId:id,purpose:'application',limit:10},this.callScope(s,actorId));
-    return {application,ownerName:s.members.find(m=>m.id===application.ownerId)?.name??application.ownerId,organizationName:s.organizations.find(o=>o.id===application.organizationId)?.name??application.organizationId,poolName:s.pools.find(p=>p.id===application.range.poolId)?.name??application.range.poolId,status,models,availableAmount:Number(effective.filter(b=>b.modelIds.some(id=>models.some(m=>m.modelId===id))).reduce((sum,b)=>sum+b.availableAmount,0).toFixed(6)),accountingBalance:Number(appBatches.filter(b=>b.accounting).reduce((sum,b)=>sum+b.availableAmount,0).toFixed(6)),batches:appBatches,consumedByBatch,keys:keys.map(publicKey),calls,history:s.audit.filter(a=>a.objectId&&ids.has(a.objectId))};
+    const ids=new Set([id,...keys.map(k=>k.id)]);
+    const [calls,activity]=await Promise.all([
+      this.store.queryCalls({subjectType:'application',subjectId:id,purpose:'application',limit:10},this.callScope(s,actorId)),
+      this.store.applicationActivity([id]),
+    ]);
+    const summary=activity[id]??emptyActivity(),failedId=summary.lastFailure?.requestId;
+    const lastFailedCall=failedId?(calls.items.find(c=>c.requestId===failedId)??await this.store.getCall(failedId)):null;
+    return {application,activity:summary,lastFailedCall,ownerName:s.members.find(m=>m.id===application.ownerId)?.name??application.ownerId,organizationName:s.organizations.find(o=>o.id===application.organizationId)?.name??application.organizationId,poolName:s.pools.find(p=>p.id===application.range.poolId)?.name??application.range.poolId,status,models,availableAmount:Number(effective.filter(b=>b.modelIds.some(id=>models.some(m=>m.modelId===id))).reduce((sum,b)=>sum+b.availableAmount,0).toFixed(6)),accountingBalance:Number(appBatches.filter(b=>b.accounting).reduce((sum,b)=>sum+b.availableAmount,0).toFixed(6)),batches:appBatches,consumedByBatch,keys:keys.map(publicKey),calls,history:s.audit.filter(a=>a.objectId&&ids.has(a.objectId))};
   }
 
   async retentionReport(actorId:string){const state=await this.repository.read();operator(activeMember(state,actorId),'audit.read');return prepareRetention(state).report;}
@@ -193,17 +217,12 @@ export class PlatformService {
     if(c.type==='save.definition'&&p.billingMultiplier!==undefined){const before=s.definitions.find(d=>d.id===p.id);impact.billingChange={name:p.name,before:before?.billingMultiplier??1,after:p.billingMultiplier};}
     if(c.type==='save.service'&&Array.isArray(p.mappings)){
       const existing=s.services.find(service=>service.id===p.id);
-      // Moving the endpoint moves the upstream credential; make that explicit instead of
-      // letting an endpoint change hide behind an ordinary “pricing” preview.
-      const endpoint=(value:unknown)=>{
-        if(typeof value!=='string')return null;
-        try{return new URL(value.trim()).toString().replace(/\/$/,'');}catch{return null;}
-      };
-      const nextEndpoint=endpoint(p.baseUrl);
-      if(existing&&nextEndpoint&&nextEndpoint!==existing.baseUrl){
-        const credential=existing.credentialId?'托管上游凭据':existing.credentialRef?`环境变量 ${existing.credentialRef}`:null;
+      const nextEndpoint=serviceBaseUrl(p.baseUrl);
+      const providerId=String(p.providerId??existing?.providerId??'openai-compatible');
+      const {label:credential}=prepareServiceCredentialBinding(s,p,existing,providerId);
+      if(existing&&nextEndpoint!==existing.baseUrl){
         impact.endpointChange={before:existing.baseUrl,after:nextEndpoint,credential,
-          sendsCredential:credential?`变更后，服务调用和连接验收都会把${credential}发送到新地址，服务同时回到未验证状态`:'当前服务未绑定上游凭据；如果新地址需要鉴权，请在本次保存中录入服务内密钥',
+          sendsCredential:credential?`变更后，服务调用和连接验收将使用「${credential}」向新地址发送鉴权信息，服务需要重新验证`:'变更后，服务调用不会向新地址发送上游凭据，服务需要重新验证',
           requires:'credentials.write',audited:'会单独记录“记录上游地址变更”审计事件'};
       }
       const rates=(value:{inputPrice?:unknown;outputPrice?:unknown;cachedInputPrice?:unknown;meter?:{price:number;unit:string}}|null|undefined)=>value?.meter?`${value.meter.price} 元 / ${{per_request:'次',per_image:'张',per_second:'秒',per_1000_characters:'千字符'}[value.meter.unit]??value.meter.unit}`:value?[value.inputPrice,value.outputPrice,value.cachedInputPrice].map(price=>price===null||price===undefined?'未知':String(price)).join(' / '):'未知';

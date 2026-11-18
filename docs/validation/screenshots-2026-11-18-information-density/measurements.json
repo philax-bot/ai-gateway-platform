@@ -1,0 +1,417 @@
+{
+  "date": "2026-11-18",
+  "environment": "local-review",
+  "viewports": {
+    "1440": [
+      1440,
+      900
+    ],
+    "390": [
+      390,
+      844
+    ]
+  },
+  "unit": "CSS pixels from viewport top at scrollY=0",
+  "coverage": {
+    "ops": [
+      "overview",
+      "usage",
+      "leaderboard",
+      "cockpit-light",
+      "cockpit-tech",
+      "cockpit-beacon",
+      "onboarding",
+      "plans",
+      "approvals",
+      "projects",
+      "applications",
+      "catalog",
+      "providers",
+      "models",
+      "pools",
+      "capacity",
+      "members",
+      "keys",
+      "monitoring",
+      "media-tasks",
+      "safety",
+      "calls",
+      "reviews",
+      "settings",
+      "notifications"
+    ],
+    "personal": [
+      "home",
+      "available",
+      "online",
+      "multimodal",
+      "media-tasks",
+      "agent",
+      "quota",
+      "approvals",
+      "keys",
+      "calls",
+      "projects",
+      "leaderboard",
+      "notifications"
+    ]
+  },
+  "targeted_measurements": {
+    "beacon": [
+      {
+        "space": "ops",
+        "page": "usage",
+        "width": 1440,
+        "contentTop": 293,
+        "headings": {
+          "计费与成本报表": 586,
+          "模型用量分布": 1246,
+          "用户排名": 1262,
+          "人员活跃度": 1668,
+          "归属排名": 1670,
+          "数据质量": 1670,
+          "用量趋势": 2101
+        },
+        "firstTableBodyRow": 860
+      },
+      {
+        "space": "ops",
+        "page": "usage",
+        "width": 390,
+        "contentTop": 295,
+        "headings": {
+          "计费与成本报表": 575,
+          "模型用量分布": 1629,
+          "用户排名": 1899,
+          "人员活跃度": 2345,
+          "归属排名": 2689,
+          "数据质量": 3021,
+          "用量趋势": 3444
+        },
+        "firstTableBodyRow": 1050
+      },
+      {
+        "space": "ops",
+        "page": "reviews",
+        "width": 1440,
+        "contentTop": 293,
+        "headings": {
+          "待核对调用": 322
+        },
+        "firstTableBodyRow": 889
+      },
+      {
+        "space": "ops",
+        "page": "reviews",
+        "width": 390,
+        "contentTop": 295,
+        "headings": {
+          "待核对调用": 321
+        },
+        "firstTableBodyRow": 813
+      },
+      {
+        "space": "ops",
+        "page": "calls",
+        "width": 1440,
+        "contentTop": 293,
+        "headings": {
+          "调用明细": 322
+        },
+        "firstTableBodyRow": 889
+      },
+      {
+        "space": "ops",
+        "page": "calls",
+        "width": 390,
+        "contentTop": 295,
+        "headings": {
+          "调用明细": 321
+        },
+        "firstTableBodyRow": 836
+      },
+      {
+        "space": "ops",
+        "page": "monitoring",
+        "width": 1440,
+        "contentTop": 293,
+        "headings": {
+          "实时容量与压力": 322,
+          "当前运行情况": 1737,
+          "需要处理的调用异常（0）": 2093,
+          "网关访问链路": 2351
+        },
+        "firstTableBodyRow": 640
+      },
+      {
+        "space": "ops",
+        "page": "monitoring",
+        "width": 390,
+        "contentTop": 273,
+        "headings": {
+          "实时容量与压力": 291,
+          "当前运行情况": 1882,
+          "需要处理的调用异常（0）": 2488,
+          "网关访问链路": 2730
+        },
+        "firstTableBodyRow": 790
+      },
+      {
+        "space": "ops",
+        "page": "providers",
+        "width": 1440,
+        "contentTop": 293,
+        "headings": {
+          "供应商与接入": 322
+        },
+        "firstTableBodyRow": 704
+      },
+      {
+        "space": "ops",
+        "page": "providers",
+        "width": 390,
+        "contentTop": 347,
+        "headings": {
+          "供应商与接入": 365
+        },
+        "firstTableBodyRow": 1101
+      },
+      {
+        "space": "ops",
+        "page": "projects",
+        "width": 1440,
+        "contentTop": 293,
+        "headings": {
+          "项目运营": 322
+        },
+        "firstTableBodyRow": 704
+      },
+      {
+        "space": "ops",
+        "page": "projects",
+        "width": 390,
+        "contentTop": 347,
+        "headings": {
+          "项目运营": 373
+        },
+        "firstTableBodyRow": 1060
+      },
+      {
+        "space": "ops",
+        "page": "applications",
+        "width": 1440,
+        "contentTop": 293,
+        "headings": {
+          "应用接入": 322
+        },
+        "firstTableBodyRow": 724
+      },
+      {
+        "space": "ops",
+        "page": "applications",
+        "width": 390,
+        "contentTop": 347,
+        "headings": {
+          "应用接入": 373
+        },
+        "firstTableBodyRow": 1080
+      },
+      {
+        "space": "ops",
+        "page": "models",
+        "width": 1440,
+        "contentTop": 293,
+        "headings": {
+          "模型服务": 387
+        },
+        "firstTableBodyRow": 496
+      },
+      {
+        "space": "ops",
+        "page": "models",
+        "width": 390,
+        "contentTop": 347,
+        "headings": {
+          "模型服务": 438
+        },
+        "firstTableBodyRow": 567
+      },
+      {
+        "space": "personal",
+        "page": "online",
+        "width": 1440,
+        "contentTop": 314,
+        "headings": {
+          "会话设置": 337,
+          "对话": 337
+        },
+        "composer": 609
+      },
+      {
+        "space": "personal",
+        "page": "online",
+        "width": 390,
+        "contentTop": 311,
+        "headings": {
+          "会话设置": 334,
+          "对话": 984
+        },
+        "composer": 1256
+      },
+      {
+        "space": "personal",
+        "page": "available",
+        "width": 1440,
+        "contentTop": 314,
+        "headings": {
+          "按用途选择模型": 343,
+          "可直接使用1": 689,
+          "模型详情": 690
+        }
+      },
+      {
+        "space": "personal",
+        "page": "available",
+        "width": 390,
+        "contentTop": 259,
+        "headings": {
+          "按用途选择模型": 285,
+          "可直接使用1": 1006,
+          "模型详情": 1153
+        }
+      }
+    ],
+    "sidebar": [
+      {
+        "space": "ops",
+        "page": "overview",
+        "width": 1440,
+        "contentTop": 279,
+        "headings": {
+          "需要你处理": 306,
+          "让同事开始使用 AI": 532
+        }
+      },
+      {
+        "space": "ops",
+        "page": "overview",
+        "width": 390,
+        "contentTop": 250,
+        "headings": {
+          "需要你处理": 271,
+          "让同事开始使用 AI": 467
+        }
+      },
+      {
+        "space": "ops",
+        "page": "reviews",
+        "width": 1440,
+        "contentTop": 279,
+        "headings": {
+          "待核对调用": 315
+        },
+        "firstTableBodyRow": 822
+      },
+      {
+        "space": "ops",
+        "page": "reviews",
+        "width": 390,
+        "contentTop": 250,
+        "headings": {
+          "待核对调用": 280
+        },
+        "firstTableBodyRow": 796
+      },
+      {
+        "space": "ops",
+        "page": "monitoring",
+        "width": 1440,
+        "contentTop": 279,
+        "headings": {
+          "实时容量与压力": 315,
+          "当前运行情况": 1845,
+          "需要处理的调用异常（0）": 2239,
+          "网关访问链路": 2530
+        },
+        "firstTableBodyRow": 661
+      },
+      {
+        "space": "ops",
+        "page": "monitoring",
+        "width": 390,
+        "contentTop": 260,
+        "headings": {
+          "实时容量与压力": 281,
+          "当前运行情况": 1992,
+          "需要处理的调用异常（0）": 2667,
+          "网关访问链路": 2936
+        },
+        "firstTableBodyRow": 818
+      },
+      {
+        "space": "ops",
+        "page": "providers",
+        "width": 1440,
+        "contentTop": 279,
+        "headings": {
+          "供应商与接入": 315
+        },
+        "firstTableBodyRow": 700
+      },
+      {
+        "space": "ops",
+        "page": "providers",
+        "width": 390,
+        "contentTop": 260,
+        "headings": {
+          "供应商与接入": 281
+        },
+        "firstTableBodyRow": 1011
+      },
+      {
+        "space": "personal",
+        "page": "online",
+        "width": 1440,
+        "contentTop": 294,
+        "headings": {
+          "会话设置": 317,
+          "对话": 317
+        },
+        "composer": 595
+      },
+      {
+        "space": "personal",
+        "page": "online",
+        "width": 390,
+        "contentTop": 211,
+        "headings": {
+          "会话设置": 234,
+          "对话": 917
+        },
+        "composer": 1195
+      },
+      {
+        "space": "personal",
+        "page": "available",
+        "width": 1440,
+        "contentTop": 294,
+        "headings": {
+          "按用途选择模型": 330,
+          "可直接使用1": 681,
+          "模型详情": 687
+        }
+      },
+      {
+        "space": "personal",
+        "page": "available",
+        "width": 390,
+        "contentTop": 211,
+        "headings": {
+          "按用途选择模型": 241,
+          "可直接使用1": 955,
+          "模型详情": 1109
+        }
+      }
+    ]
+  }
+}

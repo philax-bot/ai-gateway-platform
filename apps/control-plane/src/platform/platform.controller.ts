@@ -26,11 +26,14 @@ export class PlatformController {
   @Get('/keys/:id') key(@Req() request:UserRequest,@Param('id') id:string){return this.platform.keyDetail(request.actor.id,id);}
   @Get('/projects/:id') project(@Req() request:UserRequest,@Param('id') id:string){return this.platform.projectDetail(request.actor.id,id);}
   @Get('/projects/:id/member-candidates') projectCandidates(@Req() request:UserRequest,@Param('id') id:string){return this.platform.projectMemberCandidates(request.actor.id,id);}
+  @Get('/application-activity') applicationActivity(@Req() request:UserRequest){return this.platform.applicationActivity(request.actor.id);}
   @Get('/applications/:id') application(@Req() request:UserRequest,@Param('id') id:string){return this.platform.applicationDetail(request.actor.id,id);}
   @Get('/calls/:requestId')
   callRelations(@Req() request:UserRequest,@Param('requestId') requestId:string){return this.platform.callRelations(request.actor.id,requestId);}
   @Post('/calls/query') @HttpCode(200)
   calls(@Req() request:UserRequest,@Body() body:CallQuery){return this.platform.queryCalls(request.actor.id,body);}
+  @Post('/calls/errors') @HttpCode(200)
+  callErrors(@Req() request:UserRequest,@Body() body:import('@ai-gateway/contracts').CallErrorQuery){return this.platform.queryCallErrors(request.actor.id,body);}
   @Post('/analytics/usage') @HttpCode(200)
   usageAnalytics(@Req() request:UserRequest,@Body() body:import('@ai-gateway/contracts').UsageAnalyticsQuery){return this.platform.usageAnalytics(request.actor.id,body);}
   @Post('/audit/query') @HttpCode(200)

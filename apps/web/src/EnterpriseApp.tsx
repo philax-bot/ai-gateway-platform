@@ -77,7 +77,7 @@ export function EnterpriseApp(){
     return()=>query.removeEventListener('change',sync);
   },[]);
   function navigate(value:string,id?:string){
-    if(operations&&value==='multimodal')setOperations(false);
+    if(operations&&(value==='online'||value==='multimodal'))setOperations(false);
     if(value==='quota'&&id)setPurposeId(id==='personal'||data?.entitlements.some(e=>e.id===id)?'personal':data?.purposes.some(p=>p.id===id)?id:'personal');
     scrollPositions.current[page]=window.scrollY;
     setPage(value);setTargetId(id??null);

@@ -27,6 +27,18 @@ describe('project and application initial grants and quota changes',()=>{
     await command('save.project',{...first,name:'改名',initialAmount:99});expect((await repo.view()).budgets).toEqual(view.budgets);
     await expect(project({expiresAt:'2000-01-01T00:00:00Z'})).rejects.toThrow();expect((await repo.read()).projects).toHaveLength(1);
   });
+  it('shows the manager expiring unspent funds once and only current active unfunded members',async()=>{
+    const p=await project({expiresAt:future(3)}),budget=(await repo.view()).budgets[0];
+    const colleague=await command('save.member',{directoryId:'project-colleague',name:'项目成员',organizationId:'org-demo'});
+    await command('project.members',{projectId:p.id,memberIds:[colleague.id]},employee);
+    await command('project.allocate',{projectId:p.id,sourceBatchId:budget.id,memberId:colleague.id,amount:6},employee);
+    const manager=(await service.snapshot(employee)).projects.find(item=>item.id===p.id)!;
+    expect(manager.attention).toMatchObject({unfundedMemberIds:[employee],expiringBudgets:[{id:budget.id,amount:20}]});
+    expect((await service.projectDetail(employee,p.id)).attention).toEqual(manager.attention);
+    expect((await service.projectDetail(colleague.id,p.id)).attention).toBeUndefined();
+    await command('project.extend',{projectId:p.id,batchId:budget.id,expiresAt:future(20),reason:'延长项目期限'});
+    expect((await service.projectDetail(employee,p.id)).attention?.expiringBudgets).toEqual([]);
+  });
   it('rolls back object creation if granting fails',async()=>{
     const original=repo.transact.bind(repo),before=await repo.view();
     repo.transact=(work,options)=>original(tx=>work({...tx,fundBudget:async()=>{throw new Error('grant storage failed');}}),options);

@@ -1,15 +1,29 @@
-import { BadRequestException, ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, OnModuleDestroy, UnauthorizedException } from '@nestjs/common';
 import { randomBytes } from 'node:crypto';
 import type { Member } from '@ai-gateway/contracts';
 import { WorkspaceRepository } from './workspace.repository';
 import { activeMember, hash, now, passwordHash, text, verifyPassword } from './validation';
 import { syncResources } from './domain';
 
+interface AttemptBucket {
+  failed: number[];
+  pending: number;
+  until: number;
+}
+
 @Injectable()
-export class AuthService {
-  private attempts = new Map<string, { count: number; until: number }>();
+export class AuthService implements OnModuleDestroy {
+  private readonly attempts = new Map<string, AttemptBucket>();
+  private attemptSequence = 0;
   private static readonly ATTEMPT_WINDOW_MS = 15 * 60_000;
-  private static readonly ATTEMPT_LIMIT = 10;
+  private static readonly ACCOUNT_LIMIT = 10;
+  private static readonly SOURCE_LIMIT = 60;
+  private readonly attemptCleanup = setInterval(() => {
+    const at = Date.now();
+    for (const [key, bucket] of this.attempts) {
+      if (bucket.until <= at && bucket.pending === 0) this.attempts.delete(key);
+    }
+  }, 60_000).unref();
   private logoutListeners = new Map<string,Set<()=>void>>();
   onLogout(token:string,listener:()=>void){const key=hash(token),listeners=this.logoutListeners.get(key)??new Set<()=>void>();listeners.add(listener);this.logoutListeners.set(key,listeners);return()=>{listeners.delete(listener);if(!listeners.size)this.logoutListeners.delete(key);};}
   constructor(private readonly repository: WorkspaceRepository) {}
@@ -35,33 +49,68 @@ export class AuthService {
     },{diagnosticContext:'auth_setup'});
   }
 
-  /** Expired buckets are dropped so a long-running process does not accumulate one entry per source forever. */
-  private pruneAttempts(at:number){for(const [key,entry] of this.attempts)if(entry.until<=at)this.attempts.delete(key);}
-  private rateLimited(key:string,at:number){const entry=this.attempts.get(key);return !!entry&&entry.until>at&&entry.count>=AuthService.ATTEMPT_LIMIT;}
-  private recordAttempt(key:string,at:number){
-    const current=this.attempts.get(key),attempt=current&&current.until>at?current:{count:0,until:at+AuthService.ATTEMPT_WINDOW_MS};
-    attempt.count++;this.attempts.set(key,attempt);
+  onModuleDestroy() {
+    clearInterval(this.attemptCleanup);
+  }
+
+  private rateLimited(key: string, limit: number, at: number): boolean {
+    const bucket = this.attempts.get(key);
+    return !!bucket && bucket.pending + (bucket.until > at ? bucket.failed.length : 0) >= limit;
+  }
+
+  private startWindow(bucket: AttemptBucket, at: number) {
+    if (bucket.until > at) return;
+    bucket.failed = [];
+    bucket.until = at + AuthService.ATTEMPT_WINDOW_MS;
+  }
+
+  private reserveAttempt(key: string, at: number): AttemptBucket {
+    const bucket = this.attempts.get(key) ?? {failed: [], pending: 0, until: 0};
+    this.startWindow(bucket, at);
+    bucket.pending++;
+    this.attempts.set(key, bucket);
+    return bucket;
   }
 
   async login(body:Record<string,unknown>,ip:string) {
     if(!body||typeof body!=='object'||Array.isArray(body))throw new BadRequestException('invalid login request');
-    const at=Date.now();this.pruneAttempts(at);
     const directoryId=text(body.directoryId,'directoryId',100),password=text(body.password,'password',256);
-    // A per-source limit alone lets a distributed attempt spray one account; a per-account limit
-    // alone lets one source lock every account out. Both buckets are counted and cleared on success.
-    const buckets=[`source:${ip}`,`account:${directoryId.trim().toLowerCase()}`];
-    if(buckets.some(bucket=>this.rateLimited(bucket,at)))throw new UnauthorizedException('too many login attempts; retry later');
-    for(const bucket of buckets)this.recordAttempt(bucket,at);
-    const result=await this.repository.transact(async tx=>{
-      const member=tx.state.members.find(m=>m.directoryId===directoryId);
-      if(!member?.passwordHash||!verifyPassword(password,member.passwordHash))throw new UnauthorizedException('invalid credentials');
-      activeMember(tx.state,member.id);
-      const token=randomBytes(32).toString('base64url');
-      tx.state.sessions=tx.state.sessions.filter(s=>Date.parse(s.expiresAt)>Date.now());
-      tx.state.sessions.push({tokenHash:hash(token),memberId:member.id,createdAt:now(),expiresAt:new Date(Date.now()+8*60*60_000).toISOString()});
-      return {token,member:this.publicMember(member)};
-    },{diagnosticContext:'auth_login'});
-    for(const bucket of buckets)this.attempts.delete(bucket);return result;
+    const at = Date.now(), sourceKey = `source:${ip}`, accountKey = `account:${directoryId}`;
+    if (this.rateLimited(sourceKey, AuthService.SOURCE_LIMIT, at) || this.rateLimited(accountKey, AuthService.ACCOUNT_LIMIT, at)) {
+      throw new UnauthorizedException('too many login attempts; retry later');
+    }
+    const attempt = ++this.attemptSequence;
+    const source = this.reserveAttempt(sourceKey, at), account = this.reserveAttempt(accountKey, at);
+    let invalidCredentials = false;
+    try {
+      const result=await this.repository.transact(async tx=>{
+        const member=tx.state.members.find(m=>m.directoryId===directoryId);
+        if(!member?.passwordHash||!verifyPassword(password,member.passwordHash)){
+          invalidCredentials = true;
+          throw new UnauthorizedException('invalid credentials');
+        }
+        activeMember(tx.state,member.id);
+        const token=randomBytes(32).toString('base64url');
+        tx.state.sessions=tx.state.sessions.filter(s=>Date.parse(s.expiresAt)>Date.now());
+        tx.state.sessions.push({tokenHash:hash(token),memberId:member.id,createdAt:now(),expiresAt:new Date(Date.now()+8*60*60_000).toISOString()});
+        return {token,member:this.publicMember(member)};
+      },{diagnosticContext:'auth_login'});
+      // A successful attempt clears earlier account failures. Other requests may finish first.
+      account.failed = account.failed.filter(failedAttempt => failedAttempt > attempt);
+      return result;
+    } finally {
+      const finishedAt = Date.now();
+      for (const [key, bucket] of [[sourceKey, source], [accountKey, account]] as const) {
+        bucket.pending--;
+        if (invalidCredentials) {
+          this.startWindow(bucket, finishedAt);
+          bucket.failed.push(attempt);
+        }
+        if (bucket.pending === 0 && (bucket.failed.length === 0 || bucket.until <= finishedAt)) {
+          this.attempts.delete(key);
+        }
+      }
+    }
   }
 
   async authenticate(token:string):Promise<Member> {
